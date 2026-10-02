@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Clocktower">
+<title>Clocktower Notebook</title>
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+/* Layout: a grimoire table (circle of seat tokens) beside an editor panel; panel stacks under the circle on phones. Dark-first. */
+:root {
+  --bg: #15121b;          /* night over the town square */
+  --surface: #211c29;
+  --surface-2: #2b2534;
+  --line: #3b3346;
+  --fg: #ece6f2;
+  --muted: #a69cb3;
+  --brass: #d4ab55;       /* clock face brass */
+  --parch: #efe4c9;       /* token parchment */
+  --parch-ink: #2a2118;
+  --good: #4c8ce4;
+  --good-soft: rgba(76,140,228,.18);
+  --evil: #d8435a;
+  --evil-soft: rgba(216,67,90,.18);
+  --townsfolk: #3e7fd6;
+  --outsider: #3aa0b5;
+  --minion: #d4485e;
+  --demon: #9e1f33;
+  --traveller: #9c6cc4;
+  --custom: #7d7487;
+  --claim: #3aa35c;
+  --claim-soft: rgba(58,163,92,.16);
+  --warn: #e3a53c;
+  --felt: radial-gradient(circle at 50% 45%, #2c2436 0%, #1b1622 62%, #15121b 100%);
+  --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+    --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+    --parch: #f3e9cf; --parch-ink: #2a2118;
+    --good: #2463c2; --good-soft: rgba(36,99,194,.12); --evil: #be2a42; --evil-soft: rgba(190,42,66,.12);
+    --townsfolk: #2463c2; --outsider: #1f8296; --minion: #c0344b; --demon: #8a1428; --traveller: #7b4ba6; --custom: #6c6278; --claim: #2a9150; --claim-soft: rgba(42,145,80,.12); --warn: #b7791f;
+    --felt: radial-gradient(circle at 50% 45%, #ffffff 0%, #ebe5f0 70%, #e2dbe9 100%);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+  --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+  --parch: #f3e9cf; --parch-ink: #2a2118;
+  --good: #2463c2; --good-soft: rgba(36,99,194,.12); --evil: #be2a42; --evil-soft: rgba(190,42,66,.12);
+  --townsfolk: #2463c2; --outsider: #1f8296; --minion: #c0344b; --demon: #8a1428; --traveller: #7b4ba6; --custom: #6c6278; --claim: #2a9150; --claim-soft: rgba(42,145,80,.12); --warn: #b7791f;
+  --felt: radial-gradient(circle at 50% 45%, #ffffff 0%, #ebe5f0 70%, #e2dbe9 100%);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 14px 40px; display: grid; gap: 14px; }
+
+/* Top bar */
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.brand { font-family: var(--font-display); font-size: 1.6rem; letter-spacing: .02em; color: var(--brass); margin: 0; line-height: 1; margin-right: auto; }
+.bar-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 12px; font-weight: 600; font-size: .9rem; }
+.btn:hover { border-color: var(--brass); }
+.btn.primary { background: var(--brass); color: #1a1408; border-color: var(--brass); }
+.btn.danger { color: var(--evil); }
+.btn.danger.solid { background: var(--evil); color: #fff; border-color: var(--evil); }
+.btn.sm { padding: 4px 9px; font-size: .82rem; }
+select.btn { padding-right: 8px; }
+.sync { font-size: .78rem; color: var(--muted); }
+
+.banner { background: var(--surface-2); border: 1px dashed var(--brass); border-radius: 10px; padding: 8px 12px; font-size: .88rem; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+/* Table */
+.table-col { display: grid; gap: 12px; min-width: 0; }
+.table { position: relative; width: 100%; max-width: 680px; aspect-ratio: 1; margin: 0 auto; border-radius: 50%; background: var(--felt); border: 1px solid var(--line); }
+.table::before { content: ""; position: absolute; inset: 9%; border-radius: 50%; border: 1px dashed color-mix(in srgb, var(--brass) 35%, transparent); pointer-events: none; }
+
+.seat { position: absolute; width: var(--tok, 70px); transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 2px; background: none; border: 0; padding: 0; }
+.disc { position: relative; width: var(--tok, 70px); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); display: grid; place-items: center; text-align: center; padding: 12%; box-shadow: 0 2px 6px rgba(0,0,0,.35), inset 0 0 0 2px rgba(42,33,24,.12); border: 3px solid transparent; transition: transform .15s ease; overflow: hidden; }
+.seat:hover .disc { transform: scale(1.05); }
+.seat.sel .disc { box-shadow: 0 0 0 3px var(--brass), 0 4px 14px rgba(0,0,0,.45); }
+.seat.good .disc { border-color: var(--good); }
+.seat.evil .disc { border-color: var(--evil); }
+.claim-txt { font-weight: 800; font-size: calc(var(--tok, 70px) * var(--fs, .15)); line-height: 1.05; overflow-wrap: break-word; }
+.claim-txt.none { color: #8d826f; font-weight: 500; font-style: italic; }
+.claim-more { display: block; font-size: calc(var(--tok, 70px) * .13); font-weight: 700; color: #6b5f4d; }
+.t-townsfolk { color: #1f5bb0; } .t-outsider { color: #187789; } .t-minion { color: #b02c42; } .t-demon { color: #85132a; } .t-traveller { color: #6d3d98; } .t-custom { color: #4a4153; }
+.seat.dead .disc { filter: grayscale(1) brightness(.62); }
+.seat.dead .disc::after { content: ""; position: absolute; left: 50%; top: -6%; width: 34%; height: 46%; transform: translateX(-50%); background: #111; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
+.vote { position: absolute; right: 2%; bottom: 2%; width: 26%; aspect-ratio: 1; border-radius: 50%; background: #fff; border: 2px solid #111; z-index: 2; }
+.pip { position: absolute; top: 3%; right: 6%; width: 14%; aspect-ratio: 1; border-radius: 50%; background: var(--brass); z-index: 2; }
+.me-tag { position: absolute; top: 4%; left: 50%; transform: translateX(-50%); font-size: calc(var(--tok, 70px) * .12); font-weight: 800; letter-spacing: .08em; background: var(--brass); color: #1a1408; border-radius: 4px; padding: 0 4px; z-index: 3; }
+.nameplate { max-width: calc(var(--tok, 70px) * 1.35); font-size: max(11px, calc(var(--tok, 70px) * .17)); font-weight: 700; line-height: 1.15; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fg); }
+.seat.dead .nameplate { color: var(--muted); text-decoration: line-through; }
+.seatno { font-size: max(10px, calc(var(--tok, 70px) * .13)); color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1; }
+
+.hub { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 46%; display: grid; justify-items: center; gap: 6px; text-align: center; }
+.day { display: flex; align-items: center; gap: 8px; }
+.day-label { font-family: var(--font-display); font-size: clamp(1.15rem, 3.4vw, 1.9rem); color: var(--brass); line-height: 1; font-variant-numeric: tabular-nums; }
+.round { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); font-weight: 800; line-height: 1; display: grid; place-items: center; padding: 0; }
+.stat { font-size: clamp(.72rem, 2vw, .92rem); color: var(--muted); font-variant-numeric: tabular-nums; }
+.stat b { color: var(--fg); }
+.comp { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; font-size: clamp(.66rem, 1.8vw, .8rem); font-weight: 700; font-variant-numeric: tabular-nums; }
+.comp span { border-radius: 99px; padding: 1px 7px; color: #fff; }
+.c-t { background: var(--townsfolk); } .c-o { background: var(--outsider); } .c-m { background: var(--minion); } .c-d { background: var(--demon); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; min-width: 0; }
+.card h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.25rem; color: var(--brass); }
+.label { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 700; }
+textarea, input[type="text"], input[type="number"] { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+textarea { resize: vertical; min-height: 90px; }
+.town-notes textarea { min-height: 110px; }
+
+/* Panel */
+.panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 10px); }
+@media (max-width: 860px) { .panel { position: static; } }
+.panel-head { display: flex; gap: 10px; align-items: center; }
+.name-input { font-size: 1.25rem !important; font-weight: 700; }
+.seat-hint { font-size: .8rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.toggle { border: 1px solid var(--line); background: var(--surface-2); border-radius: 99px; padding: 5px 11px; font-size: .85rem; font-weight: 600; }
+.toggle[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface-2); padding: 5px 12px; font-size: .85rem; font-weight: 600; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"].g { background: var(--good); color: #fff; }
+.seg button[aria-pressed="true"].u { background: var(--fg); color: var(--bg); }
+.seg button[aria-pressed="true"].e { background: var(--evil); color: #fff; }
+
+.claims { display: flex; gap: 6px; flex-wrap: wrap; min-height: 32px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 99px; padding: 3px 4px 3px 11px; font-weight: 700; font-size: .88rem; color: #fff; background: var(--custom); }
+.chip button { border: 0; background: rgba(0,0,0,.22); color: #fff; width: 22px; height: 22px; border-radius: 50%; line-height: 1; padding: 0; font-size: .95rem; }
+.chip.townsfolk { background: var(--townsfolk); } .chip.outsider { background: var(--outsider); } .chip.minion { background: var(--minion); } .chip.demon { background: var(--demon); } .chip.traveller { background: var(--traveller); }
+.empty { color: var(--muted); font-size: .88rem; font-style: italic; }
+.add-claim { display: flex; gap: 6px; }
+.add-claim input { flex: 1; min-width: 0; }
+
+.picker { display: grid; gap: 8px; max-height: 300px; overflow: auto; padding-right: 4px; }
+.pick-group { display: grid; gap: 4px; }
+.pick-group .label { display: flex; align-items: center; gap: 6px; }
+.pick-group .label i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.pick-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.pick { border: 1px solid var(--line); background: var(--surface-2); border-radius: 6px; padding: 3px 8px; font-size: .82rem; font-weight: 600; }
+.pick:hover { border-color: var(--brass); }
+.pick[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+.confirm { background: var(--evil-soft); border: 1px solid var(--evil); border-radius: 8px; padding: 8px 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .88rem; }
+
+/* Player list (quick scan) */
+.roster { display: grid; gap: 0; }
+.roster-row { display: grid; grid-template-columns: 26px minmax(0, 8rem) minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 7px 4px; border-top: 1px solid var(--line); text-align: left; background: none; border-left: 0; border-right: 0; border-bottom: 0; width: 100%; }
+.roster-row:first-child { border-top: 0; }
+.roster-row:hover { background: var(--surface-2); }
+.roster-row .n { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .82rem; }
+.roster-row .who { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roster-row.dead .who { text-decoration: line-through; color: var(--muted); }
+.roster-row .what { font-size: .88rem; min-width: 0; }
+.roster-row .what small { color: var(--muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; }
+.dot.good { background: var(--good); } .dot.evil { background: var(--evil); }
+
+/* Claim matrix */
+.matrix-card { gap: 10px; }
+.matrix-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.matrix-head h2 { margin-right: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .8rem; color: var(--muted); align-items: center; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
+.matrix-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; max-width: 100%; }
+table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; }
+.matrix th, .matrix td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 0; background: var(--surface); }
+.matrix .band th { color: #fff; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; padding: 4px 6px; text-align: left; white-space: nowrap; }
+.matrix .band th.corner, .matrix .roles th.corner { background: var(--surface); }
+.matrix th.rname { vertical-align: bottom; padding: 8px 0 6px; }
+.matrix th.rname span { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-weight: 700; display: inline-block; padding: 3px 1px; border-radius: 4px; }
+.matrix th.rname.multi span { background: var(--warn); color: #1a1408; }
+.matrix th.rname.taken span { color: var(--claim); }
+.matrix .pcol { position: sticky; left: 0; z-index: 2; text-align: left; padding: 0 10px; white-space: nowrap; max-width: 9.5rem; overflow: hidden; text-overflow: ellipsis; font-weight: 700; border-right: 2px solid var(--line); }
+.matrix .pcol button { background: none; border: 0; padding: 6px 0; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.matrix tr.dead .pcol button { text-decoration: line-through; color: var(--muted); }
+.matrix tr.sel .pcol { box-shadow: inset 3px 0 0 var(--brass); }
+.matrix tr:hover td, .matrix tr:hover .pcol { background: var(--surface-2); }
+.matrix td.cell { width: 30px; min-width: 30px; height: 30px; text-align: center; }
+.matrix td.cell button { width: 100%; height: 30px; border: 0; background: transparent; color: transparent; font-weight: 800; padding: 0; }
+.matrix td.cell button:hover { background: var(--claim-soft); color: var(--claim); }
+.matrix td.cell.on button { background: var(--claim); color: #fff; }
+.matrix td.cell.on.multi button { box-shadow: inset 0 0 0 2px var(--warn); }
+.matrix td.team-start, .matrix th.team-start { border-left: 2px solid var(--line); }
+.matrix tfoot td, .matrix tfoot th { font-variant-numeric: tabular-nums; text-align: center; font-size: .78rem; color: var(--muted); height: 26px; }
+.matrix tfoot td.multi { color: #1a1408; background: var(--warn); font-weight: 800; }
+.matrix tfoot td.one { color: var(--claim); font-weight: 800; }
+.matrix-note { font-size: .82rem; color: var(--muted); }
+
+/* New-game dialog */
+.overlay { position: fixed; inset: 0; background: rgba(8,6,12,.62); display: grid; place-items: center; padding: 16px; z-index: 20; }
+.dialog { width: min(520px, 100%); max-height: 90vh; overflow: auto; }
+.dialog .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field { display: grid; gap: 4px; }
+.hint { font-size: .8rem; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="bar">
+    <h1 class="brand">Clocktower Notebook</h1>
+    <div class="bar-group">
+      <label class="label" for="script">Script</label>
+      <select id="script" class="btn">
+        <option value="tb">Trouble Brewing</option>
+        <option value="bmr">Bad Moon Rising</option>
+        <option value="snv">Sects &amp; Violets</option>
+        <option value="all">All three</option>
+      </select>
+      <button class="btn primary" id="newGameBtn">New game</button>
+    </div>
+    <span class="sync" id="sync">Saved on this device</span>
+  </header>
+
+  <div class="banner" id="exampleBanner" hidden>
+    <span>This is an example game so you can see how it works. Start a new game to enter your own players.</span>
+    <button class="btn sm primary" id="bannerNew">Start a game</button>
+  </div>
+
+  <div class="main">
+    <section class="table-col">
+      <div class="table" id="table" aria-label="Seating circle">
+        <div class="hub">
+          <div class="day">
+            <button class="round" id="dayDown" aria-label="Previous day">−</button>
+            <span class="day-label" id="dayLabel">Day 1</span>
+            <button class="round" id="dayUp" aria-label="Next day">+</button>
+          </div>
+          <div class="stat" id="aliveStat"></div>
+          <div class="comp" id="comp"></div>
+        </div>
+      </div>
+
+      <div class="card town-notes">
+        <h2>Town notes</h2>
+        <label class="label" for="gameNotes">Nominations, votes, deaths, theories</label>
+        <textarea id="gameNotes" placeholder="Day 1: Ana nominated Ben, 4 votes..."></textarea>
+      </div>
+
+      <div class="card">
+        <h2>Who claims what</h2>
+        <div class="roster" id="roster"></div>
+      </div>
+    </section>
+
+    <aside class="card panel" id="panel"></aside>
+  </div>
+  <section class="card matrix-card" aria-labelledby="matrixTitle">
+    <div class="matrix-head">
+      <h2 id="matrixTitle">Claim matrix</h2>
+      <div class="legend">
+        <span><i style="background:var(--claim)"></i>Claimed</span>
+        <span><i style="background:var(--warn)"></i>Claimed by 2+ players</span>
+      </div>
+      <button class="toggle" id="mxOnly" aria-pressed="false">Only claimed roles</button>
+    </div>
+    <div class="matrix-wrap"><table class="matrix" id="matrix"></table></div>
+    <span class="matrix-note">Tap a square to add or remove that claim. Tap a name to open that player.</span>
+  </section>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="ngTitle">
+    <h2 id="ngTitle">New game</h2>
+    <div class="grid2">
+      <div class="field">
+        <label class="label" for="ngCount">Players</label>
+        <input type="number" id="ngCount" min="5" max="20" value="8">
+      </div>
+      <div class="field">
+        <label class="label" for="ngScript">Script</label>
+        <select id="ngScript" class="btn">
+          <option value="tb">Trouble Brewing</option>
+          <option value="bmr">Bad Moon Rising</option>
+          <option value="snv">Sects &amp; Violets</option>
+          <option value="all">All three</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label class="label" for="ngNames">Names in seat order (optional)</label>
+      <textarea id="ngNames" placeholder="One name per line, going clockwise"></textarea>
+      <span class="hint">If you enter names, the player count follows the list. Your current game will be replaced.</span>
+    </div>
+    <div class="row">
+      <button class="btn primary" id="ngStart">Start game</button>
+      <button class="btn" id="ngCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ROLES = {
+  tb: {
+    townsfolk: ["Washerwoman","Librarian","Investigator","Chef","Empath","Fortune Teller","Undertaker","Monk","Ravenkeeper","Virgin","Slayer","Soldier","Mayor"],
+    outsider: ["Butler","Drunk","Recluse","Saint"],
+    minion: ["Poisoner","Spy","Scarlet Woman","Baron"],
+    demon: ["Imp"],
+    traveller: ["Scapegoat","Gunslinger","Beggar","Bureaucrat","Thief"]
+  },
+  bmr: {
+    townsfolk: ["Grandmother","Sailor","Chambermaid","Exorcist","Innkeeper","Gambler","Gossip","Courtier","Professor","Minstrel","Tea Lady","Pacifist","Fool"],
+    outsider: ["Goon","Lunatic","Tinker","Moonchild"],
+    minion: ["Godfather","Devil's Advocate","Assassin","Mastermind"],
+    demon: ["Zombuul","Pukka","Shabaloth","Po"],
+    traveller: ["Apprentice","Matron","Judge","Bishop","Voudon"]
+  },
+  snv: {
+    townsfolk: ["Clockmaker","Dreamer","Snake Charmer","Mathematician","Flowergirl","Town Crier","Oracle","Savant","Seamstress","Philosopher","Artist","Juggler","Sage"],
+    outsider: ["Mutant","Sweetheart","Barber","Klutz"],
+    minion: ["Evil Twin","Witch","Cerenovus","Pit-Hag"],
+    demon: ["Fang Gu","Vigormortis","No Dashii","Vortox"],
+    traveller: ["Barista","Harlot","Butcher","Bone Collector","Deviant"]
+  }
+};
+const TEAMS = ["townsfolk","outsider","minion","demon","traveller"];
+const TEAM_LABEL = { townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demons", traveller: "Travellers" };
+const TEAM_OF = {};
+for (const s of Object.values(ROLES)) for (const t of TEAMS) for (const r of s[t]) TEAM_OF[r.toLowerCase()] = t;
+const teamOf = r => TEAM_OF[String(r).toLowerCase()] || "custom";
+// Townsfolk / Outsider / Minion / Demon by player count (travellers excluded)
+const COMP = {5:[3,0,1,1],6:[3,1,1,1],7:[5,0,1,1],8:[5,1,1,1],9:[5,2,1,1],10:[7,0,2,1],11:[7,1,2,1],12:[7,2,2,1],13:[9,0,3,1],14:[9,1,3,1],15:[9,2,3,1]};
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: false, ghostVote: true, align: "", me: false, traveller: false, notes: "", ...extra });
+
+function exampleState() {
+  const P = (name, claims, extra) => mkPlayer(name, { claims, ...extra });
+  return {
+    v: 1, example: true, script: "tb", day: 2,
+    notes: "Night 1: no deaths shown yet.\nDay 1: Priya nominated Tom (3 votes, not enough). Sam nominated Leo, executed with 5.\nNight 2: Jess died.",
+    players: [
+      P("You", ["Empath"], { me: true, notes: "N1: 0. N2: 1 (Sam or Mia?)" }),
+      P("Sam", ["Chef"], { align: "evil", notes: "Chef 2 is odd with only 1 minion. Pushed hard on Leo." }),
+      P("Priya", ["Investigator"], { notes: "Saw Baron between Tom and Mia." }),
+      P("Tom", ["Washerwoman", "Soldier"], { notes: "Changed claim day 2. Said Washerwoman was a bluff to bait the Imp." }),
+      P("Jess", ["Fortune Teller"], { dead: true, align: "good", notes: "Died N2. Said Ben + Mia were no." }),
+      P("Mia", ["Chef"], { notes: "Counter-claimed Chef against Sam on day 2. One of them is lying." }),
+      P("Leo", ["Saint"], { dead: true, ghostVote: false, align: "good", notes: "Executed D1, game didn't end." }),
+      P("Ben", ["Undertaker"], { notes: "Says Leo was the Saint." })
+    ],
+    selected: null, updatedAt: 0
+  };
+}
+
+function normalize(s) {
+  if (!s || !Array.isArray(s.players) || !s.players.length) return exampleState();
+  s.players = s.players.map(p => ({ ...mkPlayer(""), ...p, claims: Array.isArray(p.claims) ? p.claims : [] }));
+  s.day = Number(s.day) || 1;
+  s.script = ROLES[s.script] || s.script === "all" ? s.script : "tb";
+  s.notes = s.notes || "";
+  return s;
+}
+
+const LS_KEY = "clocktower-notebook-v1";
+let state;
+try { state = normalize(JSON.parse(localStorage.getItem(LS_KEY))); } catch (e) { state = exampleState(); }
+if (!state.selected || !state.players.find(p => p.id === state.selected)) state.selected = state.players[0].id;
+
+let docRef = null;
+let saveTimer = null;
+let confirmRemove = false;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function save() {
+  state.updatedAt = Date.now();
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+  clearTimeout(saveTimer);
+  if (!docRef) return;
+  $("sync").textContent = "Saving…";
+  saveTimer = setTimeout(async () => {
+    try { await docRef.set({ state: JSON.stringify(state), updatedAt: state.updatedAt }); $("sync").textContent = "Saved to your account"; }
+    catch (e) { $("sync").textContent = "Couldn't save to your account, kept on this device"; }
+  }, 700);
+}
+
+const sel = () => state.players.find(p => p.id === state.selected);
+function scriptRoles() {
+  if (state.script === "all") {
+    const out = {};
+    for (const t of TEAMS) out[t] = Object.values(ROLES).flatMap(s => s[t]);
+    return out;
+  }
+  return ROLES[state.script] || ROLES.tb;
+}
+
+/* ---------- Circle ---------- */
+function sizeTokens() {
+  const table = $("table");
+  const w = table.clientWidth;
+  const n = state.players.length;
+  const r = w * 0.41;
+  const gap = (2 * Math.PI * r) / n;
+  const tok = Math.max(30, Math.min(w * 0.17, gap * 0.74));
+  table.style.setProperty("--tok", tok + "px");
+}
+
+function renderCircle() {
+  const table = $("table");
+  table.querySelectorAll(".seat").forEach(el => el.remove());
+  const n = state.players.length;
+  state.players.forEach((p, i) => {
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const b = document.createElement("button");
+    b.className = "seat" + (p.id === state.selected ? " sel" : "") + (p.dead ? " dead" : "") + (p.align ? " " + p.align : "");
+    b.style.left = (50 + 41 * Math.cos(a)) + "%";
+    b.style.top = (50 + 41 * Math.sin(a)) + "%";
+    b.setAttribute("aria-label", `Seat ${i + 1}: ${p.name || "unnamed"}${p.claims.length ? ", claims " + p.claims.join(" and ") : ""}${p.dead ? ", dead" : ""}`);
+    const first = p.claims[0];
+    const claimHtml = first
+      ? `<span class="claim-txt t-${teamOf(first)}" style="--fs:${Math.min(.15, 1.05 / Math.max(...first.split(/\s+/).map(w => w.length))).toFixed(3)}">${esc(first)}${p.claims.length > 1 ? `<span class="claim-more">+${p.claims.length - 1} more</span>` : ""}</span>`
+      : `<span class="claim-txt none">no claim</span>`;
+    b.innerHTML = `
+      <span class="disc">
+        ${p.me ? '<span class="me-tag">ME</span>' : ""}
+        ${claimHtml}
+        ${p.notes.trim() ? '<span class="pip" title="Has notes"></span>' : ""}
+        ${p.dead && p.ghostVote ? '<span class="vote" title="Ghost vote available"></span>' : ""}
+      </span>
+      <span class="nameplate">${esc(p.name || "—")}</span>
+      <span class="seatno">${i + 1}${p.traveller ? " · traveller" : ""}</span>`;
+    b.addEventListener("click", () => { state.selected = p.id; confirmRemove = false; save(); render(); });
+    table.appendChild(b);
+  });
+  sizeTokens();
+
+  const alive = state.players.filter(p => !p.dead).length;
+  const votes = Math.ceil(alive / 2);
+  const ghostVotes = state.players.filter(p => p.dead && p.ghostVote).length;
+  $("dayLabel").textContent = "Day " + state.day;
+  $("aliveStat").innerHTML = `<b>${alive}</b> of ${n} alive · <b>${votes}</b> votes to execute<br>${ghostVotes} ghost vote${ghostVotes === 1 ? "" : "s"} left`;
+  const core = state.players.filter(p => !p.traveller).length;
+  const c = COMP[Math.min(core, 15)];
+  $("comp").innerHTML = c
+    ? `<span class="c-t" title="Townsfolk">${c[0]} T</span><span class="c-o" title="Outsiders">${c[1]} O</span><span class="c-m" title="Minions">${c[2]} M</span><span class="c-d" title="Demon">${c[3]} D</span>`
+    : `<span class="stat">Needs 5+ non-travellers</span>`;
+}
+
+/* ---------- Roster ---------- */
+function renderRoster() {
+  $("roster").innerHTML = state.players.map((p, i) => `
+    <button class="roster-row${p.dead ? " dead" : ""}" data-id="${p.id}">
+      <span class="n">${i + 1}</span>
+      <span class="who">${p.align ? `<span class="dot ${p.align}"></span>` : ""}${esc(p.name || "—")}${p.me ? " (me)" : ""}</span>
+      <span class="what">${p.claims.length ? p.claims.map(c => `<span class="t-${teamOf(c)}" style="color:var(--${teamOf(c)});font-weight:700">${esc(c)}</span>`).join(", ") : '<span class="empty">no claim</span>'}
+        ${p.notes.trim() ? `<small>${esc(p.notes.trim().split("\n")[0])}</small>` : ""}</span>
+    </button>`).join("");
+  $("roster").querySelectorAll(".roster-row").forEach(el => el.addEventListener("click", () => {
+    state.selected = el.dataset.id; confirmRemove = false; save(); render();
+    if (window.matchMedia("(max-width: 860px)").matches) $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  }));
+}
+
+/* ---------- Panel ---------- */
+function renderPanel() {
+  const p = sel();
+  const idx = state.players.indexOf(p);
+  const roles = scriptRoles();
+  const has = r => p.claims.some(c => c.toLowerCase() === r.toLowerCase());
+  $("panel").innerHTML = `
+    <div class="panel-head">
+      <input type="text" class="name-input" id="pName" value="${esc(p.name)}" placeholder="Player name" aria-label="Player name">
+      <span class="seat-hint">Seat ${idx + 1} of ${state.players.length}</span>
+    </div>
+
+    <div class="row">
+      <button class="toggle" id="tDead" aria-pressed="${p.dead}">${p.dead ? "Dead" : "Alive"}</button>
+      ${p.dead ? `<button class="toggle" id="tVote" aria-pressed="${p.ghostVote}">${p.ghostVote ? "Ghost vote unused" : "Ghost vote used"}</button>` : ""}
+      <button class="toggle" id="tMe" aria-pressed="${p.me}">This is me</button>
+      <button class="toggle" id="tTrav" aria-pressed="${p.traveller}">Traveller</button>
+    </div>
+
+    <div class="row">
+      <span class="label">My read</span>
+      <span class="seg" role="group" aria-label="My read on this player">
+        <button class="g" data-align="good" aria-pressed="${p.align === "good"}">Good</button>
+        <button class="u" data-align="" aria-pressed="${p.align === ""}">Unsure</button>
+        <button class="e" data-align="evil" aria-pressed="${p.align === "evil"}">Evil</button>
+      </span>
+    </div>
+
+    <div class="field">
+      <span class="label">Claimed roles</span>
+      <div class="claims">${p.claims.length
+        ? p.claims.map((c, i) => `<span class="chip ${teamOf(c)}">${esc(c)}<button data-rm="${i}" aria-label="Remove ${esc(c)}">×</button></span>`).join("")
+        : '<span class="empty">No claim yet. Tap roles below, or type one.</span>'}</div>
+      <form class="add-claim" id="claimForm">
+        <input type="text" id="claimInput" placeholder="Type any role, e.g. Juggler" list="allRoles" autocomplete="off">
+        <button class="btn" type="submit">Add</button>
+      </form>
+    </div>
+
+    <div class="picker" aria-label="Roles on this script">
+      ${TEAMS.map(t => `
+        <div class="pick-group">
+          <span class="label"><i style="background:var(--${t})"></i>${TEAM_LABEL[t]}</span>
+          <div class="pick-list">${roles[t].map(r => `<button class="pick" data-role="${esc(r)}" aria-pressed="${has(r)}">${esc(r)}</button>`).join("")}</div>
+        </div>`).join("")}
+    </div>
+
+    <div class="field">
+      <label class="label" for="pNotes">Notes on ${esc(p.name || "this player")}</label>
+      <textarea id="pNotes" placeholder="What they said, who they pinged, how they voted...">${esc(p.notes)}</textarea>
+    </div>
+
+    <div class="row">
+      <button class="btn sm" id="mvL">← Move seat</button>
+      <button class="btn sm" id="mvR">Move seat →</button>
+      <button class="btn sm" id="addAfter">+ Add seat after</button>
+      <button class="btn sm danger" id="rmSeat">Remove</button>
+    </div>
+    ${confirmRemove ? `<div class="confirm">Remove ${esc(p.name || "this seat")} and their notes?
+      <button class="btn sm danger solid" id="rmYes">Remove</button><button class="btn sm" id="rmNo">Keep</button></div>` : ""}
+  `;
+
+  $("pName").addEventListener("input", e => { p.name = e.target.value; save(); renderCircle(); renderRoster(); renderMatrix(); });
+  $("pNotes").addEventListener("input", e => { p.notes = e.target.value; save(); renderCircle(); renderRoster(); });
+  $("tDead").onclick = () => { p.dead = !p.dead; if (!p.dead) p.ghostVote = true; save(); render(); };
+  if ($("tVote")) $("tVote").onclick = () => { p.ghostVote = !p.ghostVote; save(); render(); };
+  $("tMe").onclick = () => { const v = !p.me; state.players.forEach(x => x.me = false); p.me = v; save(); render(); };
+  $("tTrav").onclick = () => { p.traveller = !p.traveller; save(); render(); };
+  $("panel").querySelectorAll("[data-align]").forEach(b => b.onclick = () => { p.align = b.dataset.align; save(); render(); });
+  $("panel").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { p.claims.splice(+b.dataset.rm, 1); save(); render(); });
+  $("panel").querySelectorAll(".pick").forEach(b => b.onclick = () => {
+    const r = b.dataset.role;
+    const i = p.claims.findIndex(c => c.toLowerCase() === r.toLowerCase());
+    if (i >= 0) p.claims.splice(i, 1); else p.claims.push(r);
+    save(); render();
+  });
+  $("claimForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const v = $("claimInput").value.trim();
+    if (!v) return;
+    const known = Object.keys(TEAM_OF).find(k => k === v.toLowerCase());
+    const name = known ? Object.values(ROLES).flatMap(s => TEAMS.flatMap(t => s[t])).find(r => r.toLowerCase() === known) : v;
+    if (!p.claims.some(c => c.toLowerCase() === name.toLowerCase())) p.claims.push(name);
+    save(); render();
+    $("claimInput").focus();
+  });
+  const move = d => {
+    const n = state.players.length, j = (idx + d + n) % n;
+    [state.players[idx], state.players[j]] = [state.players[j], state.players[idx]];
+    save(); render();
+  };
+  $("mvL").onclick = () => move(-1);
+  $("mvR").onclick = () => move(1);
+  $("addAfter").onclick = () => {
+    if (state.players.length >= 24) return;
+    const np = mkPlayer("");
+    state.players.splice(idx + 1, 0, np);
+    state.selected = np.id; save(); render(); $("pName").focus();
+  };
+  $("rmSeat").onclick = () => { if (state.players.length > 1) { confirmRemove = true; renderPanel(); } };
+  if ($("rmYes")) $("rmYes").onclick = () => {
+    state.players.splice(idx, 1);
+    state.selected = state.players[Math.min(idx, state.players.length - 1)].id;
+    confirmRemove = false; save(); render();
+  };
+  if ($("rmNo")) $("rmNo").onclick = () => { confirmRemove = false; renderPanel(); };
+}
+
+/* ---------- Claim matrix ---------- */
+function renderMatrix() {
+  const only = !!state.matrixClaimedOnly;
+  $("mxOnly").setAttribute("aria-pressed", only);
+  const roles = scriptRoles();
+  const count = {};
+  for (const p of state.players) for (const c of p.claims) { const k = c.toLowerCase(); count[k] = (count[k] || 0) + 1; }
+  const groups = TEAMS.map(t => ({ team: t, roles: roles[t].filter(r => !only || count[r.toLowerCase()]) }));
+  const inScript = new Set(TEAMS.flatMap(t => roles[t].map(r => r.toLowerCase())));
+  const extra = [];
+  for (const p of state.players) for (const c of p.claims) if (!inScript.has(c.toLowerCase()) && !extra.some(e => e.toLowerCase() === c.toLowerCase())) extra.push(c);
+  if (extra.length) groups.push({ team: "custom", label: "Off script", roles: extra });
+  const shown = groups.filter(g => g.roles.length);
+  if (!shown.length) {
+    $("matrix").innerHTML = `<tbody><tr><td class="pcol" style="padding:12px">No claims yet. Turn off "Only claimed roles" to see every role.</td></tr></tbody>`;
+    return;
+  }
+  const cols = shown.flatMap(g => g.roles.map((r, i) => ({ role: r, team: g.team, start: i === 0 })));
+  const cls = (r, start) => { const n = count[r.toLowerCase()] || 0; return (start ? " team-start" : "") + (n > 1 ? " multi" : n === 1 ? " taken" : ""); };
+  $("matrix").innerHTML = `
+    <thead>
+      <tr class="band"><th class="corner pcol"></th>${shown.map(g => `<th class="team-start" colspan="${g.roles.length}" style="background:var(--${g.team})">${g.label || TEAM_LABEL[g.team]}</th>`).join("")}</tr>
+      <tr class="roles"><th class="corner pcol">Player</th>${cols.map(c => `<th class="rname${cls(c.role, c.start)}" title="${esc(c.role)}"><span>${esc(c.role)}</span></th>`).join("")}</tr>
+    </thead>
+    <tbody>${state.players.map((p, i) => `
+      <tr class="${p.dead ? "dead" : ""}${p.id === state.selected ? " sel" : ""}">
+        <th class="pcol" scope="row"><button data-open="${p.id}">${i + 1}. ${esc(p.name || "—")}</button></th>
+        ${cols.map(c => {
+          const on = p.claims.some(x => x.toLowerCase() === c.role.toLowerCase());
+          const n = count[c.role.toLowerCase()] || 0;
+          return `<td class="cell${c.start ? " team-start" : ""}${on ? " on" : ""}${on && n > 1 ? " multi" : ""}"><button data-p="${p.id}" data-r="${esc(c.role)}" aria-pressed="${on}" aria-label="${esc(p.name || "Seat " + (i + 1))} claims ${esc(c.role)}">✓</button></td>`;
+        }).join("")}
+      </tr>`).join("")}
+    </tbody>
+    <tfoot><tr><th class="pcol">Claims</th>${cols.map(c => { const n = count[c.role.toLowerCase()] || 0; return `<td class="${c.start ? "team-start " : ""}${n > 1 ? "multi" : n ? "one" : ""}">${n || ""}</td>`; }).join("")}</tr></tfoot>`;
+  $("matrix").querySelectorAll("[data-p]").forEach(b => b.onclick = () => {
+    const p = state.players.find(x => x.id === b.dataset.p);
+    const r = b.dataset.r;
+    const i = p.claims.findIndex(c => c.toLowerCase() === r.toLowerCase());
+    if (i >= 0) p.claims.splice(i, 1); else p.claims.push(r);
+    save(); render();
+  });
+  $("matrix").querySelectorAll("[data-open]").forEach(b => b.onclick = () => {
+    state.selected = b.dataset.open; confirmRemove = false; save(); render();
+    $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+$("mxOnly").onclick = () => { state.matrixClaimedOnly = !state.matrixClaimedOnly; save(); renderMatrix(); };
+
+function render() {
+  if (!sel()) state.selected = state.players[0].id;
+  $("script").value = state.script;
+  $("exampleBanner").hidden = !state.example;
+  if (document.activeElement !== $("gameNotes")) $("gameNotes").value = state.notes;
+  renderCircle();
+  renderRoster();
+  renderPanel();
+  renderMatrix();
+}
+
+/* ---------- Global controls ---------- */
+const dl = document.createElement("datalist");
+dl.id = "allRoles";
+dl.innerHTML = Object.keys(TEAM_OF).map(k => `<option value="${esc(Object.values(ROLES).flatMap(s => TEAMS.flatMap(t => s[t])).find(r => r.toLowerCase() === k))}">`).join("");
+document.body.appendChild(dl);
+
+$("script").onchange = e => { state.script = e.target.value; save(); renderPanel(); renderMatrix(); };
+$("gameNotes").addEventListener("input", e => { state.notes = e.target.value; save(); });
+$("dayUp").onclick = () => { state.day++; save(); renderCircle(); };
+$("dayDown").onclick = () => { state.day = Math.max(1, state.day - 1); save(); renderCircle(); };
+
+function openNew() { $("ngScript").value = state.script; $("overlay").hidden = false; $("ngCount").focus(); }
+$("newGameBtn").onclick = openNew;
+$("bannerNew").onclick = openNew;
+$("ngCancel").onclick = () => { $("overlay").hidden = true; };
+$("overlay").addEventListener("click", e => { if (e.target === $("overlay")) $("overlay").hidden = true; });
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("overlay").hidden = true; });
+$("ngStart").onclick = () => {
+  const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
+  const count = names.length || Math.max(5, Math.min(20, parseInt($("ngCount").value, 10) || 8));
+  const players = Array.from({ length: count }, (_, i) => mkPlayer(names[i] || `Player ${i + 1}`));
+  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, updatedAt: 0 };
+  confirmRemove = false;
+  $("overlay").hidden = true; $("ngNames").value = "";
+  save(); render();
+};
+
+new ResizeObserver(sizeTokens).observe($("table"));
+render();
+
+/* ---------- Account sync ---------- */
+(async () => {
+  try {
+    if (!window.claude?.use) return;
+    const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    if (!db || !user) return;
+    const id = await user.id();
+    if (!id) return;
+    docRef = db.collection("data/users/" + id).doc("grimoire");
+    const snap = await docRef.get();
+    if (snap.exists) {
+      const d = snap.data();
+      if ((d.updatedAt || 0) > (state.updatedAt || 0)) {
+        state = normalize(JSON.parse(d.state));
+        try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+        render();
+      } else if (!state.example) save();
+    } else if (!state.example) save();
+    $("sync").textContent = "Saved to your account";
+  } catch (e) {
+    docRef = null;
+    $("sync").textContent = "Saving on this device";
+  }
+})();
+</script>
+
+</body>
+</html>
