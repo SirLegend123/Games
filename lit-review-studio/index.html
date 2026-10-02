@@ -1,0 +1,1230 @@
+<title>Lit Review Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Comic+Neue:wght@400;700&family=Young+Serif&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<style>
+/* Layout: a calm three-room workspace (Sources table · Reader · Map), one room at a time, tabs on top.
+   Low-glare tinted paper, dark-slate ink (never pure black on white), generous spacing for dyslexic readers. */
+:root {
+  --paper: #edf1ef;
+  --panel: #f8faf8;
+  --ink: #1e2b33;
+  --muted: #56656d;
+  --line: #cfd8d5;
+  --accent: #2c6a86;
+  --accent-ink: #ffffff;
+  --accent-soft: #d8e8ee;
+  --mark: #ffe58a;
+  --mark-ink: #1e2b33;
+  --good: #2f7a52;
+  --warn: #a86414;
+  --bad: #b03a3a;
+  --t1: #2c6a86; --t2: #8a4fa0; --t3: #2f7a52; --t4: #b0602a; --t5: #a8436b; --t6: #5a6b1f; --t7: #3d5bb0; --t8: #7a5a2e;
+  --shadow: 0 1px 2px rgba(30,43,51,.08), 0 4px 14px rgba(30,43,51,.07);
+  --f-display: "Young Serif", Georgia, serif;
+  --f-body: "Lexend", "Atkinson Hyperlegible", system-ui, sans-serif;
+  --f-read: "Lexend", system-ui, sans-serif;
+  --read-size: 20px;
+  --read-lh: 1.8;
+  --read-ls: 0.03em;
+  --read-ws: 0.12em;
+  --read-bg: #f6f1df;
+  --read-ink: #1e2b33;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #161d21; --panel: #1e272c; --ink: #e3e9e6; --muted: #9eadb4; --line: #33424a;
+    --accent: #7cc0dd; --accent-ink: #0f1a1f; --accent-soft: #23404d; --mark: #6a5a17; --mark-ink: #fff6d6;
+    --good: #6cc796; --warn: #e3a659; --bad: #ec8a8a;
+    --t1: #7cc0dd; --t2: #c79ad8; --t3: #6cc796; --t4: #e9a06b; --t5: #e690b5; --t6: #b9c86a; --t7: #9fb4f2; --t8: #d3b07e;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+    --read-bg: #22251f; --read-ink: #ebe6d4;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #161d21; --panel: #1e272c; --ink: #e3e9e6; --muted: #9eadb4; --line: #33424a;
+  --accent: #7cc0dd; --accent-ink: #0f1a1f; --accent-soft: #23404d; --mark: #6a5a17; --mark-ink: #fff6d6;
+  --good: #6cc796; --warn: #e3a659; --bad: #ec8a8a;
+  --t1: #7cc0dd; --t2: #c79ad8; --t3: #6cc796; --t4: #e9a06b; --t5: #e690b5; --t6: #b9c86a; --t7: #9fb4f2; --t8: #d3b07e;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+  --read-bg: #22251f; --read-ink: #ebe6d4;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  background: var(--paper); color: var(--ink);
+  font-family: var(--f-body); font-size: 16px; line-height: 1.6; letter-spacing: .01em;
+  display: flex; flex-direction: column;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+.wrap { padding-inline: 16px; }
+
+/* top bar */
+header.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 12px 20px; flex-wrap: wrap;
+  padding: 10px 16px;
+}
+.brand { display: flex; flex-direction: column; min-width: 0; }
+.brand h1 { font-family: var(--f-display); font-weight: 400; font-size: 1.35rem; line-height: 1.2; }
+.brand small { color: var(--muted); font-size: .8rem; }
+nav.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+nav.tabs button {
+  border: 1px solid var(--line); background: transparent; border-radius: 999px;
+  padding: 8px 16px; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 8px;
+}
+nav.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+nav.tabs .step { font-size: .75rem; opacity: .75; }
+.top-right { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.save-state { font-size: .8rem; color: var(--muted); }
+
+.btn {
+  border: 1px solid var(--line); background: var(--panel); border-radius: 8px;
+  padding: 8px 14px; cursor: pointer; font-weight: 500; display: inline-flex; gap: 6px; align-items: center;
+  min-height: 40px;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.ghost { background: transparent; }
+.btn.small { min-height: 32px; padding: 4px 10px; font-size: .88rem; }
+.btn.danger { color: var(--bad); }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+
+main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+section.room { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.room-head { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding-block: 16px 10px; }
+.room-head h2 { font-family: var(--f-display); font-weight: 400; font-size: 1.5rem; }
+.room-head p { margin: 0; color: var(--muted); max-width: 62ch; }
+.grow { flex: 1 1 280px; min-width: 0; }
+.loading { padding: 40px 16px; color: var(--muted); text-align: center; }
+
+/* chips */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 2px 10px;
+  font-size: .8rem; border: 1px solid currentColor; line-height: 1.6; white-space: nowrap; background: transparent;
+}
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.status { font-size: .78rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.status.s-toread { color: var(--warn); }
+.status.s-reading { color: var(--accent); }
+.status.s-done { color: var(--good); }
+.status.s-suggested { color: var(--muted); }
+
+/* sources table */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-bottom: 12px; }
+.filters input[type=search] { flex: 1 1 220px; min-width: 0; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); }
+.filters select { padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); }
+.matrix-scroll { overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); margin-bottom: 24px; }
+table.matrix { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1100px; font-size: .92rem; }
+table.matrix th, table.matrix td { padding: 12px; vertical-align: top; text-align: left; border-bottom: 1px solid var(--line); }
+table.matrix th { position: sticky; top: 0; background: var(--panel); z-index: 1; font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+table.matrix th:first-child, table.matrix td:first-child { position: sticky; left: 0; background: var(--panel); z-index: 2; width: 260px; border-right: 1px solid var(--line); }
+table.matrix th:first-child { z-index: 3; }
+table.matrix tr:hover td { background: var(--accent-soft); }
+table.matrix td.empty { color: var(--muted); font-style: italic; }
+table.matrix .t-title { font-weight: 600; cursor: pointer; display: block; }
+table.matrix .t-meta { color: var(--muted); font-size: .82rem; }
+.clamp { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; max-width: 34ch; }
+.cards { display: none; gap: 12px; padding-bottom: 24px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; }
+.card h3 { font-size: 1rem; font-weight: 600; }
+.card .meta { color: var(--muted); font-size: .85rem; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+@media (max-width: 760px) {
+  .matrix-scroll { display: none; }
+  .cards { display: grid; }
+}
+
+/* drawer editor */
+.scrim { position: fixed; inset: 0; background: rgba(15,25,30,.35); z-index: 40; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(620px, 100%); z-index: 41;
+  background: var(--panel); border-left: 1px solid var(--line); box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.drawer-head { display: flex; gap: 8px; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.drawer-head h2 { font-family: var(--f-display); font-weight: 400; font-size: 1.25rem; flex: 1; min-width: 0; }
+.drawer-body { overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 18px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-weight: 600; font-size: .95rem; }
+.field .hint { color: var(--muted); font-size: .85rem; margin-top: -4px; }
+.field input, .field textarea, .field select {
+  padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper);
+  line-height: 1.6; width: 100%;
+}
+.field textarea { min-height: 84px; resize: vertical; }
+.row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+fieldset.group { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 14px; margin: 0; }
+fieldset.group legend { font-family: var(--f-display); font-size: 1.05rem; padding: 0 6px; }
+.theme-picks { display: flex; flex-wrap: wrap; gap: 8px; }
+.theme-picks label { cursor: pointer; }
+.theme-picks input { position: absolute; opacity: 0; pointer-events: none; }
+.theme-picks input:checked + .chip { background: color-mix(in srgb, currentColor 16%, transparent); font-weight: 600; }
+.theme-picks input:focus-visible + .chip { outline: 3px solid var(--accent); outline-offset: 2px; }
+.quote { border-left: 3px solid var(--accent); padding: 4px 10px; display: flex; gap: 8px; align-items: flex-start; }
+.quote p { margin: 0; flex: 1; min-width: 0; }
+.ref-box { background: var(--paper); border: 1px dashed var(--line); padding: 10px 12px; border-radius: 8px; font-size: .9rem; }
+.ai-suggest { background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; font-size: .9rem; display: flex; flex-direction: column; gap: 6px; }
+
+/* reader */
+.reader-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; flex: 1; min-height: 0; padding-bottom: 16px; }
+@media (max-width: 960px) { .reader-layout { grid-template-columns: minmax(0, 1fr); } }
+.reader-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-bottom: 10px; }
+.reader-bar select { padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); max-width: 100%; min-width: 0; }
+.page-wrap { position: relative; border-radius: var(--radius); background: var(--read-bg); border: 1px solid var(--line); overflow: auto; min-height: 320px; max-height: calc(100vh - 220px); }
+.page {
+  color: var(--read-ink); font-family: var(--f-read); font-size: var(--read-size); line-height: var(--read-lh);
+  letter-spacing: var(--read-ls); word-spacing: var(--read-ws);
+  max-width: 62ch; margin: 0 auto; padding: 28px 24px 80px;
+}
+.page p { margin: 0 0 1.2em; border-radius: 6px; transition: opacity .2s; text-align: left; }
+.page.focus p { opacity: .32; }
+.page.focus p.current { opacity: 1; }
+.page p.current { background: color-mix(in srgb, var(--accent) 8%, transparent); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 8%, transparent); }
+.page .w.speaking { background: var(--mark); color: var(--mark-ink); border-radius: 3px; }
+.page mark { background: var(--mark); color: var(--mark-ink); }
+.ruler { position: absolute; left: 0; right: 0; height: calc(var(--read-size) * var(--read-lh) + 8px); pointer-events: none; background: color-mix(in srgb, var(--accent) 10%, transparent); border-top: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); border-bottom: 2px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.empty-read { padding: 32px 24px; display: flex; flex-direction: column; gap: 14px; max-width: 60ch; margin: 0 auto; color: var(--read-ink); }
+.empty-read textarea { min-height: 180px; padding: 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); }
+.side { display: flex; flex-direction: column; gap: 14px; min-width: 0; overflow: auto; max-height: calc(100vh - 160px); }
+.side .box { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.side .box h3 { font-size: .8rem; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.side label { font-size: .9rem; display: flex; flex-direction: column; gap: 4px; }
+.side input[type=range] { width: 100%; }
+.swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.swatch { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; }
+.swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.explain-out { font-size: .95rem; line-height: 1.7; white-space: pre-wrap; }
+.sel-pop { position: fixed; z-index: 30; display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 4px; box-shadow: var(--shadow); }
+
+/* map */
+.map-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-bottom: 10px; }
+.map-hint { font-size: .9rem; color: var(--muted); }
+.map-hint.active { color: var(--accent); font-weight: 600; }
+.map-shell { position: relative; flex: 1; min-height: 420px; border: 1px solid var(--line); border-radius: var(--radius); overflow: auto; background:
+  radial-gradient(circle, color-mix(in srgb, var(--muted) 30%, transparent) 1px, transparent 1.5px) 0 0 / 28px 28px, var(--panel); margin-bottom: 16px; }
+.map-canvas { position: relative; width: 2400px; height: 1600px; }
+.map-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.node {
+  position: absolute; touch-action: none; user-select: none; cursor: grab;
+  background: var(--panel); border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px;
+  width: 210px; box-shadow: var(--shadow); font-size: .85rem; line-height: 1.4;
+}
+.node.dragging { cursor: grabbing; z-index: 5; }
+.node.theme { width: auto; max-width: 240px; border-radius: 999px; padding: 10px 18px; font-weight: 600; font-size: .95rem; background: color-mix(in srgb, currentColor 14%, var(--panel)); border-color: currentColor; text-align: center; }
+.node.theme span { color: var(--ink); }
+.node .n-title { font-weight: 600; color: var(--ink); }
+.node .n-meta { color: var(--muted); font-size: .78rem; }
+.node .n-dots { display: flex; gap: 4px; margin-top: 6px; }
+.node .n-dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+.node.picked { outline: 4px solid var(--accent); outline-offset: 2px; }
+.node.dim { opacity: .3; }
+.edge { fill: none; stroke-width: 2.5; }
+.edge.auto { stroke-width: 1.5; stroke-dasharray: 3 5; opacity: .7; }
+.edge-hit { fill: none; stroke: transparent; stroke-width: 16; cursor: pointer; }
+.edge-label { font-family: var(--f-body); font-size: 12px; font-weight: 600; paint-order: stroke; stroke: var(--panel); stroke-width: 5px; stroke-linejoin: round; cursor: pointer; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .82rem; color: var(--muted); }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.legend i { width: 22px; height: 0; border-top: 3px solid; display: inline-block; }
+.legend i.dash { border-top-style: dashed; }
+.modal { position: fixed; z-index: 50; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(460px, calc(100% - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 18px; display: flex; flex-direction: column; gap: 14px; max-height: 90vh; overflow: auto; }
+.modal h3 { font-family: var(--f-display); font-weight: 400; font-size: 1.2rem; }
+.link-types { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.link-types button { border: 2px solid var(--line); border-radius: 10px; padding: 10px; background: transparent; cursor: pointer; text-align: left; font-weight: 600; }
+.link-types button[aria-pressed="true"] { border-color: currentColor; background: color-mix(in srgb, currentColor 12%, transparent); }
+.link-types small { display: block; font-weight: 400; color: var(--muted); font-size: .8rem; }
+.theme-panel { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: min(420px, calc(100% - 32px)); max-height: 60vh; overflow: auto; z-index: 35; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.theme-panel h3 { font-family: var(--f-display); font-weight: 400; font-size: 1.2rem; }
+.theme-panel ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+.starter { background: var(--paper); border-radius: 8px; padding: 8px 10px; font-style: italic; }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 18px; border-radius: 999px; z-index: 60; font-weight: 500; max-width: calc(100% - 32px); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+
+<header class="top">
+  <div class="brand">
+    <h1>Lit Review Studio</h1>
+    <small id="topic-line">Neurodiverse school workforce · leadership &amp; management · England</small>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Rooms">
+    <button role="tab" id="tab-sources" aria-selected="true" data-room="sources"><span class="step">1</span>Sources</button>
+    <button role="tab" id="tab-read" aria-selected="false" data-room="read"><span class="step">2</span>Read</button>
+    <button role="tab" id="tab-map" aria-selected="false" data-room="map"><span class="step">3</span>Map</button>
+  </nav>
+  <div class="top-right">
+    <span class="save-state" id="save-state" aria-live="polite">Loading…</span>
+  </div>
+</header>
+
+<main>
+  <!-- SOURCES -->
+  <section class="room wrap" id="room-sources" role="tabpanel" aria-labelledby="tab-sources">
+    <div class="room-head">
+      <div class="grow">
+        <h2>Evidence table</h2>
+        <p>One row per source. Answer the short questions for each paper instead of writing free notes.</p>
+      </div>
+      <button class="btn" id="btn-copy-refs" type="button">Copy reference list</button>
+      <button class="btn" id="btn-csv" type="button" hidden>Download table (CSV)</button>
+      <button class="btn primary" id="btn-add" type="button">+ Add source</button>
+    </div>
+    <div class="filters">
+      <label class="sr" for="f-search">Search sources</label>
+      <input type="search" id="f-search" placeholder="Search titles, authors, notes…">
+      <label class="sr" for="f-status">Filter by status</label>
+      <select id="f-status">
+        <option value="">All statuses</option>
+        <option value="suggested">Suggested</option>
+        <option value="toread">To read</option>
+        <option value="reading">Reading</option>
+        <option value="done">Done</option>
+      </select>
+      <label class="sr" for="f-theme">Filter by theme</label>
+      <select id="f-theme"><option value="">All themes</option></select>
+    </div>
+    <div id="sources-body"><div class="loading">Loading your sources…</div></div>
+  </section>
+
+  <!-- READ -->
+  <section class="room wrap" id="room-read" role="tabpanel" aria-labelledby="tab-read" hidden>
+    <div class="room-head">
+      <div class="grow">
+        <h2>Reader</h2>
+        <p>Paste an article or open a PDF. Press Read aloud and follow the highlighted word. Select any text to save it as a quote or ask for a plain-English version.</p>
+      </div>
+    </div>
+    <div class="reader-bar">
+      <label class="sr" for="r-source">Source being read</label>
+      <select id="r-source"></select>
+      <button class="btn" id="r-play" type="button">▶ Read aloud</button>
+      <button class="btn" id="r-stop" type="button" disabled>■ Stop</button>
+      <button class="btn" id="r-focus" type="button" aria-pressed="false">Focus mode</button>
+      <button class="btn" id="r-ruler" type="button" aria-pressed="false">Reading ruler</button>
+      <button class="btn ghost" id="r-replace" type="button">Replace text</button>
+    </div>
+    <div class="reader-layout">
+      <div class="page-wrap" id="page-wrap">
+        <div class="ruler" id="ruler" hidden></div>
+        <div id="page" class="page"></div>
+      </div>
+      <aside class="side">
+        <div class="box" id="ai-box" hidden>
+          <h3>Plain English</h3>
+          <button class="btn" id="r-summary" type="button">Summarise this paper simply</button>
+          <button class="btn" id="r-extract" type="button">Draft my table notes</button>
+          <div class="explain-out" id="explain-out" aria-live="polite"></div>
+        </div>
+        <div class="box">
+          <h3>Reading comfort</h3>
+          <label for="s-font">Font
+            <select id="s-font">
+              <option value="Lexend">Lexend</option>
+              <option value="Atkinson Hyperlegible">Atkinson Hyperlegible</option>
+              <option value="Comic Neue">Comic Neue</option>
+              <option value="Verdana">Verdana</option>
+              <option value="Georgia">Georgia</option>
+            </select>
+          </label>
+          <label for="s-size">Text size <input type="range" id="s-size" min="15" max="32" step="1"></label>
+          <label for="s-lh">Line spacing <input type="range" id="s-lh" min="1.4" max="2.6" step="0.1"></label>
+          <label for="s-ls">Letter spacing <input type="range" id="s-ls" min="0" max="0.12" step="0.01"></label>
+          <label for="s-ws">Word spacing <input type="range" id="s-ws" min="0" max="0.5" step="0.02"></label>
+          <div>
+            <div style="font-size:.9rem;margin-bottom:4px">Page colour</div>
+            <div class="swatches" id="swatches"></div>
+          </div>
+          <label for="s-rate">Reading speed <input type="range" id="s-rate" min="0.6" max="1.6" step="0.05"></label>
+          <label for="s-voice">Voice <select id="s-voice"></select></label>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- MAP -->
+  <section class="room wrap" id="room-map" role="tabpanel" aria-labelledby="tab-map" hidden>
+    <div class="room-head">
+      <div class="grow">
+        <h2>Ideas map</h2>
+        <p>Drag cards around. Dotted lines come from the themes you tagged. Draw your own links to show where studies agree, disagree or build on each other.</p>
+      </div>
+    </div>
+    <div class="map-tools">
+      <button class="btn primary" id="m-link" type="button" aria-pressed="false">Draw a link</button>
+      <button class="btn" id="m-theme" type="button">+ New theme</button>
+      <button class="btn" id="m-tidy" type="button">Tidy layout</button>
+      <button class="btn small" id="m-zoom-out" type="button" aria-label="Zoom out">−</button>
+      <button class="btn small" id="m-zoom-in" type="button" aria-label="Zoom in">+</button>
+      <span class="map-hint" id="map-hint">Tip: tap a theme bubble to see everything linked to it.</span>
+    </div>
+    <div class="legend" id="legend" style="padding-bottom:10px"></div>
+    <div class="map-shell" id="map-shell">
+      <div class="map-canvas" id="map-canvas">
+        <svg id="map-svg" aria-hidden="true"></svg>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="overlay-root"></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- constants ---------- */
+const STATUSES = { suggested: 'Suggested', toread: 'To read', reading: 'Reading', done: 'Done' };
+const LINK_TYPES = {
+  supports:    { label: 'Supports',    hint: 'They agree / back each other up', color: 'var(--good)' },
+  contradicts: { label: 'Contradicts', hint: 'They disagree or clash',          color: 'var(--bad)' },
+  extends:     { label: 'Builds on',   hint: 'One takes the other further',     color: 'var(--accent)' },
+  gap:         { label: 'Shows a gap', hint: 'Something is missing between them', color: 'var(--warn)' },
+};
+const THEME_COLORS = ['--t1','--t2','--t3','--t4','--t5','--t6','--t7','--t8'];
+const DEFAULT_THEMES = [
+  ['How neurodiversity is understood', '--t1'],
+  ['Leadership approaches & culture', '--t2'],
+  ['Disclosure & professional identity', '--t3'],
+  ['Adjustments, policy & law', '--t4'],
+  ['Workload & wellbeing', '--t5'],
+  ['Gaps in the research', '--t6'],
+];
+const PAGE_TINTS = [
+  ['Cream', '#f6f1df', '#22251f'], ['Soft blue', '#e3edf5', '#1b2530'], ['Mint', '#e2f0e6', '#1a2620'],
+  ['Peach', '#f8e6d8', '#2a211b'], ['Lilac', '#ece4f3', '#241f2b'], ['Grey', '#e9ebea', '#202426'],
+];
+const TEXT_CAP = 180000;
+
+/* ---------- helpers ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()).replace(/-/g, '').slice(0, 14);
+const isDark = () => {
+  const t = document.documentElement.getAttribute('data-theme');
+  return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+};
+function lsGet(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+let toastTimer;
+function toast(msg) {
+  let t = $('.toast');
+  if (!t) { t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast('Copied'); return true; }
+  catch { return false; }
+}
+
+/* ---------- state ---------- */
+const state = {
+  sources: {},          // id -> source
+  board: null,          // {themes, nodes, links}
+  ready: false,
+  room: lsGet('lrs-room', 'sources'),
+  readId: lsGet('lrs-read', null),
+};
+const prefs = Object.assign({ font: 'Lexend', size: 20, lh: 1.8, ls: 0.03, ws: 0.12, tint: 0, rate: 0.95, voice: '' }, lsGet('lrs-prefs', {}));
+
+function blankSource(extra = {}) {
+  return Object.assign({
+    kind: 'source', title: '', authors: '', year: '', journal: '', url: '', type: 'Journal article', status: 'toread',
+    question: '', method: '', sample: '', findings: '', limitations: '', relevance: '', quotes: [], themes: [], text: '',
+    created: Date.now(), updated: Date.now(),
+  }, extra);
+}
+function defaultBoard() {
+  return { kind: 'board', themes: DEFAULT_THEMES.map(([name, color], i) => ({ id: 'th' + (i + 1), name, color })), nodes: {}, links: [] };
+}
+
+/* ---------- storage: private per-person db, local fallback ---------- */
+const store = {
+  mode: 'none', db: null, coll: null, timers: {}, chains: {}, dirty: new Set(),
+  async init() {
+    const c = window.claude;
+    if (c && c.use) {
+      try {
+        const [db, user] = await Promise.all([c.use('db'), c.use('user')]);
+        const id = user ? await user.id() : null;
+        if (db && id) { this.db = db; this.coll = db.collection('data/users/' + id); this.mode = 'cloud'; }
+      } catch {}
+    }
+    if (this.mode !== 'cloud') this.mode = 'local';
+  },
+  start(onData) {
+    if (this.mode === 'cloud') {
+      this.coll.onSnapshot(snap => {
+        let board = null; const sources = {};
+        for (const d of snap.docs) {
+          const v = d.data(); if (!v) continue;
+          if (v.kind === 'board') board = v;
+          else if (v.kind === 'source') sources[d.id] = Object.assign({}, v, { id: d.id });
+        }
+        onData({ sources, board, definitive: !snap.metadata.fromCache });
+      }, err => { setSave('Could not sync (' + err.code + '). Changes stay on this page.'); });
+    } else {
+      const data = lsGet('lrs-data', { sources: {}, board: null });
+      onData({ sources: data.sources || {}, board: data.board, definitive: true });
+    }
+  },
+  save(id, body) {
+    if (this.mode === 'local') {
+      clearTimeout(this.timers.__local);
+      this.timers.__local = setTimeout(() => {
+        const sources = {}; for (const [k, v] of Object.entries(state.sources)) sources[k] = v;
+        lsSet('lrs-data', { sources, board: state.board });
+        setSave('Saved in this browser');
+      }, 400);
+      return;
+    }
+    this.dirty.add(id); setSave('Saving…');
+    clearTimeout(this.timers[id]);
+    this.timers[id] = setTimeout(() => {
+      const data = JSON.parse(JSON.stringify(body)); delete data.id;
+      this.chains[id] = (this.chains[id] || Promise.resolve()).then(() => this.coll.doc(id).set(data))
+        .then(() => { this.dirty.delete(id); if (!this.dirty.size) setSave('All changes saved'); })
+        .catch(e => { this.dirty.delete(id); setSave(e && e.code === 'quota_exceeded' ? 'Storage full: remove some pasted texts' : 'Save failed, try again'); });
+    }, 700);
+  },
+  remove(id) {
+    if (this.mode === 'local') { this.save(); return; }
+    clearTimeout(this.timers[id]); this.dirty.delete(id);
+    this.coll.doc(id).delete().catch(() => setSave('Delete failed'));
+  },
+};
+function setSave(t) { $('#save-state').textContent = t; }
+function saveSource(s) { s.updated = Date.now(); state.sources[s.id] = s; store.save(s.id, s); }
+function saveBoard() { store.save('board', state.board); }
+
+/* ---------- theme helpers ---------- */
+const themes = () => (state.board ? state.board.themes : []);
+const themeById = id => themes().find(t => t.id === id);
+const tc = t => `var(${t ? t.color : '--muted'})`;
+function themeChip(t) { return `<span class="chip" style="color:${tc(t)}"><span class="dot"></span><span style="color:var(--ink)">${esc(t.name)}</span></span>`; }
+
+/* ---------- references (Harvard) ---------- */
+function harvard(s) {
+  const a = (s.authors || 'Unknown author').trim();
+  const y = s.year || 'n.d.';
+  let r = `${a} (${y}) '${(s.title || 'Untitled').trim()}'`;
+  if (s.journal) r += `, ${s.journal.trim()}`;
+  r += '.';
+  if (s.url) r += ` Available at: ${s.url.trim()} (Accessed: ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}).`;
+  return r;
+}
+const shortCite = s => {
+  const first = (s.authors || 'Unknown').split(/,| and |&/)[0].trim().split(/\s+/).pop();
+  const many = /,| and |&| et al/.test(s.authors || '');
+  return `${first}${many ? ' et al.' : ''} (${s.year || 'n.d.'})`;
+};
+
+/* ================= ROOMS / TABS ================= */
+function showRoom(room) {
+  state.room = room; lsSet('lrs-room', room);
+  for (const b of document.querySelectorAll('nav.tabs button')) b.setAttribute('aria-selected', String(b.dataset.room === room));
+  for (const r of ['sources', 'read', 'map']) $('#room-' + r).hidden = r !== room;
+  if (room !== 'read') stopSpeech();
+  render();
+}
+document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => showRoom(b.dataset.room)));
+
+function render() {
+  if (!state.ready) return;
+  renderThemeFilter();
+  if (state.room === 'sources') renderSources();
+  if (state.room === 'read') renderReaderChrome();
+  if (state.room === 'map') renderMap();
+}
+
+/* ================= SOURCES ================= */
+function sortedSources() {
+  return Object.values(state.sources).sort((a, b) => {
+    const order = { reading: 0, toread: 1, suggested: 2, done: 3 };
+    return (order[a.status] - order[b.status]) || ((b.updated || 0) - (a.updated || 0));
+  });
+}
+function renderThemeFilter() {
+  const sel = $('#f-theme'), cur = sel.value;
+  sel.innerHTML = '<option value="">All themes</option>' + themes().map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+  sel.value = cur;
+}
+function filteredSources() {
+  const q = $('#f-search').value.trim().toLowerCase(), st = $('#f-status').value, th = $('#f-theme').value;
+  return sortedSources().filter(s => {
+    if (st && s.status !== st) return false;
+    if (th && !(s.themes || []).includes(th)) return false;
+    if (q) {
+      const hay = [s.title, s.authors, s.journal, s.findings, s.question, s.method, s.relevance, s.limitations].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function cell(v) { return v ? `<td><div class="clamp">${esc(v)}</div></td>` : '<td class="empty">–</td>'; }
+function renderSources() {
+  const body = $('#sources-body');
+  const list = filteredSources();
+  if (!Object.keys(state.sources).length) {
+    body.innerHTML = `<div class="card" style="cursor:default;max-width:60ch"><h3>No sources yet</h3><p style="margin:0">Press <b>+ Add source</b> to log your first paper. You only need a title to start; fill in the rest as you read.</p></div>`;
+    return;
+  }
+  if (!list.length) { body.innerHTML = '<div class="loading">No sources match those filters.</div>'; return; }
+  const rows = list.map(s => `<tr data-id="${esc(s.id)}">
+      <td><span class="t-title" tabindex="0" role="button">${esc(s.title || 'Untitled')}</span>
+        <span class="t-meta">${esc(shortCite(s))}</span><br>
+        <span class="status s-${esc(s.status)}">${esc(STATUSES[s.status] || '')}</span>
+        <div class="chips" style="margin-top:6px">${(s.themes || []).map(themeById).filter(Boolean).map(themeChip).join('')}</div></td>
+      ${cell(s.question)}${cell(s.method)}${cell(s.sample)}${cell(s.findings)}${cell(s.limitations)}${cell(s.relevance)}
+    </tr>`).join('');
+  const cards = list.map(s => `<div class="card" data-id="${esc(s.id)}" tabindex="0" role="button">
+      <span class="status s-${esc(s.status)}">${esc(STATUSES[s.status] || '')}</span>
+      <h3>${esc(s.title || 'Untitled')}</h3>
+      <div class="meta">${esc(shortCite(s))}${s.journal ? ' · ' + esc(s.journal) : ''}</div>
+      ${s.findings ? `<div class="clamp" style="max-width:none">${esc(s.findings)}</div>` : ''}
+      <div class="chips">${(s.themes || []).map(themeById).filter(Boolean).map(themeChip).join('')}</div>
+    </div>`).join('');
+  body.innerHTML = `<div class="matrix-scroll"><table class="matrix">
+      <thead><tr><th>Source</th><th>What did they ask?</th><th>How did they find out?</th><th>Who / where?</th><th>What did they find?</th><th>Weak spots</th><th>Why it matters to me</th></tr></thead>
+      <tbody>${rows}</tbody></table></div><div class="cards">${cards}</div>`;
+}
+$('#sources-body').addEventListener('click', e => {
+  const el = e.target.closest('[data-id]'); if (el) openEditor(el.dataset.id);
+});
+$('#sources-body').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const el = e.target.closest('[data-id]'); if (el) { e.preventDefault(); openEditor(el.dataset.id); }
+});
+['#f-search', '#f-status', '#f-theme'].forEach(s => $(s).addEventListener('input', renderSources));
+$('#btn-add').addEventListener('click', () => {
+  const s = blankSource({ id: uid() }); saveSource(s); openEditor(s.id, true);
+});
+$('#btn-copy-refs').addEventListener('click', async () => {
+  const list = Object.values(state.sources).filter(s => s.status !== 'suggested')
+    .sort((a, b) => (a.authors || '').localeCompare(b.authors || ''));
+  if (!list.length) { toast('Mark a source as To read, Reading or Done first'); return; }
+  const text = list.map(harvard).join('\n\n');
+  if (!(await copyText(text))) showTextModal('Reference list', text);
+});
+
+/* CSV via downloads capability */
+let downloads = null;
+$('#btn-csv').addEventListener('click', async () => {
+  const cols = ['title', 'authors', 'year', 'journal', 'url', 'status', 'question', 'method', 'sample', 'findings', 'limitations', 'relevance'];
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const lines = [cols.concat('themes').join(',')].concat(sortedSources().map(s =>
+    cols.map(c => q(c === 'status' ? STATUSES[s.status] : s[c])).concat(q((s.themes || []).map(id => (themeById(id) || {}).name).filter(Boolean).join('; '))).join(',')));
+  try { await downloads.save({ filename: 'evidence-table.csv', data: lines.join('\n') }); }
+  catch (e) { if (e && e.code !== 'declined') toast('Download did not work this time'); }
+});
+
+/* ---------- editor drawer ---------- */
+let editorId = null;
+function closeOverlay() { $('#overlay-root').innerHTML = ''; editorId = null; render(); }
+function openEditor(id, isNew) {
+  const s = state.sources[id]; if (!s) return;
+  editorId = id;
+  const f = (key, label, hint, rows) => `<div class="field"><label for="e-${key}">${label}</label>${hint ? `<div class="hint">${hint}</div>` : ''}
+      ${rows ? `<textarea id="e-${key}" data-k="${key}" rows="${rows}">${esc(s[key])}</textarea>` : `<input id="e-${key}" data-k="${key}" value="${esc(s[key])}">`}</div>`;
+  $('#overlay-root').innerHTML = `<div class="scrim" data-close></div>
+  <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="d-title">
+    <div class="drawer-head"><h2 id="d-title">${isNew ? 'New source' : 'Source notes'}</h2>
+      <button class="btn small" type="button" id="e-read">Open in reader</button>
+      <button class="btn small" type="button" data-close aria-label="Close">Close</button></div>
+    <div class="drawer-body">
+      <div class="field"><label for="e-status">Where are you with it?</label>
+        <select id="e-status" data-k="status">${Object.entries(STATUSES).map(([k, v]) => `<option value="${k}" ${s.status === k ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+      <fieldset class="group"><legend>About the source</legend>
+        ${f('title', 'Title')}
+        <div class="row2">${f('authors', 'Authors', 'Surname, Initial. Separate with commas')}${f('year', 'Year')}</div>
+        ${f('journal', 'Journal, publisher or organisation')}
+        ${f('url', 'Link (web address or DOI)')}
+      </fieldset>
+      <fieldset class="group"><legend>Your notes, in short answers</legend>
+        ${f('question', 'What were they trying to find out?', 'One sentence is enough.', 2)}
+        ${f('method', 'How did they find out?', 'e.g. interviews, survey, case study, policy review', 2)}
+        ${f('sample', 'Who and where?', 'e.g. 12 SENCOs, primary schools, England', 2)}
+        ${f('findings', 'What did they find?', 'Bullet points are fine. Use your own words.', 4)}
+        ${f('limitations', 'Weak spots', 'Small sample? Not in England? Not about staff?', 2)}
+        ${f('relevance', 'Why does this matter for my question?', 'How it helps you answer: how leadership is understood and enacted for a neurodiverse workforce.', 3)}
+      </fieldset>
+      <div class="field"><label>Themes</label><div class="hint">Tap all that fit. They become links on your map.</div>
+        <div class="theme-picks">${themes().map(t => `<label><input type="checkbox" value="${esc(t.id)}" ${(s.themes || []).includes(t.id) ? 'checked' : ''}>${themeChip(t)}</label>`).join('')}</div></div>
+      <div class="field"><label>Saved quotes</label>
+        <div id="e-quotes">${(s.quotes || []).length ? s.quotes.map((q, i) => `<div class="quote"><p>“${esc(q.text)}”${q.page ? ` <span class="t-meta">(p. ${esc(q.page)})</span>` : ''}</p><button class="btn small ghost" type="button" data-delq="${i}" aria-label="Remove quote">✕</button></div>`).join('') : '<div class="hint">Select text in the reader and press “Save quote”.</div>'}</div></div>
+      <div class="field"><label>Reference (Harvard)</label><div class="ref-box" id="e-ref">${esc(harvard(s))}</div>
+        <div><button class="btn small" type="button" id="e-copyref">Copy reference</button></div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between">
+        <button class="btn danger" type="button" id="e-del">Delete source</button>
+        <button class="btn primary" type="button" data-close>Done</button>
+      </div>
+      <div id="e-confirm" hidden class="ai-suggest"><b>Delete “${esc(s.title || 'Untitled')}”?</b> Its notes and map links go too.
+        <div style="display:flex;gap:8px"><button class="btn danger" type="button" id="e-del-yes">Yes, delete</button><button class="btn" type="button" id="e-del-no">Keep it</button></div></div>
+    </div>
+  </div>`;
+  const root = $('#overlay-root');
+  root.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeOverlay));
+  root.querySelectorAll('[data-k]').forEach(el => el.addEventListener('input', () => {
+    s[el.dataset.k] = el.value; saveSource(s); $('#e-ref').textContent = harvard(s);
+  }));
+  root.querySelectorAll('.theme-picks input').forEach(cb => cb.addEventListener('change', () => {
+    s.themes = [...root.querySelectorAll('.theme-picks input:checked')].map(x => x.value); saveSource(s);
+  }));
+  root.querySelectorAll('[data-delq]').forEach(b => b.addEventListener('click', () => {
+    s.quotes.splice(+b.dataset.delq, 1); saveSource(s); openEditor(id);
+  }));
+  $('#e-copyref').addEventListener('click', async () => { if (!(await copyText(harvard(s)))) toast('Select the reference text and copy it'); });
+  $('#e-read').addEventListener('click', () => { state.readId = id; lsSet('lrs-read', id); closeOverlay(); showRoom('read'); });
+  $('#e-del').addEventListener('click', () => { $('#e-confirm').hidden = false; $('#e-del-yes').focus(); });
+  $('#e-del-no').addEventListener('click', () => { $('#e-confirm').hidden = true; });
+  $('#e-del-yes').addEventListener('click', () => {
+    delete state.sources[id]; store.remove(id);
+    if (state.board) {
+      delete state.board.nodes[id];
+      state.board.links = state.board.links.filter(l => l.from !== id && l.to !== id); saveBoard();
+    }
+    closeOverlay(); toast('Source deleted');
+  });
+  (isNew ? $('#e-title') : $('.drawer-head .btn[data-close]')).focus();
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#overlay-root').innerHTML) closeOverlay(); });
+function showTextModal(title, text) {
+  $('#overlay-root').innerHTML = `<div class="scrim" data-close></div><div class="modal" role="dialog" aria-modal="true"><h3>${esc(title)}</h3>
+    <textarea readonly style="min-height:240px;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--paper)">${esc(text)}</textarea>
+    <div class="hint">Select all and copy.</div><button class="btn primary" type="button" data-close>Close</button></div>`;
+  $('#overlay-root').querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeOverlay));
+  const ta = $('#overlay-root textarea'); ta.focus(); ta.select();
+}
+
+/* ================= READER ================= */
+function applyPrefs() {
+  const r = document.documentElement.style;
+  const fam = { 'Lexend': '"Lexend", system-ui, sans-serif', 'Atkinson Hyperlegible': '"Atkinson Hyperlegible", system-ui, sans-serif', 'Comic Neue': '"Comic Neue", "Comic Sans MS", sans-serif', 'Verdana': 'Verdana, Geneva, sans-serif', 'Georgia': 'Georgia, serif' };
+  r.setProperty('--f-read', fam[prefs.font] || fam.Lexend);
+  r.setProperty('--read-size', prefs.size + 'px');
+  r.setProperty('--read-lh', prefs.lh);
+  r.setProperty('--read-ls', prefs.ls + 'em');
+  r.setProperty('--read-ws', prefs.ws + 'em');
+  const tint = PAGE_TINTS[prefs.tint] || PAGE_TINTS[0];
+  r.setProperty('--read-bg', isDark() ? tint[2] : tint[1]);
+  lsSet('lrs-prefs', prefs);
+}
+function initPrefsUI() {
+  $('#s-font').value = prefs.font; $('#s-size').value = prefs.size; $('#s-lh').value = prefs.lh;
+  $('#s-ls').value = prefs.ls; $('#s-ws').value = prefs.ws; $('#s-rate').value = prefs.rate;
+  const map = { 's-font': 'font', 's-size': 'size', 's-lh': 'lh', 's-ls': 'ls', 's-ws': 'ws', 's-rate': 'rate', 's-voice': 'voice' };
+  for (const [id, k] of Object.entries(map)) $('#' + id).addEventListener('input', e => {
+    prefs[k] = (k === 'font' || k === 'voice') ? e.target.value : parseFloat(e.target.value); applyPrefs();
+  });
+  $('#swatches').innerHTML = PAGE_TINTS.map((t, i) => `<button type="button" class="swatch" data-i="${i}" aria-label="${t[0]}" aria-pressed="${i === prefs.tint}" style="background:${isDark() ? t[2] : t[1]}"></button>`).join('');
+  $('#swatches').addEventListener('click', e => {
+    const b = e.target.closest('.swatch'); if (!b) return;
+    prefs.tint = +b.dataset.i; applyPrefs();
+    $('#swatches').querySelectorAll('.swatch').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { applyPrefs(); initSwatchColors(); });
+  applyPrefs();
+}
+function initSwatchColors() { $('#swatches').querySelectorAll('.swatch').forEach((b, i) => { b.style.background = isDark() ? PAGE_TINTS[i][2] : PAGE_TINTS[i][1]; }); }
+
+let renderedReadKey = null;
+function renderReaderChrome() {
+  const sel = $('#r-source');
+  const list = sortedSources();
+  if (!state.readId || !state.sources[state.readId]) state.readId = (list.find(s => s.text) || list[0] || {}).id || null;
+  sel.innerHTML = list.length ? list.map(s => `<option value="${esc(s.id)}">${esc((s.title || 'Untitled').slice(0, 70))}${s.text ? '' : ' (no text yet)'}</option>`).join('') : '<option value="">Add a source first</option>';
+  if (state.readId) sel.value = state.readId;
+  const s = state.sources[state.readId];
+  const key = s ? s.id + ':' + (s.text || '').length : 'none';
+  if (key !== renderedReadKey) { renderedReadKey = key; renderPage(s); }
+}
+$('#r-source').addEventListener('change', e => { stopSpeech(); state.readId = e.target.value; lsSet('lrs-read', state.readId); renderedReadKey = null; renderReaderChrome(); $('#explain-out').textContent = ''; });
+
+function paragraphsOf(text) {
+  return text.replace(/\r/g, '').split(/\n\s*\n+/).map(p => p.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean);
+}
+function renderPage(s) {
+  const page = $('#page');
+  $('#r-play').disabled = $('#r-replace').hidden = !(s && s.text);
+  if (!s) { page.innerHTML = '<div class="empty-read"><p>Add a source on the Sources tab, then come back here to read it.</p></div>'; return; }
+  if (!s.text) {
+    page.innerHTML = `<div class="empty-read">
+      <h3 style="font-family:var(--f-display);font-weight:400">Add the text of “${esc(s.title || 'this source')}”</h3>
+      <p style="margin:0">Open a PDF from your device, or copy the article from a web page and paste it below.</p>
+      <label class="btn" style="align-self:flex-start">Open a PDF<input type="file" id="pdf-in" accept="application/pdf" class="sr"></label>
+      <label for="paste-in">Or paste text</label>
+      <textarea id="paste-in" placeholder="Paste the article here…"></textarea>
+      <button class="btn primary" type="button" id="paste-go" style="align-self:flex-start">Use this text</button>
+      ${s.url ? `<p style="margin:0;font-size:.9rem">Find it here: <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a></p>` : ''}
+    </div>`;
+    $('#paste-go').addEventListener('click', () => setText(s, $('#paste-in').value));
+    $('#pdf-in').addEventListener('change', e => loadPdf(s, e.target.files[0]));
+    return;
+  }
+  let n = 0;
+  page.innerHTML = paragraphsOf(s.text).map((p, pi) => `<p data-p="${pi}">` + p.split(/(\s+)/).map(w => /\s+/.test(w) || !w ? w : `<span class="w" data-w="${n++}">${esc(w)}</span>`).join('') + '</p>').join('');
+}
+function setText(s, text) {
+  text = (text || '').trim();
+  if (!text) { toast('Paste some text first'); return; }
+  if (text.length > TEXT_CAP) { text = text.slice(0, TEXT_CAP); toast('Long text: kept the first part'); }
+  s.text = text; if (s.status === 'suggested' || s.status === 'toread') s.status = 'reading';
+  saveSource(s); renderedReadKey = null; renderReaderChrome();
+}
+async function loadPdf(s, file) {
+  if (!file) return;
+  if (!window.pdfjsLib) { toast('PDF reader did not load. Paste the text instead.'); return; }
+  $('#page').innerHTML = '<div class="loading">Reading the PDF…</div>';
+  try {
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const out = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const tc = await (await pdf.getPage(i)).getTextContent();
+      let line = '', lastY = null, page = [];
+      for (const it of tc.items) {
+        const y = it.transform ? Math.round(it.transform[5]) : null;
+        if (lastY !== null && y !== null && Math.abs(y - lastY) > 14) { page.push(line); line = ''; if (Math.abs(y - lastY) > 22) page.push(''); }
+        else if (lastY !== null && y !== lastY) line += ' ';
+        line += it.str; if (it.hasEOL) { page.push(line); line = ''; }
+        lastY = y;
+      }
+      page.push(line);
+      out.push(page.join('\n').replace(/-\n(\w)/g, '$1'));
+    }
+    const text = out.join('\n\n');
+    if (text.replace(/\s/g, '').length < 50) { toast('This PDF has no selectable text (it may be a scan). Paste text instead.'); renderedReadKey = null; renderReaderChrome(); return; }
+    setText(s, text);
+  } catch { toast('Could not open that PDF. Try pasting the text.'); renderedReadKey = null; renderReaderChrome(); }
+}
+$('#r-replace').addEventListener('click', () => {
+  const s = state.sources[state.readId]; if (!s) return;
+  stopSpeech(); s.text = ''; saveSource(s); renderedReadKey = null; renderReaderChrome();
+});
+
+/* focus + ruler */
+let focusOn = false, rulerOn = false;
+$('#r-focus').addEventListener('click', e => { focusOn = !focusOn; e.currentTarget.setAttribute('aria-pressed', focusOn); $('#page').classList.toggle('focus', focusOn); if (focusOn && !$('#page p.current')) { const p = $('#page p'); if (p) p.classList.add('current'); } });
+$('#r-ruler').addEventListener('click', e => { rulerOn = !rulerOn; e.currentTarget.setAttribute('aria-pressed', rulerOn); $('#ruler').hidden = !rulerOn; });
+$('#page-wrap').addEventListener('pointermove', e => {
+  if (!rulerOn) return;
+  const wrap = $('#page-wrap'), r = wrap.getBoundingClientRect(), h = $('#ruler').offsetHeight;
+  $('#ruler').style.top = (e.clientY - r.top + wrap.scrollTop - h / 2) + 'px';
+});
+$('#page').addEventListener('click', e => {
+  const p = e.target.closest('p[data-p]'); if (!p) return;
+  if (window.getSelection().toString()) return;
+  $('#page').querySelectorAll('p.current').forEach(x => x.classList.remove('current')); p.classList.add('current');
+});
+
+/* read aloud */
+const synth = window.speechSynthesis;
+let speaking = false, speakIdx = 0;
+function loadVoices() {
+  if (!synth) { $('#r-play').hidden = true; return; }
+  const vs = synth.getVoices().filter(v => /^en/i.test(v.lang));
+  const sel = $('#s-voice');
+  sel.innerHTML = '<option value="">Default voice</option>' + vs.map(v => `<option value="${esc(v.name)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('');
+  sel.value = prefs.voice || '';
+}
+if (synth) { loadVoices(); synth.addEventListener?.('voiceschanged', loadVoices); }
+function speakParagraph(pi) {
+  const p = $(`#page p[data-p="${pi}"]`);
+  if (!p || !speaking) { stopSpeech(); return; }
+  $('#page').querySelectorAll('p.current').forEach(x => x.classList.remove('current')); p.classList.add('current');
+  p.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  const words = [...p.querySelectorAll('.w')];
+  const starts = []; let text = '';
+  words.forEach((w, i) => { starts.push(text.length); text += w.textContent + (i < words.length - 1 ? ' ' : ''); });
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = prefs.rate; u.lang = 'en-GB';
+  const v = synth.getVoices().find(x => x.name === prefs.voice); if (v) u.voice = v;
+  let last = null;
+  u.onboundary = ev => {
+    if (ev.name && ev.name !== 'word') return;
+    let i = starts.length - 1; while (i > 0 && starts[i] > ev.charIndex) i--;
+    if (last) last.classList.remove('speaking'); last = words[i]; if (last) last.classList.add('speaking');
+  };
+  u.onend = () => { if (last) last.classList.remove('speaking'); if (speaking) { speakIdx = pi + 1; speakParagraph(speakIdx); } };
+  u.onerror = () => { if (last) last.classList.remove('speaking'); };
+  synth.speak(u);
+}
+$('#r-play').addEventListener('click', () => {
+  if (!synth) return;
+  if (speaking) { // pause / resume
+    if (synth.paused) { synth.resume(); $('#r-play').textContent = '❚❚ Pause'; } else { synth.pause(); $('#r-play').textContent = '▶ Resume'; }
+    return;
+  }
+  const cur = $('#page p.current'); speakIdx = cur ? +cur.dataset.p : 0;
+  speaking = true; synth.cancel(); $('#r-stop').disabled = false; $('#r-play').textContent = '❚❚ Pause';
+  speakParagraph(speakIdx);
+});
+function stopSpeech() {
+  speaking = false; if (synth) synth.cancel();
+  $('#r-stop').disabled = true; $('#r-play').textContent = '▶ Read aloud';
+  document.querySelectorAll('.w.speaking').forEach(w => w.classList.remove('speaking'));
+}
+$('#r-stop').addEventListener('click', stopSpeech);
+
+/* selection popover */
+let pop = null;
+function hidePop() { if (pop) { pop.remove(); pop = null; } }
+function selectedPageText() {
+  const sel = window.getSelection(); if (!sel || sel.isCollapsed) return '';
+  if (!$('#page').contains(sel.anchorNode)) return '';
+  return sel.toString().replace(/\s+/g, ' ').trim();
+}
+document.addEventListener('selectionchange', () => {
+  clearTimeout(selectionchange.t);
+  selectionchange.t = setTimeout(() => {
+    const text = selectedPageText();
+    if (!text) { hidePop(); return; }
+    const r = window.getSelection().getRangeAt(0).getBoundingClientRect();
+    hidePop();
+    pop = document.createElement('div'); pop.className = 'sel-pop';
+    pop.innerHTML = `<button class="btn small" type="button" data-a="quote">Save quote</button><button class="btn small" type="button" data-a="speak">Read this</button>${sample ? '<button class="btn small" type="button" data-a="explain">Explain simply</button>' : ''}`;
+    document.body.appendChild(pop);
+    const top = r.top - pop.offsetHeight - 8 < 8 ? r.bottom + 8 : r.top - pop.offsetHeight - 8;
+    pop.style.top = top + 'px';
+    pop.style.left = Math.max(8, Math.min(innerWidth - pop.offsetWidth - 8, r.left + r.width / 2 - pop.offsetWidth / 2)) + 'px';
+    pop.addEventListener('pointerdown', ev => ev.preventDefault());
+    pop.addEventListener('click', ev => {
+      const a = ev.target.closest('[data-a]'); if (!a) return;
+      const s = state.sources[state.readId];
+      if (a.dataset.a === 'quote' && s) { s.quotes = (s.quotes || []).concat({ text, page: '' }); saveSource(s); toast('Quote saved to this source'); }
+      if (a.dataset.a === 'speak' && synth) { stopSpeech(); const u = new SpeechSynthesisUtterance(text); u.rate = prefs.rate; u.lang = 'en-GB'; const v = synth.getVoices().find(x => x.name === prefs.voice); if (v) u.voice = v; synth.speak(u); }
+      if (a.dataset.a === 'explain') explain(text);
+      window.getSelection().removeAllRanges(); hidePop();
+    });
+  }, 250);
+});
+function selectionchange() {}
+
+/* Claude helpers */
+let sample = null, busy = null;
+const TOPIC = 'how leadership and management is understood and enacted for a neurodiverse school workforce in state-funded primary and secondary schools in England';
+async function runAI(prompt, opts = {}) {
+  if (busy) busy.abort();
+  busy = new AbortController();
+  const out = $('#explain-out'); out.textContent = 'Thinking…';
+  try {
+    const res = await sample(prompt, Object.assign({ signal: busy.signal, onText: u => { out.textContent = u.text; } }, opts));
+    out.textContent = res.text; return res.text;
+  } catch (e) {
+    if (e && e.code === 'cancelled') return null;
+    out.textContent = e && e.code === 'not_granted' ? 'Plain-English help needs your permission. Try again and choose Allow.' :
+      e && e.code === 'rate_limited' ? 'Too many requests just now. Wait a minute and try again.' :
+      e && e.code === 'prompt_too_large' ? 'This text is too long to explain in one go. Select a section instead.' :
+      'That did not work this time. Try again in a moment.';
+    if (e && e.text) out.textContent = e.text;
+    return null;
+  } finally { busy = null; }
+}
+function explain(text) {
+  runAI(`You help a dyslexic postgraduate education student read academic texts. Rewrite the passage below in plain English.
+Rules: short sentences (under 15 words), everyday words, explain any jargon in brackets, use 3-6 bullet points starting with "•", no headings, no markdown symbols other than "•". Then add one line starting "Why it matters:" linking it to their research topic: ${TOPIC}.
+
+Passage:
+"""${text.slice(0, 6000)}"""`, { modelTier: 'quick' });
+}
+$('#r-summary').addEventListener('click', () => {
+  const s = state.sources[state.readId];
+  if (!s || !s.text) { toast('Add the text of a source first'); return; }
+  runAI(`You help a dyslexic postgraduate education student decide whether a paper is worth reading closely.
+Summarise the paper below in plain English. Use short sentences and everyday words. No markdown except "•" bullets.
+Give exactly these parts, each on its own line with the label:
+In one sentence:
+What they did:
+What they found: (3-5 bullets)
+Watch out for: (1-2 bullets on limitations)
+Useful for my topic? (Yes / Partly / No, plus one sentence) — topic: ${TOPIC}.
+
+Paper: "${s.title}"
+"""${s.text.slice(0, 60000)}"""`);
+});
+$('#r-extract').addEventListener('click', async () => {
+  const s = state.sources[state.readId];
+  if (!s || !s.text) { toast('Add the text of a source first'); return; }
+  const out = $('#explain-out'); out.textContent = 'Drafting notes…';
+  try {
+    const r = await sample.json(`Read this academic source and draft evidence-table notes for a dyslexic student. Plain English, short sentences, max 45 words per field, no markdown.
+Research topic: ${TOPIC}.
+Return JSON only: {"question": "what the authors set out to find", "method": "research design and data", "sample": "who, how many, where", "findings": "main findings as 2-4 short points separated by ' • '", "limitations": "main weaknesses, including relevance to England / school staff", "relevance": "how it helps answer the topic", "authors": "Surname, I. format, comma separated, if visible", "year": "publication year if visible"}
+Source title: "${s.title}"
+"""${s.text.slice(0, 60000)}"""`);
+    const keys = ['question', 'method', 'sample', 'findings', 'limitations', 'relevance'];
+    out.innerHTML = '<div class="ai-suggest"><b>Draft notes.</b> Check them against the paper, then keep or change them.' +
+      keys.map(k => r[k] ? `<div><b>${esc({ question: 'Asked', method: 'Method', sample: 'Who / where', findings: 'Found', limitations: 'Weak spots', relevance: 'Why it matters' }[k])}:</b> ${esc(r[k])}</div>` : '').join('') +
+      '<button class="btn small primary" type="button" id="ai-keep">Add to empty boxes in my table</button></div>';
+    $('#ai-keep').addEventListener('click', () => {
+      for (const k of keys.concat(['authors', 'year'])) if (r[k] && !String(s[k] || '').trim()) s[k] = String(r[k]);
+      saveSource(s); toast('Added to your table. Edit them in your own words.');
+    });
+  } catch (e) {
+    out.textContent = e && e.code === 'not_granted' ? 'This needs your permission. Try again and choose Allow.' : 'Could not draft notes this time. Try again in a moment.';
+  }
+});
+
+/* ================= MAP ================= */
+let zoom = lsGet('lrs-zoom', 1), linkMode = false, linkFrom = null, focusTheme = null;
+function ensurePositions() {
+  const b = state.board; let changed = false;
+  const ts = b.themes;
+  ts.forEach((t, i) => {
+    if (!b.nodes[t.id]) { b.nodes[t.id] = { x: 160 + (i % 3) * 620, y: 120 + Math.floor(i / 3) * 620 }; changed = true; }
+  });
+  const unplaced = Object.values(state.sources).filter(s => !b.nodes[s.id]);
+  const counts = {};
+  unplaced.forEach(s => {
+    const home = (s.themes || [])[0];
+    const c = home && b.nodes[home];
+    const k = home || '_none'; counts[k] = (counts[k] || 0) + 1; const n = counts[k];
+    if (c) { const ang = n * 1.15, rad = 150 + 26 * n; b.nodes[s.id] = { x: Math.round(c.x + Math.cos(ang) * rad), y: Math.round(c.y + 40 + Math.sin(ang) * rad) }; }
+    else b.nodes[s.id] = { x: 2000 + ((n - 1) % 2) * 230, y: 80 + Math.floor((n - 1) / 2) * 130 };
+    changed = true;
+  });
+  return changed;
+}
+function tidy() {
+  const b = state.board;
+  b.themes.forEach((t, i) => { b.nodes[t.id] = { x: 160 + (i % 3) * 620, y: 120 + Math.floor(i / 3) * 620 }; });
+  Object.keys(b.nodes).forEach(k => { if (!b.themes.find(t => t.id === k)) delete b.nodes[k]; });
+  ensurePositions(); saveBoard(); renderMap();
+}
+function linkedTo(themeId) {
+  const ids = new Set([themeId]);
+  Object.values(state.sources).forEach(s => { if ((s.themes || []).includes(themeId)) ids.add(s.id); });
+  state.board.links.forEach(l => { if (ids.has(l.from)) ids.add(l.to); if (ids.has(l.to)) ids.add(l.from); });
+  return ids;
+}
+function renderLegend() {
+  $('#legend').innerHTML = Object.values(LINK_TYPES).map(t => `<span><i style="border-color:${t.color}"></i>${t.label}</span>`).join('') + '<span><i class="dash" style="border-color:var(--muted)"></i>Tagged with theme</span>';
+}
+function renderMap() {
+  if (!state.board) return;
+  if (ensurePositions()) saveBoard();
+  const b = state.board, canvas = $('#map-canvas');
+  canvas.style.zoom = zoom;
+  canvas.querySelectorAll('.node').forEach(n => n.remove());
+  const visible = focusTheme ? linkedTo(focusTheme) : null;
+  const frag = document.createDocumentFragment();
+  for (const t of b.themes) {
+    const p = b.nodes[t.id]; const el = document.createElement('div');
+    el.className = 'node theme'; el.dataset.id = t.id; el.style.color = tc(t);
+    el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
+    el.innerHTML = `<span>${esc(t.name)}</span>`; el.tabIndex = 0; el.setAttribute('role', 'button');
+    el.setAttribute('aria-label', 'Theme: ' + t.name);
+    if (visible && !visible.has(t.id)) el.classList.add('dim');
+    frag.appendChild(el);
+  }
+  for (const s of Object.values(state.sources)) {
+    const p = b.nodes[s.id]; if (!p) continue;
+    const el = document.createElement('div');
+    el.className = 'node'; el.dataset.id = s.id; el.style.left = p.x + 'px'; el.style.top = p.y + 'px';
+    el.style.borderColor = s.status === 'suggested' ? 'var(--line)' : 'color-mix(in srgb, var(--accent) 45%, var(--line))';
+    el.tabIndex = 0; el.setAttribute('role', 'button');
+    el.innerHTML = `<div class="n-title">${esc((s.title || 'Untitled').slice(0, 90))}</div><div class="n-meta">${esc(shortCite(s))} · ${esc(STATUSES[s.status] || '')}</div>
+      <div class="n-dots">${(s.themes || []).map(themeById).filter(Boolean).map(t => `<i style="background:${tc(t)}" title="${esc(t.name)}"></i>`).join('')}</div>`;
+    if (visible && !visible.has(s.id)) el.classList.add('dim');
+    if (linkFrom === s.id) el.classList.add('picked');
+    frag.appendChild(el);
+  }
+  canvas.appendChild(frag);
+  canvas.querySelectorAll('.node.theme').forEach(el => { if (linkFrom === el.dataset.id) el.classList.add('picked'); });
+  drawEdges();
+  renderLegend();
+}
+function centerOf(id) {
+  const el = $(`#map-canvas .node[data-id="${CSS.escape(id)}"]`); if (!el) return null;
+  return { x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight / 2 };
+}
+function drawEdges() {
+  const svg = $('#map-svg'), b = state.board, visible = focusTheme ? linkedTo(focusTheme) : null;
+  let html = '';
+  for (const s of Object.values(state.sources)) for (const tid of (s.themes || [])) {
+    const t = themeById(tid), a = centerOf(s.id), c = centerOf(tid); if (!t || !a || !c) continue;
+    const dim = visible && !(visible.has(s.id) && visible.has(tid));
+    html += `<line class="edge auto" x1="${a.x}" y1="${a.y}" x2="${c.x}" y2="${c.y}" stroke="${tc(t)}" ${dim ? 'opacity=".12"' : ''}/>`;
+  }
+  b.links.forEach((l, i) => {
+    const a = centerOf(l.from), c = centerOf(l.to), lt = LINK_TYPES[l.type] || LINK_TYPES.supports; if (!a || !c) return;
+    const dim = visible && !(visible.has(l.from) && visible.has(l.to));
+    const mx = (a.x + c.x) / 2, my = (a.y + c.y) / 2, dx = c.x - a.x, dy = c.y - a.y, len = Math.hypot(dx, dy) || 1;
+    const qx = mx - dy / len * 40, qy = my + dx / len * 40;
+    const d = `M${a.x},${a.y} Q${qx},${qy} ${c.x},${c.y}`;
+    const lx = (a.x + 2 * qx + c.x) / 4, ly = (a.y + 2 * qy + c.y) / 4;
+    html += `<g data-link="${i}" ${dim ? 'opacity=".15"' : ''}><path class="edge" d="${d}" stroke="${lt.color}"/><path class="edge-hit" d="${d}"/>
+      <text class="edge-label" x="${lx}" y="${ly}" text-anchor="middle" fill="${lt.color}">${esc(lt.label)}${l.note ? ': ' + esc(l.note.slice(0, 40)) : ''}</text></g>`;
+  });
+  svg.innerHTML = html;
+  svg.style.pointerEvents = 'none';
+  svg.querySelectorAll('g[data-link] .edge-hit, g[data-link] text').forEach(el => { el.style.pointerEvents = 'auto'; });
+}
+$('#map-svg').addEventListener('click', e => {
+  const g = e.target.closest('g[data-link]'); if (g) openLinkModal(null, null, +g.dataset.link);
+});
+
+/* drag + click on nodes */
+let drag = null;
+$('#map-canvas').addEventListener('pointerdown', e => {
+  const el = e.target.closest('.node'); if (!el) return;
+  el.setPointerCapture(e.pointerId);
+  const p = state.board.nodes[el.dataset.id];
+  drag = { el, id: el.dataset.id, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, moved: false };
+});
+$('#map-canvas').addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = (e.clientX - drag.sx) / zoom, dy = (e.clientY - drag.sy) / zoom;
+  if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+  drag.moved = true; drag.el.classList.add('dragging');
+  const x = Math.max(0, Math.min(2200, Math.round(drag.ox + dx))), y = Math.max(0, Math.min(1520, Math.round(drag.oy + dy)));
+  state.board.nodes[drag.id] = { x, y }; drag.el.style.left = x + 'px'; drag.el.style.top = y + 'px';
+  drawEdges();
+});
+function endDrag() {
+  if (!drag) return;
+  const d = drag; drag = null; d.el.classList.remove('dragging');
+  if (d.moved) saveBoard(); else nodeTapped(d.id);
+}
+$('#map-canvas').addEventListener('pointerup', endDrag);
+$('#map-canvas').addEventListener('pointercancel', () => { if (drag) { drag.el.classList.remove('dragging'); drag = null; } });
+$('#map-canvas').addEventListener('keydown', e => {
+  const el = e.target.closest('.node'); if (!el) return;
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); nodeTapped(el.dataset.id); }
+});
+function nodeTapped(id) {
+  if (linkMode) {
+    if (!linkFrom) { linkFrom = id; setHint('Now tap the card or theme it connects to.', true); renderMap(); return; }
+    if (linkFrom === id) { linkFrom = null; setHint('Tap the first card or theme.', true); renderMap(); return; }
+    const from = linkFrom; linkFrom = null; renderMap(); openLinkModal(from, id); return;
+  }
+  if (themeById(id)) { focusTheme = focusTheme === id ? null : id; renderMap(); openThemePanel(focusTheme); }
+  else openEditor(id);
+}
+function setHint(t, active) { const h = $('#map-hint'); h.textContent = t; h.classList.toggle('active', !!active); }
+$('#m-link').addEventListener('click', () => {
+  linkMode = !linkMode; linkFrom = null;
+  $('#m-link').setAttribute('aria-pressed', linkMode);
+  $('#m-link').textContent = linkMode ? 'Stop linking' : 'Draw a link';
+  setHint(linkMode ? 'Tap the first card or theme.' : 'Tip: tap a theme bubble to see everything linked to it.', linkMode);
+  renderMap();
+});
+$('#m-zoom-in').addEventListener('click', () => { zoom = Math.min(1.6, +(zoom + 0.15).toFixed(2)); lsSet('lrs-zoom', zoom); renderMap(); });
+$('#m-zoom-out').addEventListener('click', () => { zoom = Math.max(0.4, +(zoom - 0.15).toFixed(2)); lsSet('lrs-zoom', zoom); renderMap(); });
+$('#m-tidy').addEventListener('click', tidy);
+$('#m-theme').addEventListener('click', () => {
+  $('#overlay-root').innerHTML = `<div class="scrim" data-close></div><div class="modal" role="dialog" aria-modal="true" aria-labelledby="nt-h">
+    <h3 id="nt-h">New theme</h3>
+    <div class="field"><label for="nt-name">Theme name</label><input id="nt-name" placeholder="e.g. Role of the SENCO"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="nt-go">Add theme</button></div></div>`;
+  $('#overlay-root').querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeOverlay));
+  $('#nt-name').focus();
+  const go = () => {
+    const name = $('#nt-name').value.trim(); if (!name) return;
+    const b = state.board, color = THEME_COLORS[b.themes.length % THEME_COLORS.length];
+    const id = 'th' + uid().slice(0, 6);
+    b.themes.push({ id, name, color });
+    const sh = $('#map-shell');
+    b.nodes[id] = { x: Math.round((sh.scrollLeft + sh.clientWidth / 2) / zoom - 80), y: Math.round((sh.scrollTop + sh.clientHeight / 2) / zoom - 20) };
+    saveBoard(); closeOverlay(); toast('Theme added');
+  };
+  $('#nt-go').addEventListener('click', go);
+  $('#nt-name').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+});
+function nameOf(id) { const t = themeById(id); if (t) return t.name; const s = state.sources[id]; return s ? shortCite(s) + ' ' + (s.title || '') : '?'; }
+function openLinkModal(from, to, index) {
+  const b = state.board, existing = index != null ? b.links[index] : null;
+  if (existing) { from = existing.from; to = existing.to; }
+  let type = existing ? existing.type : 'supports';
+  $('#overlay-root').innerHTML = `<div class="scrim" data-close></div><div class="modal" role="dialog" aria-modal="true" aria-labelledby="lk-h">
+    <h3 id="lk-h">${existing ? 'Edit link' : 'How are these connected?'}</h3>
+    <div style="font-size:.9rem"><b>${esc(nameOf(from).slice(0, 90))}</b><br>and<br><b>${esc(nameOf(to).slice(0, 90))}</b></div>
+    <div class="link-types">${Object.entries(LINK_TYPES).map(([k, v]) => `<button type="button" data-t="${k}" style="color:${v.color}" aria-pressed="${k === type}"><span style="color:var(--ink)">${v.label}</span><small>${v.hint}</small></button>`).join('')}</div>
+    <div class="field"><label for="lk-note">Note (optional)</label><input id="lk-note" value="${esc(existing ? existing.note : '')}" placeholder="e.g. both found disclosure feels risky"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between">
+      ${existing ? '<button class="btn danger" type="button" id="lk-del">Remove link</button>' : '<span></span>'}
+      <div style="display:flex;gap:8px"><button class="btn" type="button" data-close>Cancel</button><button class="btn primary" type="button" id="lk-go">Save link</button></div></div></div>`;
+  const root = $('#overlay-root');
+  root.querySelectorAll('[data-close]').forEach(x => x.addEventListener('click', closeOverlay));
+  root.querySelectorAll('[data-t]').forEach(btn => btn.addEventListener('click', () => {
+    type = btn.dataset.t; root.querySelectorAll('[data-t]').forEach(x => x.setAttribute('aria-pressed', String(x === btn)));
+  }));
+  $('#lk-go').addEventListener('click', () => {
+    const note = $('#lk-note').value.trim();
+    if (existing) Object.assign(existing, { type, note }); else b.links.push({ id: uid(), from, to, type, note });
+    saveBoard(); closeOverlay(); toast('Link saved');
+  });
+  if (existing) $('#lk-del').addEventListener('click', () => { b.links.splice(index, 1); saveBoard(); closeOverlay(); toast('Link removed'); });
+  root.querySelector('[data-t][aria-pressed="true"]').focus();
+}
+function openThemePanel(id) {
+  const old = $('.theme-panel'); if (old) old.remove();
+  if (!id) return;
+  const t = themeById(id); if (!t) return;
+  const srcs = Object.values(state.sources).filter(s => (s.themes || []).includes(id));
+  const ids = new Set(srcs.map(s => s.id).concat(id));
+  const links = state.board.links.filter(l => ids.has(l.from) || ids.has(l.to));
+  const agree = links.filter(l => l.type === 'supports'), clash = links.filter(l => l.type === 'contradicts');
+  const starters = [];
+  if (srcs.length > 1) starters.push(`Several studies explore ${t.name.toLowerCase()} (${srcs.slice(0, 3).map(shortCite).join('; ')}).`);
+  if (agree.length) starters.push(`${nameOf(agree[0].from).split(' (')[0]} and ${nameOf(agree[0].to).split(' (')[0]} both suggest that…`);
+  if (clash.length) starters.push(`However, ${nameOf(clash[0].to).split(' (')[0]} challenges this, finding that…`);
+  if (srcs.length && !clash.length) starters.push(`Less is known about…, which suggests a gap in research on English state schools.`);
+  const p = document.createElement('div'); p.className = 'theme-panel'; p.setAttribute('role', 'region'); p.setAttribute('aria-label', 'Theme summary');
+  p.innerHTML = `<div style="display:flex;gap:8px;align-items:center"><h3 class="grow" style="color:${tc(t)}"><span style="color:var(--ink)">${esc(t.name)}</span></h3>
+    <button class="btn small" type="button" id="tp-rename">Rename</button><button class="btn small" type="button" id="tp-close" aria-label="Close summary">Close</button></div>
+    <div style="font-size:.9rem;color:var(--muted)">${srcs.length} source${srcs.length === 1 ? '' : 's'} · ${agree.length} agree · ${clash.length} disagree</div>
+    ${srcs.length ? `<ul>${srcs.map(s => `<li><b>${esc(shortCite(s))}</b> ${s.findings ? esc(s.findings.slice(0, 160)) : '<i>No findings noted yet</i>'}</li>`).join('')}</ul>` : '<div>No sources tagged yet. Open a source and tick this theme.</div>'}
+    ${starters.length ? `<div style="font-weight:600;font-size:.9rem">Sentence starters for your write-up</div>${starters.map(x => `<div class="starter">${esc(x)}</div>`).join('')}` : ''}
+    <div id="tp-rename-box" hidden class="field"><label for="tp-name">New name</label><input id="tp-name" value="${esc(t.name)}">
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" type="button" id="tp-save">Save name</button><button class="btn small danger" type="button" id="tp-del">Delete theme</button></div></div>`;
+  document.body.appendChild(p);
+  $('#tp-close').addEventListener('click', () => { focusTheme = null; p.remove(); renderMap(); });
+  $('#tp-rename').addEventListener('click', () => { $('#tp-rename-box').hidden = false; $('#tp-name').focus(); });
+  $('#tp-save').addEventListener('click', () => { const n = $('#tp-name').value.trim(); if (!n) return; t.name = n; saveBoard(); openThemePanel(id); renderMap(); });
+  $('#tp-del').addEventListener('click', () => {
+    const b = state.board; b.themes = b.themes.filter(x => x.id !== id); delete b.nodes[id];
+    b.links = b.links.filter(l => l.from !== id && l.to !== id);
+    Object.values(state.sources).forEach(s => { if ((s.themes || []).includes(id)) { s.themes = s.themes.filter(x => x !== id); saveSource(s); } });
+    saveBoard(); focusTheme = null; p.remove(); renderMap(); toast('Theme deleted; sources kept');
+  });
+}
+
+/* ================= BOOT ================= */
+initPrefsUI();
+showRoom(['sources', 'read', 'map'].includes(state.room) ? state.room : 'sources');
+(async () => {
+  await store.init();
+  const c = window.claude;
+  if (c && c.use) {
+    c.use('sample').then(s => { sample = s; $('#ai-box').hidden = !s; }).catch(() => {});
+    c.use('downloads').then(d => { downloads = d; $('#btn-csv').hidden = !d; }).catch(() => {});
+  }
+  setSave(store.mode === 'cloud' ? 'Saved to your account' : 'Saved in this browser');
+  let boardMade = false;
+  store.start(({ sources, board, definitive }) => {
+    for (const [id, s] of Object.entries(sources)) if (!store.dirty.has(id)) state.sources[id] = s;
+    for (const id of Object.keys(state.sources)) if (!sources[id] && !store.dirty.has(id) && store.mode === 'cloud' && definitive) delete state.sources[id];
+    if (board && !store.dirty.has('board')) state.board = board;
+    if (!state.board && definitive && !boardMade) { boardMade = true; state.board = defaultBoard(); saveBoard(); }
+    if (!state.board) return;
+    state.ready = true;
+    if (editorId) return; // don't redraw under someone typing
+    if (state.room === 'map' && drag) return;
+    render();
+    if (focusTheme && $('.theme-panel')) openThemePanel(focusTheme);
+  });
+})();
+})();
+</script>
