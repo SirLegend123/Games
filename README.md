@@ -15,6 +15,7 @@ A player's notebook for *Blood on the Clocktower*. Open `index.html` in any web 
 - Slayer shot: record who shot whom, see the best Demon candidates first, and get conclusions from a hit or a miss
 - Test a hunch: "What if they're evil?" or "the Demon?" checks a gut feeling against everything logged
 - Information reliability: grades each player's night info as consistent, doubtful or unreliable
+- Changed claims: flags a player who gave info as one role then claimed another, or swapped a hard claim, and stops trusting that info
 - Game wrap-up: enter the real Demon and Minions, then everyone's real character (optional, hard claims pre-filled), to see how the evidence held up, which info was right, whose claims were true, how your reads did, and a timeline
 - Plan for tomorrow: flags claims that don't add up (double claims, too many Outsiders, an executed Saint), suggests questions for each player and who to look at
 - Claim matrix: players down the side, roles along the top, claimed squares in green and double claims in amber

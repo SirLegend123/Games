@@ -234,6 +234,7 @@ textarea { resize: vertical; min-height: 90px; }
 .entry .x:hover { color: var(--evil); }
 .entry .means { color: var(--fg); font-size: .86rem; }
 .entry .warn { color: var(--evil); font-size: .84rem; }
+.warn-hint { color: var(--evil); }
 .linkish { border: 0; background: none; padding: 0; color: var(--fg); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .sum-list { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; font-size: .88rem; }
 .sum-list .g { color: var(--good); font-weight: 700; }
@@ -543,6 +544,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <li><b>Evil team:</b> the most likely Demon and why, plus which Minions are likely in play.</li>
           <li><b>Test a hunch:</b> in a player's panel, tap "What if they're evil?" to see what supports it, what goes against it, and what follows if it's true.</li>
           <li><b>Night info</b> grades each player's information as consistent, doubtful or unreliable.</li>
+          <li><b>Changed claims:</b> if a player gives info as one role and later claims another, or swaps a hard claim, the app flags it on the Plan tab, rings them amber and stops trusting that info. A real typo can be cleared with <b>Forget this</b> in their panel.</li>
           <li><b>Game wrap-up:</b> when the game ends, enter who was evil, then everyone's real character (or skip that), to see how the evidence held up, which information was right, whose claims were true, how your reads did, and a timeline.</li>
           <li><b>Claim matrix:</b> every claim at a glance. Amber means two players claim the same role.</li>
         </ul>
@@ -750,8 +752,35 @@ function linkHeard() {
     return false;
   });
 }
+// Remember claims that stood for a while, so a later change of story can be spotted (quick corrections within 2 minutes are ignored)
+function trackClaims() {
+  const now = Date.now();
+  for (const p of state.players) {
+    const key = (p.claimType || "soft") + ":" + p.claims.join("|");
+    const snap = p.claimSnap;
+    if (snap && snap.key === key) continue;
+    if (snap && snap.claims.length && (now - snap.t > 120000 || snap.day !== state.day)) (p.history = p.history || []).push({ claims: snap.claims, type: snap.type, day: snap.day });
+    p.claimSnap = { key, claims: [...p.claims], type: p.claimType || "soft", t: now, day: state.day };
+  }
+}
+// Roles a player has stood behind before but no longer claims: an earlier hard claim, info logged under another role, or a hard claim outside the options they first gave
+function claimChanges(p) {
+  if (!p || p.me || p.traveller || !p.claims.length) return [];
+  const now = p.claims.map(c => c.toLowerCase());
+  const pruned = r => (p.removed || []).some(x => x.role.toLowerCase() === r.toLowerCase());
+  const out = [], seen = new Set();
+  const push = (role, how, when, key = role.toLowerCase()) => { if (seen.has(key) || now.includes(key) || pruned(role) || (p.ignoredChanges || []).includes(key)) return; seen.add(key); out.push({ role, how, when, key }); };
+  const hist = p.history || [];
+  for (const h of hist) if (h.type === "hard" && h.claims.length === 1) push(h.claims[0], "hard-claimed", `day ${h.day}`);
+  const lastSoft = [...hist].reverse().find(h => h.type !== "hard" && h.claims.length > 1);
+  if (isHard(p) && lastSoft && !lastSoft.claims.some(c => c.toLowerCase() === now[0]) && !lastSoft.claims.every(pruned)) push(lastSoft.claims.join(", "), "offered", `day ${lastSoft.day}`, "opts:" + lastSoft.claims.join("|").toLowerCase());
+  for (const e of state.myInfo) if (e.src === p.id) push(e.role, "gave info as the", `night ${e.night}`);
+  return out;
+}
+const describeChange = x => x.how === "offered" ? `offered ${x.role} (${x.when})` : `${x.how} ${x.role} (${x.when})`;
 function save() {
   pruneOptions();
+  trackClaims();
   linkHeard();
   state.updatedAt = Date.now();
   try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
@@ -978,6 +1007,7 @@ function renderPanel() {
     </div>`}
 
     <div class="field">
+      ${claimChanges(p).map(x => `<span class="hint warn-hint">Changed claim: earlier ${esc(describeChange(x))}. <button class="linkish" data-forget="${esc(x.key)}">Forget this</button></span>`).join("")}
       ${(p.removed || []).filter((x, i, a) => a.findIndex(y => y.role.toLowerCase() === x.role.toLowerCase()) === i).map(x => `<span class="hint">Removed ${esc(x.role)} from their options on day ${x.day}: ${esc(x.by)} hard-claimed it.</span>`).join("")}
       <div class="row">
         <span class="label">Claim</span>
@@ -1047,6 +1077,7 @@ function renderPanel() {
   if ($("pSuspect")) $("pSuspect").onchange = e => { p.suspect = e.target.value; if (p.suspect) p.align = "evil"; save(); render(); };
   $("panel").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { p.claims.splice(+b.dataset.rm, 1); save(); render(); });
   $("panel").querySelectorAll(".pick").forEach(b => b.onclick = () => { toggleClaim(p, b.dataset.role); save(); render(); });
+  $("panel").querySelectorAll("[data-forget]").forEach(b => b.onclick = () => { (p.ignoredChanges = p.ignoredChanges || []).push(b.dataset.forget); save(); render(); });
   $("panel").querySelectorAll("[data-ctype]").forEach(b => b.onclick = () => {
     p.claimType = b.dataset.ctype;
     if (p.claimType === "hard" && p.claims.length > 1) p.claims = [p.claims[0]];
@@ -1207,6 +1238,7 @@ function readEntry(e) {
   const whose = src ? `${nm(src)}'s` : "your";
   const [a, b] = e.p;
   const out = { means: "", warns: [], weights: [], src };
+  if (a && b && a === b) { out.means = `The same player (${nm(a)}) was picked twice, so this can't be read. Delete it and log it again.`; return out; }
   const good = knownGood();
   const isMe = id => P(id)?.me;
   const kg = id => isMe(id) ? "you are" : `${nm(id)} is proven good`;
@@ -1362,6 +1394,13 @@ function readEntry(e) {
   }
   out.means = out.means.trim();
   if (src && out.means) out.means = `If ${nm(src)} is telling the truth: ${out.means}`;
+  // Info given under a role the player no longer claims is a changed story: don't trust what it says about others
+  const sp = src && P(src);
+  if (sp && sp.claims.length && !has(src, e.role) && !(sp.removed || []).some(x => x.role.toLowerCase() === role)) {
+    out.warns.unshift(`${nm(src)} now claims ${sp.claims.join(" or ")}, not the ${e.role}. A changed story: this info is probably made up.`);
+    out.weights = out.weights.filter(x => x.id === src);
+    out.weights.push({ id: src, pts: 3, why: `gave ${e.role} info, then claimed ${sp.claims.join(" or ")}` });
+  }
   // Other players' info counts for less than your own
   if (src) out.weights = out.weights.map(x => x.id === src ? x : { ...x, pts: Math.sign(x.pts) * Math.max(1, Math.floor(Math.abs(x.pts) / 2)) });
   return out;
@@ -1424,6 +1463,7 @@ function reliability() {
       else if (/claimed .*but .*info says|hard-claims .*but .*info puts|an Outsider, but|isn't either of/.test(w)) add(src, 0.5, `Night ${n}: clashes with another player's claim`);
       else if (/Neither .* has claimed/.test(w)) add(src, 0.5, `Night ${n}: nobody in the pair claims the role it names`);
     }
+    if (/A changed story/.test(r.warns[0] || "")) add(src, 2, `Night ${n}: gave this as the ${r.e.role}, but now claims ${P(src)?.claims.join(" or ")}`);
     // Self-serving: a result that clears the person reporting it
     if (src && r.e.role.toLowerCase() === "fortune teller" && r.e.yn === 1 && r.e.p.includes(src)) {
       const other = r.e.p.find(id => id !== src);
@@ -1571,6 +1611,7 @@ function verifyEntry(e) {
   const nmV = id => ps.find(x => x.id === id)?.name || "someone";
   // The Recluse and Spy can register as something else, so a "wrong" result near them isn't proof
   const misreg = ids => ids.find(id => isRole(id, "Recluse") || isRole(id, "Spy"));
+  if (a && b && a === b) return res(null, "The same player was picked twice, so this can't be checked.");
   const soften = (v, ids) => { if (v.ok !== false) return v; const m = misreg(ids); return m ? res(null, `${v.why} But ${nmV(m)} was the ${realRole(m)}, who can register as something else.`) : v; };
   switch (role) {
     case "washerwoman": case "librarian": {
@@ -1631,7 +1672,7 @@ function buildReview() {
     const c = ev.active.find(x => x.p.id === id);
     const fate = p.dead ? (p.deathBy === "exec" ? `executed on day ${p.execDay || "?"}` : p.deathBy === "virgin" ? "died to the Virgin" : p.deathBy === "slayer" ? "shot by the Slayer" : p.deathBy === "night" ? `died on night ${p.deathNight || "?"}` : "died") : "survived";
     return { p, role: roleOf(id) || (id === rv.demon?.id ? "Demon" : "Minion"), isDemon: id === rv.demon?.id, claim: p.claims.join(" or "), read: p.align, suspect: p.suspect, auto: auto.has(id),
-      rank: id === rv.demon?.id ? rank.get(id) : null, why: c ? [...new Set(c.why)] : [], pointed: [...new Set(pointed)], cleared: [...new Set(cleared)], fate };
+      changed: claimChanges(p), rank: id === rv.demon?.id ? rank.get(id) : null, why: c ? [...new Set(c.why)] : [], pointed: [...new Set(pointed)], cleared: [...new Set(cleared)], fate };
   }).filter(Boolean);
   // ---- Information check
   const sources = new Map();
@@ -1658,6 +1699,7 @@ function buildReview() {
   // ---- Claims against real roles
   const claimRows = ps.filter(p => !p.traveller && realRole(p.id)).map(p => {
     const real = realRole(p.id), has = r => p.claims.some(c => c.toLowerCase() === r.toLowerCase());
+    const ch = claimChanges(p), earlier = ch.length ? ` Earlier they ${ch.map(describeChange).join(", ")}.` : "";
     const hard = isHard(p), ev = evil.has(p.id);
     let ok, text;
     if (p.me) { ok = null; text = rv.drunk === p.id ? "You were the Drunk." : `You were the ${real}.`; }
@@ -1665,10 +1707,10 @@ function buildReview() {
     else if (!p.claims.length) { ok = null; text = `The ${real}. Never claimed.`; }
     else if (ev) {
       const inPlay = p.claims.map(c => ({ c, by: ps.find(q => q.id !== p.id && isRole(q.id, c)) }));
-      ok = false; text = `The ${real}, bluffing ${p.claims.join(" or ")}.${inPlay.filter(x => x.by).map(x => ` The real ${x.c} was ${x.by.name}.`).join("")}`;
+      ok = false; text = `The ${real}, bluffing ${p.claims.join(" or ")}.${earlier}${inPlay.filter(x => x.by).map(x => ` The real ${x.c} was ${x.by.name}.`).join("")}`;
     }
-    else if (has(real)) { ok = true; text = hard ? `The ${real}. Told the truth.` : `The ${real}, which was among their options (${p.claims.join(", ")}).`; }
-    else { ok = false; text = `The ${real}, but claimed ${p.claims.join(" or ")}. A good player bluffing.`; }
+    else if (has(real)) { ok = true; text = (hard ? `The ${real}. Told the truth.` : `The ${real}, which was among their options (${p.claims.join(", ")}).`) + earlier; }
+    else { ok = false; text = `The ${real}, but claimed ${p.claims.join(" or ")}. A good player bluffing.${earlier}`; }
     return { p, real, ok, text, ev };
   });
   const goodClaimers = claimRows.filter(r => !r.ev && !r.p.me && r.p.id !== rv.drunk && r.p.claims.length);
@@ -1803,6 +1845,7 @@ function renderWrap() {
       ${R.evilCards.map(c => `<div class="tip ${c.isDemon ? "bad" : "hi"}">
         <span><b>${esc(c.p.name)}</b> · ${c.isDemon ? "Demon" : "Minion"}: the <b>${esc(c.role)}</b>${c.claim ? ` · claimed ${esc(c.claim)}` : " · never claimed"} · ${esc(c.fate)}</span>
         <small>Your read: ${c.read === "evil" ? "evil ✓" : c.read === "good" ? "good ✗ (you trusted them)" : "unsure"}${c.suspect ? ` · you suspected the ${esc(c.suspect)}${c.suspect.toLowerCase() === c.role.toLowerCase() ? " ✓" : ""}` : ""}${c.auto ? " · the app had flagged them amber" : ""}${c.isDemon ? (c.rank ? ` · #${c.rank} on the Demon list at the end` : " · not on the Demon list") : ""}</small>
+        ${c.changed.length ? `<small>Changed their story: earlier ${esc(c.changed.map(describeChange).join(", "))}, then claimed ${esc(c.claim)}.</small>` : ""}
         ${c.pointed.length ? `<small>Pointed at them: ${esc(c.pointed.join(", "))}</small>` : `<small>No logged info pointed at them.</small>`}
         ${c.cleared.length ? `<small>Wrongly cleared them: ${esc(c.cleared.join(", "))}</small>` : ""}
         ${c.why.length ? `<small>The app's reasons: ${esc(c.why.join(" · "))}</small>` : ""}
@@ -1912,6 +1955,7 @@ function renderInfo() {
     $("ifAdd").onclick = () => {
       const entry = { id: uid(), src: d.src, night: d.night, role: d.role, p: d.zero ? [] : d.p.filter(Boolean), r: d.zero ? [] : d.r.filter(Boolean), n: t?.n ? d.n : null, yn: t?.yn ? d.yn : null, note: d.note.trim(), zero: !!d.zero };
       if (!t && !entry.note) { $("ifNote").focus(); return; }
+      if (entry.p.length === 2 && entry.p[0] === entry.p[1]) { $("ifAdd").textContent = "Pick two different players"; return; }
       if (anon) { heardList().push({ ...entry, heardDay: state.day }); infoDraft = newDraft(ANON, d.role); save(); render(); return; }
       state.myInfo.push(entry);
       state.myInfo.sort((x, y) => x.night - y.night || (x.src ? 1 : 0) - (y.src ? 1 : 0));
@@ -2063,6 +2107,13 @@ function buildTips() {
   }
   const provenSet = provenGood();
   const flag = (p, pts, why) => { if (p.me || p.dead || (pts > 0 && provenSet.has(p.id))) return; const n = noms.get(p.id) || { p, score: 0, why: [] }; n.score += pts; if (pts > 0) n.why.push(why); noms.set(p.id, n); };
+  for (const p of players) {
+    const ch = claimChanges(p);
+    if (!ch.length || provenSet.has(p.id)) continue;
+    issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} changed their claim: earlier ${ch.map(describeChange).join(", ")}, now ${optList(p)}.`, sub: `Good players rarely change their story, unless they were protecting someone. Treat it as a strong sign they're evil${["tb", "all"].includes(state.script) ? ", or that they've just found out they're the Drunk" : ""}. Info they gave under the old claim no longer counts against other players.` });
+    flag(p, 4, `changed their claim from ${ch[0].role}`);
+    ask(p, `Earlier you ${ch[0].how === "offered" ? `offered ${ch[0].role}` : `${ch[0].how} ${ch[0].role}`}. Why did your claim change?`, true);
+  }
 
   // Same role claimed by more than one player
   const byRole = {};
