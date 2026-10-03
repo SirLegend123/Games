@@ -199,6 +199,22 @@ textarea { resize: vertical; min-height: 90px; }
 .tips-empty { color: var(--muted); font-size: .88rem; font-style: italic; }
 .tips-foot { font-size: .8rem; color: var(--muted); }
 
+/* My night info */
+.info-form { display: grid; gap: 8px; padding: 10px; border: 1px dashed var(--line); border-radius: 10px; }
+.info-form .row { gap: 8px; }
+.info-form select, .info-form input[type="number"] { width: auto; min-width: 0; max-width: 100%; }
+.info-form input[type="number"] { width: 5.5rem; }
+.info-form .wide { flex: 1 1 12rem; }
+.entry { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: start; }
+.entry .when { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+.entry .x { border: 0; background: none; color: var(--muted); font-size: 1.1rem; line-height: 1; padding: 2px 4px; grid-row: span 3; }
+.entry .x:hover { color: var(--evil); }
+.entry .means { color: var(--fg); font-size: .86rem; }
+.entry .warn { color: var(--evil); font-size: .84rem; }
+.sum-list { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; font-size: .88rem; }
+.sum-list .g { color: var(--good); font-weight: 700; }
+.sum-list .e { color: var(--evil); font-weight: 700; }
+
 /* Claim matrix */
 .matrix-card { gap: 10px; }
 .matrix-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
@@ -273,6 +289,17 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <div class="stat" id="aliveStat"></div>
           <div class="comp" id="comp"></div>
         </div>
+      </div>
+
+      <div class="card info-card" id="infoCard" aria-labelledby="infoTitle">
+        <div class="tips-head"><h2 id="infoTitle">My night info</h2><span class="tips-foot">What your character learned, and what it could mean</span></div>
+        <div class="row">
+          <label class="label" for="myRole">My character</label>
+          <select id="myRole" class="btn"></select>
+        </div>
+        <div id="infoForm" class="info-form"></div>
+        <div id="infoLog" class="tips-col"></div>
+        <div id="infoSum" class="tips-col"></div>
       </div>
 
       <div class="card town-notes">
@@ -382,11 +409,11 @@ const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: fal
 
 function exampleState() {
   const P = (name, claims, extra) => mkPlayer(name, { claims, ...extra });
-  return {
+  const st = {
     v: 1, example: true, script: "tb", day: 2,
     notes: "Night 1: no deaths shown yet.\nDay 1: Priya nominated Tom (3 votes, not enough). Sam nominated Leo, executed with 5.\nNight 2: Jess died.",
     players: [
-      P("You", ["Empath"], { me: true, notes: "N1: 0. N2: 1 (Sam or Mia?)" }),
+      P("You", ["Empath"], { me: true, notes: "My Empath numbers are under My night info." }),
       P("Sam", ["Chef"], { align: "evil", notes: "Chef 2 is odd with only 1 minion. Pushed hard on Leo." }),
       P("Priya", ["Investigator"], { notes: "Saw Baron between Tom and Mia." }),
       P("Tom", ["Washerwoman", "Soldier", "Monk"], { notes: "Gave a 3-for-3 on day 1. Won't narrow it down." }),
@@ -397,6 +424,13 @@ function exampleState() {
     ],
     selected: null, updatedAt: 0
   };
+  const id = n => st.players.find(p => p.name === n).id;
+  st.myRole = "Empath";
+  st.myInfo = [
+    { id: uid(), night: 1, role: "Empath", p: [id("Sam"), id("Ben")], r: [], n: 0, yn: null, note: "" },
+    { id: uid(), night: 2, role: "Empath", p: [id("Sam"), id("Ben")], r: [], n: 1, yn: null, note: "Changed from 0 with the same neighbours." }
+  ];
+  return st;
 }
 
 function normalize(s) {
@@ -405,6 +439,8 @@ function normalize(s) {
   s.day = Number(s.day) || 1;
   s.script = ROLES[s.script] || s.script === "all" ? s.script : "tb";
   s.notes = s.notes || "";
+  s.myInfo = Array.isArray(s.myInfo) ? s.myInfo : [];
+  s.myRole = s.myRole || "";
   return s;
 }
 
@@ -627,6 +663,274 @@ function renderPanel() {
   if ($("rmNo")) $("rmNo").onclick = () => { confirmRemove = false; renderPanel(); };
 }
 
+/* ---------- My night info ---------- */
+// What each information character learns, and which inputs it needs
+const INFO = {
+  "washerwoman":  { p: 2, r: "townsfolk", plabel: "Shown these two players", rlabel: "One of them is the" },
+  "librarian":    { p: 2, r: "outsider", zero: true, plabel: "Shown these two players", rlabel: "One of them is the" },
+  "investigator": { p: 2, r: "minion", plabel: "Shown these two players", rlabel: "One of them is the" },
+  "chef":         { n: "Pairs of evil players sitting together" },
+  "empath":       { p: 2, n: "Evil neighbours", neighbours: true, plabel: "Your living neighbours" },
+  "fortune teller": { p: 2, yn: ["Yes", "No"], plabel: "You chose" },
+  "undertaker":   { p: 1, r: "any", plabel: "Executed player", rlabel: "Showed as" },
+  "ravenkeeper":  { p: 1, r: "any", plabel: "You chose", rlabel: "They are the" },
+  "grandmother":  { p: 1, r: "good", plabel: "Your grandchild", rlabel: "Is the" },
+  "chambermaid":  { p: 2, n: "How many woke", plabel: "You chose" },
+  "clockmaker":   { n: "Steps from the Demon to its nearest Minion" },
+  "dreamer":      { p: 1, r: "any", r2: true, plabel: "You chose", rlabel: "They are" },
+  "mathematician": { n: "Abilities that didn't work properly" },
+  "oracle":       { n: "Dead evil players" },
+  "seamstress":   { p: 2, yn: ["Same alignment", "Different alignments"], plabel: "You chose" },
+  "flowergirl":   { yn: ["The Demon voted today", "The Demon didn't vote"] },
+  "town crier":   { yn: ["A Minion nominated today", "No Minion nominated"] },
+  "juggler":      { n: "Correct guesses" },
+  "sage":         { p: 2, plabel: "One of these is the Demon" },
+  "monk":         { p: 1, plabel: "You protected" },
+  "innkeeper":    { p: 2, plabel: "You protected" },
+  "sailor":       { p: 1, plabel: "You drank with" },
+  "exorcist":     { p: 1, plabel: "You chose" },
+  "butler":       { p: 1, plabel: "Your master" },
+  "snake charmer": { p: 1, plabel: "You chose" },
+  "gambler":      { p: 1, r: "any", plabel: "You guessed", rlabel: "As the" }
+};
+const infoOf = role => INFO[String(role).toLowerCase()] || null;
+let infoDraft = null;
+
+function livingNeighbours() {
+  const ps = state.players, me = ps.find(p => p.me);
+  if (!me) return [];
+  const i = ps.indexOf(me), out = [];
+  for (const dir of [-1, 1]) {
+    for (let k = 1; k < ps.length; k++) {
+      const q = ps[(i + dir * k + ps.length * k) % ps.length];
+      if (q === me) break;
+      if (!q.dead) { out.push(q.id); break; }
+    }
+  }
+  return out;
+}
+function myRoleNow() {
+  if (state.myRole) return state.myRole;
+  const me = state.players.find(p => p.me);
+  return me && me.claims.length === 1 ? me.claims[0] : "";
+}
+function newDraft() {
+  const role = myRoleNow(), t = infoOf(role) || {};
+  const night = Math.max(1, state.day + (state.myInfo.some(e => e.night === state.day) ? 1 : 0));
+  return { role, night, p: t.neighbours ? livingNeighbours() : [], r: [], n: t.n ? 0 : null, yn: t.yn ? 0 : null, note: "", zero: false };
+}
+
+// Read one entry: what it says, and what it implies for each player
+function readEntry(e) {
+  const P = id => state.players.find(p => p.id === id);
+  const nm = id => { const p = P(id); return p ? (p.name || `Seat ${state.players.indexOf(p) + 1}`) : "someone"; };
+  const has = (id, r) => !!P(id)?.claims.some(c => c.toLowerCase() === String(r).toLowerCase());
+  const role = e.role.toLowerCase();
+  const [a, b] = e.p;
+  const out = { means: "", warns: [], weights: [] };
+  const w = (id, pts, why) => { if (id && P(id)) out.weights.push({ id, pts, why }); };
+  const claimCheck = (id, r) => {
+    const p = P(id);
+    if (!p || !r) return;
+    if (!p.claims.length) out.warns.push(`${nm(id)} hasn't claimed yet. Your info says ${r}.`);
+    else if (!has(id, r)) {
+      out.warns.push(`${nm(id)} claimed ${p.claims.join(" or ")}, but your info says ${r}. They're lying, or your info is wrong (drunk or poisoned).`);
+      w(id, 3, `claim clashes with your ${e.role} info`);
+    } else out.means += ` ${nm(id)}'s claim fits.`;
+  };
+  switch (role) {
+    case "washerwoman": case "librarian": case "investigator": {
+      if (e.zero) {
+        out.means = "There are no Outsiders in play.";
+        for (const p of state.players) if (p.claims.length && p.claims.every(c => teamOf(c) === "outsider")) { out.warns.push(`${nm(p.id)} claims ${p.claims.join(" or ")}, an Outsider, but you learned there are none.`); w(p.id, 3, "Outsider claim vs your zero"); }
+        break;
+      }
+      const r = e.r[0];
+      if (!a || !b || !r) { out.means = "Incomplete: pick both players and the character."; break; }
+      out.means = `One of ${nm(a)} or ${nm(b)} is the ${r}.`;
+      const ca = has(a, r), cb = has(b, r);
+      if (role === "investigator") {
+        out.means += ` The Recluse can also show as a Minion.`;
+        w(a, 2, "in your Investigator pair"); w(b, 2, "in your Investigator pair");
+      } else {
+        if (ca && !cb) { out.means += ` ${nm(a)} claims it, which fits.`; w(a, -2, ""); }
+        else if (cb && !ca) { out.means += ` ${nm(b)} claims it, which fits.`; w(b, -2, ""); }
+        else if (!ca && !cb && P(a)?.claims.length && P(b)?.claims.length) out.warns.push(`Neither ${nm(a)} nor ${nm(b)} has claimed ${r}. One of them is hiding it${role === "washerwoman" ? ", or the Spy showed up as a Townsfolk" : ""}.`);
+        if (role === "washerwoman") out.means += " The Spy can also show as a Townsfolk.";
+        if (role === "librarian") out.means += " The Spy can show as an Outsider too.";
+      }
+      for (const p of state.players) if (p.id !== a && p.id !== b && p.claims.length === 1 && has(p.id, r) && role !== "investigator") { out.warns.push(`${nm(p.id)} hard-claims ${r}, but your info puts the ${r} in ${nm(a)} or ${nm(b)}.`); w(p.id, 3, `claims ${r} against your info`); }
+      break;
+    }
+    case "empath": {
+      if (!a || !b) { out.means = `You got ${e.n}. Pick your two living neighbours so this can be read.`; break; }
+      if (e.n === 0) { out.means = `${nm(a)} and ${nm(b)} are both good.`; w(a, -3, ""); w(b, -3, ""); }
+      else if (e.n >= 2) { out.means = `${nm(a)} and ${nm(b)} are both evil.`; w(a, 4, "your Empath 2"); w(b, 4, "your Empath 2"); }
+      else { out.means = `Exactly one of ${nm(a)} or ${nm(b)} is evil.`; w(a, 1, "your Empath 1"); w(b, 1, "your Empath 1"); }
+      out.means += " The Recluse or Spy can show the wrong way.";
+      break;
+    }
+    case "chef":
+      out.means = e.n === 0 ? "No two evil players sit next to each other." : `There ${e.n === 1 ? "is 1 pair" : `are ${e.n} pairs`} of evil players sitting next to each other.`;
+      if (e.n === 0) {
+        const ps = state.players;
+        ps.forEach((p, i) => { const q = ps[(i + 1) % ps.length]; if (p.align === "evil" && q.align === "evil") out.warns.push(`You've marked ${nm(p.id)} and ${nm(q.id)} as evil, but they sit together and your Chef 0 says no evil pairs.`); });
+      }
+      break;
+    case "fortune teller":
+      if (!a || !b) { out.means = "Pick the two players you chose."; break; }
+      if (e.yn === 0) { out.means = `One of ${nm(a)} or ${nm(b)} is the Demon, or one is your red herring (a good player who always shows yes).`; w(a, 2, "your Fortune Teller yes"); w(b, 2, "your Fortune Teller yes"); }
+      else { out.means = `Neither ${nm(a)} nor ${nm(b)} is the Demon. They could still be Minions.`; w(a, -1, ""); w(b, -1, ""); }
+      break;
+    case "undertaker": case "ravenkeeper": case "grandmother": case "gambler": {
+      const r = e.r[0];
+      if (!a || !r) { out.means = "Pick the player and the character."; break; }
+      if (role === "gambler") { out.means = `You guessed ${nm(a)} is the ${r}. If you survived the night, you were right.`; break; }
+      out.means = `${nm(a)} is the ${r}.`;
+      const t = teamOf(r);
+      if (t === "minion" || t === "demon") { out.means += " That's an evil character."; w(a, 6, `your ${e.role} info says ${r}`); }
+      else if (role === "grandmother") w(a, -4, "");
+      claimCheck(a, r);
+      break;
+    }
+    case "dreamer": {
+      const [r1, r2] = e.r;
+      if (!a || !r1 || !r2) { out.means = "Pick the player and both characters."; break; }
+      out.means = `${nm(a)} is either the ${r1} or the ${r2}. One is good and one is evil.`;
+      const p = P(a);
+      if (p?.claims.length === 1) {
+        if (has(a, r1) || has(a, r2)) out.means += ` They claim ${p.claims[0]}, which fits the good option.`;
+        else { out.warns.push(`${nm(a)} claims ${p.claims[0]}, which isn't either of your options.`); w(a, 3, "claim outside your Dreamer options"); }
+      }
+      break;
+    }
+    case "seamstress":
+      if (!a || !b) { out.means = "Pick the two players."; break; }
+      out.means = e.yn === 0 ? `${nm(a)} and ${nm(b)} are on the same team.` : `${nm(a)} and ${nm(b)} are on different teams: one good, one evil.`;
+      for (const [x, y] of [[a, b], [b, a]]) {
+        const px = P(x), py = P(y);
+        if (px?.align && py?.align && ((e.yn === 0) !== (px.align === py.align))) { out.warns.push(`Your reads on ${nm(a)} and ${nm(b)} don't match this.`); break; }
+      }
+      break;
+    case "sage":
+      if (!a || !b) { out.means = "Pick the two players."; break; }
+      out.means = `One of ${nm(a)} or ${nm(b)} is the Demon.`; w(a, 3, "your Sage info"); w(b, 3, "your Sage info");
+      break;
+    case "clockmaker":
+      out.means = e.n === 1 ? "The Demon sits right next to a Minion." : `The Demon is ${e.n} seats from its nearest Minion.`;
+      break;
+    case "chambermaid":
+      out.means = a && b ? `${e.n} of ${nm(a)} and ${nm(b)} woke at night for their ability.` : "Pick the two players.";
+      break;
+    case "oracle": out.means = `${e.n} of the dead ${e.n === 1 ? "is" : "are"} evil.`; break;
+    case "mathematician": out.means = `${e.n} player${e.n === 1 ? "'s" : "s'"} abilities didn't work properly because of another character.`; break;
+    case "juggler": out.means = `${e.n} of your guesses were right.`; break;
+    case "flowergirl": case "town crier": out.means = infoOf(role).yn[e.yn] + "."; break;
+    default: {
+      const t = infoOf(role);
+      out.means = t?.plabel && e.p.length ? `${t.plabel}: ${e.p.map(nm).join(" and ")}.` : "";
+    }
+  }
+  out.means = out.means.trim();
+  return out;
+}
+
+function infoAnalysis() {
+  const reads = state.myInfo.map(e => ({ e, ...readEntry(e) }));
+  const issues = [];
+  // Empath: same neighbours, different numbers
+  const emp = state.myInfo.filter(e => e.role.toLowerCase() === "empath" && e.p.length === 2);
+  for (let i = 1; i < emp.length; i++) {
+    const x = emp[i - 1], y = emp[i];
+    if (x.n !== y.n && [...x.p].sort().join() === [...y.p].sort().join()) issues.push(`Your Empath number changed from ${x.n} to ${y.n} with the same neighbours. One night was wrong: you may have been poisoned (or a neighbour is the Recluse or Spy).`);
+  }
+  const fts = state.myInfo.filter(e => e.role.toLowerCase() === "fortune teller" && e.yn === 0 && e.p.length === 2);
+  const yesCount = {};
+  for (const e of fts) for (const id of e.p) yesCount[id] = (yesCount[id] || 0) + 1;
+  for (const [id, n] of Object.entries(yesCount)) if (n >= 2) { const p = state.players.find(x => x.id === id); if (p) issues.push(`${p.name || "A player"} got a yes from you ${n} times. They're the Demon or your red herring.`); }
+  const score = new Map();
+  for (const r of reads) for (const x of r.weights) { const s = score.get(x.id) || { pts: 0, why: [], pos: false, neg: false }; s.pts += x.pts; if (x.pts > 0) { s.why.push(x.why); s.pos = true; } else s.neg = true; score.set(x.id, s); }
+  return { reads, issues, score };
+}
+
+function renderInfo() {
+  const roles = scriptRoles();
+  const infoRoles = TEAMS.flatMap(t => roles[t]).filter(r => infoOf(r));
+  const cur = myRoleNow();
+  const extra = cur && !infoRoles.some(r => r.toLowerCase() === cur.toLowerCase()) ? [cur] : [];
+  $("myRole").innerHTML = `<option value="">Choose your character</option>` +
+    [...extra, ...infoRoles].map(r => `<option${r.toLowerCase() === cur.toLowerCase() ? " selected" : ""}>${esc(r)}</option>`).join("");
+
+  if (!infoDraft || infoDraft.role.toLowerCase() !== cur.toLowerCase()) infoDraft = newDraft();
+  const d = infoDraft, t = infoOf(cur);
+  const pOpts = sel => `<option value="">Pick player</option>` + state.players.map((p, i) => `<option value="${p.id}"${p.id === sel ? " selected" : ""}>${i + 1}. ${esc(p.name || "—")}${p.dead ? " (dead)" : ""}</option>`).join("");
+  const rList = kind => kind === "any" ? TEAMS.flatMap(t => roles[t]) : kind === "good" ? [...roles.townsfolk, ...roles.outsider] : roles[kind] || [];
+  const rOpts = (kind, sel) => `<option value="">Pick character</option>` + rList(kind).map(r => `<option${r === sel ? " selected" : ""}>${esc(r)}</option>`).join("");
+
+  if (!cur) {
+    $("infoForm").innerHTML = `<p class="tips-empty">Choose your character above to log what you learn each night.</p>`;
+  } else {
+    $("infoForm").innerHTML = `
+      <div class="row">
+        <label class="label" for="ifNight">Night</label>
+        <input type="number" id="ifNight" min="1" max="30" value="${d.night}">
+        ${t?.zero ? `<button class="toggle" id="ifZero" aria-pressed="${d.zero}">Learned zero Outsiders</button>` : ""}
+      </div>
+      ${t?.p && !d.zero ? `<div class="row"><span class="label">${esc(t.plabel || "Players")}</span>
+        ${Array.from({ length: t.p }, (_, i) => `<select class="btn wide" data-ifp="${i}" aria-label="${esc(t.plabel || "Player")} ${i + 1}">${pOpts(d.p[i])}</select>`).join("")}</div>
+        ${t.neighbours && !state.players.some(p => p.me) ? `<span class="hint">Tip: tap your seat and turn on "This is me" so your neighbours fill in automatically.</span>` : ""}` : ""}
+      ${t?.r && !d.zero ? `<div class="row"><span class="label">${esc(t.rlabel || "Character")}</span>
+        ${Array.from({ length: t.r2 ? 2 : 1 }, (_, i) => `<select class="btn wide" data-ifr="${i}" aria-label="Character ${i + 1}">${rOpts(t.r, d.r[i])}</select>`).join("")}</div>` : ""}
+      ${t?.n ? `<div class="row"><label class="label" for="ifN">${esc(t.n)}</label><input type="number" id="ifN" min="0" max="20" value="${d.n ?? 0}"></div>` : ""}
+      ${t?.yn ? `<div class="row"><span class="seg" role="group" aria-label="Result">${t.yn.map((l, i) => `<button class="u" data-ifyn="${i}" aria-pressed="${d.yn === i}">${esc(l)}</button>`).join("")}</span></div>` : ""}
+      ${!t ? `<p class="hint">There's no set form for the ${esc(cur)}, so write what you learned below.</p>` : ""}
+      <div class="row"><input type="text" id="ifNote" class="wide" placeholder="Anything else (optional)" value="${esc(d.note)}"><button class="btn primary" id="ifAdd">Add night ${d.night}</button></div>`;
+    const fm = $("infoForm");
+    if ($("ifNight")) $("ifNight").oninput = e => { d.night = Math.max(1, parseInt(e.target.value, 10) || 1); $("ifAdd").textContent = `Add night ${d.night}`; };
+    if ($("ifZero")) $("ifZero").onclick = () => { d.zero = !d.zero; renderInfo(); };
+    fm.querySelectorAll("[data-ifp]").forEach(s => s.onchange = () => { d.p[+s.dataset.ifp] = s.value; });
+    fm.querySelectorAll("[data-ifr]").forEach(s => s.onchange = () => { d.r[+s.dataset.ifr] = s.value; });
+    if ($("ifN")) $("ifN").oninput = e => { d.n = Math.max(0, parseInt(e.target.value, 10) || 0); };
+    fm.querySelectorAll("[data-ifyn]").forEach(b => b.onclick = () => { d.yn = +b.dataset.ifyn; renderInfo(); });
+    $("ifNote").oninput = e => { d.note = e.target.value; };
+    $("ifAdd").onclick = () => {
+      const entry = { id: uid(), night: d.night, role: cur, p: d.zero ? [] : d.p.filter(Boolean), r: d.zero ? [] : d.r.filter(Boolean), n: t?.n ? d.n : null, yn: t?.yn ? d.yn : null, note: d.note.trim(), zero: !!d.zero };
+      if (!t && !entry.note) { $("ifNote").focus(); return; }
+      state.myInfo.push(entry);
+      state.myInfo.sort((x, y) => x.night - y.night);
+      infoDraft = null;
+      save(); render();
+    };
+  }
+
+  const { reads, issues, score } = infoAnalysis();
+  $("infoLog").innerHTML = reads.length ? reads.map(({ e, means, warns }) => `
+    <div class="tip entry ${warns.length ? "bad" : ""}">
+      <span class="when">Night ${e.night} · ${esc(e.role)}</span>
+      <button class="x" data-ifdel="${e.id}" aria-label="Delete night ${e.night} entry">×</button>
+      ${means ? `<span class="means">${esc(means)}</span>` : ""}
+      ${warns.map(x => `<span class="warn">${esc(x)}</span>`).join("")}
+      ${e.note ? `<small>${esc(e.note)}</small>` : ""}
+    </div>`).join("") : (cur ? `<p class="tips-empty">Nothing logged yet. Add what you learned on night 1.</p>` : "");
+  $("infoLog").querySelectorAll("[data-ifdel]").forEach(b => b.onclick = () => { state.myInfo = state.myInfo.filter(e => e.id !== b.dataset.ifdel); save(); render(); });
+
+  const P = id => state.players.find(p => p.id === id);
+  const name = id => esc(P(id)?.name || "—");
+  const good = [...score].filter(([id, s]) => s.neg && !s.pos && P(id)).map(([id]) => id);
+  const bad = [...score].filter(([id, s]) => s.pos && !s.neg && P(id)).sort((x, y) => y[1].pts - x[1].pts);
+  const mixed = [...score].filter(([id, s]) => s.pos && s.neg && P(id)).map(([id]) => id);
+  const lines = [
+    ...issues.map(x => esc(x)),
+    good.length ? `<span class="g">Looks good from your info:</span> ${good.map(name).join(", ")}` : "",
+    bad.length ? `<span class="e">Points towards evil:</span> ${bad.map(([id, s]) => `${name(id)} (${esc(s.why.join(", "))})`).join("; ")}` : "",
+    mixed.length ? `<b>Mixed signals:</b> ${mixed.map(name).join(", ")}. Your nights disagree about them.` : ""
+  ].filter(Boolean);
+  $("infoSum").innerHTML = lines.length
+    ? `<h3 class="label" style="margin:0">What it adds up to</h3><ul class="sum-list">${lines.map(l => `<li>${l}</li>`).join("")}</ul><span class="tips-foot">If you were drunk or poisoned, any night could be wrong. Info that clashes with players you trust is a warning sign.</span>`
+    : "";
+}
+$("myRole").onchange = e => { state.myRole = e.target.value; infoDraft = null; save(); render(); };
+
 /* ---------- Plan for tomorrow ---------- */
 const ROLE_Q = {
   "washerwoman": "Which two players did you see, and which Townsfolk?",
@@ -790,6 +1094,12 @@ function buildTips() {
   const undertakers = players.filter(p => !p.me && has(p, "undertaker"));
   if (executed.length) for (const u of undertakers) ask(u, `${u.claims.length > 1 ? "If you're the Undertaker, what" : "What"} did ${executed.map(nm).join(" and ")} show as when executed?`, u.claims.length === 1);
 
+  // Your own night info
+  const mine = infoAnalysis();
+  for (const r of mine.reads) for (const x of r.warns) issues.push({ level: "bad", ids: [], text: x, sub: `From your night ${r.e.night} ${r.e.role} info.` });
+  for (const x of mine.issues) issues.push({ level: "hi", ids: [], text: x, sub: "" });
+  for (const [id, sc] of mine.score) { const p = players.find(q => q.id === id); if (p) flag(p, sc.pts, sc.why.join(", ")); }
+
   // Your reads
   for (const p of players) {
     if (p.align === "evil") flag(p, 3, "your evil read");
@@ -903,6 +1213,7 @@ function render() {
   renderRoster();
   renderPanel();
   renderMatrix();
+  renderInfo();
   renderTips();
 }
 
@@ -927,7 +1238,7 @@ $("ngStart").onclick = () => {
   const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
   const count = names.length || Math.max(5, Math.min(20, parseInt($("ngCount").value, 10) || 8));
   const players = Array.from({ length: count }, (_, i) => mkPlayer(names[i] || `Player ${i + 1}`));
-  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, updatedAt: 0 };
+  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], updatedAt: 0 };
   confirmRemove = false;
   $("overlay").hidden = true; $("ngNames").value = "";
   save(); render();

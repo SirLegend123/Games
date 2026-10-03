@@ -6,6 +6,7 @@ A player's notebook for *Blood on the Clocktower*. Open `index.html` in any web 
 
 - Seats shown in a circle, with each player's claimed role(s), alive/dead, ghost vote and your good/evil read
 - Notes on every player, plus town notes for nominations and votes
+- My night info: log what your information character learns each night, see what it means, and spot clashes with other players' claims
 - Plan for tomorrow: flags claims that don't add up (double claims, too many Outsiders, an executed Saint), suggests questions for each player and who to look at
 - Claim matrix: players down the side, roles along the top, claimed squares in green and double claims in amber
 - Trouble Brewing, Bad Moon Rising and Sects & Violets roles, or type in any role
