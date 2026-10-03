@@ -119,8 +119,10 @@ select.btn { padding-right: 8px; }
 .seat.good .disc { border-color: var(--good); }
 .seat.proven .disc { border-width: 5px; border-color: var(--good); }
 .proven-tag { position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%); font-size: calc(var(--tok, 70px) * .11); font-weight: 800; letter-spacing: .06em; background: var(--good); color: #fff; border-radius: 4px; padding: 0 4px; z-index: 3; white-space: nowrap; }
+.auto-note { background: color-mix(in srgb, var(--warn) 14%, transparent); border: 1px dashed var(--warn); border-radius: 8px; padding: 6px 10px; font-size: .86rem; }
 .proven-note { display: flex; gap: 8px; align-items: center; background: var(--good-soft); border: 1px solid var(--good); border-radius: 8px; padding: 6px 10px; font-size: .88rem; font-weight: 600; }
 .seat.evil .disc { border-color: var(--evil); }
+.seat.auto-sus .disc { border-color: var(--warn); border-style: dashed; }
 .claim-txt { font-weight: 800; font-size: calc(var(--tok, 70px) * var(--fs, .15)); line-height: 1.05; overflow-wrap: break-word; }
 .claim-txt.none { color: #8d826f; font-weight: 500; font-style: italic; }
 .claim-opts { display: grid; gap: 1px; line-height: 1; }
@@ -293,6 +295,7 @@ textarea { resize: vertical; min-height: 90px; }
 .mini { position: relative; flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--parch); border: 3px solid transparent; box-shadow: 0 1px 4px rgba(0,0,0,.3); overflow: hidden; }
 .mini.good { border-color: var(--good); }
 .mini.evil { border-color: var(--evil); }
+.mini.sus { border-color: var(--warn); border-style: dashed; }
 .mini.proven { border: 5px solid var(--good); }
 .mini.proven i { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 6px; font-weight: 800; background: var(--good); color: #fff; border-radius: 2px; padding: 0 2px; white-space: nowrap; }
 .mini.dead { filter: grayscale(1) brightness(.62); }
@@ -500,6 +503,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       <div class="w-legend-grid">
         <div><span class="mini good"></span>Blue ring: you think they're good</div>
         <div><span class="mini evil"></span>Red ring: you think they're evil</div>
+        <div><span class="mini sus"></span>Dashed amber ring: the app finds them suspicious from claims and info</div>
         <div><span class="mini proven"><i>✓ GOOD</i></span>Proven good by the Virgin or a Slayer shot</div>
         <div><span class="mini dead"></span>Black shroud: dead</div>
         <div><span class="mini"><span class="mini-vote"></span></span>White dot: ghost vote still unused</div>
@@ -722,6 +726,21 @@ function applyProofs() {
   }
 }
 
+/* ---------- Automatic suspicion ---------- */
+// Players whose claims, deaths and logged info add up to real suspicion, while your own read is still "Unsure"
+const AUTO_SUS_MIN = 2;
+function autoSuspicion() {
+  const out = new Map();
+  const { noms } = buildTips();
+  const proven = provenGood();
+  for (const n of noms.values()) {
+    const p = n.p;
+    if (p.align || p.dead || p.me || proven.has(p.id) || n.score < AUTO_SUS_MIN) continue;
+    out.set(p.id, { score: n.score, why: [...new Set(n.why.filter(Boolean))] });
+  }
+  return out;
+}
+
 /* ---------- Circle ---------- */
 function sizeTokens() {
   const table = $("table");
@@ -738,10 +757,12 @@ function renderCircle() {
   table.querySelectorAll(".seat").forEach(el => el.remove());
   const n = state.players.length;
   const proven = provenGood();
+  const auto = autoSuspicion();
   state.players.forEach((p, i) => {
     const a = (i / n) * Math.PI * 2 - Math.PI / 2;
     const b = document.createElement("button");
-    b.className = "seat" + (p.id === state.selected ? " sel" : "") + (p.dead ? " dead" : "") + (p.align ? " " + p.align : "") + (proven.has(p.id) ? " proven" : "");
+    b.className = "seat" + (p.id === state.selected ? " sel" : "") + (p.dead ? " dead" : "") + (p.align ? " " + p.align : "") + (proven.has(p.id) ? " proven" : "") + (auto.has(p.id) ? " auto-sus" : "");
+    if (auto.has(p.id)) b.title = "Flagged by the app: " + auto.get(p.id).why.join(", ");
     b.style.left = (50 + 41 * Math.cos(a)) + "%";
     b.style.top = (50 + 41 * Math.sin(a)) + "%";
     b.setAttribute("aria-label", `Seat ${i + 1}: ${p.name || "unnamed"}${p.claims.length ? ", claims " + p.claims.join(" or ") : ""}${p.dead ? ", dead" : ""}`);
@@ -841,6 +862,7 @@ function renderPanel() {
       <label class="label" for="pSlayer">Who shot them?</label>
       <select class="btn" id="pSlayer"><option value="">Pick the Slayer</option>${state.players.filter(x => x !== p).sort((x, y) => (y.claims.some(c => c.toLowerCase() === "slayer") ? 1 : 0) - (x.claims.some(c => c.toLowerCase() === "slayer") ? 1 : 0)).map(x => `<option value="${x.id}"${x.id === p.slayerBy ? " selected" : ""}>${state.players.indexOf(x) + 1}. ${esc(x.name || "—")}${x.claims.length ? " · " + esc(x.claims.join("/")) : ""}</option>`).join("")}</select>
     </div>` : ""}` : ""}
+    ${(() => { const a = autoSuspicion().get(p.id); return a ? `<div class="auto-note">Amber ring: the app finds ${esc(p.name || "this player")} suspicious (${esc(a.why.join(", "))}). Set your read to keep or clear it.</div>` : ""; })()}
     ${provenGood().has(p.id) ? `<div class="proven-note">✓ Proven good. ${esc(provenGood().get(p.id))}.</div>` : ""}
     ${Object.entries(ftAnalysis()).filter(([, r]) => r.herring === p.id).map(([src]) => `<div class="proven-note">Fortune Teller red herring${src ? ` for ${esc(state.players.find(x => x.id === src)?.name || "another player")}` : ""}: always shows yes, but is good.</div>`).join("")}
 
@@ -1680,7 +1702,7 @@ function buildTips() {
   if (state.day === 1) rem.push("Day 1: ask everyone for a claim or at least Townsfolk or Outsider, and write down who's quiet.");
 
   const nomList = [...noms.values()].filter(n => n.score > 0).sort((a, b) => b.score - a.score).slice(0, 4);
-  return { issues, qs, nomList, rem };
+  return { issues, qs, nomList, rem, noms };
 }
 
 /* ---------- Evil team ---------- */
