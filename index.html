@@ -395,6 +395,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <div id="infoForm" class="info-form"></div>
         <div id="infoLog" class="tips-col"></div>
         <div id="infoSum" class="tips-col"></div>
+        <div id="infoRel" class="tips-col"></div>
       </div>
 
       <div class="card town-notes">
@@ -493,6 +494,8 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <ul>
           <li><b>Plan for tomorrow:</b> what doesn't add up, questions to ask each player, and who to look at.</li>
           <li><b>Evil team:</b> the most likely Demon and why, plus which Minions are likely in play.</li>
+          <li><b>Test a hunch:</b> in a player's panel, tap "What if they're evil?" to see what supports it, what goes against it, and what follows if it's true.</li>
+          <li><b>Night info</b> grades each player's information as consistent, doubtful or unreliable.</li>
           <li><b>Claim matrix:</b> every claim at a glance. Amber means two players claim the same role.</li>
         </ul>
       </li>
@@ -515,6 +518,10 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     <div class="welcome-actions"><button class="btn primary new-game" id="wStart2">+ Start a new game</button><button class="btn" id="wClose">Close</button></div>
   </div>
 </section>
+
+<div class="overlay" id="wiOverlay" hidden>
+  <div class="card dialog phase" role="dialog" aria-modal="true" aria-labelledby="wiTitle" id="wiBox"></div>
+</div>
 
 <div class="overlay" id="phaseOverlay" hidden>
   <div class="card dialog phase" role="dialog" aria-modal="true" aria-labelledby="phaseTitle" id="phaseBox"></div>
@@ -879,6 +886,11 @@ function renderPanel() {
         <button class="e" data-align="evil" aria-pressed="${p.align === "evil"}">Evil</button>
       </span>
     </div>
+    ${p.me ? "" : `<div class="row">
+      <span class="label">Test a hunch</span>
+      <button class="btn sm" data-whatif="evil">What if they're evil?</button>
+      <button class="btn sm" data-whatif="demon">What if they're the Demon?</button>
+    </div>`}
     ${p.me ? "" : provenGood().has(p.id) ? "" : `<div class="row">
       <label class="label" for="pSuspect">I suspect they're the</label>
       <select class="btn" id="pSuspect"><option value="">No guess</option>
@@ -952,6 +964,7 @@ function renderPanel() {
   if ($("pVirgin")) $("pVirgin").onchange = e => { p.virginBy = e.target.value; applyProofs(); save(); render(); };
   if ($("pDeathNight")) $("pDeathNight").oninput = e => { p.deathNight = Math.max(1, parseInt(e.target.value, 10) || 1); save(); renderEvil(); };
   if ($("pSlayer")) $("pSlayer").onchange = e => { p.slayerBy = e.target.value; applyProofs(); save(); render(); };
+  $("panel").querySelectorAll("[data-whatif]").forEach(b => b.onclick = () => openWhatIf(p.id, b.dataset.whatif));
   $("panel").querySelectorAll("[data-align]").forEach(b => b.onclick = () => { p.align = b.dataset.align; if (p.align !== "evil") p.suspect = ""; save(); render(); });
   if ($("pSuspect")) $("pSuspect").onchange = e => { p.suspect = e.target.value; if (p.suspect) p.align = "evil"; save(); render(); };
   $("panel").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { p.claims.splice(+b.dataset.rm, 1); save(); render(); });
@@ -1182,6 +1195,11 @@ function readEntry(e) {
         w(x, 4, `${whose} Empath 1 with a proven-good neighbour`);
       }
       else if (good.has(a) && good.has(b)) { out.means = `Exactly one of ${nm(a)} or ${nm(b)} is evil.`; wrongInfo(`But both neighbours are known good.`); }
+      else if ((P(a)?.align === "evil") !== (P(b)?.align === "evil")) {
+        const ev = P(a)?.align === "evil" ? a : b, x = ev === a ? b : a;
+        out.means = `Exactly one of ${nm(a)} or ${nm(b)} is evil. You've marked ${nm(ev)} as evil, which would make ${nm(x)} good.`;
+        w(ev, 1, `${whose} Empath 1`); w(x, -1, "");
+      }
       else { out.means = `Exactly one of ${nm(a)} or ${nm(b)} is evil.`; w(a, 1, `${whose} Empath 1`); w(b, 1, `${whose} Empath 1`); }
       out.means += " The Recluse or Spy can show the wrong way.";
       break;
@@ -1308,6 +1326,158 @@ function infoAnalysis() {
   return { reads, issues, score: scoreAll, mine: tally(r => !r.src), theirs: tally(r => r.src) };
 }
 
+/* ---------- How reliable is each source of night info? ---------- */
+function reliability() {
+  const P = id => state.players.find(p => p.id === id);
+  const nm = id => P(id)?.name || "someone";
+  const out = new Map();
+  const get = src => out.get(src) || out.set(src, { src, entries: 0, pts: 0, problems: [] }).get(src);
+  const add = (src, pts, text) => { const g = get(src); g.pts += pts; g.problems.push(text); };
+  const { reads } = infoAnalysis();
+  for (const r of reads) {
+    const src = r.src || "", n = r.e.night;
+    get(src).entries++;
+    for (const w of r.warns) {
+      if (/known good|proven good|you are|both known good|both neighbours are known good/.test(w)) add(src, 1, `Night ${n}: contradicts a proven-good player`);
+      else if (/claimed .*but .*info says|hard-claims .*but .*info puts|an Outsider, but|isn't either of/.test(w)) add(src, 0.5, `Night ${n}: clashes with another player's claim`);
+      else if (/Neither .* has claimed/.test(w)) add(src, 0.5, `Night ${n}: nobody in the pair claims the role it names`);
+    }
+    // Info that pointed at someone the Demon later killed: the Demon rarely kills its own team
+    for (const w of r.weights) {
+      const t = P(w.id);
+      if (w.pts > 0 && t && t.dead && t.deathBy === "night" && t.deathNight > n) add(src, 1, `Night ${n}: pointed at ${nm(w.id)}, who was later killed at night`);
+    }
+  }
+  // Internal contradictions
+  for (const src of out.keys()) {
+    const mine = state.myInfo.filter(e => (e.src || "") === src);
+    const emp = mine.filter(e => e.role.toLowerCase() === "empath" && e.p.length === 2);
+    for (let i = 1; i < emp.length; i++) if (emp[i].n !== emp[i - 1].n && [...emp[i].p].sort().join() === [...emp[i - 1].p].sort().join()) add(src, 1, `Empath number changed from ${emp[i - 1].n} to ${emp[i].n} with the same neighbours`);
+    const ft = ftAnalysis()[src];
+    if (ft && ft.notes.some(x => /two different red herrings/.test(x))) add(src, 1, "Fortune Teller results point to two different red herrings");
+    const cleared = {};
+    for (const r of reads.filter(r => (r.src || "") === src)) for (const w of r.weights) if (w.pts < 0) cleared[w.id] = (cleared[w.id] || 0) + 1;
+    for (const [id, c] of Object.entries(cleared)) if (c >= 2 && P(id) && !P(id).me) add(src, 0.5, `Keeps clearing ${nm(id)} (${c} times)`);
+  }
+  // Two sources disagree about what a player is
+  const shown = {};
+  for (const e of state.myInfo) if (["undertaker", "ravenkeeper", "grandmother"].includes(e.role.toLowerCase()) && e.p[0] && e.r[0]) (shown[e.p[0]] = shown[e.p[0]] || []).push(e);
+  for (const [id, list] of Object.entries(shown)) if (new Set(list.map(e => e.r[0])).size > 1) for (const e of list) add(e.src || "", 1, `Disagrees with other info about ${nm(id)}`);
+  for (const g of out.values()) g.rating = g.pts === 0 ? "consistent" : g.pts < 1.5 ? "doubts" : "unreliable";
+  return out;
+}
+const REL_LABEL = { consistent: "Consistent", doubts: "Some doubts", unreliable: "Unreliable" };
+const REL_PILL = { consistent: "none", doubts: "possible", unreliable: "likely" };
+
+/* ---------- What if? Test a hunch ---------- */
+function whatIf(pid, mode) {
+  const P = id => state.players.find(p => p.id === id);
+  const p = P(pid), nm = id => P(id)?.name || "someone", name = nm(pid);
+  const isDemon = mode === "demon";
+  const against = [], support = [], consequences = [];
+  const proven = provenGood();
+  if (proven.has(pid)) against.push({ hard: true, text: `${name} is proven good: ${proven.get(pid)}.` });
+  // What the logged info says about them
+  const { reads } = infoAnalysis();
+  for (const r of reads) {
+    if (r.src === pid) continue;
+    const who = r.src ? `${nm(r.src)}'s` : "Your";
+    const e = r.e, role = e.role.toLowerCase();
+    const w = r.weights.find(x => x.id === pid);
+    if (role === "fortune teller" && e.p.includes(pid)) {
+      if (e.yn === 1 && isDemon) against.push({ text: `${who} Fortune Teller said no on night ${e.night}, so that info would have to be wrong.` });
+      if (e.yn === 0) support.push(`${who} Fortune Teller said yes on night ${e.night}.`);
+      continue;
+    }
+    if (["undertaker", "ravenkeeper", "grandmother"].includes(role) && e.p[0] === pid && e.r[0]) {
+      const t = teamOf(e.r[0]);
+      if (t === "minion" || t === "demon") support.push(`${who} ${e.role} saw them as the ${e.r[0]}.`);
+      else against.push({ text: `${who} ${e.role} saw them as the ${e.r[0]} (good), so that info would have to be wrong.` });
+      continue;
+    }
+    if (!w) continue;
+    const said = r.means.replace(/^If .*? is telling the truth: /, "");
+    if (w.pts > 0) support.push(`${who} night ${e.night} ${e.role}: ${said}`);
+    else against.push({ text: `${who} night ${e.night} ${e.role} says otherwise: ${said}` });
+  }
+  // Demon-only checks
+  if (isDemon) {
+    if (p.dead && !state.over) against.push({ text: `${name} is dead and the game carried on, so they can't be the Demon now (unless a Scarlet Woman took over).` });
+    for (const shot of (state.shots || [])) if (shot.target === pid && !shot.hit) {
+      const sh = P(shot.shooter);
+      if (sh && sh.claims.some(c => c.toLowerCase() === "slayer")) against.push({ text: `${name} survived ${nm(shot.shooter)}'s Slayer shot, so ${nm(shot.shooter)} would not be a real, sober Slayer.` });
+    }
+  }
+  // Their reliability as an information source
+  const rel = reliability().get(pid);
+  if (rel && rel.rating !== "consistent") support.push(`Their own info is ${REL_LABEL[rel.rating].toLowerCase()}: ${rel.problems.join("; ")}.`);
+  else if (rel && rel.entries >= 2) against.push({ text: `Their own info has been consistent so far (${rel.entries} results).` });
+  // Consequences: their claim and their info
+  if (p.claims.length) consequences.push(`Their claim (${p.claims.join(" or ")}) would be a bluff. The real ${p.claims.length === 1 ? p.claims[0] : "character"} may not be in play, or may be someone else.`);
+  for (const r of reads.filter(r => r.src === pid)) {
+    const cleared = r.weights.filter(w => w.pts < 0).map(w => nm(w.id));
+    const accused = r.weights.filter(w => w.pts > 0).map(w => nm(w.id));
+    consequences.push(`Their night ${r.e.night} ${r.e.role} info would be invented: "${r.means.replace(/^If .*? is telling the truth: /, "")}"${cleared.length ? ` ${cleared.join(" and ")} would lose the clearance it gave.` : ""}${accused.length ? ` The suspicion it put on ${accused.join(" and ")} would go away.` : ""}`);
+  }
+  // Evil headcount
+  const core = state.players.filter(x => !x.traveller), comp = COMP[Math.min(core.length, 15)];
+  if (comp) {
+    const evilSlots = comp[2] + comp[3];
+    const marked = state.players.filter(x => x.id !== pid && (x.align === "evil" || x.suspect));
+    if (marked.length + 1 > evilSlots) against.push({ text: `That makes ${marked.length + 1} evil players, but only ${evilSlots} are in play. One of your evil reads (${marked.map(x => x.name).join(", ")}) would be wrong.` });
+  }
+  // Re-run the evil team analysis as if the hunch were true
+  const before = new Map(buildEvil().active.map(c => [c.p.id, c.score]));
+  const saved = state;
+  let after;
+  try {
+    state = JSON.parse(JSON.stringify(saved));
+    const q = state.players.find(x => x.id === pid);
+    q.align = "evil";
+    if (isDemon) q.suspect = scriptRoles().demon[0];
+    state.myInfo = state.myInfo.filter(e => e.src !== pid);
+    after = buildEvil();
+  } finally { state = saved; }
+  const movers = after.active.filter(c => c.p.id !== pid && c.score - (before.get(c.p.id) ?? 0) >= 2).map(c => `${c.p.name} moves up the Demon list (no longer cleared by ${name}'s info)`);
+  consequences.push(...movers);
+  if (!isDemon) {
+    const top = after.active.filter(c => c.p.id !== pid && c.score > 0)[0];
+    if (top) consequences.push(`The most likely Demon would then be ${top.p.name} (${[...new Set(top.why)].slice(0, 3).join(", ")}).`);
+  } else {
+    const minions = after.active.filter(c => c.p.id !== pid && c.evil > 0).sort((a, b) => b.evil - a.evil).slice(0, comp ? comp[2] : 1).map(c => c.p.name);
+    if (minions.length) consequences.push(`Their Minion${minions.length === 1 ? "" : "s"} would most likely be ${minions.join(" and ")}.`);
+  }
+  // Verdict
+  const hard = against.filter(a => a.hard).length, soft = against.filter(a => !a.hard && !/consistent so far/.test(a.text)).length;
+  let verdict, level;
+  if (hard) { verdict = "This contradicts proven facts."; level = "bad"; }
+  else if (!soft && support.length) { verdict = `This fits the evidence (${support.length} thing${support.length === 1 ? "" : "s"} support it, nothing contradicts it).`; level = "good"; }
+  else if (!soft) { verdict = "Nothing logged supports or contradicts this. It's a pure gut call so far."; level = ""; }
+  else { verdict = `Possible, but ${soft} piece${soft === 1 ? "" : "s"} of information would have to be wrong${support.length ? `, with ${support.length} supporting it` : ""}.`; level = "hi"; }
+  return { name, isDemon, against, support, consequences, verdict, level };
+}
+
+function openWhatIf(pid, mode) {
+  const w = whatIf(pid, mode);
+  const li = list => list.map(x => `<li>${esc(typeof x === "string" ? x : x.text)}</li>`).join("");
+  $("wiBox").innerHTML = `
+    <span class="step">Testing a hunch</span>
+    <h2 id="wiTitle">What if ${esc(w.name)} is ${w.isDemon ? "the Demon" : "evil"}?</h2>
+    <div class="tip ${w.level === "good" ? "" : w.level}"><b>${esc(w.verdict)}</b></div>
+    ${w.support.length ? `<div class="field"><span class="label">Supports it</span><ul class="sum-list">${li(w.support)}</ul></div>` : ""}
+    ${w.against.length ? `<div class="field"><span class="label">Goes against it</span><ul class="sum-list">${li(w.against)}</ul></div>` : ""}
+    ${w.consequences.length ? `<div class="field"><span class="label">If it's true</span><ul class="sum-list">${li(w.consequences)}</ul></div>` : ""}
+    <div class="phase-actions"><button class="btn" id="wiClose">Close</button><button class="btn evilwin" id="wiMark">Mark ${esc(w.name)} as ${w.isDemon ? "my Demon suspect" : "evil"}</button></div>`;
+  $("wiOverlay").hidden = false;
+  $("wiClose").onclick = () => { $("wiOverlay").hidden = true; };
+  $("wiMark").onclick = () => {
+    const p = state.players.find(x => x.id === pid);
+    p.align = "evil";
+    if (w.isDemon) p.suspect = scriptRoles().demon.length === 1 ? scriptRoles().demon[0] : (p.suspect && teamOf(p.suspect) === "demon" ? p.suspect : scriptRoles().demon[0]);
+    save(); render(); $("wiOverlay").hidden = true;
+  };
+}
+
 function renderInfo() {
   const roles = scriptRoles();
   const infoRoles = TEAMS.flatMap(t => roles[t]).filter(r => infoOf(r));
@@ -1397,6 +1567,9 @@ function renderInfo() {
     block(mine, "From your own info"),
     block(theirs, "From other players' info, if they're telling the truth")
   ].filter(Boolean).join("");
+  const rel = [...reliability().values()].sort((a, b) => b.pts - a.pts);
+  const relName = src => src ? esc(P(src)?.name || "—") : "You";
+  $("infoRel").innerHTML = rel.length ? `<h3 class="label" style="margin:0">How reliable is each source?</h3>` + rel.map(g => `<div class="tip minion"><span class="pill ${REL_PILL[g.rating]}">${REL_LABEL[g.rating]}</span><b>${relName(g.src)}</b><small>${g.problems.length ? esc(g.problems.join(" · ")) : `${g.entries} result${g.entries === 1 ? "" : "s"}, nothing contradicts ${g.src ? "them" : "you"} so far.`}</small></div>`).join("") : "";
   $("infoSum").innerHTML = html ? html + `<span class="tips-foot">Anyone can be drunk or poisoned, and evil players can invent info. Info that clashes with players you trust is a warning sign.</span>` : "";
 }
 $("ifSrc").onchange = e => { const s = e.target.value; infoDraft = newDraft(s, roleFor(s)); renderInfo(); };
@@ -1671,6 +1844,16 @@ function buildTips() {
   const undertakers = players.filter(p => !p.me && has(p, "undertaker"));
   if (executed.length) for (const u of undertakers) ask(u, `${isSoft(u) ? "If you're the Undertaker, what" : "What"} did ${executed.map(nm).join(" and ")} show as when executed?`, isHard(u));
 
+  // Unreliable sources of information
+  for (const g of reliability().values()) {
+    if (g.rating === "consistent") continue;
+    const p = players.find(x => x.id === g.src);
+    if (!g.src) { if (g.rating === "unreliable") issues.push({ level: "hi", ids: [], text: "Your own info has several conflicts.", sub: `${g.problems.join("; ")}. You may be drunk or poisoned, or even the Drunk.` }); continue; }
+    if (!p) continue;
+    if (g.rating === "unreliable") issues.push({ level: "bad", ids: [p.id], text: `${nm(p)}'s information looks unreliable.`, sub: `${g.problems.join("; ")}. ${nm(p)} may be evil and inventing info, or drunk or poisoned.` });
+    flag(p, g.rating === "unreliable" ? 2 : 1, g.rating === "unreliable" ? "their info looks unreliable" : "some doubts about their info");
+  }
+
   // Your own night info
   const mine = infoAnalysis();
   for (const r of mine.reads) for (const x of r.warns) issues.push({ level: r.src ? "hi" : "bad", ids: [], text: x, sub: r.src ? `From ${state.players.find(q => q.id === r.src)?.name || "a player"}'s night ${r.e.night} ${r.e.role} info.` : `From your night ${r.e.night} ${r.e.role} info.` });
@@ -1793,6 +1976,7 @@ function buildEvil() {
         if (mine && !later) { rule(a, `your Empath 0 (night ${e.night})`); rule(b, `your Empath 0 (night ${e.night})`); }
         else { add(a, -1, ""); add(b, -1, ""); }
       } else if (e.n === 1 && kg.has(a) !== kg.has(b)) add(kg.has(a) ? b : a, mine ? 3 : 2, `${who(e)} Empath 1 next to a known-good player (night ${e.night})`);
+      else if (e.n === 1 && (byId(a)?.align === "evil") !== (byId(b)?.align === "evil")) { const ev = byId(a)?.align === "evil" ? a : b; add(ev, 1, `${who(e)} Empath 1 (night ${e.night})`); add(ev === a ? b : a, -1, ""); }
       else { const pts = e.n >= 2 ? (mine ? 2 : 1) : 1; add(a, pts, `${who(e)} Empath ${e.n} (night ${e.night})`); add(b, pts, `${who(e)} Empath ${e.n} (night ${e.night})`); }
     }
     if (["undertaker", "ravenkeeper", "grandmother", "gambler"].includes(role) && a && e.r[0] && role !== "gambler") {
@@ -2246,7 +2430,7 @@ $("newGameBtn").onclick = openNew;
 $("bannerNew").onclick = openNew;
 $("ngCancel").onclick = () => { $("overlay").hidden = true; };
 $("overlay").addEventListener("click", e => { if (e.target === $("overlay")) $("overlay").hidden = true; });
-document.addEventListener("keydown", e => { if (e.key === "Escape") $("overlay").hidden = true; });
+document.addEventListener("keydown", e => { if (e.key === "Escape") { $("overlay").hidden = true; $("wiOverlay").hidden = true; } });
 $("ngStart").onclick = () => {
   const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
   const count = names.length || Math.max(5, Math.min(20, parseInt($("ngCount").value, 10) || 8));
