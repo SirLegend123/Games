@@ -488,7 +488,7 @@ function exampleState() {
       P("You", ["Empath"], { me: true, notes: "My Empath numbers are under My night info." }),
       P("Sam", ["Chef"], { align: "evil", notes: "Chef 2 is odd with only 1 minion. Pushed hard on Leo." }),
       P("Priya", ["Investigator"], { notes: "Saw Baron between Tom and Mia." }),
-      P("Tom", ["Washerwoman", "Soldier", "Monk"], { notes: "Gave a 3-for-3 on day 1. Won't narrow it down." }),
+      P("Tom", ["Washerwoman", "Soldier", "Monk"], { claimType: "soft", notes: "Gave a 3-for-3 on day 1. Won't narrow it down." }),
       P("Jess", ["Fortune Teller"], { dead: true, deathBy: "night", deathNight: 2, align: "good", notes: "Died N2. Said Ben + Mia were no." }),
       P("Mia", ["Chef"], { notes: "Counter-claimed Chef against Sam on day 2. One of them is lying." }),
       P("Leo", ["Saint"], { dead: true, deathBy: "exec", ghostVote: false, align: "good", notes: "Executed D1, game didn't end." }),
@@ -516,6 +516,7 @@ function normalize(s) {
   s.myInfo = Array.isArray(s.myInfo) ? s.myInfo : [];
   s.myRole = s.myRole || "";
   s.over = s.over || null;
+  for (const p of s.players) if (!p.claimType) p.claimType = p.claims.length > 1 ? "soft" : "hard";
   s.shots = Array.isArray(s.shots) ? s.shots : [];
   if (s.firstNightDone === undefined) s.firstNightDone = true;
   return s;
@@ -533,20 +534,25 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // When a player hard-claims a role, take it out of other players' 3-for-3 options (repeat in case that creates a new hard claim)
+// A hard claim is one role stated outright; a soft claim is a set of options (a 3-for-3), even while only one is entered
+const isHard = p => p.claimType !== "soft" && p.claims.length === 1;
+const isSoft = p => p.claimType === "soft" ? p.claims.length > 0 : p.claims.length > 1;
+// Take hard-claimed roles out of other players' soft claims, and put them back if that hard claim goes away
 function pruneOptions() {
-  let changed = true;
-  while (changed) {
-    changed = false;
-    const hardBy = {};
-    for (const p of state.players) if (p.claims.length === 1 && teamOf(p.claims[0]) !== "traveller") (hardBy[p.claims[0].toLowerCase()] = hardBy[p.claims[0].toLowerCase()] || []).push(p);
-    for (const p of state.players) {
-      if (p.claims.length < 2) continue;
-      const keep = p.claims.filter(c => !hardBy[c.toLowerCase()]);
-      if (keep.length === p.claims.length || !keep.length) continue;
-      p.removed = p.removed || [];
-      for (const c of p.claims.filter(c => hardBy[c.toLowerCase()])) p.removed.push({ role: c, by: hardBy[c.toLowerCase()].map(x => x.name || "another player").join(" and "), day: state.day });
-      p.claims = keep; changed = true;
-    }
+  const hardBy = {};
+  for (const p of state.players) if (isHard(p) && teamOf(p.claims[0]) !== "traveller") (hardBy[p.claims[0].toLowerCase()] = hardBy[p.claims[0].toLowerCase()] || []).push(p);
+  for (const p of state.players) {
+    if (p.claims.length > 1 && p.claimType !== "hard") p.claimType = "soft";
+    p.removed = (p.removed || []).filter(x => {
+      if (hardBy[x.role.toLowerCase()]) return true;
+      if (p.claimType === "soft" && !p.claims.some(c => c.toLowerCase() === x.role.toLowerCase())) p.claims.push(x.role);
+      return false;
+    });
+    if (!isSoft(p)) continue;
+    const gone = p.claims.filter(c => hardBy[c.toLowerCase()]);
+    if (!gone.length || gone.length === p.claims.length) continue;
+    for (const c of gone) p.removed.push({ role: c, by: hardBy[c.toLowerCase()].map(x => x.name || "another player").join(" and "), day: state.day });
+    p.claims = p.claims.filter(c => !hardBy[c.toLowerCase()]);
   }
 }
 function save() {
@@ -605,7 +611,7 @@ function applyProofs() {
   for (const p of state.players) {
     if (!p.dead) continue;
     const pairs = [[p.deathBy === "virgin" && p.virginBy, "Virgin"], [p.deathBy === "slayer" && p.slayerBy, "Slayer"]];
-    for (const [id, role] of pairs) { const q = id && state.players.find(x => x.id === id); if (q) q.claims = [role]; }
+    for (const [id, role] of pairs) { const q = id && state.players.find(x => x.id === id); if (q) { q.claims = [role]; q.claimType = "hard"; } }
   }
 }
 
@@ -634,9 +640,9 @@ function renderCircle() {
     b.setAttribute("aria-label", `Seat ${i + 1}: ${p.name || "unnamed"}${p.claims.length ? ", claims " + p.claims.join(" or ") : ""}${p.dead ? ", dead" : ""}`);
     const first = p.claims[0];
     const claimHtml = first
-      ? p.claims.length === 1
+      ? isHard(p)
         ? `<span class="claim-txt t-${teamOf(first)}" style="--fs:${Math.min(.15, 1.05 / Math.max(...first.split(/\s+/).map(w => w.length))).toFixed(3)}">${esc(first)}</span>`
-        : `<span class="claim-opts">${p.claims.slice(0, 4).map(c => `<span class="claim-txt t-${teamOf(c)}" style="--fs:${Math.min(p.claims.length > 3 ? .095 : .115, 1.05 / Math.max(...p.claims.flatMap(x => x.split(/\s+/)).map(w => w.length))).toFixed(3)}">${esc(c)}</span>`).join("")}</span>`
+        : `<span class="claim-opts">${p.claims.slice(0, 4).map(c => `<span class="claim-txt t-${teamOf(c)}" style="--fs:${Math.min(p.claims.length > 3 ? .095 : .115, 1.05 / Math.max(...p.claims.flatMap(x => x.split(/\s+/)).map(w => w.length + 1))).toFixed(3)}">${esc(c)}${p.claims.length === 1 ? "?" : ""}</span>`).join("")}</span>`
       : `<span class="claim-txt none">no claim</span>`;
     b.innerHTML = `
       <span class="disc">
@@ -682,12 +688,18 @@ function renderRoster() {
 }
 
 /* ---------- Panel ---------- */
+// Hard claim: one role, tapping another replaces it. Soft claim: tapping toggles each option.
+function toggleClaim(p, r) {
+  const i = p.claims.findIndex(c => c.toLowerCase() === r.toLowerCase());
+  if (i >= 0) { p.claims.splice(i, 1); return; }
+  if (p.claimType === "soft") p.claims.push(r); else p.claims = [r];
+}
 function renderPanel() {
   const p = sel();
   const idx = state.players.indexOf(p);
   const roles = scriptRoles();
   const has = r => p.claims.some(c => c.toLowerCase() === r.toLowerCase());
-  const hardOthers = r => state.players.filter(x => x !== p && x.claims.length === 1 && x.claims[0].toLowerCase() === r.toLowerCase()).map(x => x.name || "—").join(", ");
+  const hardOthers = r => state.players.filter(x => x !== p && isHard(x) && x.claims[0].toLowerCase() === r.toLowerCase()).map(x => x.name || "—").join(", ");
   $("panel").innerHTML = `
     <div class="panel-head">
       <input type="text" class="name-input" id="pName" value="${esc(p.name)}" placeholder="Player name" aria-label="Player name">
@@ -743,7 +755,15 @@ function renderPanel() {
 
     <div class="field">
       ${(p.removed || []).map(x => `<span class="hint">Removed ${esc(x.role)} from their options on day ${x.day}: ${esc(x.by)} hard-claimed it.</span>`).join("")}
-      <span class="label">Claimed roles${p.claims.length > 1 ? ` · ${p.claims.length} options, any order` : ""}</span>
+      <div class="row">
+        <span class="label">Claim</span>
+        <span class="seg" role="group" aria-label="Claim type">
+          <button class="u" data-ctype="hard" aria-pressed="${p.claimType !== "soft"}">Hard claim</button>
+          <button class="u" data-ctype="soft" aria-pressed="${p.claimType === "soft"}">Soft claim (options)</button>
+        </span>
+      </div>
+      <span class="hint">${p.claimType === "soft" ? "Tap every role they offered, in any order. These never remove roles from other players." : "One role, stated outright. Tapping another role replaces it, and it's removed from other players' soft claims."}</span>
+      <span class="label">${p.claimType === "soft" ? `Soft claim · ${p.claims.length} option${p.claims.length === 1 ? "" : "s"}, any order` : "Hard claim"}</span>
       <div class="claims">${p.claims.length
         ? p.claims.map((c, i) => `<span class="chip ${teamOf(c)}">${esc(c)}<button data-rm="${i}" aria-label="Remove ${esc(c)}">×</button></span>`).join("")
         : '<span class="empty">No claim yet. Tap roles below, or type one. For a 3-for-3, tap all three.</span>'}</div>
@@ -801,10 +821,10 @@ function renderPanel() {
   $("panel").querySelectorAll("[data-align]").forEach(b => b.onclick = () => { p.align = b.dataset.align; if (p.align !== "evil") p.suspect = ""; save(); render(); });
   if ($("pSuspect")) $("pSuspect").onchange = e => { p.suspect = e.target.value; if (p.suspect) p.align = "evil"; save(); render(); };
   $("panel").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { p.claims.splice(+b.dataset.rm, 1); save(); render(); });
-  $("panel").querySelectorAll(".pick").forEach(b => b.onclick = () => {
-    const r = b.dataset.role;
-    const i = p.claims.findIndex(c => c.toLowerCase() === r.toLowerCase());
-    if (i >= 0) p.claims.splice(i, 1); else p.claims.push(r);
+  $("panel").querySelectorAll(".pick").forEach(b => b.onclick = () => { toggleClaim(p, b.dataset.role); save(); render(); });
+  $("panel").querySelectorAll("[data-ctype]").forEach(b => b.onclick = () => {
+    p.claimType = b.dataset.ctype;
+    if (p.claimType === "hard" && p.claims.length > 1) p.claims = [p.claims[0]];
     save(); render();
   });
   $("claimForm").addEventListener("submit", e => {
@@ -813,7 +833,7 @@ function renderPanel() {
     if (!v) return;
     const known = Object.keys(TEAM_OF).find(k => k === v.toLowerCase());
     const name = known ? Object.values(ROLES).flatMap(s => TEAMS.flatMap(t => s[t])).find(r => r.toLowerCase() === known) : v;
-    if (!p.claims.some(c => c.toLowerCase() === name.toLowerCase())) p.claims.push(name);
+    if (!p.claims.some(c => c.toLowerCase() === name.toLowerCase())) toggleClaim(p, name);
     save(); render();
     $("claimInput").focus();
   });
@@ -1009,7 +1029,7 @@ function readEntry(e) {
         else if (!ca && !cb && P(a)?.claims.length && P(b)?.claims.length) out.warns.push(`Neither ${nm(a)} nor ${nm(b)} has claimed ${r}. One of them is hiding it${role === "washerwoman" ? ", or the Spy showed up as a Townsfolk" : ""}${src ? `, or ${nm(src)} is lying` : ""}.`);
         if (role === "washerwoman") out.means += " The Spy can also show as a Townsfolk.";
         if (role === "librarian") out.means += " The Spy can show as an Outsider too.";
-        for (const p of state.players) if (p.id !== a && p.id !== b && p.id !== src && p.claims.length === 1 && has(p.id, r)) clash(p.id, `${nm(p.id)} hard-claims ${r}, but ${whose} info puts the ${r} in ${nm(a)} or ${nm(b)}.`);
+        for (const p of state.players) if (p.id !== a && p.id !== b && p.id !== src && isHard(p) && has(p.id, r)) clash(p.id, `${nm(p.id)} hard-claims ${r}, but ${whose} info puts the ${r} in ${nm(a)} or ${nm(b)}.`);
       }
       break;
     }
@@ -1073,7 +1093,7 @@ function readEntry(e) {
       if (!a || !r1 || !r2) { out.means = "Pick the player and both characters."; break; }
       out.means = `${nm(a)} is either the ${r1} or the ${r2}. One is good and one is evil.`;
       const p = P(a);
-      if (p?.claims.length === 1) {
+      if (p && isHard(p)) {
         if (has(a, r1) || has(a, r2)) out.means += ` They claim ${p.claims[0]}, which fits the good option.`;
         else clash(a, `${nm(a)} claims ${p.claims[0]}, which isn't either of ${whose} Dreamer options.`);
       }
@@ -1247,7 +1267,7 @@ function renderInfo() {
 }
 $("ifSrc").onchange = e => { const s = e.target.value; infoDraft = newDraft(s, roleFor(s)); renderInfo(); };
 // Your own character is set as your claim on your seat
-function syncMyRole() { const m = meP(); if (m && state.myRole && !(m.claims.length === 1 && m.claims[0] === state.myRole)) m.claims = [state.myRole]; }
+function syncMyRole() { const m = meP(); if (m && state.myRole) { m.claims = [state.myRole]; m.claimType = "hard"; } }
 $("myRole").onchange = e => {
   const v = e.target.value, s = infoDraft ? infoDraft.src : "";
   infoDraft = newDraft(s, v);
@@ -1306,7 +1326,7 @@ function buildTips() {
   const players = state.players;
   const nm = p => p.name || `Seat ${players.indexOf(p) + 1}`;
   // One claim is a hard claim; several are options in any order (a 3-for-3)
-  const hard = p => p.claims.length === 1 ? p.claims[0] : "";
+  const hard = p => isHard(p) ? p.claims[0] : "";
   const has = (p, r) => p.claims.some(c => c.toLowerCase() === r);
   const allIn = (p, teams) => p.claims.length > 0 && p.claims.every(c => teams.includes(teamOf(c)));
   const optList = p => p.claims.join(", ").replace(/, ([^,]*)$/, " or $1");
@@ -1325,8 +1345,8 @@ function buildTips() {
     if (ps.length < 2) continue;
     const t = teamOf(role);
     if (t === "traveller") continue;
-    const hardPs = ps.filter(p => p.claims.length === 1);
-    const optPs = ps.filter(p => p.claims.length > 1);
+    const hardPs = ps.filter(isHard);
+    const optPs = ps.filter(isSoft);
     const provenHolder = hardPs.find(p => provenSet.has(p.id));
     if (hardPs.length >= 2 && provenHolder) {
       const liars = hardPs.filter(p => p !== provenHolder);
@@ -1351,10 +1371,12 @@ function buildTips() {
   }
 
   // 3-for-3s (several options, in no particular order)
-  for (const p of others) if (p.claims.length > 1) {
+  for (const p of others) if (isSoft(p)) {
     const late = state.day >= 3;
     const two = p.claims.length === 2;
-    const narrow = two
+    const narrow = p.claims.length === 1
+      ? `Their other options were claimed by other players. Are you the ${p.claims[0]}?`
+      : two
       ? (late ? `It's day ${state.day}. Which is it, ${p.claims[0]} or ${p.claims[1]}?` : `Which is it, ${p.claims[0]} or ${p.claims[1]}? Or are you holding back for a reason?`)
       : (late ? `It's day ${state.day}, so can you hard-claim now?` : "Can you narrow it down to two?");
     // Only ask about information for options that actually give it (and only when it could have been given)
@@ -1478,15 +1500,15 @@ function buildTips() {
     issues.push({ level: "", ids: [p.id], text: `${nm(p)} died nominating ${v ? nm(v) : "the Virgin"}, so ${nm(p)} is a Townsfolk${spy ? " or the Spy" : ""}.`, sub: `${v ? `That proves ${nm(v)} is the real Virgin, sober and good, and their ability is now used up. ` : "Pick which Virgin under their death so the app can mark the Virgin as proven. "}${spy ? `The Spy can register as a Townsfolk, so ${nm(p)} isn't proven good.` : "There's no Spy on this script, so they're proven good."}` });
     if (notTF) issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} claimed ${p.claims.join(" or ")}, but dying to the Virgin means they're a Townsfolk${spy ? " or the Spy" : ""}.`, sub: spy ? "A good player would have no reason to bluff a non-Townsfolk here. They may well be the Spy." : "Their claim was a bluff." });
     if (notTF && spy) flag(p, 3, "died to the Virgin with a non-Townsfolk claim (Spy?)");
-    else if (p.claims.length > 1) issues.push({ level: "", ids: [p.id], text: `Cross the non-Townsfolk options off ${nm(p)}'s 3-for-3.`, sub: `Townsfolk options left: ${p.claims.filter(c => teamOf(c) === "townsfolk").join(", ") || "none"}.` });
-    if (p.claims.length === 1 && teamOf(p.claims[0]) === "townsfolk") for (const o of players) if (o !== p && o.claims.length === 1 && o.claims[0].toLowerCase() === p.claims[0].toLowerCase()) {
+    else if (isSoft(p)) issues.push({ level: "", ids: [p.id], text: `Cross the non-Townsfolk options off ${nm(p)}'s 3-for-3.`, sub: `Townsfolk options left: ${p.claims.filter(c => teamOf(c) === "townsfolk").join(", ") || "none"}.` });
+    if (isHard(p) && teamOf(p.claims[0]) === "townsfolk") for (const o of players) if (o !== p && isHard(o) && o.claims[0].toLowerCase() === p.claims[0].toLowerCase()) {
       issues.push({ level: spyOnScript() ? "hi" : "bad", ids: [o.id], text: spyOnScript() ? `${nm(p)} triggered the Virgin claiming ${p.claims[0]}. Unless ${nm(p)} is the Spy, ${nm(o)}'s ${p.claims[0]} claim is a lie.` : `${nm(p)} is proven a Townsfolk, so ${nm(o)}'s ${p.claims[0]} claim is very likely a lie.`, sub: `Only one ${p.claims[0]} can be in play.${spyOnScript() ? ` If ${nm(o)} is the real ${p.claims[0]}, ${nm(p)} is the Spy.` : ""}` });
       flag(o, spyOnScript() ? 3 : 4, `claims ${p.claims[0]} against a Virgin-tested player`);
     }
     if (v) { flag(v, -6, ""); if (v.align === "evil") issues.push({ level: "hi", ids: [v.id], text: `You've marked ${nm(v)} as evil, but the Virgin just proved them good.`, sub: "Update your read." }); }
   }
   const undertakers = players.filter(p => !p.me && has(p, "undertaker"));
-  if (executed.length) for (const u of undertakers) ask(u, `${u.claims.length > 1 ? "If you're the Undertaker, what" : "What"} did ${executed.map(nm).join(" and ")} show as when executed?`, u.claims.length === 1);
+  if (executed.length) for (const u of undertakers) ask(u, `${isSoft(u) ? "If you're the Undertaker, what" : "What"} did ${executed.map(nm).join(" and ")} show as when executed?`, isHard(u));
 
   // Your own night info
   const mine = infoAnalysis();
@@ -1501,7 +1523,7 @@ function buildTips() {
   }
   // Reads that clash with a double claim
   for (const { role, ps: all } of Object.values(byRole)) {
-    const ps = all.filter(p => p.claims.length === 1);
+    const ps = all.filter(isHard);
     if (ps.length < 2) continue;
     const good = ps.filter(p => p.align === "good");
     if (good.length === ps.length) issues.push({ level: "hi", ids: good.map(p => p.id), text: `You've marked ${good.map(nm).join(" and ")} as good, but they both claim ${role}.`, sub: "Both can't be telling the truth. Recheck one of those reads." });
@@ -1632,11 +1654,11 @@ function buildEvil() {
     for (const c of cand.values()) if (c.evil - c.score >= 3) { c.score += 2; c.why.push("looks like a Minion, and the Scarlet Woman is now the Demon"); }
   }
   const hardCount = {};
-  for (const p of ps) if (p.claims.length === 1) { const k = p.claims[0].toLowerCase(); hardCount[k] = (hardCount[k] || 0) + 1; }
+  for (const p of ps) if (isHard(p)) { const k = p.claims[0].toLowerCase(); hardCount[k] = (hardCount[k] || 0) + 1; }
   for (const p of ps) {
-    if (p.claims.length === 1 && hardCount[p.claims[0].toLowerCase()] > 1 && teamOf(p.claims[0]) !== "traveller") add(p.id, 1, `double-claims ${p.claims[0]}`);
+    if (isHard(p) && hardCount[p.claims[0].toLowerCase()] > 1 && teamOf(p.claims[0]) !== "traveller") add(p.id, 1, `double-claims ${p.claims[0]}`);
     if (!p.claims.length && state.day > 1) add(p.id, 1, "no claim yet");
-    if (p.claims.length > 1 && state.day >= 3) add(p.id, 1, p.claims.length === 2 ? "still hasn't hard-claimed" : "still hiding in a 3-for-3");
+    if (isSoft(p) && state.day >= 3) add(p.id, 1, p.claims.length === 2 ? "still hasn't hard-claimed" : "still hiding in a 3-for-3");
   }
   for (const [src, r] of Object.entries(fts)) if (r.herring) rule(r.herring, `${src ? nm(byId(src)) + "'s" : "your"} Fortune Teller red herring (good)`);
   const list = [...cand.values()];
@@ -1652,8 +1674,8 @@ function buildEvil() {
   const poisonSigns = [
     ...infoIssues.filter(x => /changed from/.test(x)),
     ...reads.filter(r => !r.src && r.warns.some(w => /clashes|but your info|but your/.test(w))).map(r => `your night ${r.e.night} ${r.e.role} info clashes with a claim`),
-    ...ps.filter(p => p.dead && p.deathBy === "exec" && p.claims.length === 1 && p.claims[0].toLowerCase() === "saint").map(p => `${nm(p)} was executed as Saint and the game carried on`),
-    ...ps.filter(p => p.dead && p.deathBy === "night" && p.claims.length === 1 && p.claims[0].toLowerCase() === "soldier").map(p => `${nm(p)} died at night claiming Soldier`)
+    ...ps.filter(p => p.dead && p.deathBy === "exec" && isHard(p) && p.claims[0].toLowerCase() === "saint").map(p => `${nm(p)} was executed as Saint and the game carried on`),
+    ...ps.filter(p => p.dead && p.deathBy === "night" && isHard(p) && p.claims[0].toLowerCase() === "soldier").map(p => `${nm(p)} died at night claiming Soldier`)
   ];
   const nightDeaths = {};
   for (const p of ps) if (p.dead && p.deathBy === "night" && p.deathNight) nightDeaths[p.deathNight] = (nightDeaths[p.deathNight] || 0) + 1;
@@ -1808,9 +1830,7 @@ function renderMatrix() {
     <tfoot><tr><th class="pcol">Claims</th>${cols.map(c => { const n = count[c.role.toLowerCase()] || 0; return `<td class="${c.start ? "team-start " : ""}${n > 1 ? "multi" : n ? "one" : ""}">${n || ""}</td>`; }).join("")}</tr></tfoot>`;
   $("matrix").querySelectorAll("[data-p]").forEach(b => b.onclick = () => {
     const p = state.players.find(x => x.id === b.dataset.p);
-    const r = b.dataset.r;
-    const i = p.claims.findIndex(c => c.toLowerCase() === r.toLowerCase());
-    if (i >= 0) p.claims.splice(i, 1); else p.claims.push(r);
+    toggleClaim(p, b.dataset.r);
     save(); render();
   });
   $("matrix").querySelectorAll("[data-open]").forEach(b => b.onclick = () => {
