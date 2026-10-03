@@ -71,10 +71,21 @@ button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 
-.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 14px 40px; display: grid; gap: 14px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 0 40px; display: grid; gap: 14px; }
 
 /* Top bar */
-.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 15; margin-inline: -16px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); box-shadow: 0 6px 14px -10px rgba(0,0,0,.5); }
+.new-game { font-size: 1rem; padding: 9px 16px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.new-game:hover { filter: brightness(1.08); }
+@media (max-width: 600px) {
+  .bar { gap: 8px; padding-block: 8px; }
+  .brand { font-size: 1.15rem; flex: 1 1 0; min-width: 0; margin-right: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .new-game { font-size: .92rem; padding: 7px 12px; }
+  .bar-group { width: 100%; }
+  .bar-group .label { display: none; }
+  .bar-group select { flex: 1; padding-block: 5px; }
+  .sync { display: none; }
+}
 .brand { font-family: var(--font-display); font-size: 1.6rem; letter-spacing: .02em; color: var(--brass); margin: 0; line-height: 1; margin-right: auto; }
 .bar-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 12px; font-weight: 600; font-size: .9rem; }
@@ -228,8 +239,8 @@ textarea { resize: vertical; min-height: 90px; }
 #evilCard h3 { margin: 4px 0 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
 .tip.cand { grid-template-columns: minmax(0, 7rem) minmax(0, 1fr); align-items: center; column-gap: 10px; }
 .tip.cand small { grid-column: 1 / -1; }
-.bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
-.bar i { display: block; height: 100%; background: var(--evil); border-radius: 99px; }
+.cand-bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.cand-bar i { display: block; height: 100%; background: var(--evil); border-radius: 99px; }
 .tip.minion { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; }
 .tip.minion small { grid-column: 1 / -1; }
 .pill { font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; border-radius: 99px; padding: 2px 8px; white-space: nowrap; }
@@ -282,6 +293,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 <div class="wrap">
   <header class="bar">
     <h1 class="brand">Clocktower Notebook</h1>
+    <button class="btn primary new-game" id="newGameBtn">+ New game</button>
     <div class="bar-group">
       <label class="label" for="script">Script</label>
       <select id="script" class="btn">
@@ -290,7 +302,6 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <option value="snv">Sects &amp; Violets</option>
         <option value="all">All three</option>
       </select>
-      <button class="btn primary" id="newGameBtn">New game</button>
     </div>
     <span class="sync" id="sync">Saved on this device</span>
   </header>
@@ -1591,7 +1602,7 @@ function renderEvil() {
   const cands = ev.active.filter(c => c.score > 0);
   $("evDemon").innerHTML = `
     ${ev.top ? `<div class="tip bad"><span class="label">Most likely Demon${ev.onlyImp ? ` (the ${esc(ev.onlyImp)})` : ""}</span>${btn(ev.top.p)}<small>${esc([...new Set(ev.top.why)].join(" · ") || "Highest suspicion so far")}</small></div>` : `<p class="tips-empty">No clear Demon candidate yet. Mark your reads and log night info to build a case.</p>`}
-    ${cands.slice(1, 6).map(c => `<div class="tip cand">${btn(c.p)}<span class="bar" aria-hidden="true"><i style="width:${Math.round(100 * c.score / max)}%"></i></span><small>${esc([...new Set(c.why)].join(" · "))}</small></div>`).join("")}
+    ${cands.slice(1, 6).map(c => `<div class="tip cand">${btn(c.p)}<span class="cand-bar" aria-hidden="true"><i style="width:${Math.round(100 * c.score / max)}%"></i></span><small>${esc([...new Set(c.why)].join(" · "))}</small></div>`).join("")}
     ${ev.ruledOut.length ? `<h3>Ruled out as Demon</h3><ul class="sum-list">${ev.ruledOut.map(r => `<li>${btn(r.p)} <small>${esc(r.why)}</small></li>`).join("")}</ul>` : ""}`;
   const row = m => `<div class="tip minion"><span class="pill ${m.level}">${{ likely: "Likely", possible: "Possible", none: "No sign", unlikely: "Unlikely" }[m.level]}</span><b>${esc(m.role)}</b><small>${esc(m.why.length ? m.why.join(" · ") : m.hint)}</small></div>`;
   const c = ev.comp;
