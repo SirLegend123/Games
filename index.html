@@ -251,6 +251,7 @@ textarea { resize: vertical; min-height: 90px; }
 .pill.unlikely { background: transparent; color: var(--muted); border: 1px solid var(--line); }
 
 /* Night phase */
+.hub-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .end-day { font-size: clamp(.72rem, 1.9vw, .9rem); padding: 6px 12px; }
 .phase { display: grid; gap: 12px; }
 .phase .step { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
@@ -338,7 +339,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
             <span class="day-label" id="dayLabel">Day 1</span>
             <button class="round" id="dayUp" aria-label="Next day">+</button>
           </div>
-          <button class="btn primary end-day" id="endDayBtn">End day → night</button>
+          <div class="hub-actions"><button class="btn primary end-day" id="endDayBtn">End day → night</button><button class="btn end-day" id="shotBtn">Slayer shot</button></div>
           <div class="stat" id="aliveStat"></div>
           <div class="comp" id="comp"></div>
         </div>
@@ -481,7 +482,7 @@ const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: fal
 function exampleState() {
   const P = (name, claims, extra) => mkPlayer(name, { claims, ...extra });
   const st = {
-    v: 1, example: true, script: "tb", day: 2, firstNightDone: true,
+    v: 1, example: true, script: "tb", day: 2, firstNightDone: true, shots: [],
     notes: "Night 1: no deaths shown yet.\nDay 1: Priya nominated Tom (3 votes, not enough). Sam nominated Leo, executed with 5.\nNight 2: Jess died.",
     players: [
       P("You", ["Empath"], { me: true, notes: "My Empath numbers are under My night info." }),
@@ -515,6 +516,7 @@ function normalize(s) {
   s.myInfo = Array.isArray(s.myInfo) ? s.myInfo : [];
   s.myRole = s.myRole || "";
   s.over = s.over || null;
+  s.shots = Array.isArray(s.shots) ? s.shots : [];
   if (s.firstNightDone === undefined) s.firstNightDone = true;
   return s;
 }
@@ -551,6 +553,10 @@ function scriptRoles() {
   }
   return ROLES[state.script] || ROLES.tb;
 }
+
+/* ---------- Slayer shots ---------- */
+const shotsBy = id => (state.shots || []).filter(x => x.shooter === id);
+const hasShot = id => shotsBy(id).length > 0 || state.players.some(x => x.deathBy === "slayer" && x.slayerBy === id);
 
 /* ---------- Proven good ---------- */
 const spyOnScript = () => ["tb", "all"].includes(state.script);
@@ -1339,7 +1345,7 @@ function buildTips() {
       return true;
     });
     const extra = [...infoOpts.map(c => `If you're the ${c}: ${ROLE_Q[c.toLowerCase()]}`),
-      ...p.claims.filter(c => c.toLowerCase() === "slayer" && !p.dead).map(() => "If you're the Slayer, have you used your shot yet?")];
+      ...p.claims.filter(c => c.toLowerCase() === "slayer" && !p.dead && !hasShot(p.id)).map(() => "If you're the Slayer, have you used your shot yet?")];
     if (qs.get(p.id)?.some(q => /hard-claimed .*one of your/.test(q.text))) { if (late) flag(p, 1, "still hasn't hard-claimed"); continue; }
     ask(p, `You gave ${optList(p)}. ${narrow}${extra.length ? " " + extra.join(" ") : ""}`, late);
     if (late) flag(p, 1, two ? "still hasn't hard-claimed" : "still hiding in a 3-for-3");
@@ -1361,7 +1367,7 @@ function buildTips() {
     if (!ROLE_Q[c]) continue;
     if (c === "ravenkeeper" && !(p.dead && p.deathBy === "night")) continue;
     if (c === "sage" && !(p.dead && p.deathBy === "night")) continue;
-    if (c === "slayer" && (p.dead || players.some(x => x.deathBy === "slayer" && x.slayerBy === p.id))) continue;
+    if (c === "slayer" && (p.dead || hasShot(p.id))) continue;
     if (c === "virgin" && players.some(x => x.deathBy === "virgin" && x.virginBy === p.id)) continue;
     if (c === "undertaker" && players.some(x => x.dead && x.deathBy === "exec")) continue;
     if (qs.get(p.id)?.some(q => q.text.includes(ROLE_Q[c]))) continue;
@@ -1420,6 +1426,24 @@ function buildTips() {
       issues.push({ level: "bad", ids: [p.id], text: `${src ? nm(src) + "'s" : "Your"} ${e.role} saw ${nm(p)} as the ${e.r[0]}, and the game didn't end.`, sub: ["tb", "all"].includes(state.script) ? `${src ? `If ${nm(src)} is telling the truth, the` : "The"} Scarlet Woman has become the Demon (she takes over if 5 or more were alive). Look for a Minion among the living.` : "Something kept evil alive: look for a Minion or Demon ability that survives the Demon's execution." });
     }
   }
+  for (const shot of (state.shots || []).filter(x => !x.hit)) {
+    const sh = players.find(x => x.id === shot.shooter), tg = players.find(x => x.id === shot.target);
+    if (!sh || !tg) continue;
+    const claimsSlayer = sh.claims.some(c => c.toLowerCase() === "slayer");
+    // The Slayer has one shot: any shot after their first (or after a kill) can't be real
+    if (shotsBy(sh.id).indexOf(shot) > 0) {
+      issues.push({ level: "bad", ids: [sh.id], text: `${nm(sh)} took a second Slayer shot.`, sub: "The Slayer only has one shot, so at most one of their shots was real. Their Slayer claim looks false." });
+      flag(sh, 2, "took more than one Slayer shot");
+      continue;
+    }
+    if (claimsSlayer) {
+      issues.push({ level: "", ids: [sh.id, tg.id], text: `${nm(sh)} shot ${nm(tg)} on day ${shot.day} and nothing happened.`, sub: `If ${nm(sh)} is the real, sober Slayer, ${nm(tg)} isn't the Demon and the shot is now used up. If you think ${nm(tg)} is the Demon, then ${nm(sh)} isn't the real Slayer, or was drunk or poisoned.` });
+      if (tg.align === "evil" || tg.suspect && teamOf(tg.suspect) === "demon") { flag(sh, 2, `missed ${nm(tg)}, whom you suspect`); }
+    } else {
+      issues.push({ level: "hi", ids: [sh.id], text: `${nm(sh)} "shot" ${nm(tg)} on day ${shot.day} without claiming Slayer.`, sub: "Nothing happened, which tells you little about the target. A fake Slayer shot is a common evil bluff, or they may be the Drunk who thinks they're the Slayer." });
+      flag(sh, 1, "took a Slayer shot without claiming Slayer");
+    }
+  }
   for (const p of players.filter(x => x.dead && x.deathBy === "slayer")) {
     const sl = players.find(x => x.id === p.slayerBy);
     const tbish = ["tb", "all"].includes(state.script);
@@ -1473,7 +1497,7 @@ function buildTips() {
   if (alive.length <= 4) rem.push(alive.length <= 3 ? "Final three: if the Demon survives today's execution, evil wins. Every vote counts." : "Four alive: if the Demon kills tonight, tomorrow is the final three. Make today's execution count.");
   const mayor = alive.find(p => hard(p).toLowerCase() === "mayor");
   if (mayor && alive.length <= 4) rem.push(`${nm(mayor)} claims Mayor. With three alive and no execution, a real Mayor wins it for good.`);
-  const slayer = alive.find(p => !p.me && hard(p).toLowerCase() === "slayer" && !players.some(x => x.deathBy === "slayer" && x.slayerBy === p.id));
+  const slayer = alive.find(p => !p.me && hard(p).toLowerCase() === "slayer" && !hasShot(p.id));
   const topEvil = [...noms.values()].filter(n => n.score > 0).sort((a, b) => b.score - a.score)[0];
   if (slayer && topEvil && topEvil.p !== slayer) rem.push(`${nm(slayer)} claims Slayer. If they haven't fired, ${nm(topEvil.p)} could be a good target.`);
   if (state.day === 1) rem.push("Day 1: ask everyone for a claim or at least Townsfolk or Outsider, and write down who's quiet.");
@@ -1532,6 +1556,13 @@ function buildEvil() {
   const rule = (id, why) => { const c = cand.get(id); if (c && !c.out) c.out = why; };
 
   for (const p of ps) { if (p.align === "evil") add(p.id, 2, "your evil read"); if (p.align === "good") add(p.id, -2, ""); }
+  for (const shot of (state.shots || []).filter(x => !x.hit)) {
+    const sh = byId(shot.shooter);
+    if (sh && sh.claims.some(c => c.toLowerCase() === "slayer") && shotsBy(sh.id)[0] === shot) {
+      const c = cand.get(shot.target);
+      if (c) { c.score -= 3; c.why.push(`survived ${nm(sh)}'s Slayer shot (day ${shot.day})`); }
+    }
+  }
   for (const p of ps) if (p.suspect && !proven.has(p.id)) {
     if (teamOf(p.suspect) === "demon") add(p.id, 3, `you suspect the ${p.suspect}`);
     else { add(p.id, -1, ""); minionish(p.id, 4); }
@@ -1789,6 +1820,7 @@ function render() {
     $("overUndo").onclick = () => { state.over = null; save(); render(); };
   }
   $("endDayBtn").hidden = !!state.over;
+  $("shotBtn").hidden = !!state.over || !state.firstNightDone;
   $("endDayBtn").textContent = state.firstNightDone ? "End day → night" : "Night 1 info →";
 }
 
@@ -1796,6 +1828,7 @@ function render() {
 // A guided end-of-day: execution, did the game end, night info, who died, did the game end
 let phase = null;
 function openPhase() { phase = { step: "exec", exec: "", deaths: new Set(), day: state.day }; $("phaseOverlay").hidden = false; renderPhase(); }
+function openShot() { phase = { step: "shot1", shooter: "", target: "", deaths: new Set(), day: state.day }; $("phaseOverlay").hidden = false; renderPhase(); }
 function openFirstNight() { phase = { step: "first", exec: "", deaths: new Set(), day: 1 }; $("phaseOverlay").hidden = false; renderPhase(); }
 function closePhase() {
   if ($("infoPick") && $("phaseSlot")?.contains($("infoPick"))) { $("infoCard").insertBefore($("infoForm"), $("infoLog")); $("infoCard").insertBefore($("infoPick"), $("infoForm")); }
@@ -1839,6 +1872,46 @@ function renderPhase() {
       ? `<span class="step">End of day ${phase.day}</span><h2 id="phaseTitle">Did ${nmP(p)}'s execution end the game?</h2>${endQ(`${p.claims.length ? `${nmP(p)} claimed ${esc(p.claims.join(" or "))}. ` : ""}If the game carried on, the app uses that (for example a Saint who wasn't, or a Scarlet Woman taking over).`)}`
       : `<span class="step">End of day ${phase.day}</span><h2 id="phaseTitle">Did the game end today?</h2>${endQ("There was no execution, but a Slayer shot or another ability could still have ended it.")}`;
     wireEnd(() => { enterNight(); renderPhase(); });
+  } else if (phase.step === "shot1") {
+    const slayerish = p => p.claims.some(c => c.toLowerCase() === "slayer");
+    const shooters = [...alive].sort((a, b) => (slayerish(b) ? 1 : 0) - (slayerish(a) ? 1 : 0));
+    const ev = buildEvil();
+    const sugg = ev.active.filter(c => c.score > 0 && c.p.id !== phase.shooter).slice(0, 3);
+    const sh = state.players.find(x => x.id === phase.shooter);
+    box.innerHTML = `
+      <span class="step">Day ${state.day}</span>
+      <h2 id="phaseTitle">Slayer shot</h2>
+      <p><b>Who is shooting?</b></p>
+      <div class="choice-list">${shooters.map(p => `<button class="choice" data-shooter="${p.id}" aria-pressed="${phase.shooter === p.id}">${nmP(p)}${slayerish(p) ? " · claims Slayer" : ""}${hasShot(p.id) ? " · already shot" : ""}</button>`).join("")}</div>
+      ${sh && !slayerish(sh) ? `<p class="hint">${nmP(sh)} doesn't claim Slayer. A shot from a non-Slayer can be a bluff, often by an evil player.</p>` : ""}
+      ${sh && hasShot(sh.id) ? `<p class="hint">${nmP(sh)} has already shot. The Slayer only gets one shot, so this one can't be a real Slayer shot.</p>` : ""}
+      <p><b>Who are they shooting?</b></p>
+      <div class="choice-list">${alive.filter(p => p.id !== phase.shooter).map(p => `<button class="choice" data-target="${p.id}" aria-pressed="${phase.target === p.id}">${nmP(p)}</button>`).join("")}</div>
+      <div class="tip"><span class="label">Best Demon candidates right now</span>${sugg.length ? sugg.map((c, i) => `<span>${i + 1}. <b>${nmP(c.p)}</b> <small>${esc([...new Set(c.why)].slice(0, 3).join(" · "))}</small></span>`).join("") : `<small>No clear candidate yet.</small>`}</div>
+      <div class="phase-actions"><button class="btn" data-close>Cancel</button><button class="btn primary" data-next ${phase.shooter && phase.target ? "" : "disabled"}>Take the shot</button></div>`;
+    box.querySelectorAll("[data-shooter]").forEach(b => b.onclick = () => { phase.shooter = b.dataset.shooter; if (phase.target === phase.shooter) phase.target = ""; renderPhase(); });
+    box.querySelectorAll("[data-target]").forEach(b => b.onclick = () => { phase.target = b.dataset.target; renderPhase(); });
+    box.querySelector("[data-next]").onclick = () => { if (phase.shooter && phase.target) { phase.step = "shot2"; renderPhase(); } };
+  } else if (phase.step === "shot2") {
+    const sh = state.players.find(x => x.id === phase.shooter), tg = state.players.find(x => x.id === phase.target);
+    box.innerHTML = `
+      <span class="step">Slayer shot</span>
+      <h2 id="phaseTitle">${nmP(sh)} shoots ${nmP(tg)}. Did ${nmP(tg)} die?</h2>
+      <div class="phase-actions" style="justify-content:flex-start">
+        <button class="btn evilwin" data-hit>Yes, ${nmP(tg)} died</button>
+        <button class="btn primary" data-miss>No, nothing happened</button>
+      </div>`;
+    box.querySelector("[data-hit]").onclick = () => {
+      tg.dead = true; tg.deathBy = "slayer"; tg.slayerBy = sh.id; applyProofs(); save();
+      phase.step = "shot3"; renderPhase();
+    };
+    box.querySelector("[data-miss]").onclick = () => {
+      (state.shots = state.shots || []).push({ id: uid(), day: state.day, shooter: sh.id, target: tg.id, hit: false }); save(); closePhase();
+    };
+  } else if (phase.step === "shot3") {
+    const sh = state.players.find(x => x.id === phase.shooter), tg = state.players.find(x => x.id === phase.target);
+    box.innerHTML = `<span class="step">Slayer shot</span><h2 id="phaseTitle">${nmP(tg)} died to ${nmP(sh)}'s shot. Did the game end?</h2>${endQ(`${nmP(sh)} is now proven to be the real Slayer, and ${nmP(tg)} was the Demon${["tb", "all"].includes(state.script) ? " (or the Recluse)" : ""}.`)}`;
+    wireEnd(() => closePhase());
   } else if (phase.step === "first") {
     const me = meP();
     box.innerHTML = `
@@ -1918,6 +1991,7 @@ function updatePhaseLogged() {
   const tonight = state.myInfo.filter(e => !e.src && e.night === state.day);
   $("phaseLogged").innerHTML = tonight.length ? `<span class="label">Logged tonight</span>` + tonight.map(e => { const r = readEntry(e); return `<div class="tip">${esc(e.role)}: ${esc(r.means || e.note)}</div>`; }).join("") : "";
 }
+$("shotBtn").onclick = openShot;
 $("endDayBtn").onclick = () => state.firstNightDone ? openPhase() : openFirstNight();
 
 /* ---------- Global controls ---------- */
@@ -1941,7 +2015,7 @@ $("ngStart").onclick = () => {
   const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
   const count = names.length || Math.max(5, Math.min(20, parseInt($("ngCount").value, 10) || 8));
   const players = Array.from({ length: count }, (_, i) => mkPlayer(names[i] || `Player ${i + 1}`));
-  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], over: null, firstNightDone: false, updatedAt: 0 };
+  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], over: null, shots: [], firstNightDone: false, updatedAt: 0 };
   confirmRemove = false;
   $("overlay").hidden = true; $("ngNames").value = "";
   save(); render();
