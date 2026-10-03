@@ -481,7 +481,7 @@ const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: fal
 function exampleState() {
   const P = (name, claims, extra) => mkPlayer(name, { claims, ...extra });
   const st = {
-    v: 1, example: true, script: "tb", day: 2,
+    v: 1, example: true, script: "tb", day: 2, firstNightDone: true,
     notes: "Night 1: no deaths shown yet.\nDay 1: Priya nominated Tom (3 votes, not enough). Sam nominated Leo, executed with 5.\nNight 2: Jess died.",
     players: [
       P("You", ["Empath"], { me: true, notes: "My Empath numbers are under My night info." }),
@@ -515,6 +515,7 @@ function normalize(s) {
   s.myInfo = Array.isArray(s.myInfo) ? s.myInfo : [];
   s.myRole = s.myRole || "";
   s.over = s.over || null;
+  if (s.firstNightDone === undefined) s.firstNightDone = true;
   return s;
 }
 
@@ -632,7 +633,7 @@ function renderCircle() {
   const alive = state.players.filter(p => !p.dead).length;
   const votes = Math.ceil(alive / 2);
   const ghostVotes = state.players.filter(p => p.dead && p.ghostVote).length;
-  $("dayLabel").textContent = "Day " + state.day;
+  $("dayLabel").textContent = state.firstNightDone ? "Day " + state.day : "Night 1";
   $("aliveStat").innerHTML = `<b>${alive}</b> of ${n} alive · <b>${votes}</b> votes to execute<br>${ghostVotes} ghost vote${ghostVotes === 1 ? "" : "s"} left`;
   const core = state.players.filter(p => !p.traveller).length;
   const c = COMP[Math.min(core, 15)];
@@ -874,7 +875,7 @@ function roleFor(src) {
 function newDraft(src, role) {
   const t = infoOf(role) || {};
   const prev = state.myInfo.filter(e => (e.src || "") === src).map(e => e.night);
-  const inNight = typeof phase !== "undefined" && phase && phase.step === "night";
+  const inNight = typeof phase !== "undefined" && phase && (phase.step === "night" || phase.step === "first");
   const night = !inNight && prev.includes(state.day) ? state.day + 1 : Math.max(1, state.day);
   const nb = t.neighbours ? livingNeighbours(src || meP()?.id) : [];
   return { src, role, night, p: nb, r: [], n: t.n ? 0 : null, yn: t.yn ? 0 : null, note: "", zero: false };
@@ -1770,19 +1771,24 @@ function render() {
     $("overUndo").onclick = () => { state.over = null; save(); render(); };
   }
   $("endDayBtn").hidden = !!state.over;
+  $("endDayBtn").textContent = state.firstNightDone ? "End day → night" : "Night 1 info →";
 }
 
 /* ---------- Night phase ---------- */
 // A guided end-of-day: execution, did the game end, night info, who died, did the game end
 let phase = null;
 function openPhase() { phase = { step: "exec", exec: "", deaths: new Set(), day: state.day }; $("phaseOverlay").hidden = false; renderPhase(); }
+function openFirstNight() { phase = { step: "first", exec: "", deaths: new Set(), day: 1 }; $("phaseOverlay").hidden = false; renderPhase(); }
 function closePhase() {
   if ($("infoPick") && $("phaseSlot")?.contains($("infoPick"))) { $("infoCard").insertBefore($("infoForm"), $("infoLog")); $("infoCard").insertBefore($("infoPick"), $("infoForm")); }
   phase = null; $("phaseOverlay").hidden = true; render();
 }
 function endGame(winner) { state.over = { winner, day: state.day }; save(); closePhase(); }
+// Put the night-info form back in its card before the dialog is redrawn
+function restoreInfoForm() { if ($("phaseSlot")?.contains($("infoPick"))) { $("infoCard").insertBefore($("infoForm"), $("infoLog")); $("infoCard").insertBefore($("infoPick"), $("infoForm")); } }
 function renderPhase() {
   if (!phase) return;
+  restoreInfoForm();
   const box = $("phaseBox");
   const alive = state.players.filter(p => !p.dead);
   const nmP = p => esc(p.name || `Seat ${state.players.indexOf(p) + 1}`);
@@ -1815,6 +1821,33 @@ function renderPhase() {
       ? `<span class="step">End of day ${phase.day}</span><h2 id="phaseTitle">Did ${nmP(p)}'s execution end the game?</h2>${endQ(`${p.claims.length ? `${nmP(p)} claimed ${esc(p.claims.join(" or "))}. ` : ""}If the game carried on, the app uses that (for example a Saint who wasn't, or a Scarlet Woman taking over).`)}`
       : `<span class="step">End of day ${phase.day}</span><h2 id="phaseTitle">Did the game end today?</h2>${endQ("There was no execution, but a Slayer shot or another ability could still have ended it.")}`;
     wireEnd(() => { enterNight(); renderPhase(); });
+  } else if (phase.step === "first") {
+    const me = meP();
+    box.innerHTML = `
+      <span class="step">Night 1</span>
+      <h2 id="phaseTitle">The first night</h2>
+      <p>Most information characters learn something tonight. Tell the app which seat is yours and what you learned.</p>
+      <div class="row"><label class="label" for="phaseMe">My seat</label>
+        <select class="btn" id="phaseMe"><option value="">Choose your seat</option>${state.players.map((p, i) => `<option value="${p.id}"${p.me ? " selected" : ""}>${i + 1}. ${nmP(p)}</option>`).join("")}</select></div>
+      <div id="phaseSlot" class="tips-col"></div>
+      <div id="phaseLogged" class="tips-col"></div>
+      <div class="phase-actions"><button class="btn" data-skip>I don't get first-night info</button><button class="btn primary" data-next>Start day 1 →</button></div>`;
+    $("phaseSlot").appendChild($("infoPick"));
+    $("phaseSlot").appendChild($("infoForm"));
+    infoDraft = newDraft("", myRoleNow());
+    renderInfo(); updatePhaseLogged();
+    $("phaseMe").onchange = e => {
+      state.players.forEach(x => x.me = x.id === e.target.value);
+      const m = meP();
+      if (m && !state.myRole && m.claims.length === 1) state.myRole = m.claims[0];
+      infoDraft = null; save(); render(); renderPhase();
+    };
+    const startDay = () => {
+      $("infoCard").insertBefore($("infoForm"), $("infoLog")); $("infoCard").insertBefore($("infoPick"), $("infoForm"));
+      state.firstNightDone = true; state.day = 1; save(); closePhase();
+    };
+    box.querySelector("[data-next]").onclick = startDay;
+    box.querySelector("[data-skip]").onclick = startDay;
   } else if (phase.step === "night") {
     box.innerHTML = `
       <span class="step">Night ${state.day}</span>
@@ -1863,11 +1896,11 @@ function renderPhase() {
 }
 function enterNight() { state.day++; phase.step = "night"; save(); renderCircle(); }
 function updatePhaseLogged() {
-  if (!phase || phase.step !== "night" || !$("phaseLogged")) return;
+  if (!phase || !["night", "first"].includes(phase.step) || !$("phaseLogged")) return;
   const tonight = state.myInfo.filter(e => !e.src && e.night === state.day);
   $("phaseLogged").innerHTML = tonight.length ? `<span class="label">Logged tonight</span>` + tonight.map(e => { const r = readEntry(e); return `<div class="tip">${esc(e.role)}: ${esc(r.means || e.note)}</div>`; }).join("") : "";
 }
-$("endDayBtn").onclick = openPhase;
+$("endDayBtn").onclick = () => state.firstNightDone ? openPhase() : openFirstNight();
 
 /* ---------- Global controls ---------- */
 const dl = document.createElement("datalist");
@@ -1890,10 +1923,11 @@ $("ngStart").onclick = () => {
   const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
   const count = names.length || Math.max(5, Math.min(20, parseInt($("ngCount").value, 10) || 8));
   const players = Array.from({ length: count }, (_, i) => mkPlayer(names[i] || `Player ${i + 1}`));
-  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], over: null, updatedAt: 0 };
+  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], over: null, firstNightDone: false, updatedAt: 0 };
   confirmRemove = false;
   $("overlay").hidden = true; $("ngNames").value = "";
   save(); render();
+  openFirstNight();
 };
 
 new ResizeObserver(sizeTokens).observe($("table"));
