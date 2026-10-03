@@ -25,4 +25,19 @@ Games are saved in the browser on the device you use. Nothing is uploaded anywhe
 
 On a phone, open the site in Safari or Chrome and use **Add to Home Screen** to get an app icon.
 
+## Storyteller's Grimoire
+
+A tracker for the *Blood on the Clocktower* Storyteller. Open `storyteller.html` in any web browser.
+
+- Setup: players in seat order with their characters, alignment, what the Drunk or Lunatic thinks they are, Demon bluffs and the Fortune Teller's red herring. Checks the Townsfolk / Outsider / Minion / Demon counts for the player count (including the Baron)
+- Grimoire: the seating circle with characters, deaths, ghost votes and reminder tokens (Poisoned, Protected, Mad…), which come and go on their own
+- Nights: a wake-order list of who's in play. Log what each player chose and learned, mark false info and why, and log Demon kills (with saves and Imp star-passes)
+- Days: nominations with vote counts, who's on the block, executions, and other deaths
+- Character changes, revivals, notes, and a star for moments worth calling out
+- Look back at any earlier night or day, and fix or add things there
+- Review: when the game ends, a write-up to read out at the grimoire reveal: who was what, everything that happened night by night, every lie you told and why, starred moments, the final grimoire and some numbers. Copy it as text or print it
+- Finished games are kept under Past games
+
+Both tools save in the browser on the device you use. Nothing is uploaded anywhere.
+
 *Blood on the Clocktower* and its character names belong to The Pandemonium Institute. This is an unofficial fan-made note-taking tool.
