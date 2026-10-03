@@ -8,6 +8,7 @@ A player's notebook for *Blood on the Clocktower*. Open `index.html` in any web 
 - Notes on every player, plus town notes for nominations and votes
 - Night info: log what your information character learns each night, and what other players say they learned. See what it means and spot clashes with claims
 - Mark players who died nominating the Virgin or to a Slayer shot: the Virgin or Slayer is automatically marked proven good
+- Evil mode: if your character is a Minion or Demon, mark your team, Demon bluffs and your bluff, and get cover checks, night targets and good players to push
 - Evil team: ranks Demon candidates with reasons, rates which Minions (and Demon type) are likely in play, and gives a best guess at the evil team
 - End day → night: a guided night phase that records the execution, asks whether the game ended, takes your night info, and records who died
 - Mark the evil character you suspect each player of being
