@@ -312,6 +312,10 @@ textarea { resize: vertical; min-height: 90px; }
 .wrap-h { margin: 6px 0 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.15rem; }
 .wrap-row { grid-template-columns: 22px minmax(0, 1fr); column-gap: 8px; align-items: start; }
 .wrap-row small { display: block; }
+.role-row { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+.role-row .who { font-weight: 700; }
+.role-row .who small { font-weight: 400; color: var(--muted); }
+.role-row select { max-width: 100%; }
 .ok { color: var(--claim); font-weight: 800; } .no { color: var(--evil); font-weight: 800; } .na { color: var(--muted); font-weight: 800; }
 .wrap-time { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; font-size: .9rem; }
 .wrap-time .bad { color: var(--evil); } .wrap-time .good { color: var(--claim); }
@@ -539,7 +543,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <li><b>Evil team:</b> the most likely Demon and why, plus which Minions are likely in play.</li>
           <li><b>Test a hunch:</b> in a player's panel, tap "What if they're evil?" to see what supports it, what goes against it, and what follows if it's true.</li>
           <li><b>Night info</b> grades each player's information as consistent, doubtful or unreliable.</li>
-          <li><b>Game wrap-up:</b> when the game ends, enter who was evil to see how the evidence held up, which information was right, how your reads did, and a timeline.</li>
+          <li><b>Game wrap-up:</b> when the game ends, enter who was evil, then everyone's real character (or skip that), to see how the evidence held up, which information was right, whose claims were true, how your reads did, and a timeline.</li>
           <li><b>Claim matrix:</b> every claim at a glance. Amber means two players claim the same role.</li>
         </ul>
       </li>
@@ -1548,11 +1552,14 @@ function whatIf(pid, mode) {
 let wrapDraft = null;
 function openWrap() {
   const rv = state.reveal;
-  wrapDraft = { step: rv ? "report" : "reveal", winner: state.over ? state.over.winner : "", demon: rv?.demon?.id || "", demonRole: rv?.demon?.role || "", minions: { ...(rv?.minions || {}) }, drunk: rv?.drunk || "" };
+  wrapDraft = { step: rv ? "report" : "reveal", winner: state.over ? state.over.winner : "", demon: rv?.demon?.id || "", demonRole: rv?.demon?.role || "", minions: { ...(rv?.minions || {}) }, drunk: rv?.drunk || "", roles: { ...(rv?.roles || {}) }, herring: rv?.herring || "" };
   $("wrapOverlay").hidden = false;
   renderWrap();
 }
 const evilIds = () => { const rv = state.reveal; return rv ? new Set([rv.demon?.id, ...Object.keys(rv.minions || {})].filter(Boolean)) : new Set(); };
+// A player's real character from the reveal ("" if not known)
+const realRole = id => { const rv = state.reveal; if (!rv || !id) return ""; if (id === rv.demon?.id) return rv.demon.role; if (rv.minions?.[id] !== undefined) return rv.minions[id]; if (rv.drunk === id) return "Drunk"; return rv.roles?.[id] || ""; };
+const isRole = (id, r) => realRole(id).toLowerCase() === String(r).toLowerCase();
 
 // Check one piece of night info against what really happened
 function verifyEntry(e) {
@@ -1561,16 +1568,44 @@ function verifyEntry(e) {
   const roleOf = id => id === rv.demon?.id ? rv.demon.role : rv.minions?.[id] || "";
   const [a, b] = e.p, role = e.role.toLowerCase();
   const res = (ok, why) => ({ ok, why });
+  const nmV = id => ps.find(x => x.id === id)?.name || "someone";
+  // The Recluse and Spy can register as something else, so a "wrong" result near them isn't proof
+  const misreg = ids => ids.find(id => isRole(id, "Recluse") || isRole(id, "Spy"));
+  const soften = (v, ids) => { if (v.ok !== false) return v; const m = misreg(ids); return m ? res(null, `${v.why} But ${nmV(m)} was the ${realRole(m)}, who can register as something else.`) : v; };
   switch (role) {
-    case "empath": { if (!a || !b) break; const actual = [a, b].filter(isEvil).length; return res(actual === e.n, actual === e.n ? `Correct: ${actual} evil neighbour${actual === 1 ? "" : "s"}.` : `Wrong: it should have been ${actual}.`); }
-    case "fortune teller": { if (!a || !b) break; const hit = [a, b].includes(rv.demon?.id); if (e.yn === 0) return hit ? res(true, "Correct: the Demon was in the pair.") : res(null, "No Demon in the pair, so it was wrong, unless one of them was the red herring."); return res(!hit, hit ? "Wrong: the Demon was in the pair." : "Correct: no Demon in the pair."); }
+    case "washerwoman": case "librarian": {
+      if (e.zero) {
+        const outs = ps.filter(p => teamOf(realRole(p.id)) === "outsider");
+        if (outs.length) return res(false, `Wrong: ${outs.map(p => `${p.name} was the ${realRole(p.id)}`).join(", ")}.`);
+        const unknown = ps.some(p => !realRole(p.id));
+        return unknown ? res(null, "No known Outsiders, but not every role was filled in.") : res(true, "Correct: there were no Outsiders.");
+      }
+      if (!a || !b || !e.r[0]) break;
+      const hit = [a, b].find(id => isRole(id, e.r[0]));
+      if (hit) return res(true, `Correct: ${nmV(hit)} was the ${e.r[0]}.`);
+      if (!realRole(a) || !realRole(b)) return res(null, "Can't check: fill in both players' roles.");
+      const spy = [a, b].find(id => isRole(id, "Spy"));
+      if (spy) return res(null, `Neither was the ${e.r[0]}, but ${nmV(spy)} was the Spy, who can register as one.`);
+      return res(false, `Wrong: ${nmV(a)} was the ${realRole(a)} and ${nmV(b)} was the ${realRole(b)}.`);
+    }
+    case "empath": { if (!a || !b) break; const actual = [a, b].filter(isEvil).length; return soften(res(actual === e.n, actual === e.n ? `Correct: ${actual} evil neighbour${actual === 1 ? "" : "s"}.` : `Wrong: it should have been ${actual}.`), [a, b]); }
+    case "fortune teller": { if (!a || !b) break; const hit = [a, b].includes(rv.demon?.id); if (e.yn === 0) { if (hit) return res(true, "Correct: the Demon was in the pair."); if (rv.herring && [a, b].includes(rv.herring)) return res(true, `Correct: ${nmV(rv.herring)} was the red herring.`); const rc = [a, b].find(id => isRole(id, "Recluse")); if (rc) return res(null, `No Demon in the pair, but ${nmV(rc)} was the Recluse, who can register as the Demon.`); return rv.herring ? res(false, "Wrong: no Demon or red herring in the pair.") : res(null, "No Demon in the pair, so it was wrong, unless one of them was the red herring."); } return res(!hit, hit ? "Wrong: the Demon was in the pair." : "Correct: no Demon in the pair."); }
     case "sage": { if (!a || !b) break; const hit = [a, b].includes(rv.demon?.id); return res(hit, hit ? "Correct: the Demon was one of them." : "Wrong: neither was the Demon."); }
-    case "investigator": { if (!a || !b || e.zero) break; const m = [a, b].find(id => rv.minions?.[id] !== undefined); if (!m) return res(false, "Wrong: neither was a Minion (unless the Recluse was involved)."); const r = rv.minions[m]; return res(!r || !e.r[0] || r.toLowerCase() === e.r[0].toLowerCase(), r && e.r[0] && r.toLowerCase() !== e.r[0].toLowerCase() ? `Partly: ${ps.find(x => x.id === m)?.name} was a Minion, but the ${r}.` : "Correct: one of them was the Minion."); }
-    case "undertaker": case "ravenkeeper": case "grandmother": { if (!a || !e.r[0]) break; const t = teamOf(e.r[0]); const ev = isEvil(a); if (t === "minion" || t === "demon") return res(ev && (!roleOf(a) || roleOf(a).toLowerCase() === e.r[0].toLowerCase()), ev ? "Correct: they were evil." : "Wrong: they were good."); return ev ? res(false, `Wrong: they were actually the ${roleOf(a) || "evil"}.`) : res(true, "Fits: they were good."); }
-    case "chef": { const n = ps.length; let pairs = 0; for (let i = 0; i < n; i++) if (isEvil(ps[i].id) && isEvil(ps[(i + 1) % n].id)) pairs++; return res(pairs === e.n, pairs === e.n ? `Correct: ${pairs} evil pair${pairs === 1 ? "" : "s"}.` : `Wrong: there were ${pairs}.`); }
+    case "investigator": { if (!a || !b || e.zero) break; const m = [a, b].find(id => rv.minions?.[id] !== undefined); if (!m) { const rc = [a, b].find(id => isRole(id, "Recluse")); return rc ? res(true, `Fits: ${nmV(rc)} was the Recluse, who can show as a Minion.`) : res(false, "Wrong: neither was a Minion."); } const r = rv.minions[m]; return res(!r || !e.r[0] || r.toLowerCase() === e.r[0].toLowerCase(), r && e.r[0] && r.toLowerCase() !== e.r[0].toLowerCase() ? `Partly: ${ps.find(x => x.id === m)?.name} was a Minion, but the ${r}.` : "Correct: one of them was the Minion."); }
+    case "undertaker": case "ravenkeeper": case "grandmother": {
+      if (!a || !e.r[0]) break;
+      const t = teamOf(e.r[0]), ev = isEvil(a), real = realRole(a);
+      if (real && real.toLowerCase() === e.r[0].toLowerCase()) return res(true, `Correct: they were the ${real}.`);
+      if (isRole(a, "Recluse") && (t === "minion" || t === "demon")) return res(null, "They were the Recluse, who can show as a Minion or Demon.");
+      if (isRole(a, "Spy") && (t === "townsfolk" || t === "outsider")) return res(null, "They were the Spy, who can show as a good character.");
+      if (t === "minion" || t === "demon") return res(ev && (!roleOf(a) || roleOf(a).toLowerCase() === e.r[0].toLowerCase()), ev ? "Correct: they were evil." : `Wrong: they were good${real ? ` (the ${real})` : ""}.`);
+      if (ev) return res(false, `Wrong: they were actually the ${roleOf(a) || "evil"}.`);
+      return real ? res(false, `Wrong: they were the ${real}.`) : res(true, "Fits: they were good.");
+    }
+    case "chef": { const n = ps.length; let pairs = 0; for (let i = 0; i < n; i++) if (isEvil(ps[i].id) && isEvil(ps[(i + 1) % n].id)) pairs++; return soften(res(pairs === e.n, pairs === e.n ? `Correct: ${pairs} evil pair${pairs === 1 ? "" : "s"}.` : `Wrong: there were ${pairs}.`), ps.map(x => x.id)); }
     case "clockmaker": { const n = ps.length, d = ps.findIndex(x => x.id === rv.demon?.id); if (d < 0) break; const dists = ps.map((x, i) => rv.minions?.[x.id] !== undefined ? Math.min(Math.abs(i - d), n - Math.abs(i - d)) : Infinity); const best = Math.min(...dists); if (best === Infinity) break; return res(best === e.n, best === e.n ? "Correct." : `Wrong: it was ${best}.`); }
     case "seamstress": { if (!a || !b) break; const same = isEvil(a) === isEvil(b); return res(same === (e.yn === 0), same === (e.yn === 0) ? "Correct." : "Wrong."); }
-    case "dreamer": { if (!a || e.r.length < 2) break; const r = roleOf(a); if (r) return res(e.r.some(x => x.toLowerCase() === r.toLowerCase()), "Checked against their real character."); return res(null, "Can't fully check: they were good."); }
+    case "dreamer": { if (!a || e.r.length < 2) break; const r = realRole(a); if (r) return res(e.r.some(x => x.toLowerCase() === r.toLowerCase()), `Checked against their real character (the ${r}).`); return res(null, "Can't fully check: their role wasn't filled in."); }
   }
   return res(null, "Can't be checked from the final reveal.");
 }
@@ -1614,11 +1649,31 @@ function buildReview() {
     const grade = rel.get(s.src)?.rating;
     if (s.src && evil.has(s.src)) s.verdict = `${name} was evil (${roleOf(s.src)}), so their info was invented.`;
     else if (rv.drunk && (s.src || ps.find(x => x.me)?.id) === rv.drunk) s.verdict = `${name} ${s.src ? "was" : "were"} the Drunk, so the info was unreliable.`;
+    else if (s.src && realRole(s.src) && !state.myInfo.some(e => e.src === s.src && isRole(s.src, e.role))) s.verdict = `${name} was really the ${realRole(s.src)}, so this info was a good player's bluff.`;
     else if (s.wrong) { const poisoner = Object.entries(rv.minions || {}).find(([, r]) => /poisoner/i.test(r)); s.verdict = `${s.wrong} result${s.wrong === 1 ? " was" : "s were"} wrong. ${name} ${s.src ? "was" : "were"} probably drunk or poisoned${poisoner ? ` (the Poisoner was ${nm(poisoner[0])})` : ""}.`; }
     else if (s.right) s.verdict = `Every checkable result was right.`;
     else s.verdict = "Nothing could be checked.";
     if (grade) s.grade = `The app graded this source "${REL_LABEL[grade]}"${(grade === "consistent") === !(s.wrong || (s.src && evil.has(s.src))) ? ", which was right" : ", which was wrong"}.`;
   }
+  // ---- Claims against real roles
+  const claimRows = ps.filter(p => !p.traveller && realRole(p.id)).map(p => {
+    const real = realRole(p.id), has = r => p.claims.some(c => c.toLowerCase() === r.toLowerCase());
+    const hard = isHard(p), ev = evil.has(p.id);
+    let ok, text;
+    if (p.me) { ok = null; text = rv.drunk === p.id ? "You were the Drunk." : `You were the ${real}.`; }
+    else if (rv.drunk === p.id) { ok = null; text = `The Drunk${p.claims.length ? `, who believed they were the ${p.claims.join(" or ")}` : ""}.`; }
+    else if (!p.claims.length) { ok = null; text = `The ${real}. Never claimed.`; }
+    else if (ev) {
+      const inPlay = p.claims.map(c => ({ c, by: ps.find(q => q.id !== p.id && isRole(q.id, c)) }));
+      ok = false; text = `The ${real}, bluffing ${p.claims.join(" or ")}.${inPlay.filter(x => x.by).map(x => ` The real ${x.c} was ${x.by.name}.`).join("")}`;
+    }
+    else if (has(real)) { ok = true; text = hard ? `The ${real}. Told the truth.` : `The ${real}, which was among their options (${p.claims.join(", ")}).`; }
+    else { ok = false; text = `The ${real}, but claimed ${p.claims.join(" or ")}. A good player bluffing.`; }
+    return { p, real, ok, text, ev };
+  });
+  const goodClaimers = claimRows.filter(r => !r.ev && !r.p.me && r.p.id !== rv.drunk && r.p.claims.length);
+  const truthful = goodClaimers.filter(r => r.ok), bluffers = goodClaimers.filter(r => r.ok === false);
+  const hidden = ps.filter(p => ["Drunk", "Recluse", "Spy"].some(r => isRole(p.id, r)));
   // ---- Your reads
   const reads2 = ps.filter(p => !p.me);
   const spotted = reads2.filter(p => evil.has(p.id) && p.align === "evil");
@@ -1634,7 +1689,7 @@ function buildReview() {
   const push = (order, text, tone) => ev2.push({ order, text, tone });
   for (const e of state.myInfo) { const v = verifyEntry(e); push(e.night * 2 - 1 + 0.1, `Night ${e.night} · ${e.src ? nm(e.src) + "'s" : "Your"} ${e.role}: ${readEntry(e).means.replace(/^If .*? is telling the truth: /, "")} ${v.ok === true ? "✓" : v.ok === false ? "✗" : ""}`, v.ok === false ? "bad" : ""); }
   for (const p of ps) {
-    const tag = evil.has(p.id) ? ` They were evil (${roleOf(p.id) || "evil"}).` : " They were good.";
+    const tag = evil.has(p.id) ? ` They were evil (${roleOf(p.id) || "evil"}).` : ` They were good${realRole(p.id) ? ` (the ${realRole(p.id)})` : ""}.`;
     if (p.dead && p.deathBy === "exec") push((p.execDay || 99) * 2, `Day ${p.execDay || "?"}: ${p.name} was executed${p.claims.length ? ` (claimed ${p.claims.join(" or ")})` : ""}.${tag}`, evil.has(p.id) ? "good" : "bad");
     if (p.dead && p.deathBy === "virgin") push((p.execDay || 99) * 2, `Day ${p.execDay || "?"}: ${p.name} nominated the Virgin (${nm(p.virginBy)}) and died.${tag}`, "");
     if (p.dead && p.deathBy === "slayer") push(98 * 2, `${nm(p.slayerBy)}'s Slayer shot killed ${p.name}.${tag}`, evil.has(p.id) ? "good" : "");
@@ -1656,13 +1711,17 @@ function buildReview() {
     evilCards.filter(c => !c.isDemon).length ? `Minions: ${evilCards.filter(c => !c.isDemon).map(c => `${c.p.name} (${c.role}${c.claim ? `, claiming ${c.claim}` : ""})`).join(", ")}.` : "",
     executed.length ? `The town executed ${executed.length} player${executed.length === 1 ? "" : "s"}: ${evilExec.length} evil and ${goodExec.length} good.` : "Nobody was executed.",
     checked.length ? `${right} of ${checked.length} checkable night results were right.${best.length ? ` Reliable: ${best.join(", ")}.` : ""}${worst.length ? ` Misleading: ${worst.join(", ")}.` : ""}` : "",
+    goodClaimers.length ? `${truthful.length} of ${goodClaimers.length} good players' claims held their real role${bluffers.length ? `. ${bluffers.map(r => `${r.p.name} (really the ${r.real})`).join(", ")} bluffed` : ""}.` : "",
+    hidden.length ? `Hidden in play: ${hidden.map(p => `${p.name} was the ${realRole(p.id)}`).join(", ")}.` : "",
+    rv.herring ? `The Fortune Teller's red herring was ${nm(rv.herring)}.` : "",
     `Your reads: you spotted ${spotted.length} of ${evil.size} evil players${wrongEvil.length ? `, and wrongly suspected ${wrongEvil.map(p => p.name).join(", ")}` : ""}${trustedEvil.length ? `. You trusted ${trustedEvil.map(p => p.name).join(", ")}, who ${trustedEvil.length === 1 ? "was" : "were"} evil` : ""}.`
   ].filter(Boolean);
-  return { evilCards, infoRows, sources: srcList, spotted, missed, wrongEvil, trustedEvil, roleRight, timeline: ev2, summary, nm };
+  return { claimRows, evilCards, infoRows, sources: srcList, spotted, missed, wrongEvil, trustedEvil, roleRight, timeline: ev2, summary, nm };
 }
 
 function renderWrap() {
   const d = wrapDraft, box = $("wrapBox"), ps = state.players, roles = scriptRoles();
+  const keepScroll = box.dataset.step === d.step ? box.scrollTop : 0;
   const nmP = p => esc(p.name || `Seat ${ps.indexOf(p) + 1}`);
   if (d.step === "reveal") {
     const tb = ["tb", "all"].includes(state.script);
@@ -1677,7 +1736,7 @@ function renderWrap() {
       <div class="choice-list">${ps.filter(p => p.id !== d.demon).map(p => `<button class="choice" data-minion="${p.id}" aria-pressed="${d.minions[p.id] !== undefined}">${nmP(p)}</button>`).join("")}</div>
       ${Object.keys(d.minions).map(id => { const p = ps.find(x => x.id === id); return p ? `<div class="row"><span class="label">${nmP(p)} was the</span><select class="btn" data-mrole="${id}"><option value="">Not sure</option>${roles.minion.map(r => `<option${d.minions[id] === r ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></div>` : ""; }).join("")}
       ${tb ? `<p><b>Was anyone the Drunk?</b> <span class="hint">(optional)</span></p><div class="choice-list">${ps.filter(p => p.id !== d.demon && d.minions[p.id] === undefined).map(p => `<button class="choice" data-drunk="${p.id}" aria-pressed="${d.drunk === p.id}">${nmP(p)}</button>`).join("")}</div>` : ""}
-      <div class="phase-actions"><button class="btn" data-wclose>Cancel</button><button class="btn primary" data-wnext ${d.demon && (state.over || d.winner) ? "" : "disabled"}>See the review →</button></div>`;
+      <div class="phase-actions"><button class="btn" data-wclose>Cancel</button><button class="btn primary" data-wnext ${d.demon && (state.over || d.winner) ? "" : "disabled"}>Next: everyone's roles →</button></div>`;
     box.querySelectorAll("[data-win]").forEach(b => b.onclick = () => { d.winner = b.dataset.win; renderWrap(); });
     box.querySelectorAll("[data-demon]").forEach(b => b.onclick = () => { d.demon = b.dataset.demon; delete d.minions[d.demon]; if (d.drunk === d.demon) d.drunk = ""; renderWrap(); });
     if ($("wrDemonRole")) $("wrDemonRole").onchange = e => { d.demonRole = e.target.value; };
@@ -1686,9 +1745,52 @@ function renderWrap() {
     box.querySelectorAll("[data-drunk]").forEach(b => b.onclick = () => { d.drunk = d.drunk === b.dataset.drunk ? "" : b.dataset.drunk; renderWrap(); });
     box.querySelector("[data-wnext]").onclick = () => {
       if (!state.over && d.winner) state.over = { winner: d.winner, day: state.day };
-      state.reveal = { demon: { id: d.demon, role: d.demonRole || roles.demon[0] }, minions: { ...d.minions }, drunk: d.drunk };
+      const evilNow = new Set([d.demon, ...Object.keys(d.minions)]);
+      for (const id of Object.keys(d.roles)) if (evilNow.has(id) || id === d.drunk) delete d.roles[id];
+      if (evilNow.has(d.herring)) d.herring = "";
+      state.reveal = { demon: { id: d.demon, role: d.demonRole || roles.demon[0] }, minions: { ...d.minions }, drunk: d.drunk, roles: { ...d.roles }, herring: d.herring };
+      save(); render(); d.step = "roles"; renderWrap();
+    };
+  } else if (d.step === "roles") {
+    const evilNow = new Set([d.demon, ...Object.keys(d.minions)]);
+    const good = ps.filter(p => !evilNow.has(p.id) && !p.traveller);
+    // Start from each hard claim, so you only change the ones that turned out different
+    for (const p of good) if (d.roles[p.id] === undefined && p.id !== d.drunk) d.roles[p.id] = isHard(p) ? p.claims[0] : "";
+    const goodRoles = [...roles.townsfolk, ...roles.outsider];
+    const todo = good.filter(p => p.id !== d.drunk);
+    const done = todo.filter(p => d.roles[p.id]).length;
+    const hasFT = state.myInfo.some(e => e.role.toLowerCase() === "fortune teller");
+    box.innerHTML = `
+      <span class="step">Game wrap-up</span>
+      <h2 id="wrapTitle">What was everyone really?</h2>
+      <p class="hint">Fill in the good players' real characters from the Storyteller's reveal. Hard claims are filled in already, so just change the ones that were different. This lets the review check more of the night info and every claim. Not shared? Skip it.</p>
+      <p class="hint">${done} of ${todo.length} filled in</p>
+      ${good.map(p => {
+        if (p.id === d.drunk) return `<div class="role-row"><span class="who">${nmP(p)} <small>the Drunk (set on the last step)</small></span></div>`;
+        const cur = d.roles[p.id] || "";
+        const opts = p.claims.filter(c => !["minion", "demon", "traveller"].includes(teamOf(c)));
+        const other = cur && !opts.some(c => c.toLowerCase() === cur.toLowerCase()) ? cur : "";
+        return `<div class="role-row">
+          <span class="who">${nmP(p)}${p.me ? " <small>(you)</small>" : ""} <small>${p.claims.length ? `${isHard(p) ? "hard-claimed" : "options"}: ${esc(p.claims.join(", "))}` : "never claimed"}</small></span>
+          <div class="choice-list">
+            ${opts.map(c => `<button class="choice" data-rrole="${p.id}" data-r="${esc(c)}" aria-pressed="${cur.toLowerCase() === c.toLowerCase()}">${esc(c)}</button>`).join("")}
+            <select class="btn" data-rsel="${p.id}" aria-label="${nmP(p)}'s real character"><option value="">${opts.length ? "Something else…" : "Pick their character"}</option>${goodRoles.filter(r => !opts.some(c => c.toLowerCase() === r.toLowerCase())).map(r => `<option${other.toLowerCase() === r.toLowerCase() ? " selected" : ""}>${esc(r)}</option>`).join("")}</select>
+          </div>
+        </div>`;
+      }).join("")}
+      ${hasFT ? `<div class="role-row"><span class="who">Fortune Teller's red herring <small>(optional)</small></span><div class="choice-list">${good.map(p => `<button class="choice" data-herring="${p.id}" aria-pressed="${d.herring === p.id}">${nmP(p)}</button>`).join("")}</div></div>` : ""}
+      <div class="phase-actions"><button class="btn" data-wback>← Back</button><button class="btn" data-wskip>Skip</button><button class="btn primary" data-wreview>See the review →</button></div>`;
+    const finish = keep => {
+      state.reveal.roles = keep ? Object.fromEntries(Object.entries(d.roles).filter(([, r]) => r)) : {};
+      state.reveal.herring = keep ? d.herring : "";
       save(); render(); d.step = "report"; renderWrap();
     };
+    box.querySelectorAll("[data-rrole]").forEach(b => b.onclick = () => { const id = b.dataset.rrole; d.roles[id] = d.roles[id] === b.dataset.r ? "" : b.dataset.r; renderWrap(); });
+    box.querySelectorAll("[data-rsel]").forEach(sel => sel.onchange = () => { d.roles[sel.dataset.rsel] = sel.value; renderWrap(); });
+    box.querySelectorAll("[data-herring]").forEach(b => b.onclick = () => { d.herring = d.herring === b.dataset.herring ? "" : b.dataset.herring; renderWrap(); });
+    box.querySelector("[data-wback]").onclick = () => { d.step = "reveal"; renderWrap(); };
+    box.querySelector("[data-wskip]").onclick = () => finish(false);
+    box.querySelector("[data-wreview]").onclick = () => finish(true);
   } else {
     const R = buildReview(), nm = R.nm;
     const tick = ok => ok === true ? '<span class="ok">✓</span>' : ok === false ? '<span class="no">✗</span>' : '<span class="na">?</span>';
@@ -1706,6 +1808,9 @@ function renderWrap() {
         ${c.why.length ? `<small>The app's reasons: ${esc(c.why.join(" · "))}</small>` : ""}
       </div>`).join("")}
 
+      ${R.claimRows.length ? `<h3 class="wrap-h">Claims, checked</h3>
+      ${R.claimRows.map(r => `<div class="tip wrap-row">${tick(r.ok)}<span><b>${esc(r.p.name)}:</b> ${esc(r.text)}</span></div>`).join("")}` : ""}
+
       <h3 class="wrap-h">Night information, checked</h3>
       ${R.infoRows.length ? R.infoRows.map(r => `<div class="tip wrap-row">${tick(r.v.ok)}<span><b>Night ${r.e.night} · ${esc(r.e.src ? nm(r.e.src) + "'s" : "Your")} ${esc(r.e.role)}:</b> ${esc(r.means)}<small>${esc(r.v.why)}</small></span></div>`).join("") : `<p class="tips-empty">No night info was logged.</p>`}
       ${R.sources.length ? `<div class="tip"><span class="label">By source</span>${R.sources.map(s => `<span><b>${esc(s.src ? nm(s.src) : "You")}</b>: ${s.right} right, ${s.wrong} wrong${s.unclear ? `, ${s.unclear} unclear` : ""}. ${esc(s.verdict)} ${s.grade ? `<small>${esc(s.grade)}</small>` : ""}</span>`).join("")}</div>` : ""}
@@ -1722,12 +1827,14 @@ function renderWrap() {
       <h3 class="wrap-h">Timeline</h3>
       <ol class="wrap-time">${R.timeline.map(t => `<li class="${t.tone}">${esc(t.text)}</li>`).join("")}</ol>
 
-      <div class="phase-actions"><button class="btn" data-wedit>Change who was evil</button><button class="btn" data-wclose>Close</button><button class="btn primary" data-wnew>Start a new game</button></div>`;
+      <div class="phase-actions"><button class="btn" data-wedit>Change who was evil</button><button class="btn" data-wroles>Change roles</button><button class="btn" data-wclose>Close</button><button class="btn primary" data-wnew>Start a new game</button></div>`;
     box.querySelector("[data-wedit]").onclick = () => { d.step = "reveal"; renderWrap(); };
+    box.querySelector("[data-wroles]").onclick = () => { d.step = "roles"; renderWrap(); };
     box.querySelector("[data-wnew]").onclick = () => { $("wrapOverlay").hidden = true; openNew(); };
   }
   box.querySelectorAll("[data-wclose]").forEach(b => b.onclick = () => { $("wrapOverlay").hidden = true; });
-  box.scrollTop = 0;
+  box.scrollTop = keepScroll;
+  box.dataset.step = d.step;
 }
 
 function openWhatIf(pid, mode) {
