@@ -584,7 +584,7 @@ const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: fal
 function exampleState() {
   const P = (name, claims, extra) => mkPlayer(name, { claims, claimType: claims.length === 1 ? "hard" : "soft", ...extra });
   const st = {
-    v: 1, example: true, script: "tb", day: 2, firstNightDone: true, shots: [],
+    v: 1, example: true, softDefault: true, script: "tb", day: 2, firstNightDone: true, shots: [],
     notes: "Night 1: no deaths shown yet.\nDay 1: Priya nominated Tom (3 votes, not enough). Sam nominated Leo, executed with 5.\nNight 2: Jess died.",
     players: [
       P("You", ["Empath"], { me: true, notes: "My Empath numbers are under My night info." }),
@@ -618,7 +618,12 @@ function normalize(s) {
   s.myInfo = Array.isArray(s.myInfo) ? s.myInfo : [];
   s.myRole = s.myRole || "";
   s.over = s.over || null;
-  for (const p of s.players) if (!p.claimType) p.claimType = p.claims.length === 1 ? "hard" : "soft";
+  if (!s.softDefault) {
+    const provenIds = new Set(s.players.filter(x => x.dead && (x.deathBy === "virgin" || x.deathBy === "slayer")).map(x => x.deathBy === "virgin" ? x.virginBy : x.slayerBy));
+    for (const p of s.players) p.claimType = (p.me && s.myRole) || provenIds.has(p.id) ? "hard" : "soft";
+    s.softDefault = true;
+  }
+  for (const p of s.players) if (!p.claimType) p.claimType = "soft";
   s.shots = Array.isArray(s.shots) ? s.shots : [];
   if (s.firstNightDone === undefined) s.firstNightDone = true;
   return s;
@@ -653,7 +658,7 @@ function pruneOptions() {
     if (!isSoft(p)) continue;
     const gone = p.claims.filter(c => hardBy[c.toLowerCase()]);
     if (!gone.length || gone.length === p.claims.length) continue;
-    for (const c of gone) p.removed.push({ role: c, by: hardBy[c.toLowerCase()].map(x => x.name || "another player").join(" and "), day: state.day });
+    for (const c of gone) if (!p.removed.some(x => x.role.toLowerCase() === c.toLowerCase())) p.removed.push({ role: c, by: hardBy[c.toLowerCase()].map(x => x.name || "another player").join(" and "), day: state.day });
     p.claims = p.claims.filter(c => !hardBy[c.toLowerCase()]);
   }
 }
@@ -856,7 +861,7 @@ function renderPanel() {
     </div>`}
 
     <div class="field">
-      ${(p.removed || []).map(x => `<span class="hint">Removed ${esc(x.role)} from their options on day ${x.day}: ${esc(x.by)} hard-claimed it.</span>`).join("")}
+      ${(p.removed || []).filter((x, i, a) => a.findIndex(y => y.role.toLowerCase() === x.role.toLowerCase()) === i).map(x => `<span class="hint">Removed ${esc(x.role)} from their options on day ${x.day}: ${esc(x.by)} hard-claimed it.</span>`).join("")}
       <div class="row">
         <span class="label">Claim</span>
         <span class="seg" role="group" aria-label="Claim type">
@@ -2187,7 +2192,7 @@ $("ngStart").onclick = () => {
   const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
   const count = names.length || Math.max(5, Math.min(20, parseInt($("ngCount").value, 10) || 8));
   const players = Array.from({ length: count }, (_, i) => mkPlayer(names[i] || `Player ${i + 1}`));
-  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], over: null, shots: [], firstNightDone: false, updatedAt: 0 };
+  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], softDefault: true, over: null, shots: [], firstNightDone: false, updatedAt: 0 };
   confirmRemove = false;
   $("overlay").hidden = true; $("ngNames").value = "";
   save(); render();
