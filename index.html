@@ -104,7 +104,8 @@ select.btn { padding-right: 8px; }
 .seat.evil .disc { border-color: var(--evil); }
 .claim-txt { font-weight: 800; font-size: calc(var(--tok, 70px) * var(--fs, .15)); line-height: 1.05; overflow-wrap: break-word; }
 .claim-txt.none { color: #8d826f; font-weight: 500; font-style: italic; }
-.claim-more { display: block; font-size: calc(var(--tok, 70px) * .13); font-weight: 700; color: #6b5f4d; }
+.claim-opts { display: grid; gap: 1px; line-height: 1; }
+.claim-opts .claim-txt { display: block; }
 .t-townsfolk { color: #1f5bb0; } .t-outsider { color: #187789; } .t-minion { color: #b02c42; } .t-demon { color: #85132a; } .t-traveller { color: #6d3d98; } .t-custom { color: #4a4153; }
 .seat.dead .disc { filter: grayscale(1) brightness(.62); }
 .seat.dead .disc::after { content: ""; position: absolute; left: 50%; top: -6%; width: 34%; height: 46%; transform: translateX(-50%); background: #111; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
@@ -388,7 +389,7 @@ function exampleState() {
       P("You", ["Empath"], { me: true, notes: "N1: 0. N2: 1 (Sam or Mia?)" }),
       P("Sam", ["Chef"], { align: "evil", notes: "Chef 2 is odd with only 1 minion. Pushed hard on Leo." }),
       P("Priya", ["Investigator"], { notes: "Saw Baron between Tom and Mia." }),
-      P("Tom", ["Washerwoman", "Soldier"], { notes: "Changed claim day 2. Said Washerwoman was a bluff to bait the Imp." }),
+      P("Tom", ["Washerwoman", "Soldier", "Monk"], { notes: "Gave a 3-for-3 on day 1. Won't narrow it down." }),
       P("Jess", ["Fortune Teller"], { dead: true, deathBy: "night", align: "good", notes: "Died N2. Said Ben + Mia were no." }),
       P("Mia", ["Chef"], { notes: "Counter-claimed Chef against Sam on day 2. One of them is lying." }),
       P("Leo", ["Saint"], { dead: true, deathBy: "exec", ghostVote: false, align: "good", notes: "Executed D1, game didn't end." }),
@@ -461,10 +462,12 @@ function renderCircle() {
     b.className = "seat" + (p.id === state.selected ? " sel" : "") + (p.dead ? " dead" : "") + (p.align ? " " + p.align : "");
     b.style.left = (50 + 41 * Math.cos(a)) + "%";
     b.style.top = (50 + 41 * Math.sin(a)) + "%";
-    b.setAttribute("aria-label", `Seat ${i + 1}: ${p.name || "unnamed"}${p.claims.length ? ", claims " + p.claims.join(" and ") : ""}${p.dead ? ", dead" : ""}`);
+    b.setAttribute("aria-label", `Seat ${i + 1}: ${p.name || "unnamed"}${p.claims.length ? ", claims " + p.claims.join(" or ") : ""}${p.dead ? ", dead" : ""}`);
     const first = p.claims[0];
     const claimHtml = first
-      ? `<span class="claim-txt t-${teamOf(first)}" style="--fs:${Math.min(.15, 1.05 / Math.max(...first.split(/\s+/).map(w => w.length))).toFixed(3)}">${esc(first)}${p.claims.length > 1 ? `<span class="claim-more">+${p.claims.length - 1} more</span>` : ""}</span>`
+      ? p.claims.length === 1
+        ? `<span class="claim-txt t-${teamOf(first)}" style="--fs:${Math.min(.15, 1.05 / Math.max(...first.split(/\s+/).map(w => w.length))).toFixed(3)}">${esc(first)}</span>`
+        : `<span class="claim-opts">${p.claims.slice(0, 4).map(c => `<span class="claim-txt t-${teamOf(c)}" style="--fs:${Math.min(p.claims.length > 3 ? .095 : .115, 1.05 / Math.max(...p.claims.flatMap(x => x.split(/\s+/)).map(w => w.length))).toFixed(3)}">${esc(c)}</span>`).join("")}</span>`
       : `<span class="claim-txt none">no claim</span>`;
     b.innerHTML = `
       <span class="disc">
@@ -498,7 +501,7 @@ function renderRoster() {
     <button class="roster-row${p.dead ? " dead" : ""}" data-id="${p.id}">
       <span class="n">${i + 1}</span>
       <span class="who">${p.align ? `<span class="dot ${p.align}"></span>` : ""}${esc(p.name || "—")}${p.me ? " (me)" : ""}</span>
-      <span class="what">${p.claims.length ? p.claims.map(c => `<span class="t-${teamOf(c)}" style="color:var(--${teamOf(c)});font-weight:700">${esc(c)}</span>`).join(", ") : '<span class="empty">no claim</span>'}
+      <span class="what">${p.claims.length ? p.claims.map(c => `<span class="t-${teamOf(c)}" style="color:var(--${teamOf(c)});font-weight:700">${esc(c)}</span>`).join(" or ") : '<span class="empty">no claim</span>'}
         ${p.notes.trim() ? `<small>${esc(p.notes.trim().split("\n")[0])}</small>` : ""}</span>
     </button>`).join("");
   $("roster").querySelectorAll(".roster-row").forEach(el => el.addEventListener("click", () => {
@@ -544,10 +547,10 @@ function renderPanel() {
     </div>
 
     <div class="field">
-      <span class="label">Claimed roles</span>
+      <span class="label">Claimed roles${p.claims.length > 1 ? ` · ${p.claims.length} options, any order` : ""}</span>
       <div class="claims">${p.claims.length
         ? p.claims.map((c, i) => `<span class="chip ${teamOf(c)}">${esc(c)}<button data-rm="${i}" aria-label="Remove ${esc(c)}">×</button></span>`).join("")
-        : '<span class="empty">No claim yet. Tap roles below, or type one.</span>'}</div>
+        : '<span class="empty">No claim yet. Tap roles below, or type one. For a 3-for-3, tap all three.</span>'}</div>
       <form class="add-claim" id="claimForm">
         <input type="text" id="claimInput" placeholder="Type any role, e.g. Juggler" list="allRoles" autocomplete="off">
         <button class="btn" type="submit">Add</button>
@@ -675,7 +678,11 @@ const OUTSIDER_MODS = {
 function buildTips() {
   const players = state.players;
   const nm = p => p.name || `Seat ${players.indexOf(p) + 1}`;
-  const cur = p => p.claims[p.claims.length - 1] || "";
+  // One claim is a hard claim; several are options in any order (a 3-for-3)
+  const hard = p => p.claims.length === 1 ? p.claims[0] : "";
+  const has = (p, r) => p.claims.some(c => c.toLowerCase() === r);
+  const allIn = (p, teams) => p.claims.length > 0 && p.claims.every(c => teams.includes(teamOf(c)));
+  const optList = p => p.claims.join(", ").replace(/, ([^,]*)$/, " or $1");
   const others = players.filter(p => !p.me);
   const core = players.filter(p => !p.traveller);
   const comp = COMP[Math.min(core.length, 15)];
@@ -690,22 +697,32 @@ function buildTips() {
     if (ps.length < 2) continue;
     const t = teamOf(role);
     if (t === "traveller") continue;
-    const names = ps.map(nm).join(" and ");
-    issues.push({ level: "hi", ids: ps.map(p => p.id), text: `${names} both claim ${role}.`, sub: `Only one ${role} can be in play, so at least one of them is bluffing${t === "townsfolk" && ["tb", "all"].includes(state.script) ? ", or one is the Drunk (who believes they're a Townsfolk)" : ""}.` });
-    for (const p of ps) {
-      ask(p, `You and ${ps.filter(x => x !== p).map(nm).join(", ")} both claim ${role}. ${ROLE_Q[role.toLowerCase()] || "What exactly did you learn, and when?"} (Ask them both at the same time so neither can copy.)`, true);
-      flag(p, 2, `double-claims ${role}`);
+    const hardPs = ps.filter(p => p.claims.length === 1);
+    const optPs = ps.filter(p => p.claims.length > 1);
+    if (hardPs.length >= 2) {
+      issues.push({ level: "hi", ids: hardPs.map(p => p.id), text: `${hardPs.map(nm).join(" and ")} both hard-claim ${role}.`, sub: `Only one ${role} can be in play, so at least one of them is bluffing${t === "townsfolk" && ["tb", "all"].includes(state.script) ? ", or one is the Drunk (who believes they're a Townsfolk)" : ""}.` });
+      for (const p of hardPs) {
+        ask(p, `You and ${hardPs.filter(x => x !== p).map(nm).join(", ")} both claim ${role}. ${ROLE_Q[role.toLowerCase()] || "What exactly did you learn, and when?"} (Ask them both at the same time so neither can copy.)`, true);
+        flag(p, 2, `double-claims ${role}`);
+      }
+    }
+    if (optPs.length && hardPs.length) {
+      issues.push({ level: "", ids: ps.map(p => p.id), text: `${hardPs.map(nm).join(" and ")} hard-claim${hardPs.length === 1 ? "s" : ""} ${role}, which is also one of ${optPs.map(nm).join(" and ")}'s options.`, sub: `If ${hardPs.length === 1 ? nm(hardPs[0]) + " is" : "one of them is"} really the ${role}, ${optPs.map(nm).join(" and ")} must be one of their other options.` });
+      for (const p of optPs) ask(p, `${hardPs.map(nm).join(" and ")} hard-claimed ${role}, one of your options. Is it one of your others: ${p.claims.filter(c => c.toLowerCase() !== role.toLowerCase()).join(" or ")}?`, true);
+    } else if (optPs.length >= 2 && !hardPs.length) {
+      issues.push({ level: "", ids: optPs.map(p => p.id), text: `${role} is among the options of ${optPs.map(nm).join(" and ")}.`, sub: `They can't both be the ${role}. Once one of them narrows down, it tells you about the other.` });
     }
   }
 
-  // Changed claims
+  // 3-for-3s (several options, in no particular order)
   for (const p of others) if (p.claims.length > 1) {
-    ask(p, `You've claimed ${p.claims.join(", then ")}. Why did you switch, and who heard each claim?`, true);
-    flag(p, 1, "changed claim");
+    const late = state.day >= 3;
+    ask(p, `You gave ${optList(p)}. ${late ? "It's day " + state.day + ", so can you hard-claim now?" : "Can you narrow it down to two?"} If one is an information role, what would that information be?`, late);
+    if (late) flag(p, 1, "still hiding in a 3-for-3");
   }
 
   // Evil claims
-  for (const p of others) { const t = teamOf(cur(p)); if (t === "minion" || t === "demon") ask(p, `You claimed ${cur(p)}, an evil character. Is that a joke, a bluff, or a real claim?`, true); }
+  for (const p of others) { const evil = p.claims.filter(c => ["minion", "demon"].includes(teamOf(c))); if (evil.length) ask(p, `${evil.join(" and ")} ${evil.length === 1 ? "is an evil character" : "are evil characters"}. Is that a joke, a bluff, or a real claim?`, true); }
 
   // Unclaimed
   const unclaimed = others.filter(p => !p.claims.length && !p.traveller);
@@ -716,7 +733,7 @@ function buildTips() {
 
   // Role questions
   for (const p of others) {
-    const c = cur(p).toLowerCase();
+    const c = hard(p).toLowerCase();
     if (!ROLE_Q[c]) continue;
     if (c === "ravenkeeper" && !(p.dead && p.deathBy === "night")) continue;
     if (c === "sage" && !(p.dead && p.deathBy === "night")) continue;
@@ -733,15 +750,18 @@ function buildTips() {
     const base = comp[1];
     const allowed = new Set([base, ...mods.flatMap(m => m.d.map(d => base + d))].filter(n => n >= 0));
     const maxAllowed = Math.max(...allowed);
-    const outs = core.filter(p => teamOf(cur(p)) === "outsider");
+    const outs = core.filter(p => allIn(p, ["outsider"]));
+    const maybeOuts = core.filter(p => !allIn(p, ["outsider"]) && p.claims.some(c => teamOf(c) === "outsider"));
     const oNames = outs.map(nm).join(", ");
     if (outs.length > maxAllowed) {
       issues.push({ level: "bad", ids: outs.map(p => p.id), text: `${outs.length} Outsider claims (${oNames}), but at most ${maxAllowed} are possible with ${core.length} players.`, sub: `At least ${outs.length - maxAllowed} of them must be lying.` });
+    } else if (outs.length + maybeOuts.length > maxAllowed && maybeOuts.length) {
+      issues.push({ level: "", ids: maybeOuts.map(p => p.id), text: `${outs.length} Outsider claim${outs.length === 1 ? "" : "s"}, plus Outsiders in the options of ${maybeOuts.map(nm).join(", ")}.`, sub: `At most ${maxAllowed} Outsider${maxAllowed === 1 ? "" : "s"} can be in play, so not all of those options can be true.` });
       outs.forEach(p => flag(p, 1, "too many Outsiders"));
     } else if (outs.length > base) {
       const fits = mods.filter(m => m.d.includes(outs.length - base)).map(m => m.role);
       issues.push({ level: "hi", ids: outs.map(p => p.id), text: `${outs.length} Outsider claims (${oNames}), but a normal ${core.length}-player game has ${base}.`, sub: fits.length ? `That fits a ${fits.join(" or ")} in play. Or someone is bluffing as an Outsider.` : "Someone may be bluffing as an Outsider." });
-    } else if (outs.length < base && !unclaimed.length) {
+    } else if (outs.length + maybeOuts.length < base && !unclaimed.length) {
       const fits = mods.filter(m => m.d.includes(outs.length - base)).map(m => m.role);
       issues.push({ level: "", ids: [], text: `Only ${outs.length} Outsider claim${outs.length === 1 ? "" : "s"}, but a normal ${core.length}-player game has ${base}.`, sub: `An Outsider may be hiding as a Townsfolk${scripts.includes("tb") ? " (the Drunk believes they're a Townsfolk)" : ""}${fits.length ? `, or a ${fits.join(" or ")} has changed the count` : ""}.` });
     }
@@ -749,7 +769,7 @@ function buildTips() {
     // More good claims than good seats
     const goodSlots = comp[0] + comp[1];
     const evilSlots = comp[2] + comp[3];
-    const goodClaims = core.filter(p => ["townsfolk", "outsider"].includes(teamOf(cur(p))));
+    const goodClaims = core.filter(p => allIn(p, ["townsfolk", "outsider"]));
     if (goodClaims.length > goodSlots) {
       const lying = goodClaims.length - goodSlots;
       issues.push({ level: "", ids: [], text: `${goodClaims.length} players claim good characters, but only ${goodSlots} seats are good.`, sub: `At least ${lying} of these claims ${lying === 1 ? "is a bluff" : "are bluffs"}. There ${evilSlots === 1 ? "is" : "are"} ${evilSlots} evil player${evilSlots === 1 ? "" : "s"} to find.` });
@@ -758,15 +778,17 @@ function buildTips() {
 
   // Death-based checks
   for (const p of players) {
-    const c = cur(p).toLowerCase();
+    const c = hard(p).toLowerCase();
     if (!p.dead) continue;
+    if (!c && has(p, "saint") && p.deathBy === "exec") issues.push({ level: "", ids: [p.id], text: `${nm(p)} was executed and the game didn't end, so they weren't a sober Saint.`, sub: `Cross Saint off their options: they're more likely ${p.claims.filter(x => x.toLowerCase() !== "saint").join(" or ")}, or bluffing.` });
+    if (!c && has(p, "soldier") && p.deathBy === "night") issues.push({ level: "", ids: [p.id], text: `${nm(p)} died at night, so they weren't a sober Soldier.`, sub: `Cross Soldier off their options: they're more likely ${p.claims.filter(x => x.toLowerCase() !== "soldier").join(" or ")}, or bluffing.` });
     if (c === "saint" && p.deathBy === "exec") issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} was executed while claiming Saint, and the game didn't end.`, sub: "So they weren't the Saint, or they were drunk or poisoned. Anyone who backed the claim is worth a look." });
     if (c === "soldier" && p.deathBy === "night") issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} claimed Soldier but died at night.`, sub: "A sober Soldier can't be killed by the Demon. Either they lied, or they were poisoned or drunk." });
-    if (c === "tea lady") issues.push({ level: "", ids: [p.id], text: `${nm(p)} (Tea Lady) is dead.`, sub: "Their neighbours' safety no longer applies." });
+    if (has(p, "tea lady") && c === "tea lady") issues.push({ level: "", ids: [p.id], text: `${nm(p)} (Tea Lady) is dead.`, sub: "Their neighbours' safety no longer applies." });
   }
   const executed = players.filter(p => p.dead && p.deathBy === "exec");
-  const undertakers = players.filter(p => !p.me && cur(p).toLowerCase() === "undertaker");
-  if (executed.length) for (const u of undertakers) ask(u, `What did ${executed.map(nm).join(" and ")} show as when executed?`, true);
+  const undertakers = players.filter(p => !p.me && has(p, "undertaker"));
+  if (executed.length) for (const u of undertakers) ask(u, `${u.claims.length > 1 ? "If you're the Undertaker, what" : "What"} did ${executed.map(nm).join(" and ")} show as when executed?`, u.claims.length === 1);
 
   // Your reads
   for (const p of players) {
@@ -774,7 +796,8 @@ function buildTips() {
     if (p.align === "good") flag(p, -3, "");
   }
   // Reads that clash with a double claim
-  for (const { role, ps } of Object.values(byRole)) {
+  for (const { role, ps: all } of Object.values(byRole)) {
+    const ps = all.filter(p => p.claims.length === 1);
     if (ps.length < 2) continue;
     const good = ps.filter(p => p.align === "good");
     if (good.length === ps.length) issues.push({ level: "hi", ids: good.map(p => p.id), text: `You've marked ${good.map(nm).join(" and ")} as good, but they both claim ${role}.`, sub: "Both can't be telling the truth. Recheck one of those reads." });
@@ -789,9 +812,9 @@ function buildTips() {
   const me = players.find(p => p.me);
   if (me?.dead) rem.push(me.ghostVote ? "You're dead but still have your ghost vote. Save it for an execution that matters." : "You've used your ghost vote. You can still talk and share what you know.");
   if (alive.length <= 4) rem.push(alive.length <= 3 ? "Final three: if the Demon survives today's execution, evil wins. Every vote counts." : "Four alive: if the Demon kills tonight, tomorrow is the final three. Make today's execution count.");
-  const mayor = alive.find(p => cur(p).toLowerCase() === "mayor");
+  const mayor = alive.find(p => hard(p).toLowerCase() === "mayor");
   if (mayor && alive.length <= 4) rem.push(`${nm(mayor)} claims Mayor. With three alive and no execution, a real Mayor wins it for good.`);
-  const slayer = alive.find(p => !p.me && cur(p).toLowerCase() === "slayer");
+  const slayer = alive.find(p => !p.me && hard(p).toLowerCase() === "slayer");
   const topEvil = [...noms.values()].filter(n => n.score > 0).sort((a, b) => b.score - a.score)[0];
   if (slayer && topEvil && topEvil.p !== slayer) rem.push(`${nm(slayer)} claims Slayer. If they haven't fired, ${nm(topEvil.p)} could be a good target.`);
   if (state.day === 1) rem.push("Day 1: ask everyone for a claim or at least Townsfolk or Outsider, and write down who's quiet.");
