@@ -454,6 +454,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       <p class="welcome-lede">Keep track of who claims what, what everyone learned at night, and who might be evil. Everything you enter is saved automatically and stays private to you.</p>
       <div class="welcome-actions">
         <button class="btn primary new-game" id="wStart">+ Start a new game</button>
+        <button class="btn" id="wContinue" hidden>Continue my game</button>
         <button class="btn" id="wExample">Look around the example game</button>
       </div>
     </header>
@@ -2197,16 +2198,24 @@ new ResizeObserver(sizeTokens).observe($("table"));
 render();
 
 /* ---------- Welcome page ---------- */
-const WELCOME_KEY = "clocktower-notebook-welcomed";
-function openWelcome() { $("welcome").hidden = false; $("welcome").scrollTop = 0; $("wStart").focus(); }
-function closeWelcome() { $("welcome").hidden = true; try { localStorage.setItem(WELCOME_KEY, "1"); } catch (e) {} }
+// The welcome page is the first screen every time the app opens
+function openWelcome() {
+  const live = !state.example;
+  $("wContinue").hidden = !live;
+  if (live) $("wContinue").textContent = state.over ? "View my finished game" : `Continue my game (${state.firstNightDone ? "day " + state.day : "night 1"}, ${state.players.length} players)`;
+  $("wExample").hidden = live;
+  $("welcome").hidden = false; $("welcome").scrollTop = 0;
+  (live ? $("wContinue") : $("wStart")).focus();
+}
+function closeWelcome() { $("welcome").hidden = true; }
 $("helpBtn").onclick = openWelcome;
 $("wExample").onclick = closeWelcome;
+$("wContinue").onclick = () => { closeWelcome(); if (!state.firstNightDone) openFirstNight(); };
 $("wClose").onclick = closeWelcome;
 $("wStart").onclick = $("wStart2").onclick = () => { closeWelcome(); openNew(); };
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("welcome").hidden) closeWelcome(); });
 // First visit (or still on the example game and never welcomed): show the guide before anything else
-try { if (!localStorage.getItem(WELCOME_KEY) && state.example) openWelcome(); } catch (e) { if (state.example) openWelcome(); }
+openWelcome();
 
 /* ---------- Account sync ---------- */
 (async () => {
