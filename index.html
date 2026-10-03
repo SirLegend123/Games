@@ -1242,7 +1242,10 @@ function readEntry(e) {
           w(a, 2, `${whose} Fortune Teller yes`); w(b, 2, `${whose} Fortune Teller yes`);
         }
       }
-      else { out.means = `Neither ${nm(a)} nor ${nm(b)} is the Demon. They could still be Minions.`; }
+      else {
+        out.means = `Neither ${nm(a)} nor ${nm(b)} is the Demon. They could still be Minions.`;
+        if (src && e.p.includes(src)) out.means += ` This includes ${nm(src)} themselves, so it's self-serving: it doesn't clear them.`;
+      }
       break;
     case "undertaker": case "ravenkeeper": case "grandmother": case "gambler": {
       const r = e.r[0];
@@ -1357,6 +1360,15 @@ function reliability() {
       else if (/claimed .*but .*info says|hard-claims .*but .*info puts|an Outsider, but|isn't either of/.test(w)) add(src, 0.5, `Night ${n}: clashes with another player's claim`);
       else if (/Neither .* has claimed/.test(w)) add(src, 0.5, `Night ${n}: nobody in the pair claims the role it names`);
     }
+    // Self-serving: a result that clears the person reporting it
+    if (src && r.e.role.toLowerCase() === "fortune teller" && r.e.yn === 1 && r.e.p.includes(src)) {
+      const other = r.e.p.find(id => id !== src);
+      const otherGood = other && knownGood().has(other);
+      add(src, otherGood ? 1.5 : 1, `Night ${n}: their "no" includes themselves${otherGood ? `, and ${nm(other)} is already known good, so it only clears ${nm(src)}` : ", which clears them"}`);
+    }
+    // A "yes" that lands on you: you know you're good, so you'd have to be their red herring
+    const meId = state.players.find(p => p.me)?.id;
+    if (src && meId && r.e.role.toLowerCase() === "fortune teller" && r.e.yn === 0 && r.e.p.includes(meId)) add(src, 1, `Night ${n}: their "yes" landed on you. You know you're good, so you'd have to be their red herring, or the result is false`);
     // Info that pointed at someone the Demon later killed: the Demon rarely kills its own team
     for (const w of r.weights) {
       const t = P(w.id);
@@ -2165,7 +2177,7 @@ function buildEvil() {
       else if (e.yn === 0 && (kg.has(a) || kg.has(b))) { const x = kg.has(a) ? b : a; add(x, mine ? 4 : 2, `${who(e)} Fortune Teller yes with a known-good player (night ${e.night})`); }
       else if (e.yn === 0) { add(a, mine ? 3 : 2, `${who(e)} Fortune Teller yes (night ${e.night})`); add(b, mine ? 3 : 2, `${who(e)} Fortune Teller yes (night ${e.night})`); }
       else if (mine) { rule(a, `your Fortune Teller said no (night ${e.night})`); rule(b, `your Fortune Teller said no (night ${e.night})`); }
-      else { add(a, -2, ""); add(b, -2, ""); }
+      else { if (a !== e.src) add(a, -2, ""); if (b !== e.src) add(b, -2, ""); }
     }
     if (role === "sage" && a && b) {
       if (kg.has(a) !== kg.has(b)) add(kg.has(a) ? b : a, mine ? 8 : 4, `${who(e)} Sage, and the other player is known good`);
@@ -2207,6 +2219,7 @@ function buildEvil() {
     if (isSoft(p) && state.day >= 3) add(p.id, 1, p.claims.length === 2 ? "still hasn't hard-claimed" : "still hiding in a 3-for-3");
   }
   for (const [src, r] of Object.entries(fts)) if (r.herring) rule(r.herring, `${src ? nm(byId(src)) + "'s" : "your"} Fortune Teller red herring (good)`);
+  for (const g of reliability().values()) if (g.src && g.rating !== "consistent") add(g.src, g.rating === "unreliable" ? 3 : 1, g.rating === "unreliable" ? "their info looks unreliable" : "some doubts about their info");
   const list = [...cand.values()];
   const active = list.filter(c => !c.out).sort((x, y) => y.score - x.score);
   const ruledOut = [...list.filter(c => c.out).map(c => ({ p: c.p, why: c.out })), ...ps.filter(p => proven.has(p.id) && !p.dead).map(p => ({ p, why: proven.get(p.id) }))];
