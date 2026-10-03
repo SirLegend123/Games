@@ -9,6 +9,7 @@
 <style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
+<title>Clocktower Notebook</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
@@ -381,10 +382,9 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <option value="all">All three</option>
       </select>
     </div>
-    <span class="sync" id="sync">Saved on this device</span>
+    <span class="sync" id="sync">Saving on this device</span>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab" role="tab" data-tab="table">Table</button>
-      <button class="tab" role="tab" data-tab="info">Night info <span class="badge" id="bInfo"></span></button>
       <button class="tab" role="tab" data-tab="plan">Plan <span class="badge" id="bPlan"></span></button>
       <button class="tab" role="tab" data-tab="evil">Evil team <span class="badge" id="bEvil"></span></button>
       <button class="tab" role="tab" data-tab="claims">Claims</button>
@@ -414,13 +414,6 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <div class="comp" id="comp"></div>
         </div>
       </div>
-    </section>
-
-    <aside class="card panel" id="panel"></aside>
-  </div>
-  </div>
-
-  <div class="tabview" data-view="info" hidden>
       <div class="card info-card" id="infoCard" aria-labelledby="infoTitle">
         <div class="tips-head"><h2 id="infoTitle">Night info</h2><span class="tips-foot">What you learned, what others say they learned, and what it could mean</span></div>
         <div class="row" id="infoPick">
@@ -433,7 +426,12 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <div id="infoLog" class="tips-col"></div>
         <div id="infoSum" class="tips-col"></div>
         <div id="infoRel" class="tips-col"></div>
-      </div>
+    </section>
+
+    <aside class="card panel" id="panel"></aside>
+  </div>
+  </div>
+
   </div>
 
   <div class="tabview" data-view="plan" hidden>
@@ -533,7 +531,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       </li>
       <li>
         <h2>Read the board</h2>
-        <p>Use the tabs at the top: <b>Table</b>, <b>Night info</b>, <b>Plan</b>, <b>Evil team</b>, <b>Claims</b> and <b>Notes</b>. Badges show when something needs attention.</p>
+        <p>Use the tabs at the top: <b>Table</b> (the circle, player panel and night info), <b>Plan</b>, <b>Evil team</b>, <b>Claims</b> and <b>Notes</b>. Badges show when something needs attention.</p>
         <ul>
           <li><b>Plan for tomorrow:</b> what doesn't add up, questions to ask each player, and who to look at.</li>
           <li><b>Evil team:</b> the most likely Demon and why, plus which Minions are likely in play.</li>
@@ -2669,6 +2667,7 @@ $("endDayBtn").onclick = () => state.firstNightDone ? openPhase() : openFirstNig
 const TAB_KEY = "clocktower-notebook-tab";
 let currentTab = "table";
 try { currentTab = localStorage.getItem(TAB_KEY) || "table"; } catch (e) {}
+if (!document.querySelector(`.tabview[data-view="${currentTab}"]`)) currentTab = "table";
 function showTab(name) {
   currentTab = name;
   document.querySelectorAll(".tabview").forEach(v => { v.hidden = v.dataset.view !== name; });
@@ -2683,8 +2682,6 @@ function updateBadges() {
   const urgent = tips.issues.filter(i => i.level === "bad" || i.level === "hi").length;
   $("bPlan").textContent = urgent || "";
   $("bPlan").classList.toggle("red", tips.issues.some(i => i.level === "bad"));
-  $("bInfo").textContent = state.myInfo.length || "";
-  $("bInfo").classList.remove("red");
   const top = buildEvil().top;
   $("bEvil").textContent = top ? (top.p.name || "?") : "";
   $("bEvil").classList.toggle("red", !!top);
