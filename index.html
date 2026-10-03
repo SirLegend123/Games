@@ -304,6 +304,16 @@ textarea { resize: vertical; min-height: 90px; }
 .mini-sus { flex: none; width: 38px; text-align: center; font-weight: 800; color: var(--evil); font-size: .85rem; }
 .w-note { margin: 0; font-size: .84rem; color: var(--muted); text-align: center; max-width: 40rem; justify-self: center; }
 
+/* Wrap-up */
+.dialog.wrap { width: min(760px, 100%); }
+.wrap .tip span { display: block; }
+.wrap-h { margin: 6px 0 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.15rem; }
+.wrap-row { grid-template-columns: 22px minmax(0, 1fr); column-gap: 8px; align-items: start; }
+.wrap-row small { display: block; }
+.ok { color: var(--claim); font-weight: 800; } .no { color: var(--evil); font-weight: 800; } .na { color: var(--muted); font-weight: 800; }
+.wrap-time { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; font-size: .9rem; }
+.wrap-time .bad { color: var(--evil); } .wrap-time .good { color: var(--claim); }
+
 /* Claim matrix */
 .matrix-card { gap: 10px; }
 .matrix-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
@@ -378,7 +388,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
             <span class="day-label" id="dayLabel">Day 1</span>
             <button class="round" id="dayUp" aria-label="Next day">+</button>
           </div>
-          <div class="hub-actions"><button class="btn primary end-day" id="endDayBtn">End day → night</button><button class="btn end-day" id="shotBtn">Slayer shot</button></div>
+          <div class="hub-actions"><button class="btn primary end-day" id="endDayBtn">End day → night</button><button class="btn end-day" id="shotBtn">Slayer shot</button><button class="btn primary end-day" id="wrapBtn" hidden>Game wrap-up</button></div>
           <div class="stat" id="aliveStat"></div>
           <div class="comp" id="comp"></div>
         </div>
@@ -496,6 +506,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <li><b>Evil team:</b> the most likely Demon and why, plus which Minions are likely in play.</li>
           <li><b>Test a hunch:</b> in a player's panel, tap "What if they're evil?" to see what supports it, what goes against it, and what follows if it's true.</li>
           <li><b>Night info</b> grades each player's information as consistent, doubtful or unreliable.</li>
+          <li><b>Game wrap-up:</b> when the game ends, enter who was evil to see how the evidence held up, which information was right, how your reads did, and a timeline.</li>
           <li><b>Claim matrix:</b> every claim at a glance. Amber means two players claim the same role.</li>
         </ul>
       </li>
@@ -518,6 +529,10 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     <div class="welcome-actions"><button class="btn primary new-game" id="wStart2">+ Start a new game</button><button class="btn" id="wClose">Close</button></div>
   </div>
 </section>
+
+<div class="overlay" id="wrapOverlay" hidden>
+  <div class="card dialog phase wrap" role="dialog" aria-modal="true" aria-labelledby="wrapTitle" id="wrapBox"></div>
+</div>
 
 <div class="overlay" id="wiOverlay" hidden>
   <div class="card dialog phase" role="dialog" aria-modal="true" aria-labelledby="wiTitle" id="wiBox"></div>
@@ -1457,6 +1472,192 @@ function whatIf(pid, mode) {
   return { name, isDemon, against, support, consequences, verdict, level };
 }
 
+/* ---------- End-of-game wrap-up ---------- */
+let wrapDraft = null;
+function openWrap() {
+  const rv = state.reveal;
+  wrapDraft = { step: rv ? "report" : "reveal", winner: state.over ? state.over.winner : "", demon: rv?.demon?.id || "", demonRole: rv?.demon?.role || "", minions: { ...(rv?.minions || {}) }, drunk: rv?.drunk || "" };
+  $("wrapOverlay").hidden = false;
+  renderWrap();
+}
+const evilIds = () => { const rv = state.reveal; return rv ? new Set([rv.demon?.id, ...Object.keys(rv.minions || {})].filter(Boolean)) : new Set(); };
+
+// Check one piece of night info against what really happened
+function verifyEntry(e) {
+  const rv = state.reveal, evil = evilIds(), ps = state.players;
+  const isEvil = id => evil.has(id);
+  const roleOf = id => id === rv.demon?.id ? rv.demon.role : rv.minions?.[id] || "";
+  const [a, b] = e.p, role = e.role.toLowerCase();
+  const res = (ok, why) => ({ ok, why });
+  switch (role) {
+    case "empath": { if (!a || !b) break; const actual = [a, b].filter(isEvil).length; return res(actual === e.n, actual === e.n ? `Correct: ${actual} evil neighbour${actual === 1 ? "" : "s"}.` : `Wrong: it should have been ${actual}.`); }
+    case "fortune teller": { if (!a || !b) break; const hit = [a, b].includes(rv.demon?.id); if (e.yn === 0) return hit ? res(true, "Correct: the Demon was in the pair.") : res(null, "No Demon in the pair, so it was wrong, unless one of them was the red herring."); return res(!hit, hit ? "Wrong: the Demon was in the pair." : "Correct: no Demon in the pair."); }
+    case "sage": { if (!a || !b) break; const hit = [a, b].includes(rv.demon?.id); return res(hit, hit ? "Correct: the Demon was one of them." : "Wrong: neither was the Demon."); }
+    case "investigator": { if (!a || !b || e.zero) break; const m = [a, b].find(id => rv.minions?.[id] !== undefined); if (!m) return res(false, "Wrong: neither was a Minion (unless the Recluse was involved)."); const r = rv.minions[m]; return res(!r || !e.r[0] || r.toLowerCase() === e.r[0].toLowerCase(), r && e.r[0] && r.toLowerCase() !== e.r[0].toLowerCase() ? `Partly: ${ps.find(x => x.id === m)?.name} was a Minion, but the ${r}.` : "Correct: one of them was the Minion."); }
+    case "undertaker": case "ravenkeeper": case "grandmother": { if (!a || !e.r[0]) break; const t = teamOf(e.r[0]); const ev = isEvil(a); if (t === "minion" || t === "demon") return res(ev && (!roleOf(a) || roleOf(a).toLowerCase() === e.r[0].toLowerCase()), ev ? "Correct: they were evil." : "Wrong: they were good."); return ev ? res(false, `Wrong: they were actually the ${roleOf(a) || "evil"}.`) : res(true, "Fits: they were good."); }
+    case "chef": { const n = ps.length; let pairs = 0; for (let i = 0; i < n; i++) if (isEvil(ps[i].id) && isEvil(ps[(i + 1) % n].id)) pairs++; return res(pairs === e.n, pairs === e.n ? `Correct: ${pairs} evil pair${pairs === 1 ? "" : "s"}.` : `Wrong: there were ${pairs}.`); }
+    case "clockmaker": { const n = ps.length, d = ps.findIndex(x => x.id === rv.demon?.id); if (d < 0) break; const dists = ps.map((x, i) => rv.minions?.[x.id] !== undefined ? Math.min(Math.abs(i - d), n - Math.abs(i - d)) : Infinity); const best = Math.min(...dists); if (best === Infinity) break; return res(best === e.n, best === e.n ? "Correct." : `Wrong: it was ${best}.`); }
+    case "seamstress": { if (!a || !b) break; const same = isEvil(a) === isEvil(b); return res(same === (e.yn === 0), same === (e.yn === 0) ? "Correct." : "Wrong."); }
+    case "dreamer": { if (!a || e.r.length < 2) break; const r = roleOf(a); if (r) return res(e.r.some(x => x.toLowerCase() === r.toLowerCase()), "Checked against their real character."); return res(null, "Can't fully check: they were good."); }
+  }
+  return res(null, "Can't be checked from the final reveal.");
+}
+
+function buildReview() {
+  const rv = state.reveal, ps = state.players, evil = evilIds();
+  const P = id => ps.find(p => p.id === id);
+  const nm = id => P(id)?.name || "someone";
+  const roleOf = id => id === rv.demon?.id ? rv.demon.role : rv.minions?.[id] || "";
+  // Rank everyone as if still alive, so executed or killed players keep their place on the Demon list
+  const saved = state;
+  let ev;
+  try { state = JSON.parse(JSON.stringify(saved)); state.players.forEach(x => { x.dead = false; }); state.over = null; ev = buildEvil(); } finally { state = saved; }
+  const rank = new Map(ev.active.map((c, i) => [c.p.id, i + 1]));
+  const { reads } = infoAnalysis();
+  const rel = reliability();
+  const auto = autoSuspicion();
+  // ---- How the evidence pointed at each evil player
+  const evilCards = [...evil].map(id => {
+    const p = P(id); if (!p) return null;
+    const pointed = [], cleared = [];
+    for (const r of reads) for (const w of r.weights) if (w.id === id) (w.pts > 0 ? pointed : cleared).push(`${r.src ? nm(r.src) + "'s" : "Your"} night ${r.e.night} ${r.e.role}`);
+    const c = ev.active.find(x => x.p.id === id);
+    const fate = p.dead ? (p.deathBy === "exec" ? `executed on day ${p.execDay || "?"}` : p.deathBy === "virgin" ? "died to the Virgin" : p.deathBy === "slayer" ? "shot by the Slayer" : p.deathBy === "night" ? `died on night ${p.deathNight || "?"}` : "died") : "survived";
+    return { p, role: roleOf(id) || (id === rv.demon?.id ? "Demon" : "Minion"), isDemon: id === rv.demon?.id, claim: p.claims.join(" or "), read: p.align, suspect: p.suspect, auto: auto.has(id),
+      rank: id === rv.demon?.id ? rank.get(id) : null, why: c ? [...new Set(c.why)] : [], pointed: [...new Set(pointed)], cleared: [...new Set(cleared)], fate };
+  }).filter(Boolean);
+  // ---- Information check
+  const sources = new Map();
+  const infoRows = [...state.myInfo].sort((x, y) => x.night - y.night).map(e => {
+    const v = verifyEntry(e);
+    const s = sources.get(e.src || "") || { src: e.src || "", right: 0, wrong: 0, unclear: 0 };
+    if (v.ok === true) s.right++; else if (v.ok === false) s.wrong++; else s.unclear++;
+    sources.set(e.src || "", s);
+    const r = readEntry(e);
+    return { e, v, means: r.means.replace(/^If .*? is telling the truth: /, "") };
+  });
+  for (const s of sources.values()) {
+    const p = s.src ? P(s.src) : P(ps.find(x => x.me)?.id);
+    const name = s.src ? nm(s.src) : "You";
+    const grade = rel.get(s.src)?.rating;
+    if (s.src && evil.has(s.src)) s.verdict = `${name} was evil (${roleOf(s.src)}), so their info was invented.`;
+    else if (rv.drunk && (s.src || ps.find(x => x.me)?.id) === rv.drunk) s.verdict = `${name} ${s.src ? "was" : "were"} the Drunk, so the info was unreliable.`;
+    else if (s.wrong) { const poisoner = Object.entries(rv.minions || {}).find(([, r]) => /poisoner/i.test(r)); s.verdict = `${s.wrong} result${s.wrong === 1 ? " was" : "s were"} wrong. ${name} ${s.src ? "was" : "were"} probably drunk or poisoned${poisoner ? ` (the Poisoner was ${nm(poisoner[0])})` : ""}.`; }
+    else if (s.right) s.verdict = `Every checkable result was right.`;
+    else s.verdict = "Nothing could be checked.";
+    if (grade) s.grade = `The app graded this source "${REL_LABEL[grade]}"${(grade === "consistent") === !(s.wrong || (s.src && evil.has(s.src))) ? ", which was right" : ", which was wrong"}.`;
+  }
+  // ---- Your reads
+  const reads2 = ps.filter(p => !p.me);
+  const spotted = reads2.filter(p => evil.has(p.id) && p.align === "evil");
+  const missed = reads2.filter(p => evil.has(p.id) && p.align !== "evil");
+  const wrongEvil = reads2.filter(p => !evil.has(p.id) && p.align === "evil");
+  const trustedEvil = reads2.filter(p => evil.has(p.id) && p.align === "good");
+  const roleRight = reads2.filter(p => p.suspect && evil.has(p.id) && roleOf(p.id) && roleOf(p.id).toLowerCase() === p.suspect.toLowerCase());
+  // ---- Executions
+  const executed = ps.filter(p => p.dead && ["exec", "virgin"].includes(p.deathBy));
+  const goodExec = executed.filter(p => !evil.has(p.id)), evilExec = executed.filter(p => evil.has(p.id));
+  // ---- Timeline
+  const ev2 = [];
+  const push = (order, text, tone) => ev2.push({ order, text, tone });
+  for (const e of state.myInfo) { const v = verifyEntry(e); push(e.night * 2 - 1 + 0.1, `Night ${e.night} · ${e.src ? nm(e.src) + "'s" : "Your"} ${e.role}: ${readEntry(e).means.replace(/^If .*? is telling the truth: /, "")} ${v.ok === true ? "✓" : v.ok === false ? "✗" : ""}`, v.ok === false ? "bad" : ""); }
+  for (const p of ps) {
+    const tag = evil.has(p.id) ? ` They were evil (${roleOf(p.id) || "evil"}).` : " They were good.";
+    if (p.dead && p.deathBy === "exec") push((p.execDay || 99) * 2, `Day ${p.execDay || "?"}: ${p.name} was executed${p.claims.length ? ` (claimed ${p.claims.join(" or ")})` : ""}.${tag}`, evil.has(p.id) ? "good" : "bad");
+    if (p.dead && p.deathBy === "virgin") push((p.execDay || 99) * 2, `Day ${p.execDay || "?"}: ${p.name} nominated the Virgin (${nm(p.virginBy)}) and died.${tag}`, "");
+    if (p.dead && p.deathBy === "slayer") push(98 * 2, `${nm(p.slayerBy)}'s Slayer shot killed ${p.name}.${tag}`, evil.has(p.id) ? "good" : "");
+    if (p.dead && p.deathBy === "night") push((p.deathNight || 99) * 2 - 1 + 0.5, `Night ${p.deathNight || "?"}: ${p.name} was killed.${tag}`, "");
+  }
+  for (const n of (state.quietNights || [])) push(n * 2 - 1 + 0.5, `Night ${n}: nobody died.`, "");
+  for (const s of (state.shots || [])) push(s.day * 2, `Day ${s.day}: ${nm(s.shooter)} shot ${nm(s.target)} and nothing happened.${evil.has(s.shooter) ? ` ${nm(s.shooter)} was evil, so it was a bluff.` : ""}`, "");
+  if (state.over) push(state.over.day * 2 + 0.9, `Day ${state.over.day}: ${state.over.winner} won.`, state.over.winner === "good" ? "good" : "bad");
+  ev2.sort((x, y) => x.order - y.order);
+  // ---- Summary
+  const dem = evilCards.find(c => c.isDemon);
+  const checked = infoRows.filter(r => r.v.ok !== null), right = checked.filter(r => r.v.ok).length;
+  const srcList = [...sources.values()];
+  const best = srcList.filter(s => s.right && !s.wrong).map(s => s.src ? nm(s.src) : "you");
+  const worst = srcList.filter(s => s.wrong || (s.src && evil.has(s.src))).map(s => s.src ? nm(s.src) : "you");
+  const summary = [
+    state.over ? `${state.over.winner === "good" ? "Good" : "Evil"} won on day ${state.over.day}.` : "",
+    dem ? `The Demon was ${dem.p.name} (${dem.role})${dem.claim ? `, claiming ${dem.claim}` : ""}. ${dem.rank ? `On the final evidence, the app ranks them #${dem.rank} of the Demon candidates.` : "The evidence never put them on the Demon list."}` : "",
+    evilCards.filter(c => !c.isDemon).length ? `Minions: ${evilCards.filter(c => !c.isDemon).map(c => `${c.p.name} (${c.role}${c.claim ? `, claiming ${c.claim}` : ""})`).join(", ")}.` : "",
+    executed.length ? `The town executed ${executed.length} player${executed.length === 1 ? "" : "s"}: ${evilExec.length} evil and ${goodExec.length} good.` : "Nobody was executed.",
+    checked.length ? `${right} of ${checked.length} checkable night results were right.${best.length ? ` Reliable: ${best.join(", ")}.` : ""}${worst.length ? ` Misleading: ${worst.join(", ")}.` : ""}` : "",
+    `Your reads: you spotted ${spotted.length} of ${evil.size} evil players${wrongEvil.length ? `, and wrongly suspected ${wrongEvil.map(p => p.name).join(", ")}` : ""}${trustedEvil.length ? `. You trusted ${trustedEvil.map(p => p.name).join(", ")}, who ${trustedEvil.length === 1 ? "was" : "were"} evil` : ""}.`
+  ].filter(Boolean);
+  return { evilCards, infoRows, sources: srcList, spotted, missed, wrongEvil, trustedEvil, roleRight, timeline: ev2, summary, nm };
+}
+
+function renderWrap() {
+  const d = wrapDraft, box = $("wrapBox"), ps = state.players, roles = scriptRoles();
+  const nmP = p => esc(p.name || `Seat ${ps.indexOf(p) + 1}`);
+  if (d.step === "reveal") {
+    const tb = ["tb", "all"].includes(state.script);
+    box.innerHTML = `
+      <span class="step">Game wrap-up</span>
+      <h2 id="wrapTitle">Who was evil?</h2>
+      ${state.over ? "" : `<p><b>Who won?</b></p><div class="choice-list"><button class="choice" data-win="good" aria-pressed="${d.winner === "good"}">Good won</button><button class="choice" data-win="evil" aria-pressed="${d.winner === "evil"}">Evil won</button></div>`}
+      <p><b>Who was the Demon?</b></p>
+      <div class="choice-list">${ps.map(p => `<button class="choice" data-demon="${p.id}" aria-pressed="${d.demon === p.id}">${nmP(p)}</button>`).join("")}</div>
+      ${d.demon ? `<div class="row"><span class="label">They were the</span><select class="btn" id="wrDemonRole">${roles.demon.map(r => `<option${(d.demonRole || roles.demon[0]) === r ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></div>` : ""}
+      <p><b>Who were the Minions?</b></p>
+      <div class="choice-list">${ps.filter(p => p.id !== d.demon).map(p => `<button class="choice" data-minion="${p.id}" aria-pressed="${d.minions[p.id] !== undefined}">${nmP(p)}</button>`).join("")}</div>
+      ${Object.keys(d.minions).map(id => { const p = ps.find(x => x.id === id); return p ? `<div class="row"><span class="label">${nmP(p)} was the</span><select class="btn" data-mrole="${id}"><option value="">Not sure</option>${roles.minion.map(r => `<option${d.minions[id] === r ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></div>` : ""; }).join("")}
+      ${tb ? `<p><b>Was anyone the Drunk?</b> <span class="hint">(optional)</span></p><div class="choice-list">${ps.filter(p => p.id !== d.demon && d.minions[p.id] === undefined).map(p => `<button class="choice" data-drunk="${p.id}" aria-pressed="${d.drunk === p.id}">${nmP(p)}</button>`).join("")}</div>` : ""}
+      <div class="phase-actions"><button class="btn" data-wclose>Cancel</button><button class="btn primary" data-wnext ${d.demon && (state.over || d.winner) ? "" : "disabled"}>See the review →</button></div>`;
+    box.querySelectorAll("[data-win]").forEach(b => b.onclick = () => { d.winner = b.dataset.win; renderWrap(); });
+    box.querySelectorAll("[data-demon]").forEach(b => b.onclick = () => { d.demon = b.dataset.demon; delete d.minions[d.demon]; if (d.drunk === d.demon) d.drunk = ""; renderWrap(); });
+    if ($("wrDemonRole")) $("wrDemonRole").onchange = e => { d.demonRole = e.target.value; };
+    box.querySelectorAll("[data-minion]").forEach(b => b.onclick = () => { const id = b.dataset.minion; if (d.minions[id] !== undefined) delete d.minions[id]; else { d.minions[id] = ""; if (d.drunk === id) d.drunk = ""; } renderWrap(); });
+    box.querySelectorAll("[data-mrole]").forEach(s => s.onchange = () => { d.minions[s.dataset.mrole] = s.value; });
+    box.querySelectorAll("[data-drunk]").forEach(b => b.onclick = () => { d.drunk = d.drunk === b.dataset.drunk ? "" : b.dataset.drunk; renderWrap(); });
+    box.querySelector("[data-wnext]").onclick = () => {
+      if (!state.over && d.winner) state.over = { winner: d.winner, day: state.day };
+      state.reveal = { demon: { id: d.demon, role: d.demonRole || roles.demon[0] }, minions: { ...d.minions }, drunk: d.drunk };
+      save(); render(); d.step = "report"; renderWrap();
+    };
+  } else {
+    const R = buildReview(), nm = R.nm;
+    const tick = ok => ok === true ? '<span class="ok">✓</span>' : ok === false ? '<span class="no">✗</span>' : '<span class="na">?</span>';
+    box.innerHTML = `
+      <span class="step">Game wrap-up</span>
+      <h2 id="wrapTitle">How the game went</h2>
+      <div class="tip"><span class="label">Summary</span>${R.summary.map(x => `<span>${esc(x)}</span>`).join("")}</div>
+
+      <h3 class="wrap-h">The evil team, and how the evidence pointed</h3>
+      ${R.evilCards.map(c => `<div class="tip ${c.isDemon ? "bad" : "hi"}">
+        <span><b>${esc(c.p.name)}</b> · ${c.isDemon ? "Demon" : "Minion"}: the <b>${esc(c.role)}</b>${c.claim ? ` · claimed ${esc(c.claim)}` : " · never claimed"} · ${esc(c.fate)}</span>
+        <small>Your read: ${c.read === "evil" ? "evil ✓" : c.read === "good" ? "good ✗ (you trusted them)" : "unsure"}${c.suspect ? ` · you suspected the ${esc(c.suspect)}${c.suspect.toLowerCase() === c.role.toLowerCase() ? " ✓" : ""}` : ""}${c.auto ? " · the app had flagged them amber" : ""}${c.isDemon ? (c.rank ? ` · #${c.rank} on the Demon list at the end` : " · not on the Demon list") : ""}</small>
+        ${c.pointed.length ? `<small>Pointed at them: ${esc(c.pointed.join(", "))}</small>` : `<small>No logged info pointed at them.</small>`}
+        ${c.cleared.length ? `<small>Wrongly cleared them: ${esc(c.cleared.join(", "))}</small>` : ""}
+        ${c.why.length ? `<small>The app's reasons: ${esc(c.why.join(" · "))}</small>` : ""}
+      </div>`).join("")}
+
+      <h3 class="wrap-h">Night information, checked</h3>
+      ${R.infoRows.length ? R.infoRows.map(r => `<div class="tip wrap-row">${tick(r.v.ok)}<span><b>Night ${r.e.night} · ${esc(r.e.src ? nm(r.e.src) + "'s" : "Your")} ${esc(r.e.role)}:</b> ${esc(r.means)}<small>${esc(r.v.why)}</small></span></div>`).join("") : `<p class="tips-empty">No night info was logged.</p>`}
+      ${R.sources.length ? `<div class="tip"><span class="label">By source</span>${R.sources.map(s => `<span><b>${esc(s.src ? nm(s.src) : "You")}</b>: ${s.right} right, ${s.wrong} wrong${s.unclear ? `, ${s.unclear} unclear` : ""}. ${esc(s.verdict)} ${s.grade ? `<small>${esc(s.grade)}</small>` : ""}</span>`).join("")}</div>` : ""}
+
+      <h3 class="wrap-h">Your reads</h3>
+      <div class="tip">
+        <span>Spotted: ${R.spotted.length ? esc(R.spotted.map(p => p.name).join(", ")) : "none"}</span>
+        <span>Missed: ${R.missed.length ? esc(R.missed.map(p => p.name).join(", ")) : "none"}</span>
+        ${R.wrongEvil.length ? `<span>Wrongly suspected (good): ${esc(R.wrongEvil.map(p => p.name).join(", "))}</span>` : ""}
+        ${R.trustedEvil.length ? `<span>Trusted but evil: ${esc(R.trustedEvil.map(p => p.name).join(", "))}</span>` : ""}
+        ${R.roleRight.length ? `<span>Exact role guessed: ${esc(R.roleRight.map(p => `${p.name} (${p.suspect})`).join(", "))}</span>` : ""}
+      </div>
+
+      <h3 class="wrap-h">Timeline</h3>
+      <ol class="wrap-time">${R.timeline.map(t => `<li class="${t.tone}">${esc(t.text)}</li>`).join("")}</ol>
+
+      <div class="phase-actions"><button class="btn" data-wedit>Change who was evil</button><button class="btn" data-wclose>Close</button><button class="btn primary" data-wnew>Start a new game</button></div>`;
+    box.querySelector("[data-wedit]").onclick = () => { d.step = "reveal"; renderWrap(); };
+    box.querySelector("[data-wnew]").onclick = () => { $("wrapOverlay").hidden = true; openNew(); };
+  }
+  box.querySelectorAll("[data-wclose]").forEach(b => b.onclick = () => { $("wrapOverlay").hidden = true; });
+  box.scrollTop = 0;
+}
+
 function openWhatIf(pid, mode) {
   const w = whatIf(pid, mode);
   const li = list => list.map(x => `<li>${esc(typeof x === "string" ? x : x.text)}</li>`).join("");
@@ -2201,12 +2402,14 @@ function render() {
   const ob = $("overBanner");
   ob.hidden = !state.over;
   if (state.over) {
-    ob.innerHTML = `<span>Game over: ${state.over.winner === "good" ? "good" : "evil"} won on day ${state.over.day}.</span><button class="btn sm primary" id="overNew">Start a new game</button><button class="btn sm" id="overUndo">Undo, the game goes on</button>`;
+    ob.innerHTML = `<span>Game over: ${state.over.winner === "good" ? "good" : "evil"} won on day ${state.over.day}.</span><button class="btn sm primary" id="overWrap">Game wrap-up</button><button class="btn sm" id="overNew">Start a new game</button><button class="btn sm" id="overUndo">Undo, the game goes on</button>`;
     $("overNew").onclick = openNew;
+    $("overWrap").onclick = openWrap;
     $("overUndo").onclick = () => { state.over = null; save(); render(); };
   }
   $("endDayBtn").hidden = !!state.over;
   $("shotBtn").hidden = !!state.over || !state.firstNightDone;
+  $("wrapBtn").hidden = !state.over;
   $("endDayBtn").textContent = state.firstNightDone ? "End day → night" : "Night 1 info →";
 }
 
@@ -2225,7 +2428,7 @@ function closePhase() {
   if ($("infoPick") && $("phaseSlot")?.contains($("infoPick"))) { $("infoCard").insertBefore($("infoForm"), $("infoLog")); $("infoCard").insertBefore($("infoPick"), $("infoForm")); }
   phase = null; $("phaseOverlay").hidden = true; render();
 }
-function endGame(winner) { state.over = { winner, day: state.day }; save(); closePhase(); }
+function endGame(winner) { state.over = { winner, day: state.day }; save(); closePhase(); openWrap(); }
 // Put the night-info form back in its card before the dialog is redrawn
 function restoreInfoForm() { if ($("phaseSlot")?.contains($("infoPick"))) { $("infoCard").insertBefore($("infoForm"), $("infoLog")); $("infoCard").insertBefore($("infoPick"), $("infoForm")); } }
 function renderPhase() {
@@ -2412,6 +2615,7 @@ function updatePhaseLogged() {
   $("phaseLogged").innerHTML = tonight.length ? `<span class="label">Logged tonight</span>` + tonight.map(e => { const r = readEntry(e); return `<div class="tip">${esc(e.role)}: ${esc(r.means || e.note)}</div>`; }).join("") : "";
 }
 $("shotBtn").onclick = openShot;
+$("wrapBtn").onclick = openWrap;
 $("endDayBtn").onclick = () => state.firstNightDone ? openPhase() : openFirstNight();
 
 /* ---------- Global controls ---------- */
