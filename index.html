@@ -292,9 +292,11 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       </div>
 
       <div class="card info-card" id="infoCard" aria-labelledby="infoTitle">
-        <div class="tips-head"><h2 id="infoTitle">My night info</h2><span class="tips-foot">What your character learned, and what it could mean</span></div>
+        <div class="tips-head"><h2 id="infoTitle">Night info</h2><span class="tips-foot">What you learned, what others say they learned, and what it could mean</span></div>
         <div class="row">
-          <label class="label" for="myRole">My character</label>
+          <label class="label" for="ifSrc">Whose info</label>
+          <select id="ifSrc" class="btn"></select>
+          <label class="label" for="myRole">Character</label>
           <select id="myRole" class="btn"></select>
         </div>
         <div id="infoForm" class="info-form"></div>
@@ -405,7 +407,7 @@ const teamOf = r => TEAM_OF[String(r).toLowerCase()] || "custom";
 const COMP = {5:[3,0,1,1],6:[3,1,1,1],7:[5,0,1,1],8:[5,1,1,1],9:[5,2,1,1],10:[7,0,2,1],11:[7,1,2,1],12:[7,2,2,1],13:[9,0,3,1],14:[9,1,3,1],15:[9,2,3,1]};
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: false, ghostVote: true, align: "", me: false, traveller: false, notes: "", deathBy: "", ...extra });
+const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: false, ghostVote: true, align: "", me: false, traveller: false, notes: "", deathBy: "", virginBy: "", ...extra });
 
 function exampleState() {
   const P = (name, claims, extra) => mkPlayer(name, { claims, ...extra });
@@ -428,7 +430,9 @@ function exampleState() {
   st.myRole = "Empath";
   st.myInfo = [
     { id: uid(), night: 1, role: "Empath", p: [id("Sam"), id("Ben")], r: [], n: 0, yn: null, note: "" },
-    { id: uid(), night: 2, role: "Empath", p: [id("Sam"), id("Ben")], r: [], n: 1, yn: null, note: "Changed from 0 with the same neighbours." }
+    { id: uid(), night: 2, role: "Empath", p: [id("Sam"), id("Ben")], r: [], n: 1, yn: null, note: "Changed from 0 with the same neighbours." },
+    { id: uid(), src: id("Priya"), night: 1, role: "Investigator", p: [id("Tom"), id("Mia")], r: ["Baron"], n: null, yn: null, note: "" },
+    { id: uid(), src: id("Jess"), night: 1, role: "Fortune Teller", p: [id("Ben"), id("Mia")], r: [], n: null, yn: 1, note: "" }
   ];
   return st;
 }
@@ -513,7 +517,7 @@ function renderCircle() {
         ${p.dead && p.ghostVote ? '<span class="vote" title="Ghost vote available"></span>' : ""}
       </span>
       <span class="nameplate">${esc(p.name || "—")}</span>
-      <span class="seatno">${i + 1}${p.traveller ? " · traveller" : ""}</span>`;
+      <span class="seatno">${i + 1}${p.traveller ? " · traveller" : ""}${p.dead && p.deathBy === "virgin" ? " · Virgin" : ""}</span>`;
     b.addEventListener("click", () => { state.selected = p.id; confirmRemove = false; save(); render(); });
     table.appendChild(b);
   });
@@ -569,9 +573,14 @@ function renderPanel() {
       <span class="seg" role="group" aria-label="How they died">
         <button class="u" data-death="exec" aria-pressed="${p.deathBy === "exec"}">Executed</button>
         <button class="u" data-death="night" aria-pressed="${p.deathBy === "night"}">At night</button>
+        <button class="u" data-death="virgin" aria-pressed="${p.deathBy === "virgin"}">Nominated the Virgin</button>
         <button class="u" data-death="" aria-pressed="${!p.deathBy}">Other / unsure</button>
       </span>
-    </div>` : ""}
+    </div>
+    ${p.deathBy === "virgin" ? `<div class="row">
+      <label class="label" for="pVirgin">Which Virgin?</label>
+      <select class="btn" id="pVirgin"><option value="">Pick the Virgin</option>${state.players.filter(x => x !== p).sort((x, y) => (y.claims.some(c => c.toLowerCase() === "virgin") ? 1 : 0) - (x.claims.some(c => c.toLowerCase() === "virgin") ? 1 : 0)).map(x => `<option value="${x.id}"${x.id === p.virginBy ? " selected" : ""}>${state.players.indexOf(x) + 1}. ${esc(x.name || "—")}${x.claims.length ? " · " + esc(x.claims.join("/")) : ""}</option>`).join("")}</select>
+    </div>` : ""}` : ""}
 
     <div class="row">
       <span class="label">My read</span>
@@ -622,7 +631,15 @@ function renderPanel() {
   if ($("tVote")) $("tVote").onclick = () => { p.ghostVote = !p.ghostVote; save(); render(); };
   $("tMe").onclick = () => { const v = !p.me; state.players.forEach(x => x.me = false); p.me = v; save(); render(); };
   $("tTrav").onclick = () => { p.traveller = !p.traveller; save(); render(); };
-  $("panel").querySelectorAll("[data-death]").forEach(b => b.onclick = () => { p.deathBy = b.dataset.death; save(); render(); });
+  $("panel").querySelectorAll("[data-death]").forEach(b => b.onclick = () => {
+    p.deathBy = b.dataset.death;
+    if (p.deathBy === "virgin" && !p.virginBy) {
+      const vs = state.players.filter(x => x !== p && x.claims.some(c => c.toLowerCase() === "virgin"));
+      if (vs.length === 1) p.virginBy = vs[0].id;
+    }
+    save(); render();
+  });
+  if ($("pVirgin")) $("pVirgin").onchange = e => { p.virginBy = e.target.value; save(); render(); };
   $("panel").querySelectorAll("[data-align]").forEach(b => b.onclick = () => { p.align = b.dataset.align; save(); render(); });
   $("panel").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { p.claims.splice(+b.dataset.rm, 1); save(); render(); });
   $("panel").querySelectorAll(".pick").forEach(b => b.onclick = () => {
@@ -663,7 +680,7 @@ function renderPanel() {
   if ($("rmNo")) $("rmNo").onclick = () => { confirmRemove = false; renderPanel(); };
 }
 
-/* ---------- My night info ---------- */
+/* ---------- Night info (yours and other players') ---------- */
 // What each information character learns, and which inputs it needs
 const INFO = {
   "washerwoman":  { p: 2, r: "townsfolk", plabel: "Shown these two players", rlabel: "One of them is the" },
@@ -696,14 +713,15 @@ const INFO = {
 const infoOf = role => INFO[String(role).toLowerCase()] || null;
 let infoDraft = null;
 
-function livingNeighbours() {
-  const ps = state.players, me = ps.find(p => p.me);
-  if (!me) return [];
-  const i = ps.indexOf(me), out = [];
+const meP = () => state.players.find(p => p.me);
+function livingNeighbours(pid) {
+  const ps = state.players, who = ps.find(p => p.id === pid);
+  if (!who) return [];
+  const i = ps.indexOf(who), out = [];
   for (const dir of [-1, 1]) {
     for (let k = 1; k < ps.length; k++) {
-      const q = ps[(i + dir * k + ps.length * k) % ps.length];
-      if (q === me) break;
+      const q = ps[((i + dir * k) % ps.length + ps.length) % ps.length];
+      if (q === who) break;
       if (!q.dead) { out.push(q.id); break; }
     }
   }
@@ -711,38 +729,52 @@ function livingNeighbours() {
 }
 function myRoleNow() {
   if (state.myRole) return state.myRole;
-  const me = state.players.find(p => p.me);
+  const me = meP();
   return me && me.claims.length === 1 ? me.claims[0] : "";
 }
-function newDraft() {
-  const role = myRoleNow(), t = infoOf(role) || {};
-  const night = Math.max(1, state.day + (state.myInfo.some(e => e.night === state.day) ? 1 : 0));
-  return { role, night, p: t.neighbours ? livingNeighbours() : [], r: [], n: t.n ? 0 : null, yn: t.yn ? 0 : null, note: "", zero: false };
+// The character whose info we're logging for a source ("" = you)
+function roleFor(src) {
+  if (!src) return myRoleNow();
+  const p = state.players.find(x => x.id === src);
+  if (!p) return "";
+  return p.claims.find(c => infoOf(c)) || p.claims[0] || "";
+}
+function newDraft(src, role) {
+  const t = infoOf(role) || {};
+  const prev = state.myInfo.filter(e => (e.src || "") === src).map(e => e.night);
+  const night = prev.includes(state.day) ? state.day + 1 : Math.max(1, state.day);
+  const nb = t.neighbours ? livingNeighbours(src || meP()?.id) : [];
+  return { src, role, night, p: nb, r: [], n: t.n ? 0 : null, yn: t.yn ? 0 : null, note: "", zero: false };
 }
 
-// Read one entry: what it says, and what it implies for each player
+// Read one entry: what it says, clashes with claims, and how it moves suspicion
 function readEntry(e) {
   const P = id => state.players.find(p => p.id === id);
   const nm = id => { const p = P(id); return p ? (p.name || `Seat ${state.players.indexOf(p) + 1}`) : "someone"; };
   const has = (id, r) => !!P(id)?.claims.some(c => c.toLowerCase() === String(r).toLowerCase());
   const role = e.role.toLowerCase();
+  const src = e.src && P(e.src) ? e.src : "";
+  const whose = src ? `${nm(src)}'s` : "your";
   const [a, b] = e.p;
-  const out = { means: "", warns: [], weights: [] };
-  const w = (id, pts, why) => { if (id && P(id)) out.weights.push({ id, pts, why }); };
+  const out = { means: "", warns: [], weights: [], src };
+  const w = (id, pts, why) => { if (!id || !P(id) || id === src) return; out.weights.push({ id, pts, why }); };
+  const clash = (id, text) => {
+    out.warns.push(src ? `${text} Either ${nm(id)} or ${nm(src)} is lying, or ${nm(src)} was drunk or poisoned.` : `${text} They're lying, or your info is wrong (drunk or poisoned).`);
+    w(id, 3, `claim clashes with ${whose} ${e.role} info`);
+    if (src) out.weights.push({ id: src, pts: 1, why: `${e.role} info clashes with ${nm(id)}'s claim` });
+  };
   const claimCheck = (id, r) => {
     const p = P(id);
     if (!p || !r) return;
-    if (!p.claims.length) out.warns.push(`${nm(id)} hasn't claimed yet. Your info says ${r}.`);
-    else if (!has(id, r)) {
-      out.warns.push(`${nm(id)} claimed ${p.claims.join(" or ")}, but your info says ${r}. They're lying, or your info is wrong (drunk or poisoned).`);
-      w(id, 3, `claim clashes with your ${e.role} info`);
-    } else out.means += ` ${nm(id)}'s claim fits.`;
+    if (!p.claims.length) out.warns.push(`${nm(id)} hasn't claimed yet. ${src ? nm(src) + " says" : "Your info says"} ${r}.`);
+    else if (!has(id, r)) clash(id, `${nm(id)} claimed ${p.claims.join(" or ")}, but ${whose} info says ${r}.`);
+    else out.means += ` ${nm(id)}'s claim fits.`;
   };
   switch (role) {
     case "washerwoman": case "librarian": case "investigator": {
       if (e.zero) {
         out.means = "There are no Outsiders in play.";
-        for (const p of state.players) if (p.claims.length && p.claims.every(c => teamOf(c) === "outsider")) { out.warns.push(`${nm(p.id)} claims ${p.claims.join(" or ")}, an Outsider, but you learned there are none.`); w(p.id, 3, "Outsider claim vs your zero"); }
+        for (const p of state.players) if (p.id !== src && p.claims.length && p.claims.every(c => teamOf(c) === "outsider")) clash(p.id, `${nm(p.id)} claims ${p.claims.join(" or ")}, an Outsider, but ${whose} Librarian saw none.`);
         break;
       }
       const r = e.r[0];
@@ -751,22 +783,24 @@ function readEntry(e) {
       const ca = has(a, r), cb = has(b, r);
       if (role === "investigator") {
         out.means += ` The Recluse can also show as a Minion.`;
-        w(a, 2, "in your Investigator pair"); w(b, 2, "in your Investigator pair");
+        w(a, 2, `in ${whose} Investigator pair`); w(b, 2, `in ${whose} Investigator pair`);
+        const both = [a, b].filter(id => P(id)?.align === "good");
+        if (both.length === 2) out.warns.push(`You've marked both ${nm(a)} and ${nm(b)} as good, but ${whose} Investigator says one is the ${r}.`);
       } else {
         if (ca && !cb) { out.means += ` ${nm(a)} claims it, which fits.`; w(a, -2, ""); }
         else if (cb && !ca) { out.means += ` ${nm(b)} claims it, which fits.`; w(b, -2, ""); }
-        else if (!ca && !cb && P(a)?.claims.length && P(b)?.claims.length) out.warns.push(`Neither ${nm(a)} nor ${nm(b)} has claimed ${r}. One of them is hiding it${role === "washerwoman" ? ", or the Spy showed up as a Townsfolk" : ""}.`);
+        else if (!ca && !cb && P(a)?.claims.length && P(b)?.claims.length) out.warns.push(`Neither ${nm(a)} nor ${nm(b)} has claimed ${r}. One of them is hiding it${role === "washerwoman" ? ", or the Spy showed up as a Townsfolk" : ""}${src ? `, or ${nm(src)} is lying` : ""}.`);
         if (role === "washerwoman") out.means += " The Spy can also show as a Townsfolk.";
         if (role === "librarian") out.means += " The Spy can show as an Outsider too.";
+        for (const p of state.players) if (p.id !== a && p.id !== b && p.id !== src && p.claims.length === 1 && has(p.id, r)) clash(p.id, `${nm(p.id)} hard-claims ${r}, but ${whose} info puts the ${r} in ${nm(a)} or ${nm(b)}.`);
       }
-      for (const p of state.players) if (p.id !== a && p.id !== b && p.claims.length === 1 && has(p.id, r) && role !== "investigator") { out.warns.push(`${nm(p.id)} hard-claims ${r}, but your info puts the ${r} in ${nm(a)} or ${nm(b)}.`); w(p.id, 3, `claims ${r} against your info`); }
       break;
     }
     case "empath": {
-      if (!a || !b) { out.means = `You got ${e.n}. Pick your two living neighbours so this can be read.`; break; }
+      if (!a || !b) { out.means = `${src ? nm(src) + " got" : "You got"} ${e.n}. Pick the two living neighbours so this can be read.`; break; }
       if (e.n === 0) { out.means = `${nm(a)} and ${nm(b)} are both good.`; w(a, -3, ""); w(b, -3, ""); }
-      else if (e.n >= 2) { out.means = `${nm(a)} and ${nm(b)} are both evil.`; w(a, 4, "your Empath 2"); w(b, 4, "your Empath 2"); }
-      else { out.means = `Exactly one of ${nm(a)} or ${nm(b)} is evil.`; w(a, 1, "your Empath 1"); w(b, 1, "your Empath 1"); }
+      else if (e.n >= 2) { out.means = `${nm(a)} and ${nm(b)} are both evil.`; w(a, 4, `${whose} Empath 2`); w(b, 4, `${whose} Empath 2`); }
+      else { out.means = `Exactly one of ${nm(a)} or ${nm(b)} is evil.`; w(a, 1, `${whose} Empath 1`); w(b, 1, `${whose} Empath 1`); }
       out.means += " The Recluse or Spy can show the wrong way.";
       break;
     }
@@ -774,21 +808,21 @@ function readEntry(e) {
       out.means = e.n === 0 ? "No two evil players sit next to each other." : `There ${e.n === 1 ? "is 1 pair" : `are ${e.n} pairs`} of evil players sitting next to each other.`;
       if (e.n === 0) {
         const ps = state.players;
-        ps.forEach((p, i) => { const q = ps[(i + 1) % ps.length]; if (p.align === "evil" && q.align === "evil") out.warns.push(`You've marked ${nm(p.id)} and ${nm(q.id)} as evil, but they sit together and your Chef 0 says no evil pairs.`); });
+        ps.forEach((p, i) => { const q = ps[(i + 1) % ps.length]; if (p.align === "evil" && q.align === "evil") out.warns.push(`You've marked ${nm(p.id)} and ${nm(q.id)} as evil, but they sit together and ${whose} Chef 0 says no evil pairs.`); });
       }
       break;
     case "fortune teller":
-      if (!a || !b) { out.means = "Pick the two players you chose."; break; }
-      if (e.yn === 0) { out.means = `One of ${nm(a)} or ${nm(b)} is the Demon, or one is your red herring (a good player who always shows yes).`; w(a, 2, "your Fortune Teller yes"); w(b, 2, "your Fortune Teller yes"); }
-      else { out.means = `Neither ${nm(a)} nor ${nm(b)} is the Demon. They could still be Minions.`; w(a, -1, ""); w(b, -1, ""); }
+      if (!a || !b) { out.means = "Pick the two players chosen."; break; }
+      if (e.yn === 0) { out.means = `One of ${nm(a)} or ${nm(b)} is the Demon, or one is the red herring (a good player who always shows yes).`; w(a, 2, `${whose} Fortune Teller yes`); w(b, 2, `${whose} Fortune Teller yes`); }
+      else { out.means = `Neither ${nm(a)} nor ${nm(b)} is the Demon. They could still be Minions.`; }
       break;
     case "undertaker": case "ravenkeeper": case "grandmother": case "gambler": {
       const r = e.r[0];
       if (!a || !r) { out.means = "Pick the player and the character."; break; }
-      if (role === "gambler") { out.means = `You guessed ${nm(a)} is the ${r}. If you survived the night, you were right.`; break; }
+      if (role === "gambler") { out.means = `Guessed ${nm(a)} is the ${r}. If the Gambler survived the night, the guess was right.`; break; }
       out.means = `${nm(a)} is the ${r}.`;
       const t = teamOf(r);
-      if (t === "minion" || t === "demon") { out.means += " That's an evil character."; w(a, 6, `your ${e.role} info says ${r}`); }
+      if (t === "minion" || t === "demon") { out.means += " That's an evil character."; w(a, 6, `${whose} ${e.role} info says ${r}`); }
       else if (role === "grandmother") w(a, -4, "");
       claimCheck(a, r);
       break;
@@ -800,21 +834,18 @@ function readEntry(e) {
       const p = P(a);
       if (p?.claims.length === 1) {
         if (has(a, r1) || has(a, r2)) out.means += ` They claim ${p.claims[0]}, which fits the good option.`;
-        else { out.warns.push(`${nm(a)} claims ${p.claims[0]}, which isn't either of your options.`); w(a, 3, "claim outside your Dreamer options"); }
+        else clash(a, `${nm(a)} claims ${p.claims[0]}, which isn't either of ${whose} Dreamer options.`);
       }
       break;
     }
     case "seamstress":
       if (!a || !b) { out.means = "Pick the two players."; break; }
       out.means = e.yn === 0 ? `${nm(a)} and ${nm(b)} are on the same team.` : `${nm(a)} and ${nm(b)} are on different teams: one good, one evil.`;
-      for (const [x, y] of [[a, b], [b, a]]) {
-        const px = P(x), py = P(y);
-        if (px?.align && py?.align && ((e.yn === 0) !== (px.align === py.align))) { out.warns.push(`Your reads on ${nm(a)} and ${nm(b)} don't match this.`); break; }
-      }
+      if (P(a)?.align && P(b)?.align && ((e.yn === 0) !== (P(a).align === P(b).align))) out.warns.push(`Your reads on ${nm(a)} and ${nm(b)} don't match ${whose} Seamstress info.`);
       break;
     case "sage":
       if (!a || !b) { out.means = "Pick the two players."; break; }
-      out.means = `One of ${nm(a)} or ${nm(b)} is the Demon.`; w(a, 3, "your Sage info"); w(b, 3, "your Sage info");
+      out.means = `One of ${nm(a)} or ${nm(b)} is the Demon.`; w(a, 3, `${whose} Sage info`); w(b, 3, `${whose} Sage info`);
       break;
     case "clockmaker":
       out.means = e.n === 1 ? "The Demon sits right next to a Minion." : `The Demon is ${e.n} seats from its nearest Minion.`;
@@ -824,7 +855,7 @@ function readEntry(e) {
       break;
     case "oracle": out.means = `${e.n} of the dead ${e.n === 1 ? "is" : "are"} evil.`; break;
     case "mathematician": out.means = `${e.n} player${e.n === 1 ? "'s" : "s'"} abilities didn't work properly because of another character.`; break;
-    case "juggler": out.means = `${e.n} of your guesses were right.`; break;
+    case "juggler": out.means = `${e.n} of the guesses were right.`; break;
     case "flowergirl": case "town crier": out.means = infoOf(role).yn[e.yn] + "."; break;
     default: {
       const t = infoOf(role);
@@ -832,61 +863,89 @@ function readEntry(e) {
     }
   }
   out.means = out.means.trim();
+  if (src && out.means) out.means = `If ${nm(src)} is telling the truth: ${out.means}`;
+  // Other players' info counts for less than your own
+  if (src) out.weights = out.weights.map(x => x.id === src ? x : { ...x, pts: Math.sign(x.pts) * Math.max(1, Math.floor(Math.abs(x.pts) / 2)) });
   return out;
 }
 
 function infoAnalysis() {
-  const reads = state.myInfo.map(e => ({ e, ...readEntry(e) }));
+  const ordered = [...state.myInfo].sort((x, y) => x.night - y.night || (x.src ? 1 : 0) - (y.src ? 1 : 0));
+  const reads = ordered.map(e => ({ e, ...readEntry(e) }));
+  const P = id => state.players.find(p => p.id === id);
+  const nm = id => P(id)?.name || "Someone";
   const issues = [];
-  // Empath: same neighbours, different numbers
-  const emp = state.myInfo.filter(e => e.role.toLowerCase() === "empath" && e.p.length === 2);
-  for (let i = 1; i < emp.length; i++) {
-    const x = emp[i - 1], y = emp[i];
-    if (x.n !== y.n && [...x.p].sort().join() === [...y.p].sort().join()) issues.push(`Your Empath number changed from ${x.n} to ${y.n} with the same neighbours. One night was wrong: you may have been poisoned (or a neighbour is the Recluse or Spy).`);
+  const sources = [...new Set(state.myInfo.map(e => e.src || ""))];
+  for (const src of sources) {
+    const whose = src ? `${nm(src)}'s` : "Your";
+    const emp = state.myInfo.filter(e => (e.src || "") === src && e.role.toLowerCase() === "empath" && e.p.length === 2);
+    for (let i = 1; i < emp.length; i++) {
+      const x = emp[i - 1], y = emp[i];
+      if (x.n !== y.n && [...x.p].sort().join() === [...y.p].sort().join()) issues.push(`${whose} Empath number changed from ${x.n} to ${y.n} with the same neighbours. One night was wrong: poisoned, ${src ? "lying, " : ""}or a neighbour is the Recluse or Spy.`);
+    }
+    const yes = {};
+    for (const e of state.myInfo.filter(e => (e.src || "") === src && e.role.toLowerCase() === "fortune teller" && e.yn === 0)) for (const id of e.p) yes[id] = (yes[id] || 0) + 1;
+    for (const [id, n] of Object.entries(yes)) if (n >= 2 && P(id)) issues.push(`${nm(id)} got a yes from ${src ? nm(src) : "you"} ${n} times: the Demon or the red herring.`);
   }
-  const fts = state.myInfo.filter(e => e.role.toLowerCase() === "fortune teller" && e.yn === 0 && e.p.length === 2);
-  const yesCount = {};
-  for (const e of fts) for (const id of e.p) yesCount[id] = (yesCount[id] || 0) + 1;
-  for (const [id, n] of Object.entries(yesCount)) if (n >= 2) { const p = state.players.find(x => x.id === id); if (p) issues.push(`${p.name || "A player"} got a yes from you ${n} times. They're the Demon or your red herring.`); }
-  const score = new Map();
-  for (const r of reads) for (const x of r.weights) { const s = score.get(x.id) || { pts: 0, why: [], pos: false, neg: false }; s.pts += x.pts; if (x.pts > 0) { s.why.push(x.why); s.pos = true; } else s.neg = true; score.set(x.id, s); }
-  return { reads, issues, score };
+  // Two players' info that can't both be true about the same character
+  const shown = {};
+  for (const e of state.myInfo) if (["undertaker", "ravenkeeper", "grandmother"].includes(e.role.toLowerCase()) && e.p[0] && e.r[0]) (shown[e.p[0]] = shown[e.p[0]] || []).push(e);
+  for (const [id, list] of Object.entries(shown)) {
+    const roles = [...new Set(list.map(e => e.r[0]))];
+    if (roles.length > 1) issues.push(`Info disagrees about ${nm(id)}: ${list.map(e => `${e.src ? nm(e.src) : "you"} saw ${e.r[0]}`).join(", ")}. Someone is lying, drunk or poisoned.`);
+  }
+  const tally = pick => {
+    const score = new Map();
+    for (const r of reads.filter(pick)) for (const x of r.weights) { const s = score.get(x.id) || { pts: 0, why: [], pos: false, neg: false }; s.pts += x.pts; if (x.pts > 0) { s.why.push(x.why); s.pos = true; } else s.neg = true; score.set(x.id, s); }
+    return score;
+  };
+  const scoreAll = tally(() => true);
+  return { reads, issues, score: scoreAll, mine: tally(r => !r.src), theirs: tally(r => r.src) };
 }
 
 function renderInfo() {
   const roles = scriptRoles();
   const infoRoles = TEAMS.flatMap(t => roles[t]).filter(r => infoOf(r));
-  const cur = myRoleNow();
-  const extra = cur && !infoRoles.some(r => r.toLowerCase() === cur.toLowerCase()) ? [cur] : [];
-  $("myRole").innerHTML = `<option value="">Choose your character</option>` +
-    [...extra, ...infoRoles].map(r => `<option${r.toLowerCase() === cur.toLowerCase() ? " selected" : ""}>${esc(r)}</option>`).join("");
+  const P = id => state.players.find(p => p.id === id);
+  if (infoDraft && infoDraft.src && !P(infoDraft.src)) infoDraft = null;
+  const src = infoDraft ? infoDraft.src : "";
+  const cur = infoDraft ? infoDraft.role : roleFor(src);
+  if (!infoDraft || (!src && infoDraft.role.toLowerCase() !== myRoleNow().toLowerCase())) infoDraft = newDraft(src, src ? cur : myRoleNow());
+  const d = infoDraft, t = infoOf(d.role);
 
-  if (!infoDraft || infoDraft.role.toLowerCase() !== cur.toLowerCase()) infoDraft = newDraft();
-  const d = infoDraft, t = infoOf(cur);
+  $("ifSrc").innerHTML = `<option value="">Me</option>` + state.players.filter(p => !p.me).map(p => `<option value="${p.id}"${p.id === d.src ? " selected" : ""}>${state.players.indexOf(p) + 1}. ${esc(p.name || "—")}${p.claims.length ? " · " + esc(p.claims.join("/")) : ""}</option>`).join("");
+  const srcClaims = d.src ? P(d.src).claims : [];
+  const firstRoles = [...srcClaims, ...(d.role && !srcClaims.includes(d.role) ? [d.role] : [])];
+  const rest = infoRoles.filter(r => !firstRoles.some(x => x.toLowerCase() === r.toLowerCase()));
+  $("myRole").innerHTML = `<option value="">${d.src ? "Their character" : "Choose your character"}</option>` +
+    (firstRoles.length ? `<optgroup label="${d.src ? "They claim" : "Current"}">${firstRoles.map(r => `<option${r.toLowerCase() === d.role.toLowerCase() ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>` : "") +
+    `<optgroup label="Information characters">${rest.map(r => `<option${r.toLowerCase() === d.role.toLowerCase() ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>`;
+
   const pOpts = sel => `<option value="">Pick player</option>` + state.players.map((p, i) => `<option value="${p.id}"${p.id === sel ? " selected" : ""}>${i + 1}. ${esc(p.name || "—")}${p.dead ? " (dead)" : ""}</option>`).join("");
   const rList = kind => kind === "any" ? TEAMS.flatMap(t => roles[t]) : kind === "good" ? [...roles.townsfolk, ...roles.outsider] : roles[kind] || [];
   const rOpts = (kind, sel) => `<option value="">Pick character</option>` + rList(kind).map(r => `<option${r === sel ? " selected" : ""}>${esc(r)}</option>`).join("");
+  const srcName = d.src ? esc(P(d.src).name || "this player") : "";
 
-  if (!cur) {
-    $("infoForm").innerHTML = `<p class="tips-empty">Choose your character above to log what you learn each night.</p>`;
+  if (!d.role) {
+    $("infoForm").innerHTML = `<p class="tips-empty">${d.src ? `Choose which character ${srcName}'s info is from.` : "Choose your character to log what you learn each night. To log what another player says they learned, pick them under Whose info."}</p>`;
   } else {
     $("infoForm").innerHTML = `
       <div class="row">
         <label class="label" for="ifNight">Night</label>
         <input type="number" id="ifNight" min="1" max="30" value="${d.night}">
-        ${t?.zero ? `<button class="toggle" id="ifZero" aria-pressed="${d.zero}">Learned zero Outsiders</button>` : ""}
+        ${t?.zero ? `<button class="toggle" id="ifZero" aria-pressed="${d.zero}">Saw zero Outsiders</button>` : ""}
       </div>
-      ${t?.p && !d.zero ? `<div class="row"><span class="label">${esc(t.plabel || "Players")}</span>
-        ${Array.from({ length: t.p }, (_, i) => `<select class="btn wide" data-ifp="${i}" aria-label="${esc(t.plabel || "Player")} ${i + 1}">${pOpts(d.p[i])}</select>`).join("")}</div>
-        ${t.neighbours && !state.players.some(p => p.me) ? `<span class="hint">Tip: tap your seat and turn on "This is me" so your neighbours fill in automatically.</span>` : ""}` : ""}
+      ${t?.p && !d.zero ? `<div class="row"><span class="label">${esc(d.src && t.neighbours ? "Their living neighbours" : t.plabel || "Players")}</span>
+        ${Array.from({ length: t.p }, (_, i) => `<select class="btn wide" data-ifp="${i}" aria-label="Player ${i + 1}">${pOpts(d.p[i])}</select>`).join("")}</div>
+        ${t.neighbours && !d.src && !meP() ? `<span class="hint">Tip: tap your seat and turn on "This is me" so your neighbours fill in automatically.</span>` : ""}` : ""}
       ${t?.r && !d.zero ? `<div class="row"><span class="label">${esc(t.rlabel || "Character")}</span>
         ${Array.from({ length: t.r2 ? 2 : 1 }, (_, i) => `<select class="btn wide" data-ifr="${i}" aria-label="Character ${i + 1}">${rOpts(t.r, d.r[i])}</select>`).join("")}</div>` : ""}
       ${t?.n ? `<div class="row"><label class="label" for="ifN">${esc(t.n)}</label><input type="number" id="ifN" min="0" max="20" value="${d.n ?? 0}"></div>` : ""}
       ${t?.yn ? `<div class="row"><span class="seg" role="group" aria-label="Result">${t.yn.map((l, i) => `<button class="u" data-ifyn="${i}" aria-pressed="${d.yn === i}">${esc(l)}</button>`).join("")}</span></div>` : ""}
-      ${!t ? `<p class="hint">There's no set form for the ${esc(cur)}, so write what you learned below.</p>` : ""}
-      <div class="row"><input type="text" id="ifNote" class="wide" placeholder="Anything else (optional)" value="${esc(d.note)}"><button class="btn primary" id="ifAdd">Add night ${d.night}</button></div>`;
+      ${!t ? `<p class="hint">There's no set form for the ${esc(d.role)}, so write what was learned below.</p>` : ""}
+      <div class="row"><input type="text" id="ifNote" class="wide" placeholder="Anything else (optional)" value="${esc(d.note)}"><button class="btn primary" id="ifAdd">Add ${d.src ? srcName + "'s" : "my"} night ${d.night}</button></div>`;
     const fm = $("infoForm");
-    if ($("ifNight")) $("ifNight").oninput = e => { d.night = Math.max(1, parseInt(e.target.value, 10) || 1); $("ifAdd").textContent = `Add night ${d.night}`; };
+    $("ifNight").oninput = e => { d.night = Math.max(1, parseInt(e.target.value, 10) || 1); $("ifAdd").textContent = `Add ${d.src ? P(d.src).name + "'s" : "my"} night ${d.night}`; };
     if ($("ifZero")) $("ifZero").onclick = () => { d.zero = !d.zero; renderInfo(); };
     fm.querySelectorAll("[data-ifp]").forEach(s => s.onchange = () => { d.p[+s.dataset.ifp] = s.value; });
     fm.querySelectorAll("[data-ifr]").forEach(s => s.onchange = () => { d.r[+s.dataset.ifr] = s.value; });
@@ -894,42 +953,52 @@ function renderInfo() {
     fm.querySelectorAll("[data-ifyn]").forEach(b => b.onclick = () => { d.yn = +b.dataset.ifyn; renderInfo(); });
     $("ifNote").oninput = e => { d.note = e.target.value; };
     $("ifAdd").onclick = () => {
-      const entry = { id: uid(), night: d.night, role: cur, p: d.zero ? [] : d.p.filter(Boolean), r: d.zero ? [] : d.r.filter(Boolean), n: t?.n ? d.n : null, yn: t?.yn ? d.yn : null, note: d.note.trim(), zero: !!d.zero };
+      const entry = { id: uid(), src: d.src, night: d.night, role: d.role, p: d.zero ? [] : d.p.filter(Boolean), r: d.zero ? [] : d.r.filter(Boolean), n: t?.n ? d.n : null, yn: t?.yn ? d.yn : null, note: d.note.trim(), zero: !!d.zero };
       if (!t && !entry.note) { $("ifNote").focus(); return; }
       state.myInfo.push(entry);
-      state.myInfo.sort((x, y) => x.night - y.night);
-      infoDraft = null;
+      state.myInfo.sort((x, y) => x.night - y.night || (x.src ? 1 : 0) - (y.src ? 1 : 0));
+      infoDraft = newDraft(d.src, d.role);
       save(); render();
     };
   }
 
-  const { reads, issues, score } = infoAnalysis();
-  $("infoLog").innerHTML = reads.length ? reads.map(({ e, means, warns }) => `
-    <div class="tip entry ${warns.length ? "bad" : ""}">
-      <span class="when">Night ${e.night} · ${esc(e.role)}</span>
+  const { reads, issues, mine, theirs } = infoAnalysis();
+  const nmS = id => esc(P(id)?.name || "—");
+  $("infoLog").innerHTML = reads.length ? reads.map(({ e, src, means, warns }) => `
+    <div class="tip entry ${warns.length ? (src ? "hi" : "bad") : ""}">
+      <span class="when">Night ${e.night} · ${src ? nmS(src) + "'s " + esc(e.role) + " (their claim)" : "My " + esc(e.role)}</span>
       <button class="x" data-ifdel="${e.id}" aria-label="Delete night ${e.night} entry">×</button>
       ${means ? `<span class="means">${esc(means)}</span>` : ""}
       ${warns.map(x => `<span class="warn">${esc(x)}</span>`).join("")}
       ${e.note ? `<small>${esc(e.note)}</small>` : ""}
-    </div>`).join("") : (cur ? `<p class="tips-empty">Nothing logged yet. Add what you learned on night 1.</p>` : "");
+    </div>`).join("") : `<p class="tips-empty">Nothing logged yet.</p>`;
   $("infoLog").querySelectorAll("[data-ifdel]").forEach(b => b.onclick = () => { state.myInfo = state.myInfo.filter(e => e.id !== b.dataset.ifdel); save(); render(); });
 
-  const P = id => state.players.find(p => p.id === id);
-  const name = id => esc(P(id)?.name || "—");
-  const good = [...score].filter(([id, s]) => s.neg && !s.pos && P(id)).map(([id]) => id);
-  const bad = [...score].filter(([id, s]) => s.pos && !s.neg && P(id)).sort((x, y) => y[1].pts - x[1].pts);
-  const mixed = [...score].filter(([id, s]) => s.pos && s.neg && P(id)).map(([id]) => id);
-  const lines = [
-    ...issues.map(x => esc(x)),
-    good.length ? `<span class="g">Looks good from your info:</span> ${good.map(name).join(", ")}` : "",
-    bad.length ? `<span class="e">Points towards evil:</span> ${bad.map(([id, s]) => `${name(id)} (${esc(s.why.join(", "))})`).join("; ")}` : "",
-    mixed.length ? `<b>Mixed signals:</b> ${mixed.map(name).join(", ")}. Your nights disagree about them.` : ""
-  ].filter(Boolean);
-  $("infoSum").innerHTML = lines.length
-    ? `<h3 class="label" style="margin:0">What it adds up to</h3><ul class="sum-list">${lines.map(l => `<li>${l}</li>`).join("")}</ul><span class="tips-foot">If you were drunk or poisoned, any night could be wrong. Info that clashes with players you trust is a warning sign.</span>`
-    : "";
+  const block = (score, title) => {
+    const good = [...score].filter(([id, s]) => s.neg && !s.pos && P(id)).map(([id]) => id);
+    const bad = [...score].filter(([id, s]) => s.pos && !s.neg && P(id)).sort((x, y) => y[1].pts - x[1].pts);
+    const mixed = [...score].filter(([id, s]) => s.pos && s.neg && P(id)).map(([id]) => id);
+    const lines = [
+      good.length ? `<span class="g">Looks good:</span> ${good.map(nmS).join(", ")}` : "",
+      bad.length ? `<span class="e">Points towards evil:</span> ${bad.map(([id, s]) => `${nmS(id)} (${esc([...new Set(s.why)].join(", "))})`).join("; ")}` : "",
+      mixed.length ? `<b>Mixed signals:</b> ${mixed.map(nmS).join(", ")}` : ""
+    ].filter(Boolean);
+    return lines.length ? `<h3 class="label" style="margin:0">${title}</h3><ul class="sum-list">${lines.map(l => `<li>${l}</li>`).join("")}</ul>` : "";
+  };
+  const html = [
+    issues.length ? `<h3 class="label" style="margin:0">Patterns</h3><ul class="sum-list">${issues.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "",
+    block(mine, "From your own info"),
+    block(theirs, "From other players' info, if they're telling the truth")
+  ].filter(Boolean).join("");
+  $("infoSum").innerHTML = html ? html + `<span class="tips-foot">Anyone can be drunk or poisoned, and evil players can invent info. Info that clashes with players you trust is a warning sign.</span>` : "";
 }
-$("myRole").onchange = e => { state.myRole = e.target.value; infoDraft = null; save(); render(); };
+$("ifSrc").onchange = e => { const s = e.target.value; infoDraft = newDraft(s, roleFor(s)); renderInfo(); };
+$("myRole").onchange = e => {
+  const v = e.target.value, s = infoDraft ? infoDraft.src : "";
+  if (!s) { state.myRole = v; save(); }
+  infoDraft = newDraft(s, v);
+  renderInfo();
+};
 
 /* ---------- Plan for tomorrow ---------- */
 const ROLE_Q = {
@@ -1042,8 +1111,11 @@ function buildTips() {
     if (c === "ravenkeeper" && !(p.dead && p.deathBy === "night")) continue;
     if (c === "sage" && !(p.dead && p.deathBy === "night")) continue;
     if (c === "slayer" && p.dead) continue;
+    if (c === "virgin" && players.some(x => x.deathBy === "virgin" && x.virginBy === p.id)) continue;
     if (c === "undertaker" && players.some(x => x.dead && x.deathBy === "exec")) continue;
     if (qs.get(p.id)?.some(q => q.text.includes(ROLE_Q[c]))) continue;
+    const logged = state.myInfo.filter(e => e.src === p.id).map(e => e.night);
+    if (logged.length) { if (!p.dead && !["chef", "washerwoman", "librarian", "investigator", "clockmaker", "grandmother"].includes(c) && !logged.includes(state.day)) ask(p, `What did you learn last night? (You've logged night ${logged.join(", ")}.)`, false); continue; }
     ask(p, ROLE_Q[c], false);
   }
 
@@ -1090,13 +1162,25 @@ function buildTips() {
     if (c === "soldier" && p.deathBy === "night") issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} claimed Soldier but died at night.`, sub: "A sober Soldier can't be killed by the Demon. Either they lied, or they were poisoned or drunk." });
     if (has(p, "tea lady") && c === "tea lady") issues.push({ level: "", ids: [p.id], text: `${nm(p)} (Tea Lady) is dead.`, sub: "Their neighbours' safety no longer applies." });
   }
-  const executed = players.filter(p => p.dead && p.deathBy === "exec");
+  const executed = players.filter(p => p.dead && (p.deathBy === "exec" || p.deathBy === "virgin"));
+  for (const p of players.filter(x => x.dead && x.deathBy === "virgin")) {
+    const v = players.find(x => x.id === p.virginBy);
+    const notTF = p.claims.length && p.claims.every(c => teamOf(c) !== "townsfolk");
+    issues.push({ level: "", ids: [p.id], text: `${nm(p)} died nominating ${v ? nm(v) : "the Virgin"}, so ${nm(p)} is a Townsfolk.`, sub: `${v ? `That proves ${nm(v)} is the real Virgin, sober and good, and their ability is now used up. ` : "Pick which Virgin under their death so the app can mark the Virgin as proven. "}The only exception is a Spy registering as a Townsfolk.` });
+    if (notTF) issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} claimed ${p.claims.join(" or ")}, but dying to the Virgin means they're a Townsfolk.`, sub: "Their claim was a bluff, or they're the Spy." });
+    else if (p.claims.length > 1) issues.push({ level: "", ids: [p.id], text: `Cross the non-Townsfolk options off ${nm(p)}'s 3-for-3.`, sub: `Townsfolk options left: ${p.claims.filter(c => teamOf(c) === "townsfolk").join(", ") || "none"}.` });
+    if (p.claims.length === 1 && teamOf(p.claims[0]) === "townsfolk") for (const o of players) if (o !== p && o.claims.length === 1 && o.claims[0].toLowerCase() === p.claims[0].toLowerCase()) {
+      issues.push({ level: "bad", ids: [o.id], text: `${nm(p)} is proven a Townsfolk, so ${nm(o)}'s ${p.claims[0]} claim is very likely a lie.`, sub: `Only one ${p.claims[0]} can be in play.` });
+      flag(o, 4, `claims ${p.claims[0]} against a proven Townsfolk`);
+    }
+    if (v) { flag(v, -6, ""); if (v.align === "evil") issues.push({ level: "hi", ids: [v.id], text: `You've marked ${nm(v)} as evil, but the Virgin just proved them good.`, sub: "Update your read." }); }
+  }
   const undertakers = players.filter(p => !p.me && has(p, "undertaker"));
   if (executed.length) for (const u of undertakers) ask(u, `${u.claims.length > 1 ? "If you're the Undertaker, what" : "What"} did ${executed.map(nm).join(" and ")} show as when executed?`, u.claims.length === 1);
 
   // Your own night info
   const mine = infoAnalysis();
-  for (const r of mine.reads) for (const x of r.warns) issues.push({ level: "bad", ids: [], text: x, sub: `From your night ${r.e.night} ${r.e.role} info.` });
+  for (const r of mine.reads) for (const x of r.warns) issues.push({ level: r.src ? "hi" : "bad", ids: [], text: x, sub: r.src ? `From ${state.players.find(q => q.id === r.src)?.name || "a player"}'s night ${r.e.night} ${r.e.role} info.` : `From your night ${r.e.night} ${r.e.role} info.` });
   for (const x of mine.issues) issues.push({ level: "hi", ids: [], text: x, sub: "" });
   for (const [id, sc] of mine.score) { const p = players.find(q => q.id === id); if (p) flag(p, sc.pts, sc.why.join(", ")); }
 
