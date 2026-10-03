@@ -71,7 +71,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 
-.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 0 40px; display: grid; gap: 14px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 0 40px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 
 /* Top bar */
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 15; margin-inline: -16px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); box-shadow: 0 6px 14px -10px rgba(0,0,0,.5); }
@@ -314,6 +314,18 @@ textarea { resize: vertical; min-height: 90px; }
 .wrap-time { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; font-size: .9rem; }
 .wrap-time .bad { color: var(--evil); } .wrap-time .good { color: var(--claim); }
 
+/* Tabs */
+.tabs { flex: 1 1 100%; min-width: 0; max-width: 100%; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; margin-bottom: -10px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { border: 0; background: none; padding: 8px 14px 10px; font-weight: 700; font-size: .92rem; color: var(--muted); border-bottom: 3px solid transparent; white-space: nowrap; border-radius: 6px 6px 0 0; }
+.tab:hover { color: var(--fg); background: var(--surface); }
+.tab[aria-selected="true"] { color: var(--brass); border-bottom-color: var(--brass); }
+.badge { display: inline-block; min-width: 1.4em; padding: 0 5px; border-radius: 99px; background: var(--warn); color: #1a1408; font-size: .72rem; font-weight: 800; text-align: center; }
+.badge:empty { display: none; }
+.badge.red { background: var(--evil); color: #fff; }
+.tabview { display: grid; gap: 14px; }
+@media (max-width: 600px) { .tab { padding: 7px 10px 9px; font-size: .86rem; } }
+
 /* Claim matrix */
 .matrix-card { gap: 10px; }
 .matrix-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
@@ -370,6 +382,14 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       </select>
     </div>
     <span class="sync" id="sync">Saved on this device</span>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" data-tab="table">Table</button>
+      <button class="tab" role="tab" data-tab="info">Night info <span class="badge" id="bInfo"></span></button>
+      <button class="tab" role="tab" data-tab="plan">Plan <span class="badge" id="bPlan"></span></button>
+      <button class="tab" role="tab" data-tab="evil">Evil team <span class="badge" id="bEvil"></span></button>
+      <button class="tab" role="tab" data-tab="claims">Claims</button>
+      <button class="tab" role="tab" data-tab="notes">Notes</button>
+    </nav>
   </header>
 
   <div class="banner over-banner" id="overBanner" hidden></div>
@@ -379,6 +399,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     <button class="btn sm primary" id="bannerNew">Start a game</button>
   </div>
 
+  <div class="tabview" data-view="table">
   <div class="main">
     <section class="table-col">
       <div class="table" id="table" aria-label="Seating circle">
@@ -393,7 +414,13 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <div class="comp" id="comp"></div>
         </div>
       </div>
+    </section>
 
+    <aside class="card panel" id="panel"></aside>
+  </div>
+  </div>
+
+  <div class="tabview" data-view="info" hidden>
       <div class="card info-card" id="infoCard" aria-labelledby="infoTitle">
         <div class="tips-head"><h2 id="infoTitle">Night info</h2><span class="tips-foot">What you learned, what others say they learned, and what it could mean</span></div>
         <div class="row" id="infoPick">
@@ -407,21 +434,9 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <div id="infoSum" class="tips-col"></div>
         <div id="infoRel" class="tips-col"></div>
       </div>
-
-      <div class="card town-notes">
-        <h2>Town notes</h2>
-        <label class="label" for="gameNotes">Nominations, votes, deaths, theories</label>
-        <textarea id="gameNotes" placeholder="Day 1: Ana nominated Ben, 4 votes..."></textarea>
-      </div>
-
-      <div class="card">
-        <h2>Who claims what</h2>
-        <div class="roster" id="roster"></div>
-      </div>
-    </section>
-
-    <aside class="card panel" id="panel"></aside>
   </div>
+
+  <div class="tabview" data-view="plan" hidden>
   <section class="card" aria-labelledby="tipsTitle">
     <div class="tips-head">
       <h2 id="tipsTitle">Plan for tomorrow</h2>
@@ -433,7 +448,9 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       <div class="tips-col"><h3>Who to look at</h3><div id="tipNoms" class="tips-col"></div><h3>Reminders</h3><div id="tipRem" class="tips-col"></div></div>
     </div>
   </section>
+  </div>
 
+  <div class="tabview" data-view="evil" hidden>
   <section class="card" id="evilCard" aria-labelledby="evilTitle">
     <div class="tips-head">
       <h2 id="evilTitle">Evil team</h2>
@@ -445,7 +462,13 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       <div class="tips-col"><h3>Minions in play</h3><div id="evMinion" class="tips-col"></div></div>
     </div>
   </section>
+  </div>
 
+  <div class="tabview" data-view="claims" hidden>
+      <div class="card">
+        <h2>Who claims what</h2>
+        <div class="roster" id="roster"></div>
+      </div>
   <section class="card matrix-card" aria-labelledby="matrixTitle">
     <div class="matrix-head">
       <h2 id="matrixTitle">Claim matrix</h2>
@@ -458,6 +481,15 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     <div class="matrix-wrap"><table class="matrix" id="matrix"></table></div>
     <span class="matrix-note">Tap a square to add or remove that claim. Tap a name to open that player.</span>
   </section>
+  </div>
+
+  <div class="tabview" data-view="notes" hidden>
+      <div class="card town-notes">
+        <h2>Town notes</h2>
+        <label class="label" for="gameNotes">Nominations, votes, deaths, theories</label>
+        <textarea id="gameNotes" placeholder="Day 1: Ana nominated Ben, 4 votes..."></textarea>
+      </div>
+  </div>
 </div>
 
 <section class="welcome" id="welcome" hidden aria-labelledby="welcomeTitle">
@@ -501,6 +533,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       </li>
       <li>
         <h2>Read the board</h2>
+        <p>Use the tabs at the top: <b>Table</b>, <b>Night info</b>, <b>Plan</b>, <b>Evil team</b>, <b>Claims</b> and <b>Notes</b>. Badges show when something needs attention.</p>
         <ul>
           <li><b>Plan for tomorrow:</b> what doesn't add up, questions to ask each player, and who to look at.</li>
           <li><b>Evil team:</b> the most likely Demon and why, plus which Minions are likely in play.</li>
@@ -838,7 +871,7 @@ function renderRoster() {
     </button>`).join("");
   $("roster").querySelectorAll(".roster-row").forEach(el => el.addEventListener("click", () => {
     state.selected = el.dataset.id; confirmRemove = false; save(); render();
-    if (window.matchMedia("(max-width: 860px)").matches) $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    if (window.matchMedia("(max-width: 860px)").matches) showTab("table"); $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
   }));
 }
 
@@ -2326,7 +2359,7 @@ function renderEvil() {
     : "";
   document.querySelectorAll("#evilCard [data-open]").forEach(b => b.onclick = () => {
     state.selected = b.dataset.open; confirmRemove = false; save(); render();
-    $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    showTab("table"); $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
@@ -2348,7 +2381,7 @@ function renderTips() {
   $("tipRem").innerHTML = rem.map(r => `<div class="tip">${esc(r)}</div>`).join("");
   document.querySelectorAll("#tipQs [data-open], #tipNoms [data-open]").forEach(b => b.onclick = () => {
     state.selected = b.dataset.open; confirmRemove = false; save(); render();
-    $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    showTab("table"); $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 
@@ -2394,7 +2427,7 @@ function renderMatrix() {
   });
   $("matrix").querySelectorAll("[data-open]").forEach(b => b.onclick = () => {
     state.selected = b.dataset.open; confirmRemove = false; save(); render();
-    $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    showTab("table"); $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 }
 $("mxOnly").onclick = () => { state.matrixClaimedOnly = !state.matrixClaimedOnly; save(); renderMatrix(); };
@@ -2411,6 +2444,7 @@ function render() {
   renderInfo();
   renderTips();
   renderEvil();
+  updateBadges();
   updatePhaseLogged();
   const ob = $("overBanner");
   ob.hidden = !state.over;
@@ -2631,6 +2665,31 @@ $("shotBtn").onclick = openShot;
 $("wrapBtn").onclick = openWrap;
 $("endDayBtn").onclick = () => state.firstNightDone ? openPhase() : openFirstNight();
 
+/* ---------- Tabs ---------- */
+const TAB_KEY = "clocktower-notebook-tab";
+let currentTab = "table";
+try { currentTab = localStorage.getItem(TAB_KEY) || "table"; } catch (e) {}
+function showTab(name) {
+  currentTab = name;
+  document.querySelectorAll(".tabview").forEach(v => { v.hidden = v.dataset.view !== name; });
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === name));
+  try { localStorage.setItem(TAB_KEY, name); } catch (e) {}
+  if (name === "table") sizeTokens();
+  window.scrollTo({ top: 0 });
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => showTab(t.dataset.tab));
+function updateBadges() {
+  const tips = buildTips();
+  const urgent = tips.issues.filter(i => i.level === "bad" || i.level === "hi").length;
+  $("bPlan").textContent = urgent || "";
+  $("bPlan").classList.toggle("red", tips.issues.some(i => i.level === "bad"));
+  $("bInfo").textContent = state.myInfo.length || "";
+  $("bInfo").classList.remove("red");
+  const top = buildEvil().top;
+  $("bEvil").textContent = top ? (top.p.name || "?") : "";
+  $("bEvil").classList.toggle("red", !!top);
+}
+
 /* ---------- Global controls ---------- */
 const dl = document.createElement("datalist");
 dl.id = "allRoles";
@@ -2661,6 +2720,7 @@ $("ngStart").onclick = () => {
 
 new ResizeObserver(sizeTokens).observe($("table"));
 render();
+showTab(currentTab);
 
 /* ---------- Welcome page ---------- */
 // The welcome page is the first screen every time the app opens
