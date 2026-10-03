@@ -1314,7 +1314,10 @@ function buildTips() {
     }
     if (optPs.length && hardPs.length) {
       issues.push({ level: "", ids: ps.map(p => p.id), text: `${hardPs.map(nm).join(" and ")} hard-claim${hardPs.length === 1 ? "s" : ""} ${role}, which is also one of ${optPs.map(nm).join(" and ")}'s options.`, sub: `If ${hardPs.length === 1 ? nm(hardPs[0]) + " is" : "one of them is"} really the ${role}, ${optPs.map(nm).join(" and ")} must be one of their other options.` });
-      for (const p of optPs) ask(p, `${hardPs.map(nm).join(" and ")} hard-claimed ${role}, one of your options. Is it one of your others: ${p.claims.filter(c => c.toLowerCase() !== role.toLowerCase()).join(" or ")}?`, true);
+      for (const p of optPs) {
+        const rest = p.claims.filter(c => c.toLowerCase() !== role.toLowerCase());
+        ask(p, rest.length === 1 ? `${hardPs.map(nm).join(" and ")} hard-claimed ${role}, one of your two options. Does that make you the ${rest[0]}?` : `${hardPs.map(nm).join(" and ")} hard-claimed ${role}, one of your options. So is it ${rest.join(" or ")}?`, true);
+      }
     } else if (optPs.length >= 2 && !hardPs.length) {
       issues.push({ level: "", ids: optPs.map(p => p.id), text: `${role} is among the options of ${optPs.map(nm).join(" and ")}.`, sub: `They can't both be the ${role}. Once one of them narrows down, it tells you about the other.` });
     }
@@ -1323,8 +1326,23 @@ function buildTips() {
   // 3-for-3s (several options, in no particular order)
   for (const p of others) if (p.claims.length > 1) {
     const late = state.day >= 3;
-    ask(p, `You gave ${optList(p)}. ${late ? "It's day " + state.day + ", so can you hard-claim now?" : "Can you narrow it down to two?"} If one is an information role, what would that information be?`, late);
-    if (late) flag(p, 1, "still hiding in a 3-for-3");
+    const two = p.claims.length === 2;
+    const narrow = two
+      ? (late ? `It's day ${state.day}. Which is it, ${p.claims[0]} or ${p.claims[1]}?` : `Which is it, ${p.claims[0]} or ${p.claims[1]}? Or are you holding back for a reason?`)
+      : (late ? `It's day ${state.day}, so can you hard-claim now?` : "Can you narrow it down to two?");
+    // Only ask about information for options that actually give it (and only when it could have been given)
+    const infoOpts = p.claims.filter(c => {
+      const k = c.toLowerCase();
+      if (!infoOf(k) || !ROLE_Q[k]) return false;
+      if (["ravenkeeper", "sage"].includes(k)) return p.dead && p.deathBy === "night";
+      if (k === "undertaker") return players.some(x => x.dead && ["exec", "virgin"].includes(x.deathBy));
+      return true;
+    });
+    const extra = [...infoOpts.map(c => `If you're the ${c}: ${ROLE_Q[c.toLowerCase()]}`),
+      ...p.claims.filter(c => c.toLowerCase() === "slayer" && !p.dead).map(() => "If you're the Slayer, have you used your shot yet?")];
+    if (qs.get(p.id)?.some(q => /hard-claimed .*one of your/.test(q.text))) { if (late) flag(p, 1, "still hasn't hard-claimed"); continue; }
+    ask(p, `You gave ${optList(p)}. ${narrow}${extra.length ? " " + extra.join(" ") : ""}`, late);
+    if (late) flag(p, 1, two ? "still hasn't hard-claimed" : "still hiding in a 3-for-3");
   }
 
   // Evil claims
@@ -1566,7 +1584,7 @@ function buildEvil() {
   for (const p of ps) {
     if (p.claims.length === 1 && hardCount[p.claims[0].toLowerCase()] > 1 && teamOf(p.claims[0]) !== "traveller") add(p.id, 1, `double-claims ${p.claims[0]}`);
     if (!p.claims.length && state.day > 1) add(p.id, 1, "no claim yet");
-    if (p.claims.length > 1 && state.day >= 3) add(p.id, 1, "still hiding in a 3-for-3");
+    if (p.claims.length > 1 && state.day >= 3) add(p.id, 1, p.claims.length === 2 ? "still hasn't hard-claimed" : "still hiding in a 3-for-3");
   }
   for (const [src, r] of Object.entries(fts)) if (r.herring) rule(r.herring, `${src ? nm(byId(src)) + "'s" : "your"} Fortune Teller red herring (good)`);
   const list = [...cand.values()];
