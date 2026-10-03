@@ -301,16 +301,6 @@ textarea { resize: vertical; min-height: 90px; }
 .mini-sus { flex: none; width: 38px; text-align: center; font-weight: 800; color: var(--evil); font-size: .85rem; }
 .w-note { margin: 0; font-size: .84rem; color: var(--muted); text-align: center; max-width: 40rem; justify-self: center; }
 
-/* Evil mode */
-.em-card { border-color: var(--evil); }
-.em-card h3 { margin: 4px 0 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
-.em-card .who { font-weight: 800; background: none; border: 0; padding: 0; color: var(--fg); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
-.t-evil { color: var(--evil); }
-.em-edit summary { cursor: pointer; font-weight: 700; font-size: .88rem; color: var(--brass); }
-.em-edit[open] summary { margin-bottom: 8px; }
-.team-tag { position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%); font-size: calc(var(--tok, 70px) * .11); font-weight: 800; letter-spacing: .06em; background: var(--evil); color: #fff; border-radius: 4px; padding: 0 4px; z-index: 3; white-space: nowrap; }
-.true-role { font-size: max(10px, calc(var(--tok, 70px) * .14)); font-weight: 800; color: var(--evil); line-height: 1; }
-
 /* Claim matrix */
 .matrix-card { gap: 10px; }
 .matrix-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
@@ -426,18 +416,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     <div class="tips-grid">
       <div class="tips-col"><h3>Doesn't add up</h3><div id="tipIssues" class="tips-col"></div></div>
       <div class="tips-col"><h3>Questions to ask</h3><div id="tipQs" class="tips-col"></div></div>
-      <div class="tips-col"><h3 id="nomsTitle">Who to look at</h3><div id="tipNoms" class="tips-col"></div><h3>Reminders</h3><div id="tipRem" class="tips-col"></div></div>
-    </div>
-  </section>
-
-  <section class="card em-card" id="evilModeCard" hidden aria-labelledby="emTitle">
-    <div class="tips-head">
-      <h2 id="emTitle">Your evil team</h2>
-      <span class="tips-foot">Shown because your character is evil. Keep your screen to yourself.</span>
-    </div>
-    <div class="ev-grid">
-      <div class="tips-col"><h3>Team</h3><div id="emTeam" class="tips-col"></div><h3>Is your cover safe?</h3><div id="emCover" class="tips-col"></div></div>
-      <div class="tips-col"><h3 id="emTargetsTitle">Threats</h3><div id="emTargets" class="tips-col"></div><h3>How suspicious your team looks</h3><div id="emHeat" class="tips-col"></div></div>
+      <div class="tips-col"><h3>Who to look at</h3><div id="tipNoms" class="tips-col"></div><h3>Reminders</h3><div id="tipRem" class="tips-col"></div></div>
     </div>
   </section>
 
@@ -484,7 +463,6 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <h2>Set up the table</h2>
         <p>Tap <b>New game</b>, choose the script, and type the players' names in seat order, going clockwise.</p>
         <p>The game opens on <b>Night 1</b>. Pick your seat and your character, then log what you learned. Your character becomes your claim on the circle.</p>
-        <p><b>Evil?</b> Pick your Minion or Demon as your character. The app switches to evil mode: mark your team, the Demon bluffs and your bluff, and it helps you protect your cover, choose night targets and pick good players to push.</p>
       </li>
       <li>
         <h2>During the day</h2>
@@ -770,14 +748,12 @@ function renderCircle() {
     b.innerHTML = `
       <span class="disc">
         ${p.me ? '<span class="me-tag">ME</span>' : ""}
-        ${amEvil() && evilState().team[p.id] !== undefined ? `<span class="team-tag">${esc(evilState().team[p.id] || "TEAM")}</span>` : ""}
         ${proven.has(p.id) ? '<span class="proven-tag" title="' + esc(proven.get(p.id)) + '">✓ GOOD</span>' : ""}
         ${claimHtml}
         ${p.notes.trim() ? '<span class="pip" title="Has notes"></span>' : ""}
         ${p.dead && p.ghostVote ? '<span class="vote" title="Ghost vote available"></span>' : ""}
       </span>
       <span class="nameplate">${esc(p.name || "—")}</span>
-      ${p.me && amEvil() ? `<span class="true-role">really ${esc(state.myRole)}</span>` : ""}
       ${p.suspect && !proven.has(p.id) ? `<span class="sus">${esc(p.suspect)}?</span>` : ""}
       <span class="seatno">${i + 1}${p.traveller ? " · traveller" : ""}${p.dead && p.deathBy === "virgin" ? " · Virgin" : ""}${p.dead && p.deathBy === "slayer" ? " · Slayer" : ""}</span>`;
     b.addEventListener("click", () => { state.selected = p.id; confirmRemove = false; save(); render(); });
@@ -1012,13 +988,7 @@ const INFO = {
   "exorcist":     { p: 1, plabel: "You chose" },
   "butler":       { p: 1, plabel: "Your master" },
   "snake charmer": { p: 1, plabel: "You chose" },
-  "gambler":      { p: 1, r: "any", plabel: "You guessed", rlabel: "As the" },
-  "imp": { p: 1, plabel: "You killed" }, "zombuul": { p: 1, plabel: "You killed" }, "pukka": { p: 1, plabel: "You poisoned" },
-  "shabaloth": { p: 2, plabel: "You killed" }, "po": { p: 1, plabel: "You killed" }, "fang gu": { p: 1, plabel: "You killed" },
-  "vigormortis": { p: 1, plabel: "You killed" }, "no dashii": { p: 1, plabel: "You killed" }, "vortox": { p: 1, plabel: "You killed" },
-  "poisoner": { p: 1, plabel: "You poisoned" }, "godfather": { p: 1, plabel: "You killed" }, "assassin": { p: 1, plabel: "You assassinated" },
-  "devil's advocate": { p: 1, plabel: "You protected" }, "witch": { p: 1, plabel: "You cursed" }, "cerenovus": { p: 1, r: "any", plabel: "You made mad", rlabel: "As the" },
-  "pit-hag": { p: 1, r: "any", plabel: "You changed", rlabel: "Into the" }
+  "gambler":      { p: 1, r: "any", plabel: "You guessed", rlabel: "As the" }
 };
 const infoOf = role => INFO[String(role).toLowerCase()] || null;
 let infoDraft = null;
@@ -1059,7 +1029,7 @@ function newDraft(src, role) {
 }
 
 // Players known to be good: proven by the Virgin or a Slayer shot, plus you
-function knownGood() { const k = new Set(provenGood().keys()); const me = meP(); if (me && !amEvil()) k.add(me.id); return k; }
+function knownGood() { const k = new Set(provenGood().keys()); const me = meP(); if (me) k.add(me.id); return k; }
 
 // Fortune Teller: work out the red herring (a good player who always shows yes) or a forced Demon
 function ftAnalysis() {
@@ -1321,9 +1291,7 @@ function renderInfo() {
   const rest = infoRoles.filter(r => !firstRoles.some(x => x.toLowerCase() === r.toLowerCase()));
   $("myRole").innerHTML = `<option value="">${d.src ? "Their character" : "Choose your character"}</option>` +
     (firstRoles.length ? `<optgroup label="${d.src ? "They claim" : "Current"}">${firstRoles.map(r => `<option${r.toLowerCase() === d.role.toLowerCase() ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>` : "") +
-    `<optgroup label="Information characters">${rest.map(r => `<option${r.toLowerCase() === d.role.toLowerCase() ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>` +
-    (d.src ? "" : [["Other good characters", [...roles.townsfolk, ...roles.outsider].filter(r => !infoOf(r) && !firstRoles.includes(r))], ["Evil characters", [...roles.minion, ...roles.demon].filter(r => !firstRoles.includes(r))]]
-      .map(([label, list]) => `<optgroup label="${label}">${list.map(r => `<option${r.toLowerCase() === d.role.toLowerCase() ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>`).join(""));
+    `<optgroup label="Information characters">${rest.map(r => `<option${r.toLowerCase() === d.role.toLowerCase() ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>`;
 
   const pOpts = sel => `<option value="">Pick player</option>` + state.players.map((p, i) => `<option value="${p.id}"${p.id === sel ? " selected" : ""}>${i + 1}. ${esc(p.name || "—")}${p.dead ? " (dead)" : ""}</option>`).join("");
   const rList = kind => kind === "any" ? TEAMS.flatMap(t => roles[t]) : kind === "good" ? [...roles.townsfolk, ...roles.outsider] : roles[kind] || [];
@@ -1400,11 +1368,11 @@ function renderInfo() {
 }
 $("ifSrc").onchange = e => { const s = e.target.value; infoDraft = newDraft(s, roleFor(s)); renderInfo(); };
 // Your own character is set as your claim on your seat
-function syncMyRole() { const m = meP(); if (m && state.myRole && !["minion", "demon"].includes(teamOf(state.myRole))) { m.claims = [state.myRole]; m.claimType = "hard"; } }
+function syncMyRole() { const m = meP(); if (m && state.myRole) { m.claims = [state.myRole]; m.claimType = "hard"; } }
 $("myRole").onchange = e => {
   const v = e.target.value, s = infoDraft ? infoDraft.src : "";
   infoDraft = newDraft(s, v);
-  if (!s) { state.myRole = v; syncMyRole(); save(); render(); if (phase && phase.redrawEvil) phase.redrawEvil(); } else renderInfo();
+  if (!s) { state.myRole = v; syncMyRole(); save(); render(); } else renderInfo();
 };
 
 /* ---------- Plan for tomorrow ---------- */
@@ -1469,8 +1437,7 @@ function buildTips() {
   const issues = [], qs = new Map(), noms = new Map(), rem = [];
   const ask = (p, text, hi) => { if (p.me) return; if (!qs.has(p.id)) qs.set(p.id, []); qs.get(p.id).push({ text, hi }); };
   const provenSet = provenGood();
-  const evilTeam = amEvil() ? teamIds() : new Set();
-  const flag = (p, pts, why) => { if (p.me || p.dead || evilTeam.has(p.id) || (pts > 0 && provenSet.has(p.id))) return; const n = noms.get(p.id) || { p, score: 0, why: [] }; n.score += pts; if (pts > 0) n.why.push(why); noms.set(p.id, n); };
+  const flag = (p, pts, why) => { if (p.me || p.dead || (pts > 0 && provenSet.has(p.id))) return; const n = noms.get(p.id) || { p, score: 0, why: [] }; n.score += pts; if (pts > 0) n.why.push(why); noms.set(p.id, n); };
 
   // Same role claimed by more than one player
   const byRole = {};
@@ -1905,154 +1872,7 @@ function renderEvil() {
   });
 }
 
-/* ---------- Evil mode ---------- */
-// When your own character is a Minion or Demon, the app helps you protect your team instead of hunting it
-const amEvil = () => ["minion", "demon"].includes(teamOf(state.myRole || ""));
-const evilState = () => (state.evil = state.evil || { team: {}, bluffs: [] });
-const teamIds = () => { const t = new Set(Object.keys(evilState().team)); const me = meP(); if (me && amEvil()) t.add(me.id); return t; };
-const DEMON_SAFE_KILL = { soldier: "can't be killed by the Demon", mayor: "another player may die instead" };
-
-function evilSetupHtml() {
-  const ev = evilState(), me = meP(), roles = scriptRoles();
-  const nmP = p => esc(p.name || `Seat ${state.players.indexOf(p) + 1}`);
-  const evilRoles = [...roles.demon, ...roles.minion];
-  const goodRoles = [...roles.townsfolk, ...roles.outsider];
-  const others = state.players.filter(p => p !== me);
-  return `
-    <div class="field"><span class="label">My evil team</span>
-      <div class="choice-list">${others.map(p => `<button class="choice" data-team="${p.id}" aria-pressed="${!!ev.team[p.id]}">${nmP(p)}</button>`).join("")}</div>
-      ${Object.keys(ev.team).filter(id => state.players.some(p => p.id === id)).map(id => { const p = state.players.find(x => x.id === id); return `<div class="row"><span class="label">${nmP(p)} is the</span><select class="btn" data-teamrole="${id}"><option value="">Unknown evil</option>${evilRoles.map(r => `<option${ev.team[id] === r ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></div>`; }).join("")}
-    </div>
-    <div class="field"><span class="label">Demon bluffs (good characters not in play, up to 3)</span>
-      <div class="choice-list">${goodRoles.map(r => `<button class="choice" data-bluff="${esc(r)}" aria-pressed="${ev.bluffs.includes(r)}">${esc(r)}</button>`).join("")}</div>
-    </div>
-    ${me ? `<div class="row"><span class="label">My public claim (bluff)</span>
-      <select class="btn" data-mybluff aria-label="My public claim (bluff)"><option value="">Not decided</option>
-        ${ev.bluffs.length ? `<optgroup label="Demon bluffs">${ev.bluffs.map(r => `<option${me.claims[0] === r ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>` : ""}
-        <optgroup label="Good characters">${goodRoles.filter(r => !ev.bluffs.includes(r)).map(r => `<option${me.claims[0] === r ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>
-      </select></div>` : `<p class="hint">Choose your seat to set your bluff.</p>`}`;
-}
-function wireEvilSetup(root, rerender) {
-  const ev = evilState();
-  root.querySelectorAll("[data-team]").forEach(b => b.onclick = () => {
-    const id = b.dataset.team, p = state.players.find(x => x.id === id);
-    if (ev.team[id] !== undefined) { delete ev.team[id]; if (p && p.align === "evil") p.align = ""; }
-    else { ev.team[id] = ""; if (p) p.align = "evil"; }
-    save(); render(); rerender();
-  });
-  root.querySelectorAll("[data-teamrole]").forEach(s => s.onchange = () => { ev.team[s.dataset.teamrole] = s.value; save(); render(); rerender(); });
-  root.querySelectorAll("[data-bluff]").forEach(b => b.onclick = () => {
-    const r = b.dataset.bluff, i = ev.bluffs.indexOf(r);
-    if (i >= 0) ev.bluffs.splice(i, 1); else if (ev.bluffs.length < 3) ev.bluffs.push(r);
-    save(); render(); rerender();
-  });
-  const mb = root.querySelector("[data-mybluff]");
-  if (mb) mb.onchange = () => { const me = meP(); me.claims = mb.value ? [mb.value] : []; me.claimType = "hard"; save(); render(); rerender(); };
-}
-
-function buildEvilMode() {
-  const ps = state.players, me = meP(), ev = evilState(), team = teamIds();
-  const nm = p => p ? (p.name || `Seat ${ps.indexOf(p) + 1}`) : "someone";
-  const byId = id => ps.find(p => p.id === id);
-  const lc = r => String(r || "").toLowerCase();
-  const isDemon = teamOf(state.myRole) === "demon", isPoisoner = lc(state.myRole) === "poisoner";
-  const hardOf = p => isHard(p) ? p.claims[0] : "";
-  const { reads } = infoAnalysis();
-  const proven = provenGood();
-  const cover = [], heat = [], threats = [];
-
-  // ---- Your cover story
-  const myBluff = me ? hardOf(me) : "";
-  if (me && !me.claims.length) cover.push({ level: "hi", text: "You haven't set a public claim yet.", sub: ev.bluffs.length ? `Your Demon bluffs are ${ev.bluffs.join(", ")}. Those characters are not in play, so nobody can counter-claim them truthfully.` : "Pick a good character to claim. Demon bluffs are the safest, because they're not in play." });
-  for (const p of [me, ...Object.keys(ev.team).map(byId)].filter(Boolean)) {
-    const claim = hardOf(p);
-    if (!claim) continue;
-    const rivals = ps.filter(x => !team.has(x.id) && hardOf(x).toLowerCase() === claim.toLowerCase());
-    const whose = p === me ? "Your" : `${nm(p)}'s`;
-    if (rivals.length) cover.push({ level: "bad", text: `${rivals.map(nm).join(" and ")} also claim${rivals.length === 1 ? "s" : ""} ${claim}, ${p === me ? "your" : nm(p) + "'s"} bluff.`, sub: ev.bluffs.includes(claim) ? `${claim} is a Demon bluff, so ${rivals.map(nm).join(" and ")} must be lying, perhaps the Drunk. Say so.` : `They may be the real ${claim}. Expect a showdown, or switch to a Demon bluff.` });
-    else if (ev.bluffs.length && !ev.bluffs.includes(claim) && teamOf(claim) !== "outsider") cover.push({ level: "", text: `${whose} bluff, ${claim}, isn't a Demon bluff.`, sub: `The real ${claim} may be in play and could counter-claim.` });
-    const mates = [me, ...Object.keys(ev.team).map(byId)].filter(x => x && x !== p && hardOf(x).toLowerCase() === claim.toLowerCase());
-    if (mates.length && p === me) cover.push({ level: "bad", text: `You and ${mates.map(nm).join(", ")} claim the same role (${claim}).`, sub: "Two evil players on one claim will be caught. One of you should switch." });
-  }
-  const teamClaims = new Set([me, ...Object.keys(ev.team).map(byId)].filter(Boolean).map(x => lc(hardOf(x))).filter(Boolean));
-  for (const r of ev.bluffs) {
-    if (teamClaims.has(lc(r))) continue; // already covered as a rival to your team's bluff
-    const holders = ps.filter(x => !team.has(x.id) && x.claims.some(c => lc(c) === lc(r)));
-    if (holders.length) cover.push({ level: "", text: `${holders.map(nm).join(" and ")} ${holders.length === 1 ? "claims" : "claim"} ${r}, which is not in play.`, sub: "They're lying: possibly the Drunk, or a good player hiding. Point it out at the right moment to cast doubt on them." });
-  }
-  const core = ps.filter(p => !p.traveller), comp = COMP[Math.min(core.length, 15)];
-  const hasBaron = Object.values(ev.team).some(r => lc(r) === "baron") || lc(state.myRole) === "baron";
-  if (comp && hasBaron) {
-    const outs = core.filter(p => p.claims.length && p.claims.every(c => teamOf(c) === "outsider")).length;
-    if (outs < comp[1] + 2) cover.push({ level: "", text: `There's a Baron on your team, so the town will expect ${comp[1] + 2} Outsiders. Only ${outs} claimed so far.`, sub: "An Outsider bluff from your team would fill the gap, or the missing Outsiders will make the town suspect a Baron." });
-  }
-  const virgin = ps.find(p => !p.dead && isHard(p) && lc(p.claims[0]) === "virgin" && !ps.some(x => x.deathBy === "virgin"));
-  if (virgin && lc(state.myRole) !== "spy") cover.push({ level: "hi", text: `Don't nominate ${nm(virgin)} (claims Virgin).`, sub: "Nothing would happen to you, which shows the town you're not a Townsfolk." });
-
-  // ---- Heat on your team: what the town can see
-  for (const id of team) {
-    const p = byId(id); if (!p || p.dead) continue;
-    let score = 0; const why = [];
-    for (const r of reads) if (!r.src || !team.has(r.src)) for (const w of r.weights) if (w.id === id && w.pts > 0) { score += w.pts; why.push(w.why.replace(/^your /, "")); }
-    const claim = hardOf(p);
-    if (claim && ps.some(x => x !== p && !team.has(x.id) && hardOf(x).toLowerCase() === claim.toLowerCase())) { score += 2; why.push(`double claim on ${claim}`); }
-    if (!p.claims.length && state.day > 1) { score += 1; why.push("hasn't claimed"); }
-    for (const shot of (state.shots || [])) if (shot.target === id) { score -= 1; }
-    heat.push({ p, score, why: [...new Set(why)], role: p === me ? state.myRole : ev.team[id] || "" });
-  }
-  heat.sort((a, b) => b.score - a.score);
-
-  // ---- Threats and night targets among good players
-  const killMode = isDemon, poisonMode = isPoisoner;
-  for (const p of ps) {
-    if (p.dead || team.has(p.id) || p.me || p.traveller) continue;
-    let score = 0; const why = [];
-    const claim = lc(hardOf(p));
-    if (proven.has(p.id)) { score += 5; why.push("proven good, so the town trusts them"); }
-    if (claim && infoOf(claim) && !["monk", "innkeeper", "sailor", "exorcist", "butler", "snake charmer", "gambler", "ravenkeeper", "sage"].includes(claim)) { score += 3; why.push(`claims ${hardOf(p)}, an information role`); }
-    if (claim === "fortune teller") { score += 2; why.push("can find the Demon"); }
-    if (claim === "empath" && livingNeighbours(p.id).some(id => team.has(id))) { score += 3; why.push("an Empath sitting next to your team"); }
-    if (claim === "undertaker" && ps.some(x => team.has(x.id) && x.dead && ["exec", "virgin"].includes(x.deathBy))) { score += 2; why.push("will see your executed teammate"); }
-    if (claim === "slayer" && !hasShot(p.id)) { score += killMode ? 4 : 2; why.push("still has a Slayer shot"); }
-    if (["monk", "innkeeper", "tea lady"].includes(claim)) { score += 2; why.push("protects players at night"); }
-    for (const r of reads) if (r.src === p.id && r.weights.some(w => team.has(w.id) && w.pts > 0)) { score += 3; why.push("their info points at your team"); break; }
-    if (killMode) {
-      if (DEMON_SAFE_KILL[claim]) { score -= 8; why.push(DEMON_SAFE_KILL[claim]); }
-      if (["ravenkeeper", "sage"].includes(claim)) { score -= 4; why.push("learns something if you kill them"); }
-    }
-    threats.push({ p, score, why });
-  }
-  threats.sort((a, b) => b.score - a.score);
-  return { cover, heat, threats, killMode, poisonMode, team };
-}
-
-function renderEvilMode() {
-  const on = amEvil();
-  $("evilCard").hidden = on;
-  $("evilModeCard").hidden = !on;
-  document.body.classList.toggle("evil-mode", on);
-  if (!on) return;
-  const m = buildEvilMode(), me = meP(), ev = evilState();
-  const nmE = p => esc(p.name || `Seat ${state.players.indexOf(p) + 1}`);
-  const btn = p => `<button class="who" data-open="${p.id}">${nmE(p)}</button>`;
-  $("emTeam").innerHTML = `
-    <div class="tip"><span class="label">You</span><span>${me ? btn(me) : "Choose your seat"} · really the <b class="t-evil">${esc(state.myRole)}</b>${me && me.claims.length ? `, claiming ${esc(me.claims.join(" or "))}` : ""}</span></div>
-    ${Object.entries(ev.team).map(([id, role]) => { const p = state.players.find(x => x.id === id); return p ? `<div class="tip"><span class="label">Teammate</span><span>${btn(p)}${p.dead ? " (dead)" : ""} · ${role ? `the <b class="t-evil">${esc(role)}</b>` : "evil"}${p.claims.length ? `, claiming ${esc(p.claims.join(" or "))}` : ""}</span></div>` : ""; }).join("")}
-    ${ev.bluffs.length ? `<div class="tip"><span class="label">Demon bluffs (not in play)</span><span>${ev.bluffs.map(r => esc(r)).join(" · ")}</span></div>` : ""}
-    <details class="em-edit"><summary>Edit team and bluffs</summary><div id="emSetup" class="tips-col">${evilSetupHtml()}</div></details>`;
-  wireEvilSetup($("emTeam"), () => {});
-  const tip = t => `<div class="tip ${t.level || ""}">${esc(t.text)}${t.sub ? `<small>${esc(t.sub)}</small>` : ""}</div>`;
-  $("emCover").innerHTML = m.cover.length ? m.cover.map(tip).join("") : `<p class="tips-empty">Your cover looks clean so far.</p>`;
-  $("emHeat").innerHTML = m.heat.length ? m.heat.map(h => `<div class="tip ${h.score >= 4 ? "bad" : h.score >= 2 ? "hi" : ""}">${btn(h.p)}${h.role ? ` <small>${esc(h.role)}</small>` : ""}<small>${h.score > 0 ? esc(h.why.join(" · ")) : "No suspicion on record"}</small></div>`).join("") : `<p class="tips-empty">Mark your teammates to track how suspicious they look.</p>`;
-  const title = m.killMode ? "Who to kill tonight" : m.poisonMode ? "Who to poison tonight" : "Biggest threats to your team";
-  $("emTargetsTitle").textContent = title;
-  const top = m.threats.filter(t => t.score > 0).slice(0, 4);
-  $("emTargets").innerHTML = top.length ? top.map((t, i) => `<div class="tip ${i === 0 ? "bad" : ""}">${btn(t.p)}<small>${esc(t.why.join(" · "))}</small></div>`).join("") : `<p class="tips-empty">No clear threat yet. Claims and night info will build this list.</p>`;
-  document.querySelectorAll("#evilModeCard [data-open]").forEach(b => b.onclick = () => { state.selected = b.dataset.open; confirmRemove = false; save(); render(); $("panel").scrollIntoView({ behavior: "smooth", block: "start" }); });
-}
-
 function renderTips() {
-  if ($("nomsTitle")) $("nomsTitle").textContent = amEvil() ? "Good players to push for execution" : "Who to look at";
   const { issues, qs, nomList, rem } = buildTips();
   const nmById = id => { const p = state.players.find(x => x.id === id); return p ? esc(p.name || `Seat ${state.players.indexOf(p) + 1}`) : ""; };
   const whoBtn = id => `<button class="who" data-open="${id}">${nmById(id)}</button>`;
@@ -2133,7 +1953,6 @@ function render() {
   renderInfo();
   renderTips();
   renderEvil();
-  renderEvilMode();
   updatePhaseLogged();
   const ob = $("overBanner");
   ob.hidden = !state.over;
@@ -2164,7 +1983,7 @@ function closePhase() {
 }
 function endGame(winner) { state.over = { winner, day: state.day }; save(); closePhase(); }
 // Put the night-info form back in its card before the dialog is redrawn
-function restoreInfoForm() { $("infoForm").hidden = false; if ($("phaseSlot")?.contains($("infoPick"))) { $("infoCard").insertBefore($("infoForm"), $("infoLog")); $("infoCard").insertBefore($("infoPick"), $("infoForm")); } }
+function restoreInfoForm() { if ($("phaseSlot")?.contains($("infoPick"))) { $("infoCard").insertBefore($("infoForm"), $("infoLog")); $("infoCard").insertBefore($("infoPick"), $("infoForm")); } }
 function renderPhase() {
   if (!phase) return;
   restoreInfoForm();
@@ -2268,27 +2087,16 @@ function renderPhase() {
     box.innerHTML = `
       <span class="step">Night 1</span>
       <h2 id="phaseTitle">The first night</h2>
-      <p id="phaseIntro">Most information characters learn something tonight. Tell the app which seat is yours and what you learned.</p>
+      <p>Most information characters learn something tonight. Tell the app which seat is yours and what you learned.</p>
       <div class="row"><label class="label" for="phaseMe">My seat</label>
         <select class="btn" id="phaseMe"><option value="">Choose your seat</option>${state.players.map((p, i) => `<option value="${p.id}"${p.me ? " selected" : ""}>${i + 1}. ${nmP(p)}</option>`).join("")}</select></div>
       <div id="phaseSlot" class="tips-col"></div>
-      <div id="phaseEvil" class="tips-col"></div>
       <div id="phaseLogged" class="tips-col"></div>
       <div class="phase-actions"><button class="btn" data-skip>I don't get first-night info</button><button class="btn primary" data-next>Start day 1 →</button></div>`;
     $("phaseSlot").appendChild($("infoPick"));
     $("phaseSlot").appendChild($("infoForm"));
     infoDraft = newDraft("", myRoleNow());
     renderInfo(); updatePhaseLogged();
-    const drawEvil = () => {
-      // The Demon doesn't act on the first night, so there's nothing to log yet
-      $("infoForm").hidden = amEvil() && teamOf(state.myRole) === "demon";
-      $("phaseIntro").textContent = amEvil() ? "You're evil. Mark your team, the Demon bluffs and the character you'll claim. Your real character stays private." : "Most information characters learn something tonight. Tell the app which seat is yours and what you learned.";
-      if (!amEvil()) { $("phaseEvil").innerHTML = ""; return; }
-      $("phaseEvil").innerHTML = evilSetupHtml();
-      wireEvilSetup($("phaseEvil"), drawEvil);
-    };
-    drawEvil();
-    phase.redrawEvil = drawEvil;
     $("phaseMe").onchange = e => {
       state.players.forEach(x => x.me = x.id === e.target.value);
       const m = meP();
@@ -2297,7 +2105,6 @@ function renderPhase() {
       infoDraft = null; save(); render(); renderPhase();
     };
     const startDay = () => {
-      $("infoForm").hidden = false;
       $("infoCard").insertBefore($("infoForm"), $("infoLog")); $("infoCard").insertBefore($("infoPick"), $("infoForm"));
       state.firstNightDone = true; state.day = 1; save(); closePhase();
     };
@@ -2306,7 +2113,7 @@ function renderPhase() {
   } else if (phase.step === "night") {
     box.innerHTML = `
       <span class="step">Night ${state.day}</span>
-      <h2 id="phaseTitle">${amEvil() ? "Your night action" : "Your night info"}</h2>
+      <h2 id="phaseTitle">Your night info</h2>
       ${meP()?.dead
         ? `<p>You're dead, so you won't usually wake tonight. Log info below only if your character still gets it.</p>`
         : `<p>Log what you learned tonight. Skip this if you don't wake tonight.</p>
