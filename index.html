@@ -195,7 +195,7 @@ textarea { resize: vertical; min-height: 90px; }
 .tip.hi { border-left-color: var(--warn); }
 .tip.bad { border-left-color: var(--evil); }
 .tip small { color: var(--muted); font-size: .8rem; }
-.tip .who { font-weight: 800; background: none; border: 0; padding: 0; text-align: left; color: var(--fg); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.tip .who, #evilCard .who { font-weight: 800; background: none; border: 0; padding: 0; text-align: left; color: var(--fg); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .tip ul { margin: 2px 0 0; padding-left: 1.1em; display: grid; gap: 3px; }
 .nom { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: baseline; }
 .nom .score { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--evil); font-size: .82rem; }
@@ -217,6 +217,26 @@ textarea { resize: vertical; min-height: 90px; }
 .sum-list { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; font-size: .88rem; }
 .sum-list .g { color: var(--good); font-weight: 700; }
 .sum-list .e { color: var(--evil); font-weight: 700; }
+
+/* Evil team */
+.ev-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 860px) { .ev-grid { grid-template-columns: minmax(0, 1fr); } }
+.ev-team { margin: 0; font-size: .95rem; }
+.ev-team:empty { display: none; }
+.ev-sum { margin: 0; font-size: .88rem; color: var(--muted); }
+.ev-sum b { color: var(--fg); }
+#evilCard h3 { margin: 4px 0 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+.tip.cand { grid-template-columns: minmax(0, 7rem) minmax(0, 1fr); align-items: center; column-gap: 10px; }
+.tip.cand small { grid-column: 1 / -1; }
+.bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--evil); border-radius: 99px; }
+.tip.minion { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; }
+.tip.minion small { grid-column: 1 / -1; }
+.pill { font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; border-radius: 99px; padding: 2px 8px; white-space: nowrap; }
+.pill.likely { background: var(--evil); color: #fff; }
+.pill.possible { background: var(--warn); color: #1a1408; }
+.pill.none { background: var(--line); color: var(--fg); }
+.pill.unlikely { background: transparent; color: var(--muted); border: 1px solid var(--line); }
 
 /* Claim matrix */
 .matrix-card { gap: 10px; }
@@ -333,6 +353,18 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     </div>
   </section>
 
+  <section class="card" id="evilCard" aria-labelledby="evilTitle">
+    <div class="tips-head">
+      <h2 id="evilTitle">Evil team</h2>
+      <span class="tips-foot">Built from claims, deaths, reads and night info. A best guess, not a verdict.</span>
+    </div>
+    <p class="ev-team" id="evTeam"></p>
+    <div class="ev-grid">
+      <div class="tips-col"><h3>Demon candidates</h3><div id="evDemon" class="tips-col"></div></div>
+      <div class="tips-col"><h3>Minions in play</h3><div id="evMinion" class="tips-col"></div></div>
+    </div>
+  </section>
+
   <section class="card matrix-card" aria-labelledby="matrixTitle">
     <div class="matrix-head">
       <h2 id="matrixTitle">Claim matrix</h2>
@@ -410,7 +442,7 @@ const teamOf = r => TEAM_OF[String(r).toLowerCase()] || "custom";
 const COMP = {5:[3,0,1,1],6:[3,1,1,1],7:[5,0,1,1],8:[5,1,1,1],9:[5,2,1,1],10:[7,0,2,1],11:[7,1,2,1],12:[7,2,2,1],13:[9,0,3,1],14:[9,1,3,1],15:[9,2,3,1]};
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: false, ghostVote: true, align: "", me: false, traveller: false, notes: "", deathBy: "", virginBy: "", slayerBy: "", ...extra });
+const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: false, ghostVote: true, align: "", me: false, traveller: false, notes: "", deathBy: "", deathNight: 0, virginBy: "", slayerBy: "", ...extra });
 
 function exampleState() {
   const P = (name, claims, extra) => mkPlayer(name, { claims, ...extra });
@@ -422,7 +454,7 @@ function exampleState() {
       P("Sam", ["Chef"], { align: "evil", notes: "Chef 2 is odd with only 1 minion. Pushed hard on Leo." }),
       P("Priya", ["Investigator"], { notes: "Saw Baron between Tom and Mia." }),
       P("Tom", ["Washerwoman", "Soldier", "Monk"], { notes: "Gave a 3-for-3 on day 1. Won't narrow it down." }),
-      P("Jess", ["Fortune Teller"], { dead: true, deathBy: "night", align: "good", notes: "Died N2. Said Ben + Mia were no." }),
+      P("Jess", ["Fortune Teller"], { dead: true, deathBy: "night", deathNight: 2, align: "good", notes: "Died N2. Said Ben + Mia were no." }),
       P("Mia", ["Chef"], { notes: "Counter-claimed Chef against Sam on day 2. One of them is lying." }),
       P("Leo", ["Saint"], { dead: true, deathBy: "exec", ghostVote: false, align: "good", notes: "Executed D1, game didn't end." }),
       P("Ben", ["Undertaker"], { notes: "Says Leo was the Saint." })
@@ -616,6 +648,10 @@ function renderPanel() {
         <button class="u" data-death="" aria-pressed="${!p.deathBy}">Other / unsure</button>
       </span>
     </div>
+    ${p.deathBy === "night" ? `<div class="row">
+      <label class="label" for="pDeathNight">Died on night</label>
+      <input type="number" id="pDeathNight" min="1" max="30" value="${p.deathNight || state.day}" style="width:5.5rem">
+    </div>` : ""}
     ${p.deathBy === "virgin" ? `<div class="row">
       <label class="label" for="pVirgin">Which Virgin?</label>
       <select class="btn" id="pVirgin"><option value="">Pick the Virgin</option>${state.players.filter(x => x !== p).sort((x, y) => (y.claims.some(c => c.toLowerCase() === "virgin") ? 1 : 0) - (x.claims.some(c => c.toLowerCase() === "virgin") ? 1 : 0)).map(x => `<option value="${x.id}"${x.id === p.virginBy ? " selected" : ""}>${state.players.indexOf(x) + 1}. ${esc(x.name || "—")}${x.claims.length ? " · " + esc(x.claims.join("/")) : ""}</option>`).join("")}</select>
@@ -669,7 +705,7 @@ function renderPanel() {
       <button class="btn sm danger solid" id="rmYes">Remove</button><button class="btn sm" id="rmNo">Keep</button></div>` : ""}
   `;
 
-  $("pName").addEventListener("input", e => { p.name = e.target.value; save(); renderCircle(); renderRoster(); renderMatrix(); renderTips(); });
+  $("pName").addEventListener("input", e => { p.name = e.target.value; save(); renderCircle(); renderRoster(); renderMatrix(); renderTips(); renderEvil(); });
   $("pNotes").addEventListener("input", e => { p.notes = e.target.value; save(); renderCircle(); renderRoster(); });
   $("tDead").onclick = () => { p.dead = !p.dead; if (!p.dead) { p.ghostVote = true; p.deathBy = ""; } save(); render(); };
   if ($("tVote")) $("tVote").onclick = () => { p.ghostVote = !p.ghostVote; save(); render(); };
@@ -677,6 +713,7 @@ function renderPanel() {
   $("tTrav").onclick = () => { p.traveller = !p.traveller; save(); render(); };
   $("panel").querySelectorAll("[data-death]").forEach(b => b.onclick = () => {
     p.deathBy = b.dataset.death;
+    if (p.deathBy === "night" && !p.deathNight) p.deathNight = state.day;
     if (p.deathBy === "virgin" && !p.virginBy) {
       const vs = state.players.filter(x => x !== p && x.claims.some(c => c.toLowerCase() === "virgin"));
       if (vs.length === 1) p.virginBy = vs[0].id;
@@ -688,6 +725,7 @@ function renderPanel() {
     applyProofs(); save(); render();
   });
   if ($("pVirgin")) $("pVirgin").onchange = e => { p.virginBy = e.target.value; applyProofs(); save(); render(); };
+  if ($("pDeathNight")) $("pDeathNight").oninput = e => { p.deathNight = Math.max(1, parseInt(e.target.value, 10) || 1); save(); renderEvil(); };
   if ($("pSlayer")) $("pSlayer").onchange = e => { p.slayerBy = e.target.value; applyProofs(); save(); render(); };
   $("panel").querySelectorAll("[data-align]").forEach(b => b.onclick = () => { p.align = b.dataset.align; save(); render(); });
   $("panel").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { p.claims.splice(+b.dataset.rm, 1); save(); render(); });
@@ -1274,6 +1312,187 @@ function buildTips() {
   return { issues, qs, nomList, rem };
 }
 
+/* ---------- Evil team ---------- */
+const MINION_HINTS = {
+  "poisoner": "Look for information that turns out wrong, or two readings that can't both be true.",
+  "spy": "Registers as good. Often bluffs a strong information role and knows too much.",
+  "scarlet woman": "Becomes the Demon if the Demon dies with 5 or more players alive.",
+  "baron": "Adds two Outsiders, so look for more Outsider claims than normal.",
+  "godfather": "Changes the Outsider count by one. An extra night death after an Outsider is executed.",
+  "devil's advocate": "An executed player who doesn't die.",
+  "assassin": "A death that protection should have stopped, or two deaths in one night.",
+  "mastermind": "The game carries on for one more day after the Demon is executed.",
+  "evil twin": "Two players who each know the other. Good can't win while both live.",
+  "witch": "A player dies right after nominating.",
+  "cerenovus": "A player suddenly insists on a different character (madness).",
+  "pit-hag": "Characters change, and odd extra deaths at night."
+};
+const DEMON_HINTS = {
+  "imp": "Kills one player each night. Can pass the role to a Minion by killing itself.",
+  "zombuul": "Doesn't kill on a night when someone died that day. Survives its first death.",
+  "pukka": "Its victim dies a night later, so night 2 often has no death.",
+  "shabaloth": "Can kill two players a night, and sometimes bring one back.",
+  "po": "Can skip a night, then kill three the next.",
+  "fang gu": "Adds one Outsider. Can jump into an Outsider it kills.",
+  "vigormortis": "Removes one Outsider. Minions it kills keep their abilities.",
+  "no dashii": "Poisons its two nearest Townsfolk neighbours.",
+  "vortox": "All Townsfolk information is false, and evil wins if a day has no execution."
+};
+
+function buildEvil() {
+  const ps = state.players;
+  const scripts = state.script === "all" ? ["tb", "bmr", "snv"] : [state.script];
+  const byId = id => ps.find(p => p.id === id);
+  const nm = p => p ? (p.name || `Seat ${ps.indexOf(p) + 1}`) : "someone";
+  const who = e => e.src ? `${nm(byId(e.src))}'s` : "your";
+  const proven = provenGood();
+  const core = ps.filter(p => !p.traveller);
+  const comp = COMP[Math.min(core.length, 15)];
+  const allIn = (p, teams) => p.claims.length > 0 && p.claims.every(c => teams.includes(teamOf(c)));
+  const info = state.myInfo;
+  const { reads, issues: infoIssues } = infoAnalysis();
+
+  // ---- Demon candidates: living, not you, not proven good
+  const cand = new Map();
+  for (const p of ps) if (!p.dead && !p.me && !p.traveller && !proven.has(p.id)) cand.set(p.id, { p, score: 0, why: [], out: "", evil: 0 });
+  const add = (id, pts, why) => { const c = cand.get(id); if (c) { c.score += pts; c.evil += pts; if (why) c.why.push(why); } };
+  const minionish = (id, pts) => { const c = cand.get(id); if (c) c.evil += pts; };
+  const rule = (id, why) => { const c = cand.get(id); if (c && !c.out) c.out = why; };
+
+  for (const p of ps) { if (p.align === "evil") add(p.id, 2, "your evil read"); if (p.align === "good") add(p.id, -2, ""); }
+  for (const e of info) {
+    const role = e.role.toLowerCase(), mine = !e.src, [a, b] = e.p;
+    if (role === "fortune teller" && a && b) {
+      if (e.yn === 0) { add(a, mine ? 3 : 2, `${who(e)} Fortune Teller yes (night ${e.night})`); add(b, mine ? 3 : 2, `${who(e)} Fortune Teller yes (night ${e.night})`); }
+      else if (mine) { rule(a, `your Fortune Teller said no (night ${e.night})`); rule(b, `your Fortune Teller said no (night ${e.night})`); }
+      else { add(a, -2, ""); add(b, -2, ""); }
+    }
+    if (role === "sage" && a && b) { add(a, mine ? 3 : 2, `${who(e)} Sage`); add(b, mine ? 3 : 2, `${who(e)} Sage`); }
+    if (role === "empath" && a && b) {
+      if (e.n === 0) {
+        const later = info.find(x => x !== e && (x.src || "") === (e.src || "") && x.role.toLowerCase() === "empath" && x.n > 0 && [...x.p].sort().join() === [...e.p].sort().join());
+        if (mine && !later) { rule(a, `your Empath 0 (night ${e.night})`); rule(b, `your Empath 0 (night ${e.night})`); }
+        else { add(a, -1, ""); add(b, -1, ""); }
+      } else { const pts = e.n >= 2 ? (mine ? 2 : 1) : 1; add(a, pts, `${who(e)} Empath ${e.n} (night ${e.night})`); add(b, pts, `${who(e)} Empath ${e.n} (night ${e.night})`); }
+    }
+    if (["undertaker", "ravenkeeper", "grandmother", "gambler"].includes(role) && a && e.r[0] && role !== "gambler") {
+      const t = teamOf(e.r[0]);
+      if (t === "demon") add(a, mine ? 8 : 4, `${who(e)} ${e.role} saw them as the ${e.r[0]}`);
+      else if (t === "minion") { if (mine) rule(a, `your ${e.role} saw a ${e.r[0]}, a Minion`); minionish(a, mine ? 6 : 3); }
+      else if (mine) rule(a, `your ${e.role} saw the ${e.r[0]}`);
+    }
+    if (role === "dreamer" && a && e.r.some(r => teamOf(r) === "demon")) add(a, mine ? 2 : 1, `${who(e)} Dreamer: ${e.r.join(" or ")}`);
+    if (role === "investigator" && a && b && !e.zero) { minionish(a, mine ? 3 : 2); minionish(b, mine ? 3 : 2); }
+  }
+  for (const r of reads) for (const w of r.weights) if (w.pts > 0 && /clash/.test(w.why)) add(w.id, 2, w.why);
+  const hardCount = {};
+  for (const p of ps) if (p.claims.length === 1) { const k = p.claims[0].toLowerCase(); hardCount[k] = (hardCount[k] || 0) + 1; }
+  for (const p of ps) {
+    if (p.claims.length === 1 && hardCount[p.claims[0].toLowerCase()] > 1 && teamOf(p.claims[0]) !== "traveller") add(p.id, 1, `double-claims ${p.claims[0]}`);
+    if (!p.claims.length && state.day > 1) add(p.id, 1, "no claim yet");
+    if (p.claims.length > 1 && state.day >= 3) add(p.id, 1, "still hiding in a 3-for-3");
+  }
+  const list = [...cand.values()];
+  const active = list.filter(c => !c.out).sort((x, y) => y.score - x.score);
+  const ruledOut = [...list.filter(c => c.out).map(c => ({ p: c.p, why: c.out })), ...ps.filter(p => proven.has(p.id) && !p.dead).map(p => ({ p, why: proven.get(p.id) }))];
+
+  // ---- Shared facts
+  const base = comp ? comp[1] : null;
+  const outs = core.filter(p => allIn(p, ["outsider"])).length;
+  const maybeOuts = core.filter(p => !allIn(p, ["outsider"]) && p.claims.some(c => teamOf(c) === "outsider")).length;
+  const unclaimed = core.filter(p => !p.me && !p.claims.length).length;
+  const libZero = info.some(e => e.role.toLowerCase() === "librarian" && e.zero && !e.src);
+  const poisonSigns = [
+    ...infoIssues.filter(x => /changed from/.test(x)),
+    ...reads.filter(r => !r.src && r.warns.some(w => /clashes|but your info|but your/.test(w))).map(r => `your night ${r.e.night} ${r.e.role} info clashes with a claim`),
+    ...ps.filter(p => p.dead && p.deathBy === "exec" && p.claims.length === 1 && p.claims[0].toLowerCase() === "saint").map(p => `${nm(p)} was executed as Saint and the game carried on`),
+    ...ps.filter(p => p.dead && p.deathBy === "night" && p.claims.length === 1 && p.claims[0].toLowerCase() === "soldier").map(p => `${nm(p)} died at night claiming Soldier`)
+  ];
+  const nightDeaths = {};
+  for (const p of ps) if (p.dead && p.deathBy === "night" && p.deathNight) nightDeaths[p.deathNight] = (nightDeaths[p.deathNight] || 0) + 1;
+  const recorded = Object.keys(nightDeaths).length > 0;
+  const zeroNights = [], multiNights = [];
+  for (let n = 2; n <= state.day; n++) { const c = nightDeaths[n] || 0; if (recorded && c === 0) zeroNights.push(n); if (c >= 2) multiNights.push(n); }
+  const demonDied = ps.filter(p => p.dead && (p.deathBy === "slayer" || info.some(e => !e.src && e.p[0] === p.id && teamOf(e.r[0] || "") === "demon")));
+  const execDemon = ps.filter(p => p.dead && p.deathBy === "exec" && info.some(e => e.p[0] === p.id && teamOf(e.r[0] || "") === "demon"));
+  const named = role => info.filter(e => e.r.some(r => r.toLowerCase() === role) && !e.zero);
+
+  // ---- Minions
+  const LEVELS = { likely: 3, possible: 2, none: 1, unlikely: 0 };
+  const minionRoles = [...new Set(scripts.flatMap(s => ROLES[s].minion))];
+  const minions = minionRoles.map(role => {
+    const k = role.toLowerCase(), why = [];
+    let level = "none";
+    const up = l => { if (LEVELS[l] > LEVELS[level] || level === "unlikely") level = l; };
+    for (const e of named(k)) { why.push(`${who(e)} ${e.role} saw a ${role} (night ${e.night})`); up(e.src ? "possible" : "likely"); }
+    if (k === "baron" && base !== null) {
+      if (outs >= base + 2) { up("likely"); why.push(`${outs} Outsider claims where a normal game has ${base}: exactly what a Baron adds`); }
+      else if (outs === base + 1) { up("possible"); why.push(`${outs} Outsider claims where a normal game has ${base}. With a Baron, one more is hiding (the Drunk thinks they're a Townsfolk)`); }
+      else if (outs + maybeOuts >= base + 2) { up("possible"); why.push(`Outsiders in 3-for-3 options could make ${base + 2}`); }
+      else if (named(k).length) why.push(`But Outsider claims (${outs}) don't show the extra two. Outsiders may be hiding as Townsfolk, or the info is wrong`);
+      if (libZero) { level = "unlikely"; why.push("Your Librarian saw no Outsiders, and a Baron always adds two"); }
+      else if (level === "none" && outs + maybeOuts <= base && !unclaimed) { level = "unlikely"; why.push(`Outsider claims match a normal game of ${core.length}`); }
+    }
+    if (k === "godfather" && base !== null && Math.abs(outs - base) === 1) { up("possible"); why.push(`${outs} Outsider claims where a normal game has ${base}: a Godfather adds or removes one`); }
+    if (k === "scarlet woman" && demonDied.length) { up("likely"); why.push(`${demonDied.map(nm).join(", ")} looked like the Demon and died, yet the game carried on`); }
+    if (k === "mastermind" && execDemon.length) { up("possible"); why.push(`${execDemon.map(nm).join(", ")} was executed as the Demon and the game carried on`); }
+    if (k === "poisoner" && poisonSigns.length) { up(poisonSigns.length >= 2 ? "likely" : "possible"); why.push(...poisonSigns.map(s => `Sign of poisoning: ${s}`)); }
+    if (k === "spy") {
+      for (const p of ps.filter(x => x.dead && x.deathBy === "virgin" && x.claims.length && x.claims.every(c => teamOf(c) !== "townsfolk"))) { up("possible"); why.push(`${nm(p)} triggered the Virgin while claiming ${p.claims.join(" or ")}`); }
+      for (const r of reads) for (const w of r.warns) if (/Spy showed up/.test(w)) { up("possible"); why.push(w); }
+    }
+    if ((k === "assassin" || k === "pit-hag") && multiNights.length) { up("possible"); why.push(`Two or more died on night ${multiNights.join(", ")}`); }
+    return { role, level, why, hint: MINION_HINTS[k] || "" };
+  }).sort((x, y) => LEVELS[y.level] - LEVELS[x.level]);
+
+  // ---- Which Demon (only when the script has more than one)
+  const demonRoles = [...new Set(scripts.flatMap(s => ROLES[s].demon))];
+  const demons = demonRoles.length < 2 ? [] : demonRoles.map(role => {
+    const k = role.toLowerCase(), why = [];
+    let level = "none";
+    const up = l => { if (LEVELS[l] > LEVELS[level]) level = l; };
+    for (const e of named(k)) { why.push(`${who(e)} ${e.role} saw a ${role} (night ${e.night})`); up(e.src ? "possible" : "likely"); }
+    if (["zombuul", "pukka"].includes(k) && zeroNights.length) { up("possible"); why.push(`No one died on night ${zeroNights.join(", ")}`); }
+    if (k === "po" && multiNights.length) { up(zeroNights.some(n => multiNights.includes(n + 1)) ? "likely" : "possible"); why.push(`Several died on night ${multiNights.join(", ")}`); }
+    if (k === "shabaloth" && multiNights.length) { up("likely"); why.push(`Two or more died on night ${multiNights.join(", ")}`); }
+    if (k === "fang gu" && base !== null && outs === base + 1) { up("possible"); why.push(`${outs} Outsider claims where a normal game has ${base}`); }
+    if (k === "vigormortis" && base !== null && outs === base - 1 && !unclaimed) { up("possible"); why.push(`Only ${outs} Outsider claims where a normal game has ${base}`); }
+    if ((k === "no dashii" || k === "vortox") && poisonSigns.length) { up("possible"); why.push(`Information is going wrong (${poisonSigns.length} sign${poisonSigns.length === 1 ? "" : "s"})`); }
+    return { role, level, why, hint: DEMON_HINTS[k] || "" };
+  }).sort((x, y) => LEVELS[y.level] - LEVELS[x.level]);
+
+  const evilSlots = comp ? comp[2] + comp[3] : 0;
+  const top = active[0] && active[0].score > 0 ? active[0] : null;
+  const rest = active.filter(c => c !== top && c.evil > 0).sort((x, y) => y.evil - x.evil).slice(0, comp ? comp[2] : 1);
+  return { active, ruledOut, top, minions, demons, comp, base, outs, maybeOuts, team: top ? [top, ...rest] : rest, onlyImp: demonRoles.length === 1 ? demonRoles[0] : "" };
+}
+
+function renderEvil() {
+  const ev = buildEvil();
+  const P = c => c.p;
+  const nmE = p => esc(p.name || `Seat ${state.players.indexOf(p) + 1}`);
+  const btn = p => `<button class="who" data-open="${p.id}">${nmE(p)}</button>`;
+  const max = Math.max(1, ...ev.active.map(c => c.score));
+  const cands = ev.active.filter(c => c.score > 0);
+  $("evDemon").innerHTML = `
+    ${ev.top ? `<div class="tip bad"><span class="label">Most likely Demon${ev.onlyImp ? ` (the ${esc(ev.onlyImp)})` : ""}</span>${btn(ev.top.p)}<small>${esc([...new Set(ev.top.why)].join(" · ") || "Highest suspicion so far")}</small></div>` : `<p class="tips-empty">No clear Demon candidate yet. Mark your reads and log night info to build a case.</p>`}
+    ${cands.slice(1, 6).map(c => `<div class="tip cand">${btn(c.p)}<span class="bar" aria-hidden="true"><i style="width:${Math.round(100 * c.score / max)}%"></i></span><small>${esc([...new Set(c.why)].join(" · "))}</small></div>`).join("")}
+    ${ev.ruledOut.length ? `<h3>Ruled out as Demon</h3><ul class="sum-list">${ev.ruledOut.map(r => `<li>${btn(r.p)} <small>${esc(r.why)}</small></li>`).join("")}</ul>` : ""}`;
+  const row = m => `<div class="tip minion"><span class="pill ${m.level}">${{ likely: "Likely", possible: "Possible", none: "No sign", unlikely: "Unlikely" }[m.level]}</span><b>${esc(m.role)}</b><small>${esc(m.why.length ? m.why.join(" · ") : m.hint)}</small></div>`;
+  const c = ev.comp;
+  $("evMinion").innerHTML = `
+    ${c ? `<p class="ev-sum">This game has <b>${c[2]} Minion${c[2] === 1 ? "" : "s"}</b> and <b>${c[3]} Demon</b>. Outsiders: <b>${ev.outs}</b> claimed${ev.maybeOuts ? ` (+${ev.maybeOuts} in options)` : ""}, normal is <b>${ev.base}</b>.</p>` : ""}
+    ${ev.minions.map(row).join("")}
+    ${ev.demons.length ? `<h3>Which Demon?</h3>${ev.demons.map(row).join("")}` : ""}`;
+  $("evTeam").innerHTML = ev.team.length && c
+    ? `Best guess at the evil team: ${ev.team.map((t, i) => `${btn(t.p)}${i === 0 ? " (Demon)" : ""}`).join(", ")}. ${ev.team.length < c[2] + c[3] ? `That leaves ${c[2] + c[3] - ev.team.length} evil player${c[2] + c[3] - ev.team.length === 1 ? "" : "s"} unaccounted for.` : ""}`
+    : "";
+  document.querySelectorAll("#evilCard [data-open]").forEach(b => b.onclick = () => {
+    state.selected = b.dataset.open; confirmRemove = false; save(); render();
+    $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
 function renderTips() {
   const { issues, qs, nomList, rem } = buildTips();
   const nmById = id => { const p = state.players.find(x => x.id === id); return p ? esc(p.name || `Seat ${state.players.indexOf(p) + 1}`) : ""; };
@@ -1356,6 +1575,7 @@ function render() {
   renderMatrix();
   renderInfo();
   renderTips();
+  renderEvil();
 }
 
 /* ---------- Global controls ---------- */
@@ -1364,10 +1584,10 @@ dl.id = "allRoles";
 dl.innerHTML = Object.keys(TEAM_OF).map(k => `<option value="${esc(Object.values(ROLES).flatMap(s => TEAMS.flatMap(t => s[t])).find(r => r.toLowerCase() === k))}">`).join("");
 document.body.appendChild(dl);
 
-$("script").onchange = e => { state.script = e.target.value; save(); renderPanel(); renderMatrix(); renderTips(); };
+$("script").onchange = e => { state.script = e.target.value; save(); renderPanel(); renderMatrix(); renderTips(); renderEvil(); };
 $("gameNotes").addEventListener("input", e => { state.notes = e.target.value; save(); });
-$("dayUp").onclick = () => { state.day++; save(); renderCircle(); renderTips(); };
-$("dayDown").onclick = () => { state.day = Math.max(1, state.day - 1); save(); renderCircle(); renderTips(); };
+$("dayUp").onclick = () => { state.day++; save(); renderCircle(); renderTips(); renderEvil(); };
+$("dayDown").onclick = () => { state.day = Math.max(1, state.day - 1); save(); renderCircle(); renderTips(); renderEvil(); };
 
 function openNew() { $("ngScript").value = state.script; $("overlay").hidden = false; $("ngCount").focus(); }
 $("newGameBtn").onclick = openNew;

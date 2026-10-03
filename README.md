@@ -8,6 +8,7 @@ A player's notebook for *Blood on the Clocktower*. Open `index.html` in any web 
 - Notes on every player, plus town notes for nominations and votes
 - Night info: log what your information character learns each night, and what other players say they learned. See what it means and spot clashes with claims
 - Mark players who died nominating the Virgin or to a Slayer shot: the Virgin or Slayer is automatically marked proven good
+- Evil team: ranks Demon candidates with reasons, rates which Minions (and Demon type) are likely in play, and gives a best guess at the evil team
 - Plan for tomorrow: flags claims that don't add up (double claims, too many Outsiders, an executed Saint), suggests questions for each player and who to look at
 - Claim matrix: players down the side, roles along the top, claimed squares in green and double claims in amber
 - Trouble Brewing, Bad Moon Rising and Sects & Violets roles, or type in any role
