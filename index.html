@@ -582,7 +582,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: false, ghostVote: true, align: "", me: false, traveller: false, notes: "", deathBy: "", deathNight: 0, execDay: 0, suspect: "", virginBy: "", slayerBy: "", ...extra });
 
 function exampleState() {
-  const P = (name, claims, extra) => mkPlayer(name, { claims, ...extra });
+  const P = (name, claims, extra) => mkPlayer(name, { claims, claimType: claims.length === 1 ? "hard" : "soft", ...extra });
   const st = {
     v: 1, example: true, script: "tb", day: 2, firstNightDone: true, shots: [],
     notes: "Night 1: no deaths shown yet.\nDay 1: Priya nominated Tom (3 votes, not enough). Sam nominated Leo, executed with 5.\nNight 2: Jess died.",
@@ -618,7 +618,7 @@ function normalize(s) {
   s.myInfo = Array.isArray(s.myInfo) ? s.myInfo : [];
   s.myRole = s.myRole || "";
   s.over = s.over || null;
-  for (const p of s.players) if (!p.claimType) p.claimType = p.claims.length > 1 ? "soft" : "hard";
+  for (const p of s.players) if (!p.claimType) p.claimType = p.claims.length === 1 ? "hard" : "soft";
   s.shots = Array.isArray(s.shots) ? s.shots : [];
   if (s.firstNightDone === undefined) s.firstNightDone = true;
   return s;
@@ -637,8 +637,8 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;"
 
 // When a player hard-claims a role, take it out of other players' 3-for-3 options (repeat in case that creates a new hard claim)
 // A hard claim is one role stated outright; a soft claim is a set of options (a 3-for-3), even while only one is entered
-const isHard = p => p.claimType !== "soft" && p.claims.length === 1;
-const isSoft = p => p.claimType === "soft" ? p.claims.length > 0 : p.claims.length > 1;
+const isHard = p => p.claimType === "hard" && p.claims.length === 1;
+const isSoft = p => p.claimType !== "hard" && p.claims.length > 0;
 // Take hard-claimed roles out of other players' soft claims, and put them back if that hard claim goes away
 function pruneOptions() {
   const hardBy = {};
@@ -647,7 +647,7 @@ function pruneOptions() {
     if (p.claims.length > 1 && p.claimType !== "hard") p.claimType = "soft";
     p.removed = (p.removed || []).filter(x => {
       if (hardBy[x.role.toLowerCase()]) return true;
-      if (p.claimType === "soft" && !p.claims.some(c => c.toLowerCase() === x.role.toLowerCase())) p.claims.push(x.role);
+      if (p.claimType !== "hard" && !p.claims.some(c => c.toLowerCase() === x.role.toLowerCase())) p.claims.push(x.role);
       return false;
     });
     if (!isSoft(p)) continue;
@@ -794,7 +794,7 @@ function renderRoster() {
 function toggleClaim(p, r) {
   const i = p.claims.findIndex(c => c.toLowerCase() === r.toLowerCase());
   if (i >= 0) { p.claims.splice(i, 1); return; }
-  if (p.claimType === "soft") p.claims.push(r); else p.claims = [r];
+  if (p.claimType === "hard") p.claims = [r]; else p.claims.push(r);
 }
 function renderPanel() {
   const p = sel();
@@ -860,12 +860,12 @@ function renderPanel() {
       <div class="row">
         <span class="label">Claim</span>
         <span class="seg" role="group" aria-label="Claim type">
-          <button class="u" data-ctype="hard" aria-pressed="${p.claimType !== "soft"}">Hard claim</button>
-          <button class="u" data-ctype="soft" aria-pressed="${p.claimType === "soft"}">Soft claim (options)</button>
+          <button class="u" data-ctype="soft" aria-pressed="${p.claimType !== "hard"}">Soft claim (options)</button>
+          <button class="u" data-ctype="hard" aria-pressed="${p.claimType === "hard"}">Hard claim</button>
         </span>
       </div>
-      <span class="hint">${p.claimType === "soft" ? "Tap every role they offered, in any order. These never remove roles from other players." : "One role, stated outright. Tapping another role replaces it, and it's removed from other players' soft claims."}</span>
-      <span class="label">${p.claimType === "soft" ? `Soft claim · ${p.claims.length} option${p.claims.length === 1 ? "" : "s"}, any order` : "Hard claim"}</span>
+      <span class="hint">${p.claimType !== "hard" ? "Tap every role they offered, in any order. These never remove roles from other players." : "One role, stated outright. Tapping another role replaces it, and it's removed from other players' soft claims."}</span>
+      <span class="label">${p.claimType !== "hard" ? `Soft claim · ${p.claims.length} option${p.claims.length === 1 ? "" : "s"}, any order` : "Hard claim"}</span>
       <div class="claims">${p.claims.length
         ? p.claims.map((c, i) => `<span class="chip ${teamOf(c)}">${esc(c)}<button data-rm="${i}" aria-label="Remove ${esc(c)}">×</button></span>`).join("")
         : '<span class="empty">No claim yet. Tap roles below, or type one. For a 3-for-3, tap all three.</span>'}</div>
@@ -1477,7 +1477,7 @@ function buildTips() {
     const late = state.day >= 3;
     const two = p.claims.length === 2;
     const narrow = p.claims.length === 1
-      ? `Their other options were claimed by other players. Are you the ${p.claims[0]}?`
+      ? ((p.removed || []).length ? `Their other options were claimed by other players. Are you the ${p.claims[0]}?` : `You've mentioned ${p.claims[0]}. Is that your claim, or are there other options?`)
       : two
       ? (late ? `It's day ${state.day}. Which is it, ${p.claims[0]} or ${p.claims[1]}?` : `Which is it, ${p.claims[0]} or ${p.claims[1]}? Or are you holding back for a reason?`)
       : (late ? `It's day ${state.day}, so can you hard-claim now?` : "Can you narrow it down to two?");
