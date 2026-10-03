@@ -1788,7 +1788,7 @@ function renderPhase() {
   const nmP = p => esc(p.name || `Seat ${state.players.indexOf(p) + 1}`);
   const endQ = (lead) => `
     <p>${lead}</p>
-    <p><b>Did the game end?</b></p>
+    ${lead ? "" : "<p><b>Did the game end?</b></p>"}
     <div class="phase-actions" style="justify-content:flex-start">
       <button class="btn primary" data-end="no">No, the game goes on</button>
       <button class="btn goodwin" data-end="good">Yes, good won</button>
@@ -1805,20 +1805,24 @@ function renderPhase() {
     box.querySelectorAll("[data-exec]").forEach(b => b.onclick = () => { phase.exec = b.dataset.exec; renderPhase(); });
     box.querySelector("[data-next]").onclick = () => {
       const p = state.players.find(x => x.id === phase.exec);
-      if (p) { p.dead = true; p.deathBy = "exec"; p.execDay = phase.day; save(); phase.step = "end1"; }
-      else phase.step = "night";
-      if (phase.step === "night") enterNight();
+      if (p) { p.dead = true; p.deathBy = "exec"; p.execDay = phase.day; save(); }
+      phase.step = "end1";
       renderPhase();
     };
   } else if (phase.step === "end1") {
     const p = state.players.find(x => x.id === phase.exec);
-    box.innerHTML = `<span class="step">End of day ${phase.day}</span><h2 id="phaseTitle">${nmP(p)} was executed</h2>${endQ(`${p.claims.length ? `They claimed ${esc(p.claims.join(" or "))}. ` : ""}If the game carried on, the app uses that (for example a Saint who wasn't, or a Scarlet Woman taking over).`)}`;
+    box.innerHTML = p
+      ? `<span class="step">End of day ${phase.day}</span><h2 id="phaseTitle">Did ${nmP(p)}'s execution end the game?</h2>${endQ(`${p.claims.length ? `${nmP(p)} claimed ${esc(p.claims.join(" or "))}. ` : ""}If the game carried on, the app uses that (for example a Saint who wasn't, or a Scarlet Woman taking over).`)}`
+      : `<span class="step">End of day ${phase.day}</span><h2 id="phaseTitle">Did the game end today?</h2>${endQ("There was no execution, but a Slayer shot or another ability could still have ended it.")}`;
     wireEnd(() => { enterNight(); renderPhase(); });
   } else if (phase.step === "night") {
     box.innerHTML = `
       <span class="step">Night ${state.day}</span>
       <h2 id="phaseTitle">Your night info</h2>
-      <p>Log what you learned tonight. Skip this if you don't wake tonight.</p>
+      ${meP()?.dead
+        ? `<p>You're dead, so you won't usually wake tonight. Log info below only if your character still gets it.</p>`
+        : `<p>Log what you learned tonight. Skip this if you don't wake tonight.</p>
+      <div class="phase-actions" style="justify-content:flex-start">${meP() ? `<button class="btn evilwin" data-idied>I died tonight and got no info</button>` : `<span class="hint">Mark your seat with "This is me" to record your own death here.</span>`}</div>`}
       <div id="phaseSlot" class="tips-col"></div>
       <div id="phaseLogged" class="tips-col"></div>
       <div class="phase-actions"><button class="btn primary" data-next>Morning →</button></div>`;
@@ -1826,10 +1830,12 @@ function renderPhase() {
     $("phaseSlot").appendChild($("infoForm"));
     infoDraft = newDraft("", myRoleNow());
     renderInfo(); updatePhaseLogged();
-    box.querySelector("[data-next]").onclick = () => {
+    const toMorning = () => {
       $("infoCard").insertBefore($("infoForm"), $("infoLog")); $("infoCard").insertBefore($("infoPick"), $("infoForm"));
       phase.step = "deaths"; renderPhase();
     };
+    box.querySelector("[data-next]").onclick = toMorning;
+    if (box.querySelector("[data-idied]")) box.querySelector("[data-idied]").onclick = () => { phase.deaths.add(meP().id); toMorning(); };
   } else if (phase.step === "deaths") {
     box.innerHTML = `
       <span class="step">Morning of day ${state.day}</span>
