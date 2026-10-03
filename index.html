@@ -733,10 +733,15 @@ function autoSuspicion() {
   const out = new Map();
   const { noms } = buildTips();
   const proven = provenGood();
-  for (const n of noms.values()) {
-    const p = n.p;
-    if (p.align || p.dead || p.me || proven.has(p.id) || n.score < AUTO_SUS_MIN) continue;
-    out.set(p.id, { score: n.score, why: [...new Set(n.why.filter(Boolean))] });
+  // Any night info (yours or another player's) that points at someone flags them, however small
+  const pinged = new Map();
+  for (const r of infoAnalysis().reads) for (const w of r.weights) if (w.pts > 0) (pinged.get(w.id) || pinged.set(w.id, []).get(w.id)).push(w.why);
+  for (const p of state.players) {
+    if (p.align || p.dead || p.me || proven.has(p.id)) continue;
+    const n = noms.get(p.id);
+    const fromInfo = pinged.get(p.id) || [];
+    if (!fromInfo.length && (!n || n.score < AUTO_SUS_MIN)) continue;
+    out.set(p.id, { score: n ? n.score : 0, why: [...new Set([...fromInfo, ...(n ? n.why : [])].filter(Boolean))] });
   }
   return out;
 }
