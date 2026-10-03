@@ -532,7 +532,25 @@ let confirmRemove = false;
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+// When a player hard-claims a role, take it out of other players' 3-for-3 options (repeat in case that creates a new hard claim)
+function pruneOptions() {
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const hardBy = {};
+    for (const p of state.players) if (p.claims.length === 1 && teamOf(p.claims[0]) !== "traveller") (hardBy[p.claims[0].toLowerCase()] = hardBy[p.claims[0].toLowerCase()] || []).push(p);
+    for (const p of state.players) {
+      if (p.claims.length < 2) continue;
+      const keep = p.claims.filter(c => !hardBy[c.toLowerCase()]);
+      if (keep.length === p.claims.length || !keep.length) continue;
+      p.removed = p.removed || [];
+      for (const c of p.claims.filter(c => hardBy[c.toLowerCase()])) p.removed.push({ role: c, by: hardBy[c.toLowerCase()].map(x => x.name || "another player").join(" and "), day: state.day });
+      p.claims = keep; changed = true;
+    }
+  }
+}
 function save() {
+  pruneOptions();
   state.updatedAt = Date.now();
   try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
   clearTimeout(saveTimer);
@@ -669,6 +687,7 @@ function renderPanel() {
   const idx = state.players.indexOf(p);
   const roles = scriptRoles();
   const has = r => p.claims.some(c => c.toLowerCase() === r.toLowerCase());
+  const hardOthers = r => state.players.filter(x => x !== p && x.claims.length === 1 && x.claims[0].toLowerCase() === r.toLowerCase()).map(x => x.name || "—").join(", ");
   $("panel").innerHTML = `
     <div class="panel-head">
       <input type="text" class="name-input" id="pName" value="${esc(p.name)}" placeholder="Player name" aria-label="Player name">
@@ -723,6 +742,7 @@ function renderPanel() {
     </div>`}
 
     <div class="field">
+      ${(p.removed || []).map(x => `<span class="hint">Removed ${esc(x.role)} from their options on day ${x.day}: ${esc(x.by)} hard-claimed it.</span>`).join("")}
       <span class="label">Claimed roles${p.claims.length > 1 ? ` · ${p.claims.length} options, any order` : ""}</span>
       <div class="claims">${p.claims.length
         ? p.claims.map((c, i) => `<span class="chip ${teamOf(c)}">${esc(c)}<button data-rm="${i}" aria-label="Remove ${esc(c)}">×</button></span>`).join("")
@@ -737,7 +757,7 @@ function renderPanel() {
       ${TEAMS.map(t => `
         <div class="pick-group">
           <span class="label"><i style="background:var(--${t})"></i>${TEAM_LABEL[t]}</span>
-          <div class="pick-list">${roles[t].map(r => `<button class="pick" data-role="${esc(r)}" aria-pressed="${has(r)}">${esc(r)}</button>`).join("")}</div>
+          <div class="pick-list">${roles[t].map(r => `<button class="pick" data-role="${esc(r)}" aria-pressed="${has(r)}"${hardOthers(r) ? ` title="Hard-claimed by ${esc(hardOthers(r))}"` : ""}>${esc(r)}${hardOthers(r) ? ` <small style="opacity:.7">· ${esc(hardOthers(r))}</small>` : ""}</button>`).join("")}</div>
         </div>`).join("")}
     </div>
 
@@ -1226,11 +1246,12 @@ function renderInfo() {
   $("infoSum").innerHTML = html ? html + `<span class="tips-foot">Anyone can be drunk or poisoned, and evil players can invent info. Info that clashes with players you trust is a warning sign.</span>` : "";
 }
 $("ifSrc").onchange = e => { const s = e.target.value; infoDraft = newDraft(s, roleFor(s)); renderInfo(); };
+// Your own character is set as your claim on your seat
+function syncMyRole() { const m = meP(); if (m && state.myRole && !(m.claims.length === 1 && m.claims[0] === state.myRole)) m.claims = [state.myRole]; }
 $("myRole").onchange = e => {
   const v = e.target.value, s = infoDraft ? infoDraft.src : "";
-  if (!s) { state.myRole = v; save(); }
   infoDraft = newDraft(s, v);
-  renderInfo();
+  if (!s) { state.myRole = v; syncMyRole(); save(); render(); } else renderInfo();
 };
 
 /* ---------- Plan for tomorrow ---------- */
@@ -1931,6 +1952,7 @@ function renderPhase() {
       state.players.forEach(x => x.me = x.id === e.target.value);
       const m = meP();
       if (m && !state.myRole && m.claims.length === 1) state.myRole = m.claims[0];
+      syncMyRole();
       infoDraft = null; save(); render(); renderPhase();
     };
     const startDay = () => {
@@ -1971,7 +1993,7 @@ function renderPhase() {
     box.querySelector("[data-next]").onclick = () => {
       for (const id of phase.deaths) { const p = state.players.find(x => x.id === id); if (p) { p.dead = true; p.deathBy = "night"; p.deathNight = state.day; } }
       save();
-      if (phase.deaths.size) { phase.step = "end2"; renderPhase(); } else closePhase();
+      closePhase();
     };
   } else if (phase.step === "end2") {
     const names = [...phase.deaths].map(id => nmP(state.players.find(x => x.id === id))).join(" and ");
