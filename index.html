@@ -1869,6 +1869,11 @@ function render() {
 // A guided end-of-day: execution, did the game end, night info, who died, did the game end
 let phase = null;
 function openPhase() { phase = { step: "exec", exec: "", deaths: new Set(), day: state.day }; $("phaseOverlay").hidden = false; renderPhase(); }
+// The Virgin's ability triggers once, and only on scripts that have her
+function virginAvailable() {
+  const scripts = state.script === "all" ? ["tb", "bmr", "snv"] : [state.script];
+  return scripts.some(sc => ROLES[sc].townsfolk.includes("Virgin")) && !state.players.some(x => x.deathBy === "virgin");
+}
 function openShot() { phase = { step: "shot1", shooter: "", target: "", deaths: new Set(), day: state.day }; $("phaseOverlay").hidden = false; renderPhase(); }
 function openFirstNight() { phase = { step: "first", exec: "", deaths: new Set(), day: 1 }; $("phaseOverlay").hidden = false; renderPhase(); }
 function closePhase() {
@@ -1904,13 +1909,36 @@ function renderPhase() {
     box.querySelector("[data-next]").onclick = () => {
       const p = state.players.find(x => x.id === phase.exec);
       if (p) { p.dead = true; p.deathBy = "exec"; p.execDay = phase.day; save(); }
-      phase.step = "end1";
+      // Ask about the Virgin only while her ability could still trigger
+      phase.step = p && virginAvailable() ? "virginQ" : "end1";
+      phase.virgin = "";
       renderPhase();
+    };
+  } else if (phase.step === "virginQ") {
+    const p = state.players.find(x => x.id === phase.exec);
+    const isV = x => x.claims.some(c => c.toLowerCase() === "virgin");
+    const pool = state.players.filter(x => x !== p && !x.dead).sort((a, b) => (isV(b) ? 1 : 0) - (isV(a) ? 1 : 0));
+    if (phase.virginYes && !phase.virgin) { const vs = pool.filter(isV); if (vs.length === 1) phase.virgin = vs[0].id; }
+    box.innerHTML = `
+      <span class="step">End of day ${phase.day}</span>
+      <h2 id="phaseTitle">Was ${nmP(p)} executed for nominating the Virgin?</h2>
+      <div class="choice-list">
+        <button class="choice" data-vq="no" aria-pressed="${phase.virginYes === false}">No, a normal execution</button>
+        <button class="choice" data-vq="yes" aria-pressed="${phase.virginYes === true}">Yes, they nominated the Virgin</button>
+      </div>
+      ${phase.virginYes ? `<p><b>Which player is the Virgin?</b></p>
+      <div class="choice-list">${pool.map(x => `<button class="choice" data-vpick="${x.id}" aria-pressed="${phase.virgin === x.id}">${nmP(x)}${isV(x) ? " · claims Virgin" : ""}</button>`).join("")}</div>` : ""}
+      <div class="phase-actions"><button class="btn primary" data-next ${phase.virginYes === undefined || (phase.virginYes && !phase.virgin) ? "disabled" : ""}>Next</button></div>`;
+    box.querySelectorAll("[data-vq]").forEach(b => b.onclick = () => { phase.virginYes = b.dataset.vq === "yes"; if (!phase.virginYes) phase.virgin = ""; renderPhase(); });
+    box.querySelectorAll("[data-vpick]").forEach(b => b.onclick = () => { phase.virgin = b.dataset.vpick; renderPhase(); });
+    box.querySelector("[data-next]").onclick = () => {
+      if (phase.virginYes && phase.virgin) { p.deathBy = "virgin"; p.virginBy = phase.virgin; applyProofs(); save(); }
+      phase.step = "end1"; renderPhase();
     };
   } else if (phase.step === "end1") {
     const p = state.players.find(x => x.id === phase.exec);
     box.innerHTML = p
-      ? `<span class="step">End of day ${phase.day}</span><h2 id="phaseTitle">Did ${nmP(p)}'s execution end the game?</h2>${endQ(`${p.claims.length ? `${nmP(p)} claimed ${esc(p.claims.join(" or "))}. ` : ""}If the game carried on, the app uses that (for example a Saint who wasn't, or a Scarlet Woman taking over).`)}`
+      ? `<span class="step">End of day ${phase.day}</span><h2 id="phaseTitle">Did ${nmP(p)}'s ${p.deathBy === "virgin" ? "death to the Virgin" : "execution"} end the game?</h2>${endQ(`${p.claims.length ? `${nmP(p)} claimed ${esc(p.claims.join(" or "))}. ` : ""}If the game carried on, the app uses that (for example a Saint who wasn't, or a Scarlet Woman taking over).`)}`
       : `<span class="step">End of day ${phase.day}</span><h2 id="phaseTitle">Did the game end today?</h2>${endQ("There was no execution, but a Slayer shot or another ability could still have ended it.")}`;
     wireEnd(() => { enterNight(); renderPhase(); });
   } else if (phase.step === "shot1") {
