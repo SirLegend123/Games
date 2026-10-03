@@ -180,6 +180,24 @@ textarea { resize: vertical; min-height: 90px; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; }
 .dot.good { background: var(--good); } .dot.evil { background: var(--evil); }
 
+/* Tomorrow suggestions */
+.tips-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+.tips-head h2 { margin-right: auto; }
+.tips-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 980px) { .tips-grid { grid-template-columns: minmax(0, 1fr); } }
+.tips-col { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.tips-col h3 { margin: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+.tip { display: grid; gap: 3px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: .9rem; }
+.tip.hi { border-left-color: var(--warn); }
+.tip.bad { border-left-color: var(--evil); }
+.tip small { color: var(--muted); font-size: .8rem; }
+.tip .who { font-weight: 800; background: none; border: 0; padding: 0; text-align: left; color: var(--fg); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.tip ul { margin: 2px 0 0; padding-left: 1.1em; display: grid; gap: 3px; }
+.nom { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: baseline; }
+.nom .score { font-variant-numeric: tabular-nums; font-weight: 800; color: var(--evil); font-size: .82rem; }
+.tips-empty { color: var(--muted); font-size: .88rem; font-style: italic; }
+.tips-foot { font-size: .8rem; color: var(--muted); }
+
 /* Claim matrix */
 .matrix-card { gap: 10px; }
 .matrix-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
@@ -270,6 +288,18 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 
     <aside class="card panel" id="panel"></aside>
   </div>
+  <section class="card" aria-labelledby="tipsTitle">
+    <div class="tips-head">
+      <h2 id="tipsTitle">Plan for tomorrow</h2>
+      <span class="tips-foot">Suggestions from your claims, deaths and reads. They're prompts, not answers.</span>
+    </div>
+    <div class="tips-grid">
+      <div class="tips-col"><h3>Doesn't add up</h3><div id="tipIssues" class="tips-col"></div></div>
+      <div class="tips-col"><h3>Questions to ask</h3><div id="tipQs" class="tips-col"></div></div>
+      <div class="tips-col"><h3>Who to look at</h3><div id="tipNoms" class="tips-col"></div><h3>Reminders</h3><div id="tipRem" class="tips-col"></div></div>
+    </div>
+  </section>
+
   <section class="card matrix-card" aria-labelledby="matrixTitle">
     <div class="matrix-head">
       <h2 id="matrixTitle">Claim matrix</h2>
@@ -347,7 +377,7 @@ const teamOf = r => TEAM_OF[String(r).toLowerCase()] || "custom";
 const COMP = {5:[3,0,1,1],6:[3,1,1,1],7:[5,0,1,1],8:[5,1,1,1],9:[5,2,1,1],10:[7,0,2,1],11:[7,1,2,1],12:[7,2,2,1],13:[9,0,3,1],14:[9,1,3,1],15:[9,2,3,1]};
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: false, ghostVote: true, align: "", me: false, traveller: false, notes: "", ...extra });
+const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: false, ghostVote: true, align: "", me: false, traveller: false, notes: "", deathBy: "", ...extra });
 
 function exampleState() {
   const P = (name, claims, extra) => mkPlayer(name, { claims, ...extra });
@@ -359,9 +389,9 @@ function exampleState() {
       P("Sam", ["Chef"], { align: "evil", notes: "Chef 2 is odd with only 1 minion. Pushed hard on Leo." }),
       P("Priya", ["Investigator"], { notes: "Saw Baron between Tom and Mia." }),
       P("Tom", ["Washerwoman", "Soldier"], { notes: "Changed claim day 2. Said Washerwoman was a bluff to bait the Imp." }),
-      P("Jess", ["Fortune Teller"], { dead: true, align: "good", notes: "Died N2. Said Ben + Mia were no." }),
+      P("Jess", ["Fortune Teller"], { dead: true, deathBy: "night", align: "good", notes: "Died N2. Said Ben + Mia were no." }),
       P("Mia", ["Chef"], { notes: "Counter-claimed Chef against Sam on day 2. One of them is lying." }),
-      P("Leo", ["Saint"], { dead: true, ghostVote: false, align: "good", notes: "Executed D1, game didn't end." }),
+      P("Leo", ["Saint"], { dead: true, deathBy: "exec", ghostVote: false, align: "good", notes: "Executed D1, game didn't end." }),
       P("Ben", ["Undertaker"], { notes: "Says Leo was the Saint." })
     ],
     selected: null, updatedAt: 0
@@ -495,6 +525,14 @@ function renderPanel() {
       <button class="toggle" id="tMe" aria-pressed="${p.me}">This is me</button>
       <button class="toggle" id="tTrav" aria-pressed="${p.traveller}">Traveller</button>
     </div>
+    ${p.dead ? `<div class="row">
+      <span class="label">How they died</span>
+      <span class="seg" role="group" aria-label="How they died">
+        <button class="u" data-death="exec" aria-pressed="${p.deathBy === "exec"}">Executed</button>
+        <button class="u" data-death="night" aria-pressed="${p.deathBy === "night"}">At night</button>
+        <button class="u" data-death="" aria-pressed="${!p.deathBy}">Other / unsure</button>
+      </span>
+    </div>` : ""}
 
     <div class="row">
       <span class="label">My read</span>
@@ -539,12 +577,13 @@ function renderPanel() {
       <button class="btn sm danger solid" id="rmYes">Remove</button><button class="btn sm" id="rmNo">Keep</button></div>` : ""}
   `;
 
-  $("pName").addEventListener("input", e => { p.name = e.target.value; save(); renderCircle(); renderRoster(); renderMatrix(); });
+  $("pName").addEventListener("input", e => { p.name = e.target.value; save(); renderCircle(); renderRoster(); renderMatrix(); renderTips(); });
   $("pNotes").addEventListener("input", e => { p.notes = e.target.value; save(); renderCircle(); renderRoster(); });
-  $("tDead").onclick = () => { p.dead = !p.dead; if (!p.dead) p.ghostVote = true; save(); render(); };
+  $("tDead").onclick = () => { p.dead = !p.dead; if (!p.dead) { p.ghostVote = true; p.deathBy = ""; } save(); render(); };
   if ($("tVote")) $("tVote").onclick = () => { p.ghostVote = !p.ghostVote; save(); render(); };
   $("tMe").onclick = () => { const v = !p.me; state.players.forEach(x => x.me = false); p.me = v; save(); render(); };
   $("tTrav").onclick = () => { p.traveller = !p.traveller; save(); render(); };
+  $("panel").querySelectorAll("[data-death]").forEach(b => b.onclick = () => { p.deathBy = b.dataset.death; save(); render(); });
   $("panel").querySelectorAll("[data-align]").forEach(b => b.onclick = () => { p.align = b.dataset.align; save(); render(); });
   $("panel").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { p.claims.splice(+b.dataset.rm, 1); save(); render(); });
   $("panel").querySelectorAll(".pick").forEach(b => b.onclick = () => {
@@ -583,6 +622,204 @@ function renderPanel() {
     confirmRemove = false; save(); render();
   };
   if ($("rmNo")) $("rmNo").onclick = () => { confirmRemove = false; renderPanel(); };
+}
+
+/* ---------- Plan for tomorrow ---------- */
+const ROLE_Q = {
+  "washerwoman": "Which two players did you see, and which Townsfolk?",
+  "librarian": "Which two players did you see, and which Outsider? Or did you get zero?",
+  "investigator": "Which two players did you see, and which Minion?",
+  "chef": "What was your number?",
+  "empath": "What number did you get each night, and who were your living neighbours then?",
+  "fortune teller": "Who did you check each night, and did you get any yes?",
+  "undertaker": "What did each executed player show as?",
+  "monk": "Who did you protect each night?",
+  "ravenkeeper": "Who did you choose when you died, and what did you see?",
+  "virgin": "Have you been nominated yet? If not, who should nominate you?",
+  "slayer": "Have you used your shot? If not, who would you shoot?",
+  "soldier": "Have you been the Demon's target yet? If you're still alive late in the game, that supports your claim.",
+  "mayor": "If we get to three players, are you happy for there to be no execution?",
+  "butler": "Who have you chosen as your master each night?",
+  "grandmother": "Who is your grandchild and what character are they?",
+  "sailor": "Who did you choose each night?",
+  "chambermaid": "Which two players did you choose each night, and how many woke?",
+  "exorcist": "Who did you choose each night?",
+  "innkeeper": "Which two players did you protect each night?",
+  "gambler": "Who did you guess each night, and as what?",
+  "gossip": "What did you say in your gossip, and did anyone die from it?",
+  "courtier": "Have you used your ability? Which character did you pick?",
+  "professor": "Have you used your ability? Who did you bring back?",
+  "tea lady": "Who are your living neighbours? Are you sure they're both good?",
+  "goon": "Did anyone choose you at night? Has your alignment changed?",
+  "moonchild": "If you die, who would you choose?",
+  "clockmaker": "What was your number?",
+  "dreamer": "Who did you dream about each night, and which two characters?",
+  "snake charmer": "Who have you chosen each night?",
+  "mathematician": "What number did you get each night?",
+  "flowergirl": "Did the Demon vote each day?",
+  "town crier": "Did a Minion nominate each day?",
+  "oracle": "What number did you get each night?",
+  "savant": "What two statements did you get each day?",
+  "seamstress": "Have you used your ability? Which two players, and same or different?",
+  "philosopher": "Which character did you choose to become?",
+  "artist": "What did you ask, and what was the answer?",
+  "juggler": "Who did you juggle on day 1, and how many were right?",
+  "sage": "If you died at night, which two players did you learn?"
+};
+const OUTSIDER_MODS = {
+  tb: [{ role: "Baron", d: [2] }],
+  bmr: [{ role: "Godfather", d: [-1, 1] }],
+  snv: [{ role: "Fang Gu", d: [1] }, { role: "Vigormortis", d: [-1] }]
+};
+
+function buildTips() {
+  const players = state.players;
+  const nm = p => p.name || `Seat ${players.indexOf(p) + 1}`;
+  const cur = p => p.claims[p.claims.length - 1] || "";
+  const others = players.filter(p => !p.me);
+  const core = players.filter(p => !p.traveller);
+  const comp = COMP[Math.min(core.length, 15)];
+  const issues = [], qs = new Map(), noms = new Map(), rem = [];
+  const ask = (p, text, hi) => { if (p.me) return; if (!qs.has(p.id)) qs.set(p.id, []); qs.get(p.id).push({ text, hi }); };
+  const flag = (p, pts, why) => { if (p.me || p.dead) return; const n = noms.get(p.id) || { p, score: 0, why: [] }; n.score += pts; if (pts > 0) n.why.push(why); noms.set(p.id, n); };
+
+  // Same role claimed by more than one player
+  const byRole = {};
+  for (const p of players) for (const c of p.claims) { const k = c.toLowerCase(); (byRole[k] = byRole[k] || { role: c, ps: [] }).ps.push(p); }
+  for (const { role, ps } of Object.values(byRole)) {
+    if (ps.length < 2) continue;
+    const t = teamOf(role);
+    if (t === "traveller") continue;
+    const names = ps.map(nm).join(" and ");
+    issues.push({ level: "hi", ids: ps.map(p => p.id), text: `${names} both claim ${role}.`, sub: `Only one ${role} can be in play, so at least one of them is bluffing${t === "townsfolk" && ["tb", "all"].includes(state.script) ? ", or one is the Drunk (who believes they're a Townsfolk)" : ""}.` });
+    for (const p of ps) {
+      ask(p, `You and ${ps.filter(x => x !== p).map(nm).join(", ")} both claim ${role}. ${ROLE_Q[role.toLowerCase()] || "What exactly did you learn, and when?"} (Ask them both at the same time so neither can copy.)`, true);
+      flag(p, 2, `double-claims ${role}`);
+    }
+  }
+
+  // Changed claims
+  for (const p of others) if (p.claims.length > 1) {
+    ask(p, `You've claimed ${p.claims.join(", then ")}. Why did you switch, and who heard each claim?`, true);
+    flag(p, 1, "changed claim");
+  }
+
+  // Evil claims
+  for (const p of others) { const t = teamOf(cur(p)); if (t === "minion" || t === "demon") ask(p, `You claimed ${cur(p)}, an evil character. Is that a joke, a bluff, or a real claim?`, true); }
+
+  // Unclaimed
+  const unclaimed = others.filter(p => !p.claims.length && !p.traveller);
+  for (const p of unclaimed) {
+    ask(p, state.day > 1 ? "You haven't claimed yet. What's your character, or at least are you Townsfolk or Outsider?" : "Would you share your character, or at least whether you're Townsfolk or Outsider?", state.day > 1);
+    if (!p.dead && state.day > 1) flag(p, 1, "no claim yet");
+  }
+
+  // Role questions
+  for (const p of others) {
+    const c = cur(p).toLowerCase();
+    if (!ROLE_Q[c]) continue;
+    if (c === "ravenkeeper" && !(p.dead && p.deathBy === "night")) continue;
+    if (c === "sage" && !(p.dead && p.deathBy === "night")) continue;
+    if (c === "slayer" && p.dead) continue;
+    if (c === "undertaker" && players.some(x => x.dead && x.deathBy === "exec")) continue;
+    if (qs.get(p.id)?.some(q => q.text.includes(ROLE_Q[c]))) continue;
+    ask(p, ROLE_Q[c], false);
+  }
+
+  if (comp) {
+    // Outsider count
+    const scripts = state.script === "all" ? ["tb", "bmr", "snv"] : [state.script];
+    const mods = scripts.flatMap(s => OUTSIDER_MODS[s] || []);
+    const base = comp[1];
+    const allowed = new Set([base, ...mods.flatMap(m => m.d.map(d => base + d))].filter(n => n >= 0));
+    const maxAllowed = Math.max(...allowed);
+    const outs = core.filter(p => teamOf(cur(p)) === "outsider");
+    const oNames = outs.map(nm).join(", ");
+    if (outs.length > maxAllowed) {
+      issues.push({ level: "bad", ids: outs.map(p => p.id), text: `${outs.length} Outsider claims (${oNames}), but at most ${maxAllowed} are possible with ${core.length} players.`, sub: `At least ${outs.length - maxAllowed} of them must be lying.` });
+      outs.forEach(p => flag(p, 1, "too many Outsiders"));
+    } else if (outs.length > base) {
+      const fits = mods.filter(m => m.d.includes(outs.length - base)).map(m => m.role);
+      issues.push({ level: "hi", ids: outs.map(p => p.id), text: `${outs.length} Outsider claims (${oNames}), but a normal ${core.length}-player game has ${base}.`, sub: fits.length ? `That fits a ${fits.join(" or ")} in play. Or someone is bluffing as an Outsider.` : "Someone may be bluffing as an Outsider." });
+    } else if (outs.length < base && !unclaimed.length) {
+      const fits = mods.filter(m => m.d.includes(outs.length - base)).map(m => m.role);
+      issues.push({ level: "", ids: [], text: `Only ${outs.length} Outsider claim${outs.length === 1 ? "" : "s"}, but a normal ${core.length}-player game has ${base}.`, sub: `An Outsider may be hiding as a Townsfolk${scripts.includes("tb") ? " (the Drunk believes they're a Townsfolk)" : ""}${fits.length ? `, or a ${fits.join(" or ")} has changed the count` : ""}.` });
+    }
+
+    // More good claims than good seats
+    const goodSlots = comp[0] + comp[1];
+    const evilSlots = comp[2] + comp[3];
+    const goodClaims = core.filter(p => ["townsfolk", "outsider"].includes(teamOf(cur(p))));
+    if (goodClaims.length > goodSlots) {
+      const lying = goodClaims.length - goodSlots;
+      issues.push({ level: "", ids: [], text: `${goodClaims.length} players claim good characters, but only ${goodSlots} seats are good.`, sub: `At least ${lying} of these claims ${lying === 1 ? "is a bluff" : "are bluffs"}. There ${evilSlots === 1 ? "is" : "are"} ${evilSlots} evil player${evilSlots === 1 ? "" : "s"} to find.` });
+    }
+  }
+
+  // Death-based checks
+  for (const p of players) {
+    const c = cur(p).toLowerCase();
+    if (!p.dead) continue;
+    if (c === "saint" && p.deathBy === "exec") issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} was executed while claiming Saint, and the game didn't end.`, sub: "So they weren't the Saint, or they were drunk or poisoned. Anyone who backed the claim is worth a look." });
+    if (c === "soldier" && p.deathBy === "night") issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} claimed Soldier but died at night.`, sub: "A sober Soldier can't be killed by the Demon. Either they lied, or they were poisoned or drunk." });
+    if (c === "tea lady") issues.push({ level: "", ids: [p.id], text: `${nm(p)} (Tea Lady) is dead.`, sub: "Their neighbours' safety no longer applies." });
+  }
+  const executed = players.filter(p => p.dead && p.deathBy === "exec");
+  const undertakers = players.filter(p => !p.me && cur(p).toLowerCase() === "undertaker");
+  if (executed.length) for (const u of undertakers) ask(u, `What did ${executed.map(nm).join(" and ")} show as when executed?`, true);
+
+  // Your reads
+  for (const p of players) {
+    if (p.align === "evil") flag(p, 3, "your evil read");
+    if (p.align === "good") flag(p, -3, "");
+  }
+  // Reads that clash with a double claim
+  for (const { role, ps } of Object.values(byRole)) {
+    if (ps.length < 2) continue;
+    const good = ps.filter(p => p.align === "good");
+    if (good.length === ps.length) issues.push({ level: "hi", ids: good.map(p => p.id), text: `You've marked ${good.map(nm).join(" and ")} as good, but they both claim ${role}.`, sub: "Both can't be telling the truth. Recheck one of those reads." });
+  }
+
+  // Reminders
+  const alive = players.filter(p => !p.dead);
+  const votes = Math.ceil(alive.length / 2);
+  rem.push(`${alive.length} alive, so ${votes} vote${votes === 1 ? "" : "s"} are needed to put someone on the block.`);
+  const ghosts = players.filter(p => p.dead && p.ghostVote);
+  if (ghosts.length) rem.push(`Ghost votes left: ${ghosts.map(nm).join(", ")}. Dead players can each vote once more.`);
+  const me = players.find(p => p.me);
+  if (me?.dead) rem.push(me.ghostVote ? "You're dead but still have your ghost vote. Save it for an execution that matters." : "You've used your ghost vote. You can still talk and share what you know.");
+  if (alive.length <= 4) rem.push(alive.length <= 3 ? "Final three: if the Demon survives today's execution, evil wins. Every vote counts." : "Four alive: if the Demon kills tonight, tomorrow is the final three. Make today's execution count.");
+  const mayor = alive.find(p => cur(p).toLowerCase() === "mayor");
+  if (mayor && alive.length <= 4) rem.push(`${nm(mayor)} claims Mayor. With three alive and no execution, a real Mayor wins it for good.`);
+  const slayer = alive.find(p => !p.me && cur(p).toLowerCase() === "slayer");
+  const topEvil = [...noms.values()].filter(n => n.score > 0).sort((a, b) => b.score - a.score)[0];
+  if (slayer && topEvil && topEvil.p !== slayer) rem.push(`${nm(slayer)} claims Slayer. If they haven't fired, ${nm(topEvil.p)} could be a good target.`);
+  if (state.day === 1) rem.push("Day 1: ask everyone for a claim or at least Townsfolk or Outsider, and write down who's quiet.");
+
+  const nomList = [...noms.values()].filter(n => n.score > 0).sort((a, b) => b.score - a.score).slice(0, 4);
+  return { issues, qs, nomList, rem };
+}
+
+function renderTips() {
+  const { issues, qs, nomList, rem } = buildTips();
+  const nmById = id => { const p = state.players.find(x => x.id === id); return p ? esc(p.name || `Seat ${state.players.indexOf(p) + 1}`) : ""; };
+  const whoBtn = id => `<button class="who" data-open="${id}">${nmById(id)}</button>`;
+  $("tipIssues").innerHTML = issues.length
+    ? issues.map(i => `<div class="tip ${i.level}">${esc(i.text)}${i.sub ? `<small>${esc(i.sub)}</small>` : ""}</div>`).join("")
+    : `<p class="tips-empty">Nothing contradicts yet. Add claims and deaths as they happen.</p>`;
+  const order = state.players.map(p => p.id).filter(id => qs.has(id));
+  order.sort((a, b) => (qs.get(b).some(q => q.hi) ? 1 : 0) - (qs.get(a).some(q => q.hi) ? 1 : 0));
+  $("tipQs").innerHTML = order.length
+    ? order.map(id => { const list = qs.get(id); return `<div class="tip ${list.some(q => q.hi) ? "hi" : ""}">${whoBtn(id)}<ul>${list.map(q => `<li>${esc(q.text)}</li>`).join("")}</ul></div>`; }).join("")
+    : `<p class="tips-empty">No questions yet. Add claims to players to get role-specific questions.</p>`;
+  $("tipNoms").innerHTML = nomList.length
+    ? nomList.map(n => `<div class="tip nom"><span class="score">${n.score}</span>${whoBtn(n.p.id)}<span></span><small>${esc(n.why.join(", "))}</small></div>`).join("")
+    : `<p class="tips-empty">No one stands out yet. Mark your evil reads to rank them here.</p>`;
+  $("tipRem").innerHTML = rem.map(r => `<div class="tip">${esc(r)}</div>`).join("");
+  document.querySelectorAll("#tipQs [data-open], #tipNoms [data-open]").forEach(b => b.onclick = () => {
+    state.selected = b.dataset.open; confirmRemove = false; save(); render();
+    $("panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 /* ---------- Claim matrix ---------- */
@@ -643,6 +880,7 @@ function render() {
   renderRoster();
   renderPanel();
   renderMatrix();
+  renderTips();
 }
 
 /* ---------- Global controls ---------- */
@@ -651,10 +889,10 @@ dl.id = "allRoles";
 dl.innerHTML = Object.keys(TEAM_OF).map(k => `<option value="${esc(Object.values(ROLES).flatMap(s => TEAMS.flatMap(t => s[t])).find(r => r.toLowerCase() === k))}">`).join("");
 document.body.appendChild(dl);
 
-$("script").onchange = e => { state.script = e.target.value; save(); renderPanel(); renderMatrix(); };
+$("script").onchange = e => { state.script = e.target.value; save(); renderPanel(); renderMatrix(); renderTips(); };
 $("gameNotes").addEventListener("input", e => { state.notes = e.target.value; save(); });
-$("dayUp").onclick = () => { state.day++; save(); renderCircle(); };
-$("dayDown").onclick = () => { state.day = Math.max(1, state.day - 1); save(); renderCircle(); };
+$("dayUp").onclick = () => { state.day++; save(); renderCircle(); renderTips(); };
+$("dayDown").onclick = () => { state.day = Math.max(1, state.day - 1); save(); renderCircle(); renderTips(); };
 
 function openNew() { $("ngScript").value = state.script; $("overlay").hidden = false; $("ngCount").focus(); }
 $("newGameBtn").onclick = openNew;
