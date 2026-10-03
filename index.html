@@ -485,6 +485,7 @@ function scriptRoles() {
 }
 
 /* ---------- Proven good ---------- */
+const spyOnScript = () => ["tb", "all"].includes(state.script);
 // Game events that prove a player good: the Virgin's ability triggering, or a Slayer shot that kills
 function provenGood() {
   const out = new Map();
@@ -496,7 +497,7 @@ function provenGood() {
     if (p.deathBy === "virgin") {
       const v = P(p.virginBy);
       if (v) add(v, `Real Virgin: ${nm(p)} died nominating them`);
-      add(p, `Townsfolk: died nominating the Virgin`);
+      if (!spyOnScript()) add(p, `Townsfolk: died nominating the Virgin, and there's no Spy on this script`);
     }
     if (p.deathBy === "slayer") {
       const sl = P(p.slayerBy);
@@ -1220,12 +1221,14 @@ function buildTips() {
   for (const p of players.filter(x => x.dead && x.deathBy === "virgin")) {
     const v = players.find(x => x.id === p.virginBy);
     const notTF = p.claims.length && p.claims.every(c => teamOf(c) !== "townsfolk");
-    issues.push({ level: "", ids: [p.id], text: `${nm(p)} died nominating ${v ? nm(v) : "the Virgin"}, so ${nm(p)} is a Townsfolk.`, sub: `${v ? `That proves ${nm(v)} is the real Virgin, sober and good, and their ability is now used up. ` : "Pick which Virgin under their death so the app can mark the Virgin as proven. "}The only exception is a Spy registering as a Townsfolk.` });
-    if (notTF) issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} claimed ${p.claims.join(" or ")}, but dying to the Virgin means they're a Townsfolk.`, sub: "Their claim was a bluff, or they're the Spy." });
+    const spy = spyOnScript();
+    issues.push({ level: "", ids: [p.id], text: `${nm(p)} died nominating ${v ? nm(v) : "the Virgin"}, so ${nm(p)} is a Townsfolk${spy ? " or the Spy" : ""}.`, sub: `${v ? `That proves ${nm(v)} is the real Virgin, sober and good, and their ability is now used up. ` : "Pick which Virgin under their death so the app can mark the Virgin as proven. "}${spy ? `The Spy can register as a Townsfolk, so ${nm(p)} isn't proven good.` : "There's no Spy on this script, so they're proven good."}` });
+    if (notTF) issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} claimed ${p.claims.join(" or ")}, but dying to the Virgin means they're a Townsfolk${spy ? " or the Spy" : ""}.`, sub: spy ? "A good player would have no reason to bluff a non-Townsfolk here. They may well be the Spy." : "Their claim was a bluff." });
+    if (notTF && spy) flag(p, 3, "died to the Virgin with a non-Townsfolk claim (Spy?)");
     else if (p.claims.length > 1) issues.push({ level: "", ids: [p.id], text: `Cross the non-Townsfolk options off ${nm(p)}'s 3-for-3.`, sub: `Townsfolk options left: ${p.claims.filter(c => teamOf(c) === "townsfolk").join(", ") || "none"}.` });
     if (p.claims.length === 1 && teamOf(p.claims[0]) === "townsfolk") for (const o of players) if (o !== p && o.claims.length === 1 && o.claims[0].toLowerCase() === p.claims[0].toLowerCase()) {
-      issues.push({ level: "bad", ids: [o.id], text: `${nm(p)} is proven a Townsfolk, so ${nm(o)}'s ${p.claims[0]} claim is very likely a lie.`, sub: `Only one ${p.claims[0]} can be in play.` });
-      flag(o, 4, `claims ${p.claims[0]} against a proven Townsfolk`);
+      issues.push({ level: spyOnScript() ? "hi" : "bad", ids: [o.id], text: spyOnScript() ? `${nm(p)} triggered the Virgin claiming ${p.claims[0]}. Unless ${nm(p)} is the Spy, ${nm(o)}'s ${p.claims[0]} claim is a lie.` : `${nm(p)} is proven a Townsfolk, so ${nm(o)}'s ${p.claims[0]} claim is very likely a lie.`, sub: `Only one ${p.claims[0]} can be in play.${spyOnScript() ? ` If ${nm(o)} is the real ${p.claims[0]}, ${nm(p)} is the Spy.` : ""}` });
+      flag(o, spyOnScript() ? 3 : 4, `claims ${p.claims[0]} against a Virgin-tested player`);
     }
     if (v) { flag(v, -6, ""); if (v.align === "evil") issues.push({ level: "hi", ids: [v.id], text: `You've marked ${nm(v)} as evil, but the Virgin just proved them good.`, sub: "Update your read." }); }
   }
