@@ -101,6 +101,9 @@ select.btn { padding-right: 8px; }
 .seat:hover .disc { transform: scale(1.05); }
 .seat.sel .disc { box-shadow: 0 0 0 3px var(--brass), 0 4px 14px rgba(0,0,0,.45); }
 .seat.good .disc { border-color: var(--good); }
+.seat.proven .disc { border-width: 5px; border-color: var(--good); }
+.proven-tag { position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%); font-size: calc(var(--tok, 70px) * .11); font-weight: 800; letter-spacing: .06em; background: var(--good); color: #fff; border-radius: 4px; padding: 0 4px; z-index: 3; white-space: nowrap; }
+.proven-note { display: flex; gap: 8px; align-items: center; background: var(--good-soft); border: 1px solid var(--good); border-radius: 8px; padding: 6px 10px; font-size: .88rem; font-weight: 600; }
 .seat.evil .disc { border-color: var(--evil); }
 .claim-txt { font-weight: 800; font-size: calc(var(--tok, 70px) * var(--fs, .15)); line-height: 1.05; overflow-wrap: break-word; }
 .claim-txt.none { color: #8d826f; font-weight: 500; font-style: italic; }
@@ -407,7 +410,7 @@ const teamOf = r => TEAM_OF[String(r).toLowerCase()] || "custom";
 const COMP = {5:[3,0,1,1],6:[3,1,1,1],7:[5,0,1,1],8:[5,1,1,1],9:[5,2,1,1],10:[7,0,2,1],11:[7,1,2,1],12:[7,2,2,1],13:[9,0,3,1],14:[9,1,3,1],15:[9,2,3,1]};
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: false, ghostVote: true, align: "", me: false, traveller: false, notes: "", deathBy: "", virginBy: "", ...extra });
+const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: false, ghostVote: true, align: "", me: false, traveller: false, notes: "", deathBy: "", virginBy: "", slayerBy: "", ...extra });
 
 function exampleState() {
   const P = (name, claims, extra) => mkPlayer(name, { claims, ...extra });
@@ -481,6 +484,38 @@ function scriptRoles() {
   return ROLES[state.script] || ROLES.tb;
 }
 
+/* ---------- Proven good ---------- */
+// Game events that prove a player good: the Virgin's ability triggering, or a Slayer shot that kills
+function provenGood() {
+  const out = new Map();
+  const P = id => state.players.find(p => p.id === id);
+  const nm = p => p.name || `Seat ${state.players.indexOf(p) + 1}`;
+  const add = (p, why) => { if (p && !out.has(p.id)) out.set(p.id, why); };
+  for (const p of state.players) {
+    if (!p.dead) continue;
+    if (p.deathBy === "virgin") {
+      const v = P(p.virginBy);
+      if (v) add(v, `Real Virgin: ${nm(p)} died nominating them`);
+      add(p, `Townsfolk: died nominating the Virgin`);
+    }
+    if (p.deathBy === "slayer") {
+      const sl = P(p.slayerBy);
+      if (sl) add(sl, `Real Slayer: their shot killed ${nm(p)}`);
+    }
+  }
+  return out;
+}
+// Mark players proven good the moment the event is recorded
+function applyProofs() {
+  for (const id of provenGood().keys()) { const p = state.players.find(x => x.id === id); if (p) p.align = "good"; }
+  // A proven Virgin or Slayer is that character, so their claim narrows to it
+  for (const p of state.players) {
+    if (!p.dead) continue;
+    const pairs = [[p.deathBy === "virgin" && p.virginBy, "Virgin"], [p.deathBy === "slayer" && p.slayerBy, "Slayer"]];
+    for (const [id, role] of pairs) { const q = id && state.players.find(x => x.id === id); if (q) q.claims = [role]; }
+  }
+}
+
 /* ---------- Circle ---------- */
 function sizeTokens() {
   const table = $("table");
@@ -496,10 +531,11 @@ function renderCircle() {
   const table = $("table");
   table.querySelectorAll(".seat").forEach(el => el.remove());
   const n = state.players.length;
+  const proven = provenGood();
   state.players.forEach((p, i) => {
     const a = (i / n) * Math.PI * 2 - Math.PI / 2;
     const b = document.createElement("button");
-    b.className = "seat" + (p.id === state.selected ? " sel" : "") + (p.dead ? " dead" : "") + (p.align ? " " + p.align : "");
+    b.className = "seat" + (p.id === state.selected ? " sel" : "") + (p.dead ? " dead" : "") + (p.align ? " " + p.align : "") + (proven.has(p.id) ? " proven" : "");
     b.style.left = (50 + 41 * Math.cos(a)) + "%";
     b.style.top = (50 + 41 * Math.sin(a)) + "%";
     b.setAttribute("aria-label", `Seat ${i + 1}: ${p.name || "unnamed"}${p.claims.length ? ", claims " + p.claims.join(" or ") : ""}${p.dead ? ", dead" : ""}`);
@@ -512,12 +548,13 @@ function renderCircle() {
     b.innerHTML = `
       <span class="disc">
         ${p.me ? '<span class="me-tag">ME</span>' : ""}
+        ${proven.has(p.id) ? '<span class="proven-tag" title="' + esc(proven.get(p.id)) + '">✓ GOOD</span>' : ""}
         ${claimHtml}
         ${p.notes.trim() ? '<span class="pip" title="Has notes"></span>' : ""}
         ${p.dead && p.ghostVote ? '<span class="vote" title="Ghost vote available"></span>' : ""}
       </span>
       <span class="nameplate">${esc(p.name || "—")}</span>
-      <span class="seatno">${i + 1}${p.traveller ? " · traveller" : ""}${p.dead && p.deathBy === "virgin" ? " · Virgin" : ""}</span>`;
+      <span class="seatno">${i + 1}${p.traveller ? " · traveller" : ""}${p.dead && p.deathBy === "virgin" ? " · Virgin" : ""}${p.dead && p.deathBy === "slayer" ? " · Slayer" : ""}</span>`;
     b.addEventListener("click", () => { state.selected = p.id; confirmRemove = false; save(); render(); });
     table.appendChild(b);
   });
@@ -540,7 +577,7 @@ function renderRoster() {
   $("roster").innerHTML = state.players.map((p, i) => `
     <button class="roster-row${p.dead ? " dead" : ""}" data-id="${p.id}">
       <span class="n">${i + 1}</span>
-      <span class="who">${p.align ? `<span class="dot ${p.align}"></span>` : ""}${esc(p.name || "—")}${p.me ? " (me)" : ""}</span>
+      <span class="who">${p.align ? `<span class="dot ${p.align}"></span>` : ""}${esc(p.name || "—")}${p.me ? " (me)" : ""}${provenGood().has(p.id) ? " ✓" : ""}</span>
       <span class="what">${p.claims.length ? p.claims.map(c => `<span class="t-${teamOf(c)}" style="color:var(--${teamOf(c)});font-weight:700">${esc(c)}</span>`).join(" or ") : '<span class="empty">no claim</span>'}
         ${p.notes.trim() ? `<small>${esc(p.notes.trim().split("\n")[0])}</small>` : ""}</span>
     </button>`).join("");
@@ -574,13 +611,19 @@ function renderPanel() {
         <button class="u" data-death="exec" aria-pressed="${p.deathBy === "exec"}">Executed</button>
         <button class="u" data-death="night" aria-pressed="${p.deathBy === "night"}">At night</button>
         <button class="u" data-death="virgin" aria-pressed="${p.deathBy === "virgin"}">Nominated the Virgin</button>
+        <button class="u" data-death="slayer" aria-pressed="${p.deathBy === "slayer"}">Shot by the Slayer</button>
         <button class="u" data-death="" aria-pressed="${!p.deathBy}">Other / unsure</button>
       </span>
     </div>
     ${p.deathBy === "virgin" ? `<div class="row">
       <label class="label" for="pVirgin">Which Virgin?</label>
       <select class="btn" id="pVirgin"><option value="">Pick the Virgin</option>${state.players.filter(x => x !== p).sort((x, y) => (y.claims.some(c => c.toLowerCase() === "virgin") ? 1 : 0) - (x.claims.some(c => c.toLowerCase() === "virgin") ? 1 : 0)).map(x => `<option value="${x.id}"${x.id === p.virginBy ? " selected" : ""}>${state.players.indexOf(x) + 1}. ${esc(x.name || "—")}${x.claims.length ? " · " + esc(x.claims.join("/")) : ""}</option>`).join("")}</select>
+    </div>` : ""}
+    ${p.deathBy === "slayer" ? `<div class="row">
+      <label class="label" for="pSlayer">Who shot them?</label>
+      <select class="btn" id="pSlayer"><option value="">Pick the Slayer</option>${state.players.filter(x => x !== p).sort((x, y) => (y.claims.some(c => c.toLowerCase() === "slayer") ? 1 : 0) - (x.claims.some(c => c.toLowerCase() === "slayer") ? 1 : 0)).map(x => `<option value="${x.id}"${x.id === p.slayerBy ? " selected" : ""}>${state.players.indexOf(x) + 1}. ${esc(x.name || "—")}${x.claims.length ? " · " + esc(x.claims.join("/")) : ""}</option>`).join("")}</select>
     </div>` : ""}` : ""}
+    ${provenGood().has(p.id) ? `<div class="proven-note">✓ Proven good. ${esc(provenGood().get(p.id))}.</div>` : ""}
 
     <div class="row">
       <span class="label">My read</span>
@@ -637,9 +680,14 @@ function renderPanel() {
       const vs = state.players.filter(x => x !== p && x.claims.some(c => c.toLowerCase() === "virgin"));
       if (vs.length === 1) p.virginBy = vs[0].id;
     }
-    save(); render();
+    if (p.deathBy === "slayer" && !p.slayerBy) {
+      const ss = state.players.filter(x => x !== p && x.claims.some(c => c.toLowerCase() === "slayer"));
+      if (ss.length === 1) p.slayerBy = ss[0].id;
+    }
+    applyProofs(); save(); render();
   });
-  if ($("pVirgin")) $("pVirgin").onchange = e => { p.virginBy = e.target.value; save(); render(); };
+  if ($("pVirgin")) $("pVirgin").onchange = e => { p.virginBy = e.target.value; applyProofs(); save(); render(); };
+  if ($("pSlayer")) $("pSlayer").onchange = e => { p.slayerBy = e.target.value; applyProofs(); save(); render(); };
   $("panel").querySelectorAll("[data-align]").forEach(b => b.onclick = () => { p.align = b.dataset.align; save(); render(); });
   $("panel").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { p.claims.splice(+b.dataset.rm, 1); save(); render(); });
   $("panel").querySelectorAll(".pick").forEach(b => b.onclick = () => {
@@ -1110,7 +1158,7 @@ function buildTips() {
     if (!ROLE_Q[c]) continue;
     if (c === "ravenkeeper" && !(p.dead && p.deathBy === "night")) continue;
     if (c === "sage" && !(p.dead && p.deathBy === "night")) continue;
-    if (c === "slayer" && p.dead) continue;
+    if (c === "slayer" && (p.dead || players.some(x => x.deathBy === "slayer" && x.slayerBy === p.id))) continue;
     if (c === "virgin" && players.some(x => x.deathBy === "virgin" && x.virginBy === p.id)) continue;
     if (c === "undertaker" && players.some(x => x.dead && x.deathBy === "exec")) continue;
     if (qs.get(p.id)?.some(q => q.text.includes(ROLE_Q[c]))) continue;
@@ -1163,6 +1211,12 @@ function buildTips() {
     if (has(p, "tea lady") && c === "tea lady") issues.push({ level: "", ids: [p.id], text: `${nm(p)} (Tea Lady) is dead.`, sub: "Their neighbours' safety no longer applies." });
   }
   const executed = players.filter(p => p.dead && (p.deathBy === "exec" || p.deathBy === "virgin"));
+  for (const p of players.filter(x => x.dead && x.deathBy === "slayer")) {
+    const sl = players.find(x => x.id === p.slayerBy);
+    const tbish = ["tb", "all"].includes(state.script);
+    issues.push({ level: "", ids: [p.id], text: `${sl ? nm(sl) : "The Slayer"} shot ${nm(p)} and they died, so ${nm(p)} was the Demon${tbish ? " (or the Recluse showing as the Demon)" : ""}.`, sub: `${sl ? `That proves ${nm(sl)} is the real Slayer and good. Their shot is now used up. ` : "Pick who shot them so the app can mark the Slayer as proven. "}${tbish ? "If the game carried on, the Scarlet Woman may now be the Demon, or it was the Recluse." : "If the game carried on, look for a new Demon."}` });
+    if (sl) { flag(sl, -6, ""); if (sl.align === "evil") issues.push({ level: "hi", ids: [sl.id], text: `You've marked ${nm(sl)} as evil, but their Slayer shot proved them good.`, sub: "Update your read." }); }
+  }
   for (const p of players.filter(x => x.dead && x.deathBy === "virgin")) {
     const v = players.find(x => x.id === p.virginBy);
     const notTF = p.claims.length && p.claims.every(c => teamOf(c) !== "townsfolk");
@@ -1208,7 +1262,7 @@ function buildTips() {
   if (alive.length <= 4) rem.push(alive.length <= 3 ? "Final three: if the Demon survives today's execution, evil wins. Every vote counts." : "Four alive: if the Demon kills tonight, tomorrow is the final three. Make today's execution count.");
   const mayor = alive.find(p => hard(p).toLowerCase() === "mayor");
   if (mayor && alive.length <= 4) rem.push(`${nm(mayor)} claims Mayor. With three alive and no execution, a real Mayor wins it for good.`);
-  const slayer = alive.find(p => !p.me && hard(p).toLowerCase() === "slayer");
+  const slayer = alive.find(p => !p.me && hard(p).toLowerCase() === "slayer" && !players.some(x => x.deathBy === "slayer" && x.slayerBy === p.id));
   const topEvil = [...noms.values()].filter(n => n.score > 0).sort((a, b) => b.score - a.score)[0];
   if (slayer && topEvil && topEvil.p !== slayer) rem.push(`${nm(slayer)} claims Slayer. If they haven't fired, ${nm(topEvil.p)} could be a good target.`);
   if (state.day === 1) rem.push("Day 1: ask everyone for a claim or at least Townsfolk or Outsider, and write down who's quiet.");
