@@ -75,12 +75,17 @@ button { cursor: pointer; }
 
 /* Top bar */
 .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 15; margin-inline: -16px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); box-shadow: 0 6px 14px -10px rgba(0,0,0,.5); }
+#helpBtn .sm { display: none; }
+@media (max-width: 600px) { #helpBtn .sm { display: inline; } }
 .new-game { font-size: 1rem; padding: 9px 16px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
 .new-game:hover { filter: brightness(1.08); }
 @media (max-width: 600px) {
   .bar { gap: 8px; padding-block: 8px; }
   .brand { font-size: 1.15rem; flex: 1 1 0; min-width: 0; margin-right: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .new-game { font-size: .92rem; padding: 7px 12px; }
+  #helpBtn { padding: 7px 10px; }
+  .brand-x { display: none; }
+  #helpBtn .lg { display: none; }
   .bar-group { width: 100%; }
   .bar-group .label { display: none; }
   .bar-group select { flex: 1; padding-block: 5px; }
@@ -266,6 +271,36 @@ textarea { resize: vertical; min-height: 90px; }
 .phase .info-form { border-style: solid; }
 .over-banner { border-style: solid; border-color: var(--brass); font-weight: 700; }
 
+/* Welcome page */
+.welcome { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: var(--bg); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.welcome-inner { max-width: 880px; margin: 0 auto; padding-inline: 16px; padding-block: 36px 48px; display: grid; gap: 28px; }
+.welcome-head { display: grid; gap: 10px; text-align: center; justify-items: center; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.welcome-kicker { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); font-weight: 700; }
+.welcome-head h1 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: clamp(2.2rem, 7vw, 3.6rem); line-height: 1; text-wrap: balance; }
+.welcome-lede { margin: 0; max-width: 34rem; font-size: 1.05rem; color: var(--fg); }
+.welcome-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.w-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; counter-reset: step; }
+@media (max-width: 700px) { .w-steps { grid-template-columns: minmax(0, 1fr); } }
+.w-steps > li { counter-increment: step; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px 16px 58px; position: relative; display: grid; gap: 8px; align-content: start; }
+.w-steps > li::before { content: counter(step); position: absolute; left: 16px; top: 14px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--brass); color: #1a1408; font-weight: 800; font-family: var(--font-body); }
+.w-steps h2, .w-legend h2 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.3rem; }
+.w-steps p, .w-steps ul { margin: 0; font-size: .94rem; }
+.w-steps ul { padding-left: 1.1em; display: grid; gap: 4px; }
+.w-legend { display: grid; gap: 12px; }
+.w-legend-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 18px; }
+@media (max-width: 700px) { .w-legend-grid { grid-template-columns: minmax(0, 1fr); } }
+.w-legend-grid > div { display: flex; align-items: center; gap: 10px; font-size: .9rem; }
+.mini { position: relative; flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--parch); border: 3px solid transparent; box-shadow: 0 1px 4px rgba(0,0,0,.3); overflow: hidden; }
+.mini.good { border-color: var(--good); }
+.mini.evil { border-color: var(--evil); }
+.mini.proven { border: 5px solid var(--good); }
+.mini.proven i { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 6px; font-weight: 800; background: var(--good); color: #fff; border-radius: 2px; padding: 0 2px; white-space: nowrap; }
+.mini.dead { filter: grayscale(1) brightness(.62); }
+.mini.dead::after { content: ""; position: absolute; left: 50%; top: -6%; width: 34%; height: 50%; transform: translateX(-50%); background: #111; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
+.mini-vote { position: absolute; right: 3px; bottom: 3px; width: 11px; height: 11px; border-radius: 50%; background: #fff; border: 2px solid #111; }
+.mini-sus { flex: none; width: 38px; text-align: center; font-weight: 800; color: var(--evil); font-size: .85rem; }
+.w-note { margin: 0; font-size: .84rem; color: var(--muted); text-align: center; max-width: 40rem; justify-self: center; }
+
 /* Claim matrix */
 .matrix-card { gap: 10px; }
 .matrix-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
@@ -309,7 +344,8 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 
 <div class="wrap">
   <header class="bar">
-    <h1 class="brand">Clocktower Notebook</h1>
+    <h1 class="brand">Clocktower<span class="brand-x"> Notebook</span></h1>
+    <button class="btn" id="helpBtn" aria-label="How to use"><span class="lg">How to use</span><span class="sm">Help</span></button>
     <button class="btn primary new-game" id="newGameBtn">+ New game</button>
     <div class="bar-group">
       <label class="label" for="script">Script</label>
@@ -409,6 +445,71 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     <span class="matrix-note">Tap a square to add or remove that claim. Tap a name to open that player.</span>
   </section>
 </div>
+
+<section class="welcome" id="welcome" hidden aria-labelledby="welcomeTitle">
+  <div class="welcome-inner">
+    <header class="welcome-head">
+      <p class="welcome-kicker">A player's grimoire for Blood on the Clocktower</p>
+      <h1 id="welcomeTitle">Clocktower Notebook</h1>
+      <p class="welcome-lede">Keep track of who claims what, what everyone learned at night, and who might be evil. Everything you enter is saved automatically and stays private to you.</p>
+      <div class="welcome-actions">
+        <button class="btn primary new-game" id="wStart">+ Start a new game</button>
+        <button class="btn" id="wExample">Look around the example game</button>
+      </div>
+    </header>
+
+    <ol class="w-steps">
+      <li>
+        <h2>Set up the table</h2>
+        <p>Tap <b>New game</b>, choose the script, and type the players' names in seat order, going clockwise.</p>
+        <p>The game opens on <b>Night 1</b>. Pick your seat and your character, then log what you learned. Your character becomes your claim on the circle.</p>
+      </li>
+      <li>
+        <h2>During the day</h2>
+        <p>Tap a player's token to open their panel.</p>
+        <ul>
+          <li><b>Hard claim:</b> they named one role. Tap it.</li>
+          <li><b>Soft claim:</b> they gave options, like a 3-for-3. Switch to Soft claim first, then tap every option.</li>
+          <li>Set <b>My read</b> (good, unsure, evil), pick the evil character you <b>suspect</b>, and write <b>notes</b>.</li>
+        </ul>
+        <p>When a player shares what they learned at night, add it under <b>Night info</b> with <b>Whose info</b> set to them. Use <b>Slayer shot</b> when someone shoots.</p>
+      </li>
+      <li>
+        <h2>End the day</h2>
+        <p>Tap <b>End day → night</b> in the middle of the circle. The app asks, one step at a time:</p>
+        <ul>
+          <li>Who was executed, and whether it was the Virgin.</li>
+          <li>Whether the game ended.</li>
+          <li>Your night info, or that you died in the night.</li>
+          <li>Who died overnight.</li>
+        </ul>
+      </li>
+      <li>
+        <h2>Read the board</h2>
+        <ul>
+          <li><b>Plan for tomorrow:</b> what doesn't add up, questions to ask each player, and who to look at.</li>
+          <li><b>Evil team:</b> the most likely Demon and why, plus which Minions are likely in play.</li>
+          <li><b>Claim matrix:</b> every claim at a glance. Amber means two players claim the same role.</li>
+        </ul>
+      </li>
+    </ol>
+
+    <div class="w-legend" aria-label="What the tokens show">
+      <h2>Reading a token</h2>
+      <div class="w-legend-grid">
+        <div><span class="mini good"></span>Blue ring: you think they're good</div>
+        <div><span class="mini evil"></span>Red ring: you think they're evil</div>
+        <div><span class="mini proven"><i>✓ GOOD</i></span>Proven good by the Virgin or a Slayer shot</div>
+        <div><span class="mini dead"></span>Black shroud: dead</div>
+        <div><span class="mini"><span class="mini-vote"></span></span>White dot: ghost vote still unused</div>
+        <div><span class="mini-sus">Imp?</span>The evil character you suspect</div>
+      </div>
+    </div>
+
+    <p class="w-note">The suggestions are prompts, not answers. Anyone can be drunk or poisoned, and evil players lie. <i>Blood on the Clocktower</i> belongs to The Pandemonium Institute; this is an unofficial fan tool.</p>
+    <div class="welcome-actions"><button class="btn primary new-game" id="wStart2">+ Start a new game</button><button class="btn" id="wClose">Close</button></div>
+  </div>
+</section>
 
 <div class="overlay" id="phaseOverlay" hidden>
   <div class="card dialog phase" role="dialog" aria-modal="true" aria-labelledby="phaseTitle" id="phaseBox"></div>
@@ -2094,6 +2195,18 @@ $("ngStart").onclick = () => {
 
 new ResizeObserver(sizeTokens).observe($("table"));
 render();
+
+/* ---------- Welcome page ---------- */
+const WELCOME_KEY = "clocktower-notebook-welcomed";
+function openWelcome() { $("welcome").hidden = false; $("welcome").scrollTop = 0; $("wStart").focus(); }
+function closeWelcome() { $("welcome").hidden = true; try { localStorage.setItem(WELCOME_KEY, "1"); } catch (e) {} }
+$("helpBtn").onclick = openWelcome;
+$("wExample").onclick = closeWelcome;
+$("wClose").onclick = closeWelcome;
+$("wStart").onclick = $("wStart2").onclick = () => { closeWelcome(); openNew(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("welcome").hidden) closeWelcome(); });
+// First visit (or still on the example game and never welcomed): show the guide before anything else
+try { if (!localStorage.getItem(WELCOME_KEY) && state.example) openWelcome(); } catch (e) { if (state.example) openWelcome(); }
 
 /* ---------- Account sync ---------- */
 (async () => {
