@@ -1576,6 +1576,33 @@ function buildTips() {
       issues.push({ level: "bad", ids: [p.id], text: `${src ? nm(src) + "'s" : "Your"} ${e.role} saw ${nm(p)} as the ${e.r[0]}, and the game didn't end.`, sub: ["tb", "all"].includes(state.script) ? `${src ? `If ${nm(src)} is telling the truth, the` : "The"} Scarlet Woman has become the Demon (she takes over if 5 or more were alive). Look for a Minion among the living.` : "Something kept evil alive: look for a Minion or Demon ability that survives the Demon's execution." });
     }
   }
+  // Quiet nights: nobody died, so something stopped (or delayed) the Demon's kill
+  const QUIET_REASONS = {
+    tb: [["monk", "a Monk protected the Demon's target"], ["soldier", "the Demon attacked the Soldier, who can't die"]],
+    bmr: [["innkeeper", "an Innkeeper protected the target"], ["tea lady", "the target was next to a Tea Lady with two good neighbours"], ["sailor", "the Demon attacked the Sailor, who can't die"], ["fool", "the Demon attacked the Fool, who survives their first death"], ["exorcist", "the Exorcist chose the Demon, so it couldn't act"], ["courtier", "the Courtier made the Demon drunk"],
+      [null, "a Zombuul doesn't kill if someone died that day"], [null, "a Pukka's victim only dies the night after"], [null, "a Po can skip a night, then kill three"]],
+    snv: [[null, "a protection ability, or a Demon such as the Fang Gu jumping"]]
+  };
+  const quietScripts = state.script === "all" ? ["tb", "bmr", "snv"] : [state.script];
+  for (const n of (state.quietNights || [])) {
+    if (n < 2) continue;
+    const reasons = quietScripts.flatMap(sc => QUIET_REASONS[sc] || []).map(([role, text]) => {
+      if (!role) return text;
+      const holders = players.filter(p => p.claims.some(c => c.toLowerCase() === role));
+      return holders.length ? `${text} (${holders.map(nm).join(" or ")} ${holders.length === 1 ? "claims" : "claim"} it)` : `${text} (nobody claims it yet)`;
+    });
+    issues.push({ level: "hi", ids: [], text: `Nobody died on night ${n}.`, sub: `Possible reasons: ${reasons.join("; ")}. The Demon may also have been poisoned or drunk.` });
+    for (const p of players.filter(x => !x.dead || x.deathNight > n)) {
+      const has = r => p.claims.some(c => c.toLowerCase() === r);
+      if (has("monk")) { ask(p, `Night ${n} was quiet. Who did you protect that night?`, true); flag(p, -1, ""); }
+      if (has("soldier")) { ask(p, `Night ${n} was quiet. Do you think the Demon went for you?`, true); flag(p, -1, ""); }
+      if (has("innkeeper")) { ask(p, `Night ${n} was quiet. Which two players did you protect?`, true); flag(p, -1, ""); }
+      if (has("sailor")) ask(p, `Night ${n} was quiet. Who did you drink with, and could the Demon have attacked you?`, true);
+      if (has("fool")) ask(p, `Night ${n} was quiet. Do you think you used up your Fool's life?`, true);
+      if (has("exorcist")) ask(p, `Night ${n} was quiet. Who did you choose? If it was the Demon, that's your Demon.`, true);
+      if (has("tea lady")) ask(p, `Night ${n} was quiet. Who are your living neighbours?`, true);
+    }
+  }
   for (const shot of (state.shots || []).filter(x => !x.hit)) {
     const sh = players.find(x => x.id === shot.shooter), tg = players.find(x => x.id === shot.target);
     if (!sh || !tg) continue;
@@ -1788,7 +1815,7 @@ function buildEvil() {
   for (const p of ps) if (p.dead && p.deathBy === "night" && p.deathNight) nightDeaths[p.deathNight] = (nightDeaths[p.deathNight] || 0) + 1;
   const recorded = Object.keys(nightDeaths).length > 0;
   const zeroNights = [], multiNights = [];
-  for (let n = 2; n <= state.day; n++) { const c = nightDeaths[n] || 0; if (recorded && c === 0) zeroNights.push(n); if (c >= 2) multiNights.push(n); }
+  for (let n = 2; n <= state.day; n++) { const c = nightDeaths[n] || 0; if ((recorded && c === 0) || (state.quietNights || []).includes(n)) zeroNights.push(n); if (c >= 2) multiNights.push(n); }
   // A dead player shown as the Demon (Undertaker, Ravenkeeper...) or shot by a Slayer, while the game carried on
   const shownDemon = p => info.filter(e => e.p[0] === p.id && teamOf(e.r[0] || "") === "demon" && !e.zero);
   const demonDied = state.over ? [] : ps.filter(p => p.dead && (p.deathBy === "slayer" || shownDemon(p).length));
@@ -2142,11 +2169,16 @@ function renderPhase() {
       <span class="step">Morning of day ${state.day}</span>
       <h2 id="phaseTitle">Who died in the night?</h2>
       <div class="choice-list">${alive.map(p => `<button class="choice" data-die="${p.id}" aria-pressed="${phase.deaths.has(p.id)}">${nmP(p)}</button>`).join("")}</div>
-      <p class="hint">Tap everyone who died. Leave all unselected if nobody died.</p>
-      <div class="phase-actions"><button class="btn primary" data-next>${phase.deaths.size ? "Next" : "Nobody died"}</button></div>`;
-    box.querySelectorAll("[data-die]").forEach(b => b.onclick = () => { const id = b.dataset.die; phase.deaths.has(id) ? phase.deaths.delete(id) : phase.deaths.add(id); renderPhase(); });
+      <div class="choice-list"><button class="choice" data-nobody aria-pressed="${!!phase.nobody}">Nobody died tonight</button></div>
+      <p class="hint">Tap everyone who died, or "Nobody died tonight". A quiet night can point to a Monk, a Soldier or another protection.</p>
+      <div class="phase-actions"><button class="btn primary" data-next ${phase.deaths.size || phase.nobody ? "" : "disabled"}>Start day ${state.day} →</button></div>`;
+    box.querySelectorAll("[data-die]").forEach(b => b.onclick = () => { const id = b.dataset.die; phase.deaths.has(id) ? phase.deaths.delete(id) : phase.deaths.add(id); phase.nobody = false; renderPhase(); });
+    box.querySelector("[data-nobody]").onclick = () => { phase.nobody = !phase.nobody; if (phase.nobody) phase.deaths.clear(); renderPhase(); };
     box.querySelector("[data-next]").onclick = () => {
       for (const id of phase.deaths) { const p = state.players.find(x => x.id === id); if (p) { p.dead = true; p.deathBy = "night"; p.deathNight = state.day; } }
+      const quiet = new Set(state.quietNights || []);
+      if (phase.nobody) quiet.add(state.day); else quiet.delete(state.day);
+      state.quietNights = [...quiet].sort((a, b) => a - b);
       save();
       closePhase();
     };
