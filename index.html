@@ -128,6 +128,7 @@ select.btn { padding-right: 8px; }
 .me-tag { position: absolute; top: 4%; left: 50%; transform: translateX(-50%); font-size: calc(var(--tok, 70px) * .12); font-weight: 800; letter-spacing: .08em; background: var(--brass); color: #1a1408; border-radius: 4px; padding: 0 4px; z-index: 3; }
 .nameplate { max-width: calc(var(--tok, 70px) * 1.35); font-size: max(11px, calc(var(--tok, 70px) * .17)); font-weight: 700; line-height: 1.15; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fg); }
 .seat.dead .nameplate { color: var(--muted); text-decoration: line-through; }
+.sus { font-size: max(10px, calc(var(--tok, 70px) * .14)); font-weight: 800; color: var(--evil); line-height: 1; }
 .seatno { font-size: max(10px, calc(var(--tok, 70px) * .13)); color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1; }
 
 .hub { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 46%; display: grid; justify-items: center; gap: 6px; text-align: center; }
@@ -249,6 +250,21 @@ textarea { resize: vertical; min-height: 90px; }
 .pill.none { background: var(--line); color: var(--fg); }
 .pill.unlikely { background: transparent; color: var(--muted); border: 1px solid var(--line); }
 
+/* Night phase */
+.end-day { font-size: clamp(.72rem, 1.9vw, .9rem); padding: 6px 12px; }
+.phase { display: grid; gap: 12px; }
+.phase .step { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+.phase h2 { font-size: 1.5rem; }
+.phase p { margin: 0; }
+.choice-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.choice { border: 1px solid var(--line); background: var(--surface-2); border-radius: 99px; padding: 6px 12px; font-weight: 600; font-size: .9rem; }
+.choice[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.choice.evilwin[aria-pressed="true"], .btn.evilwin { background: var(--evil); color: #fff; border-color: var(--evil); }
+.btn.goodwin { background: var(--good); color: #fff; border-color: var(--good); }
+.phase-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.phase .info-form { border-style: solid; }
+.over-banner { border-style: solid; border-color: var(--brass); font-weight: 700; }
+
 /* Claim matrix */
 .matrix-card { gap: 10px; }
 .matrix-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
@@ -306,6 +322,8 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     <span class="sync" id="sync">Saved on this device</span>
   </header>
 
+  <div class="banner over-banner" id="overBanner" hidden></div>
+
   <div class="banner" id="exampleBanner" hidden>
     <span>This is an example game so you can see how it works. Start a new game to enter your own players.</span>
     <button class="btn sm primary" id="bannerNew">Start a game</button>
@@ -320,6 +338,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
             <span class="day-label" id="dayLabel">Day 1</span>
             <button class="round" id="dayUp" aria-label="Next day">+</button>
           </div>
+          <button class="btn primary end-day" id="endDayBtn">End day → night</button>
           <div class="stat" id="aliveStat"></div>
           <div class="comp" id="comp"></div>
         </div>
@@ -327,7 +346,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 
       <div class="card info-card" id="infoCard" aria-labelledby="infoTitle">
         <div class="tips-head"><h2 id="infoTitle">Night info</h2><span class="tips-foot">What you learned, what others say they learned, and what it could mean</span></div>
-        <div class="row">
+        <div class="row" id="infoPick">
           <label class="label" for="ifSrc">Whose info</label>
           <select id="ifSrc" class="btn"></select>
           <label class="label" for="myRole">Character</label>
@@ -388,6 +407,10 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     <div class="matrix-wrap"><table class="matrix" id="matrix"></table></div>
     <span class="matrix-note">Tap a square to add or remove that claim. Tap a name to open that player.</span>
   </section>
+</div>
+
+<div class="overlay" id="phaseOverlay" hidden>
+  <div class="card dialog phase" role="dialog" aria-modal="true" aria-labelledby="phaseTitle" id="phaseBox"></div>
 </div>
 
 <div class="overlay" id="overlay" hidden>
@@ -453,7 +476,7 @@ const teamOf = r => TEAM_OF[String(r).toLowerCase()] || "custom";
 const COMP = {5:[3,0,1,1],6:[3,1,1,1],7:[5,0,1,1],8:[5,1,1,1],9:[5,2,1,1],10:[7,0,2,1],11:[7,1,2,1],12:[7,2,2,1],13:[9,0,3,1],14:[9,1,3,1],15:[9,2,3,1]};
 
 const uid = () => Math.random().toString(36).slice(2, 10);
-const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: false, ghostVote: true, align: "", me: false, traveller: false, notes: "", deathBy: "", deathNight: 0, virginBy: "", slayerBy: "", ...extra });
+const mkPlayer = (name, extra = {}) => ({ id: uid(), name, claims: [], dead: false, ghostVote: true, align: "", me: false, traveller: false, notes: "", deathBy: "", deathNight: 0, execDay: 0, suspect: "", virginBy: "", slayerBy: "", ...extra });
 
 function exampleState() {
   const P = (name, claims, extra) => mkPlayer(name, { claims, ...extra });
@@ -491,6 +514,7 @@ function normalize(s) {
   s.notes = s.notes || "";
   s.myInfo = Array.isArray(s.myInfo) ? s.myInfo : [];
   s.myRole = s.myRole || "";
+  s.over = s.over || null;
   return s;
 }
 
@@ -598,6 +622,7 @@ function renderCircle() {
         ${p.dead && p.ghostVote ? '<span class="vote" title="Ghost vote available"></span>' : ""}
       </span>
       <span class="nameplate">${esc(p.name || "—")}</span>
+      ${p.suspect && !proven.has(p.id) ? `<span class="sus">${esc(p.suspect)}?</span>` : ""}
       <span class="seatno">${i + 1}${p.traveller ? " · traveller" : ""}${p.dead && p.deathBy === "virgin" ? " · Virgin" : ""}${p.dead && p.deathBy === "slayer" ? " · Slayer" : ""}</span>`;
     b.addEventListener("click", () => { state.selected = p.id; confirmRemove = false; save(); render(); });
     table.appendChild(b);
@@ -621,7 +646,7 @@ function renderRoster() {
   $("roster").innerHTML = state.players.map((p, i) => `
     <button class="roster-row${p.dead ? " dead" : ""}" data-id="${p.id}">
       <span class="n">${i + 1}</span>
-      <span class="who">${p.align ? `<span class="dot ${p.align}"></span>` : ""}${esc(p.name || "—")}${p.me ? " (me)" : ""}${provenGood().has(p.id) ? " ✓" : ""}</span>
+      <span class="who">${p.align ? `<span class="dot ${p.align}"></span>` : ""}${esc(p.name || "—")}${p.me ? " (me)" : ""}${provenGood().has(p.id) ? " ✓" : ""}${p.suspect && !provenGood().has(p.id) ? ` <span style="color:var(--evil);font-weight:600">(${esc(p.suspect)}?)</span>` : ""}</span>
       <span class="what">${p.claims.length ? p.claims.map(c => `<span class="t-${teamOf(c)}" style="color:var(--${teamOf(c)});font-weight:700">${esc(c)}</span>`).join(" or ") : '<span class="empty">no claim</span>'}
         ${p.notes.trim() ? `<small>${esc(p.notes.trim().split("\n")[0])}</small>` : ""}</span>
     </button>`).join("");
@@ -682,6 +707,13 @@ function renderPanel() {
         <button class="e" data-align="evil" aria-pressed="${p.align === "evil"}">Evil</button>
       </span>
     </div>
+    ${p.me ? "" : provenGood().has(p.id) ? "" : `<div class="row">
+      <label class="label" for="pSuspect">I suspect they're the</label>
+      <select class="btn" id="pSuspect"><option value="">No guess</option>
+        <optgroup label="Demons">${scriptRoles().demon.map(r => `<option${r === p.suspect ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>
+        <optgroup label="Minions">${scriptRoles().minion.map(r => `<option${r === p.suspect ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>
+      </select>
+    </div>`}
 
     <div class="field">
       <span class="label">Claimed roles${p.claims.length > 1 ? ` · ${p.claims.length} options, any order` : ""}</span>
@@ -739,7 +771,8 @@ function renderPanel() {
   if ($("pVirgin")) $("pVirgin").onchange = e => { p.virginBy = e.target.value; applyProofs(); save(); render(); };
   if ($("pDeathNight")) $("pDeathNight").oninput = e => { p.deathNight = Math.max(1, parseInt(e.target.value, 10) || 1); save(); renderEvil(); };
   if ($("pSlayer")) $("pSlayer").onchange = e => { p.slayerBy = e.target.value; applyProofs(); save(); render(); };
-  $("panel").querySelectorAll("[data-align]").forEach(b => b.onclick = () => { p.align = b.dataset.align; save(); render(); });
+  $("panel").querySelectorAll("[data-align]").forEach(b => b.onclick = () => { p.align = b.dataset.align; if (p.align !== "evil") p.suspect = ""; save(); render(); });
+  if ($("pSuspect")) $("pSuspect").onchange = e => { p.suspect = e.target.value; if (p.suspect) p.align = "evil"; save(); render(); };
   $("panel").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { p.claims.splice(+b.dataset.rm, 1); save(); render(); });
   $("panel").querySelectorAll(".pick").forEach(b => b.onclick = () => {
     const r = b.dataset.role;
@@ -841,7 +874,8 @@ function roleFor(src) {
 function newDraft(src, role) {
   const t = infoOf(role) || {};
   const prev = state.myInfo.filter(e => (e.src || "") === src).map(e => e.night);
-  const night = prev.includes(state.day) ? state.day + 1 : Math.max(1, state.day);
+  const inNight = typeof phase !== "undefined" && phase && phase.step === "night";
+  const night = !inNight && prev.includes(state.day) ? state.day + 1 : Math.max(1, state.day);
   const nb = t.neighbours ? livingNeighbours(src || meP()?.id) : [];
   return { src, role, night, p: nb, r: [], n: t.n ? 0 : null, yn: t.yn ? 0 : null, note: "", zero: false };
 }
@@ -1356,11 +1390,17 @@ function buildTips() {
     if (!p.dead) continue;
     if (!c && has(p, "saint") && p.deathBy === "exec") issues.push({ level: "", ids: [p.id], text: `${nm(p)} was executed and the game didn't end, so they weren't a sober Saint.`, sub: `Cross Saint off their options: they're more likely ${p.claims.filter(x => x.toLowerCase() !== "saint").join(" or ")}, or bluffing.` });
     if (!c && has(p, "soldier") && p.deathBy === "night") issues.push({ level: "", ids: [p.id], text: `${nm(p)} died at night, so they weren't a sober Soldier.`, sub: `Cross Soldier off their options: they're more likely ${p.claims.filter(x => x.toLowerCase() !== "soldier").join(" or ")}, or bluffing.` });
-    if (c === "saint" && p.deathBy === "exec") issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} was executed while claiming Saint, and the game didn't end.`, sub: "So they weren't the Saint, or they were drunk or poisoned. Anyone who backed the claim is worth a look." });
+    if (c === "saint" && p.deathBy === "exec" && !state.over) issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} was executed while claiming Saint, and the game didn't end.`, sub: "So they weren't the Saint, or they were drunk or poisoned. Anyone who backed the claim is worth a look." });
     if (c === "soldier" && p.deathBy === "night") issues.push({ level: "bad", ids: [p.id], text: `${nm(p)} claimed Soldier but died at night.`, sub: "A sober Soldier can't be killed by the Demon. Either they lied, or they were poisoned or drunk." });
     if (has(p, "tea lady") && c === "tea lady") issues.push({ level: "", ids: [p.id], text: `${nm(p)} (Tea Lady) is dead.`, sub: "Their neighbours' safety no longer applies." });
   }
   const executed = players.filter(p => p.dead && (p.deathBy === "exec" || p.deathBy === "virgin"));
+  if (!state.over) for (const p of players.filter(x => x.dead && (x.deathBy === "exec" || x.deathBy === "virgin"))) {
+    for (const e of state.myInfo.filter(e => e.p[0] === p.id && teamOf(e.r[0] || "") === "demon" && ["undertaker", "ravenkeeper"].includes(e.role.toLowerCase()))) {
+      const src = e.src ? players.find(x => x.id === e.src) : null;
+      issues.push({ level: "bad", ids: [p.id], text: `${src ? nm(src) + "'s" : "Your"} ${e.role} saw ${nm(p)} as the ${e.r[0]}, and the game didn't end.`, sub: ["tb", "all"].includes(state.script) ? `${src ? `If ${nm(src)} is telling the truth, the` : "The"} Scarlet Woman has become the Demon (she takes over if 5 or more were alive). Look for a Minion among the living.` : "Something kept evil alive: look for a Minion or Demon ability that survives the Demon's execution." });
+    }
+  }
   for (const p of players.filter(x => x.dead && x.deathBy === "slayer")) {
     const sl = players.find(x => x.id === p.slayerBy);
     const tbish = ["tb", "all"].includes(state.script);
@@ -1473,6 +1513,10 @@ function buildEvil() {
   const rule = (id, why) => { const c = cand.get(id); if (c && !c.out) c.out = why; };
 
   for (const p of ps) { if (p.align === "evil") add(p.id, 2, "your evil read"); if (p.align === "good") add(p.id, -2, ""); }
+  for (const p of ps) if (p.suspect && !proven.has(p.id)) {
+    if (teamOf(p.suspect) === "demon") add(p.id, 3, `you suspect the ${p.suspect}`);
+    else { add(p.id, -1, ""); minionish(p.id, 4); }
+  }
   for (const e of info) {
     const role = e.role.toLowerCase(), mine = !e.src, [a, b] = e.p;
     if (role === "fortune teller" && a && b) {
@@ -1510,6 +1554,12 @@ function buildEvil() {
     }
   }
   for (const r of reads) for (const w of r.weights) if (w.pts > 0 && /clash/.test(w.why)) add(w.id, 2, w.why);
+  const swTookOver = !state.over && scripts.includes("tb") && ps.some(p => p.dead && (p.deathBy === "slayer" || info.some(e => e.p[0] === p.id && teamOf(e.r[0] || "") === "demon")));
+  if (swTookOver) {
+    for (const e of info) if (e.r.some(r => r.toLowerCase() === "scarlet woman")) for (const id of e.p) add(id, e.src ? 2 : 4, `${who(e)} ${e.role} saw the Scarlet Woman, who is now the Demon`);
+    for (const p of ps) if (p.suspect === "Scarlet Woman") add(p.id, 3, "you suspect the Scarlet Woman, who is now the Demon");
+    for (const c of cand.values()) if (c.evil - c.score >= 3) { c.score += 2; c.why.push("looks like a Minion, and the Scarlet Woman is now the Demon"); }
+  }
   const hardCount = {};
   for (const p of ps) if (p.claims.length === 1) { const k = p.claims[0].toLowerCase(); hardCount[k] = (hardCount[k] || 0) + 1; }
   for (const p of ps) {
@@ -1539,7 +1589,10 @@ function buildEvil() {
   const recorded = Object.keys(nightDeaths).length > 0;
   const zeroNights = [], multiNights = [];
   for (let n = 2; n <= state.day; n++) { const c = nightDeaths[n] || 0; if (recorded && c === 0) zeroNights.push(n); if (c >= 2) multiNights.push(n); }
-  const demonDied = ps.filter(p => p.dead && (p.deathBy === "slayer" || info.some(e => !e.src && e.p[0] === p.id && teamOf(e.r[0] || "") === "demon")));
+  // A dead player shown as the Demon (Undertaker, Ravenkeeper...) or shot by a Slayer, while the game carried on
+  const shownDemon = p => info.filter(e => e.p[0] === p.id && teamOf(e.r[0] || "") === "demon" && !e.zero);
+  const demonDied = state.over ? [] : ps.filter(p => p.dead && (p.deathBy === "slayer" || shownDemon(p).length));
+  const demonDiedWhy = p => p.deathBy === "slayer" ? `${nm(p)} died to the Slayer` : shownDemon(p).map(e => `${who(e)} ${e.role} saw ${nm(p)} as the ${e.r[0]}`).join(" and ");
   const execDemon = ps.filter(p => p.dead && p.deathBy === "exec" && info.some(e => e.p[0] === p.id && teamOf(e.r[0] || "") === "demon"));
   const named = role => info.filter(e => e.r.some(r => r.toLowerCase() === role) && !e.zero);
 
@@ -1551,6 +1604,7 @@ function buildEvil() {
     let level = "none";
     const up = l => { if (LEVELS[l] > LEVELS[level] || level === "unlikely") level = l; };
     for (const e of named(k)) { why.push(`${who(e)} ${e.role} saw a ${role} (night ${e.night})`); up(e.src ? "possible" : "likely"); }
+    for (const p of ps.filter(x => x.suspect === role && !proven.has(x.id))) { why.push(`You suspect ${nm(p)} is the ${role}`); up("possible"); }
     if (k === "baron" && base !== null) {
       if (outs >= base + 2) { up("likely"); why.push(`${outs} Outsider claims where a normal game has ${base}: exactly what a Baron adds`); }
       else if (outs === base + 1) { up("possible"); why.push(`${outs} Outsider claims where a normal game has ${base}. With a Baron, one more is hiding (the Drunk thinks they're a Townsfolk)`); }
@@ -1560,7 +1614,11 @@ function buildEvil() {
       else if (level === "none" && outs + maybeOuts <= base && !unclaimed) { level = "unlikely"; why.push(`Outsider claims match a normal game of ${core.length}`); }
     }
     if (k === "godfather" && base !== null && Math.abs(outs - base) === 1) { up("possible"); why.push(`${outs} Outsider claims where a normal game has ${base}: a Godfather adds or removes one`); }
-    if (k === "scarlet woman" && demonDied.length) { up("likely"); why.push(`${demonDied.map(nm).join(", ")} looked like the Demon and died, yet the game carried on`); }
+    if (k === "scarlet woman" && demonDied.length) {
+      up("likely");
+      for (const p of demonDied) why.push(`${demonDiedWhy(p)}${p.deathBy === "exec" || p.deathBy === "virgin" ? " after being executed" : p.deathBy === "night" ? " after dying at night (the Imp may have passed the role to a Minion instead)" : ""}, and the game did not end`);
+      why.push("So the Scarlet Woman (if 5 or more were alive) is now the Demon");
+    }
     if (k === "mastermind" && execDemon.length) { up("possible"); why.push(`${execDemon.map(nm).join(", ")} was executed as the Demon and the game carried on`); }
     if (k === "poisoner" && poisonSigns.length) { up(poisonSigns.length >= 2 ? "likely" : "possible"); why.push(...poisonSigns.map(s => `Sign of poisoning: ${s}`)); }
     if (k === "spy") {
@@ -1578,6 +1636,7 @@ function buildEvil() {
     let level = "none";
     const up = l => { if (LEVELS[l] > LEVELS[level]) level = l; };
     for (const e of named(k)) { why.push(`${who(e)} ${e.role} saw a ${role} (night ${e.night})`); up(e.src ? "possible" : "likely"); }
+    for (const p of ps.filter(x => x.suspect === role && !proven.has(x.id))) { why.push(`You suspect ${nm(p)} is the ${role}`); up("possible"); }
     if (["zombuul", "pukka"].includes(k) && zeroNights.length) { up("possible"); why.push(`No one died on night ${zeroNights.join(", ")}`); }
     if (k === "po" && multiNights.length) { up(zeroNights.some(n => multiNights.includes(n + 1)) ? "likely" : "possible"); why.push(`Several died on night ${multiNights.join(", ")}`); }
     if (k === "shabaloth" && multiNights.length) { up("likely"); why.push(`Two or more died on night ${multiNights.join(", ")}`); }
@@ -1702,7 +1761,107 @@ function render() {
   renderInfo();
   renderTips();
   renderEvil();
+  updatePhaseLogged();
+  const ob = $("overBanner");
+  ob.hidden = !state.over;
+  if (state.over) {
+    ob.innerHTML = `<span>Game over: ${state.over.winner === "good" ? "good" : "evil"} won on day ${state.over.day}.</span><button class="btn sm primary" id="overNew">Start a new game</button><button class="btn sm" id="overUndo">Undo, the game goes on</button>`;
+    $("overNew").onclick = openNew;
+    $("overUndo").onclick = () => { state.over = null; save(); render(); };
+  }
+  $("endDayBtn").hidden = !!state.over;
 }
+
+/* ---------- Night phase ---------- */
+// A guided end-of-day: execution, did the game end, night info, who died, did the game end
+let phase = null;
+function openPhase() { phase = { step: "exec", exec: "", deaths: new Set(), day: state.day }; $("phaseOverlay").hidden = false; renderPhase(); }
+function closePhase() {
+  if ($("infoPick") && $("phaseSlot")?.contains($("infoPick"))) { $("infoCard").insertBefore($("infoForm"), $("infoLog")); $("infoCard").insertBefore($("infoPick"), $("infoForm")); }
+  phase = null; $("phaseOverlay").hidden = true; render();
+}
+function endGame(winner) { state.over = { winner, day: state.day }; save(); closePhase(); }
+function renderPhase() {
+  if (!phase) return;
+  const box = $("phaseBox");
+  const alive = state.players.filter(p => !p.dead);
+  const nmP = p => esc(p.name || `Seat ${state.players.indexOf(p) + 1}`);
+  const endQ = (lead) => `
+    <p>${lead}</p>
+    <p><b>Did the game end?</b></p>
+    <div class="phase-actions" style="justify-content:flex-start">
+      <button class="btn primary" data-end="no">No, the game goes on</button>
+      <button class="btn goodwin" data-end="good">Yes, good won</button>
+      <button class="btn evilwin" data-end="evil">Yes, evil won</button>
+    </div>`;
+  if (phase.step === "exec") {
+    box.innerHTML = `
+      <span class="step">End of day ${phase.day}</span>
+      <h2 id="phaseTitle">Was anyone executed today?</h2>
+      <div class="choice-list">${alive.map(p => `<button class="choice" data-exec="${p.id}" aria-pressed="${phase.exec === p.id}">${nmP(p)}</button>`).join("")}
+        <button class="choice" data-exec="" aria-pressed="${phase.exec === ""}">No execution</button></div>
+      <p class="hint">Someone who died nominating the Virgin, or to a Slayer shot, is marked from their own panel.</p>
+      <div class="phase-actions"><button class="btn" data-close>Cancel</button><button class="btn primary" data-next>Next</button></div>`;
+    box.querySelectorAll("[data-exec]").forEach(b => b.onclick = () => { phase.exec = b.dataset.exec; renderPhase(); });
+    box.querySelector("[data-next]").onclick = () => {
+      const p = state.players.find(x => x.id === phase.exec);
+      if (p) { p.dead = true; p.deathBy = "exec"; p.execDay = phase.day; save(); phase.step = "end1"; }
+      else phase.step = "night";
+      if (phase.step === "night") enterNight();
+      renderPhase();
+    };
+  } else if (phase.step === "end1") {
+    const p = state.players.find(x => x.id === phase.exec);
+    box.innerHTML = `<span class="step">End of day ${phase.day}</span><h2 id="phaseTitle">${nmP(p)} was executed</h2>${endQ(`${p.claims.length ? `They claimed ${esc(p.claims.join(" or "))}. ` : ""}If the game carried on, the app uses that (for example a Saint who wasn't, or a Scarlet Woman taking over).`)}`;
+    wireEnd(() => { enterNight(); renderPhase(); });
+  } else if (phase.step === "night") {
+    box.innerHTML = `
+      <span class="step">Night ${state.day}</span>
+      <h2 id="phaseTitle">Your night info</h2>
+      <p>Log what you learned tonight. Skip this if you don't wake tonight.</p>
+      <div id="phaseSlot" class="tips-col"></div>
+      <div id="phaseLogged" class="tips-col"></div>
+      <div class="phase-actions"><button class="btn primary" data-next>Morning →</button></div>`;
+    $("phaseSlot").appendChild($("infoPick"));
+    $("phaseSlot").appendChild($("infoForm"));
+    infoDraft = newDraft("", myRoleNow());
+    renderInfo(); updatePhaseLogged();
+    box.querySelector("[data-next]").onclick = () => {
+      $("infoCard").insertBefore($("infoForm"), $("infoLog")); $("infoCard").insertBefore($("infoPick"), $("infoForm"));
+      phase.step = "deaths"; renderPhase();
+    };
+  } else if (phase.step === "deaths") {
+    box.innerHTML = `
+      <span class="step">Morning of day ${state.day}</span>
+      <h2 id="phaseTitle">Who died in the night?</h2>
+      <div class="choice-list">${alive.map(p => `<button class="choice" data-die="${p.id}" aria-pressed="${phase.deaths.has(p.id)}">${nmP(p)}</button>`).join("")}</div>
+      <p class="hint">Tap everyone who died. Leave all unselected if nobody died.</p>
+      <div class="phase-actions"><button class="btn primary" data-next>${phase.deaths.size ? "Next" : "Nobody died"}</button></div>`;
+    box.querySelectorAll("[data-die]").forEach(b => b.onclick = () => { const id = b.dataset.die; phase.deaths.has(id) ? phase.deaths.delete(id) : phase.deaths.add(id); renderPhase(); });
+    box.querySelector("[data-next]").onclick = () => {
+      for (const id of phase.deaths) { const p = state.players.find(x => x.id === id); if (p) { p.dead = true; p.deathBy = "night"; p.deathNight = state.day; } }
+      save();
+      if (phase.deaths.size) { phase.step = "end2"; renderPhase(); } else closePhase();
+    };
+  } else if (phase.step === "end2") {
+    const names = [...phase.deaths].map(id => nmP(state.players.find(x => x.id === id))).join(" and ");
+    box.innerHTML = `<span class="step">Morning of day ${state.day}</span><h2 id="phaseTitle">${names} died in the night</h2>${endQ("")}`;
+    wireEnd(() => closePhase());
+  }
+  box.querySelectorAll("[data-close]").forEach(b => b.onclick = closePhase);
+  function wireEnd(onNo) {
+    box.querySelector('[data-end="no"]').onclick = onNo;
+    box.querySelector('[data-end="good"]').onclick = () => endGame("good");
+    box.querySelector('[data-end="evil"]').onclick = () => endGame("evil");
+  }
+}
+function enterNight() { state.day++; phase.step = "night"; save(); renderCircle(); }
+function updatePhaseLogged() {
+  if (!phase || phase.step !== "night" || !$("phaseLogged")) return;
+  const tonight = state.myInfo.filter(e => !e.src && e.night === state.day);
+  $("phaseLogged").innerHTML = tonight.length ? `<span class="label">Logged tonight</span>` + tonight.map(e => { const r = readEntry(e); return `<div class="tip">${esc(e.role)}: ${esc(r.means || e.note)}</div>`; }).join("") : "";
+}
+$("endDayBtn").onclick = openPhase;
 
 /* ---------- Global controls ---------- */
 const dl = document.createElement("datalist");
@@ -1725,7 +1884,7 @@ $("ngStart").onclick = () => {
   const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
   const count = names.length || Math.max(5, Math.min(20, parseInt($("ngCount").value, 10) || 8));
   const players = Array.from({ length: count }, (_, i) => mkPlayer(names[i] || `Player ${i + 1}`));
-  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], updatedAt: 0 };
+  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], over: null, updatedAt: 0 };
   confirmRemove = false;
   $("overlay").hidden = true; $("ngNames").value = "";
   save(); render();
