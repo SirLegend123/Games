@@ -35,7 +35,7 @@ A tracker for the *Blood on the Clocktower* Storyteller. Open `storyteller.html`
 - Days: nominations with vote counts, who's on the block, executions, Slayer shots (hit or miss, and why), and other deaths
 - Character changes, revivals, notes, and a star for moments worth calling out
 - Look back at any earlier night or day, and fix or add things there
-- Reveal script: when the game ends, a script to read aloud at the grimoire reveal. It tells the game night by night and reveals each player at the moment they died. Until then, players are only described by character ("The Poisoner poisoned Cara"), so evil players stay hidden until their turn. Survivors come last, evil ones at the very end, then who won. Nights with no deaths and days with no execution are called out
+- Reveal script: when the game ends, a script to read aloud at the grimoire reveal. It tells the game night by night and reveals each player at the moment they died. Until then, night actions name characters rather than players ("The Poisoner poisoned the Empath, and the Empath received 0 that night"), so no one is given away before their turn. Survivors come last, evil ones at the very end, then who won. Nights with no deaths and days with no execution are called out
 - Full summary: who was what, the whole game, every lie you told and why, starred moments, the final grimoire and some numbers. Copy either as text
 - Finished games are kept under Past games
 

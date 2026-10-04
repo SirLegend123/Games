@@ -543,7 +543,10 @@ function subject(id, S, acting) {
 }
 function narrate(e, S) {
   const T = e.targets || [];
-  const objs = T.map(t => roleTag(t, S));
+  // Night actions on players not yet revealed name the character, not the player ("poisoned the Empath")
+  const priv = ["ability", "kill", "status"].includes(e.type);
+  const objs = T.map(t => priv && hidden(t) && S[t] && S[t].role ? `the ${esc(S[t].role)}` : roleTag(t, S));
+  const when = isNight(e.ph) ? "that night" : "that day";
   const note = e.note ? ` <span class="aside">${esc(endDot(e.note))}</span>` : "";
   let s = "";
   switch (e.type) {
@@ -551,7 +554,7 @@ function narrate(e, S) {
       const acting = e.role || (S[e.actor] || {}).role;
       s = subject(e.actor, S, acting);
       if (T.length) s += ` ${esc(VERB[acting] || "chose")} ${listJoin(objs)}`;
-      if (e.info) s += `${T.length ? " and" : ""} learned “${esc(e.info)}”`;
+      if (e.info) s += REVEALED !== null ? `${T.length ? " and" : ""} received “${esc(e.info)}” ${when}` : `${T.length ? " and" : ""} learned “${esc(e.info)}”`;
       if (!T.length && !e.info) s += " used their ability";
       s += ".";
       const dr = droisoned(e.actor, e.ph, S);
@@ -584,7 +587,7 @@ function narrate(e, S) {
       s = `${hidden(T[0]) ? (was.role ? `The ${esc(was.role)}` : "Someone") : roleTag(T[0], S)} became the ${esc(e.role)}${e.align && e.align !== was.align ? ` and turned ${e.align}` : ""}${e.why ? ` (${esc(e.why)})` : ""}.`;
       break;
     }
-    case "status": s = `${listJoin(objs)} ${T.length > 1 ? "were" : "was"} marked <b>${esc(e.label)}</b>${e.why ? ` (${esc(e.why)})` : ""}.`; break;
+    case "status": s = `${cap(listJoin(objs))} ${T.length > 1 ? "were" : "was"} marked <b>${esc(e.label)}</b>${e.why ? ` (${esc(e.why)})` : ""}.`; break;
     case "note": s = esc(endDot(e.text)); break;
   }
   return s + (e.type === "note" ? "" : note);
@@ -601,7 +604,7 @@ function exampleGame() {
   const E = (ph, type, x) => g.events.push({ id: uid(), ph, type, targets: [], ...x });
   E(0, "note", { text: "The evil team met each other, and the Demon was shown three bluffs." });
   E(0, "ability", { actor: id("Ben"), role: "Poisoner", targets: [id("Cara")] });
-  E(0, "ability", { actor: id("Cara"), role: "Empath", info: "0", falseInfo: true, why: "Cara was poisoned", star: true });
+  E(0, "ability", { actor: id("Cara"), role: "Empath", info: "0", falseInfo: true, why: "the Empath was poisoned", star: true });
   E(0, "ability", { actor: id("Anna"), role: "Fortune Teller", targets: [id("Eve"), id("Finn")], info: "Yes" });
   E(0, "ability", { actor: id("Finn"), role: "Chef", info: "2", falseInfo: true, why: "they were the Drunk" });
   E(1, "slayer", { actor: id("Gus"), targets: [id("Ben")], outcome: "none", why: "Ben wasn't the Demon" });
@@ -1011,7 +1014,7 @@ function storyPhases(opts = {}) {
       const before = JSON.parse(JSON.stringify(S));
       lines.push(star(e.star) + narrate(e, before));
       applyEvent(S, e);
-      if (opts.onDeath) for (const p of G.players) if (!before[p.id].dead && S[p.id].dead) opts.onDeath(p.id, S, lines);
+      if (opts.onDeath) for (const p of G.players) if (!before[p.id].dead && S[p.id].dead) opts.onDeath(p.id, S, lines, e);
     }
     const evs = items.map(x => x.e);
     const died = evs.some(e => ((e.type === "kill" || e.type === "slayer") && e.targets[0] && e.outcome === "died") || (e.type === "death" && e.targets.length));
@@ -1044,10 +1047,12 @@ function buildScript() {
   ] });
 
   const revealed = new Set();
-  const reveal = (id, S) => {
+  const reveal = (id, S, byRole) => {
     revealed.add(id);
     const p = P(id), s = S[id], start = p.role || "?";
-    let t = `${cue("pause")} ${B(id)} was… ${cue("pause")} the <b class="${teamOf(start) === "minion" || teamOf(start) === "demon" ? "evil" : ""}">${esc(start)}</b>!`;
+    const roleHtml = `<b class="${teamOf(start) === "minion" || teamOf(start) === "demon" ? "evil" : ""}">${esc(start)}</b>`;
+    // A night death was already told by character, so reveal who it was
+    let t = byRole ? `${cue("pause")} The ${roleHtml} was… ${cue("pause")} ${B(id)}!` : `${cue("pause")} ${B(id)} was… ${cue("pause")} the ${roleHtml}!`;
     if (THINKS.includes(start) && p.thinks) t += ` They thought they were the <b>${esc(p.thinks)}</b>.`;
     if (s.role && s.role !== start) t += ` Later they became the <b>${esc(s.role)}</b>.`;
     if ((s.align || p.align) === "evil" && !["minion", "demon"].includes(teamOf(start))) t += ` <b class="evil">They were evil.</b>`;
@@ -1060,7 +1065,7 @@ function buildScript() {
   REVEALED = revealed;
   let phases, finalS;
   try {
-    phases = storyPhases({ noStars: true, onDeath: (id, S, lines) => { if (!revealed.has(id)) lines.push(reveal(id, S)); } });
+    phases = storyPhases({ noStars: true, onDeath: (id, S, lines, e) => { if (!revealed.has(id)) lines.push(reveal(id, S, e.type === "kill" && e.targets[0] === id && e.actor !== id)); } });
     finalS = stateAt(G.end ? G.end.ph : G.maxPhase);
   } finally { REVEALED = null; }
   parts.push({ h: "How it happened", intro: `Let's go back to the very first night. ${cue("pause")}`, phases });
