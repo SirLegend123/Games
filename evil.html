@@ -1,0 +1,2046 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Evil Grimoire">
+<title>Evil Grimoire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+/* Layout: a seating circle beside a player panel, with tabs for the team, the cover story, tonight and today. Dark-first. */
+:root {
+  --bg: #150f14;
+  --surface: #221820;
+  --surface-2: #2c2029;
+  --line: #43303d;
+  --fg: #f0e6ec;
+  --muted: #b09aa8;
+  --accent: #e0566b;      /* blood red: headings, selection */
+  --brass: #d4ab55;
+  --parch: #efe4c9;
+  --parch-ink: #2a2118;
+  --good: #4c8ce4;
+  --evil: #d8435a;
+  --evil-ink: #fff;
+  --warn: #e3a53c;
+  --ok: #3aa35c;
+  --felt: radial-gradient(circle at 50% 45%, #33202c 0%, #1d141b 62%, #150f14 100%);
+  --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f5eff2; --surface: #ffffff; --surface-2: #f7f0f4; --line: #e2d3dc;
+    --fg: #2a1d25; --muted: #74606c; --accent: #b4283f; --brass: #94701f;
+    --good: #2463c2; --evil: #be2a42; --warn: #b7791f; --ok: #2a9150;
+    --felt: radial-gradient(circle at 50% 45%, #ffffff 0%, #f0e6eb 70%, #e8dce3 100%);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f5eff2; --surface: #ffffff; --surface-2: #f7f0f4; --line: #e2d3dc;
+  --fg: #2a1d25; --muted: #74606c; --accent: #b4283f; --brass: #94701f;
+  --good: #2463c2; --evil: #be2a42; --warn: #b7791f; --ok: #2a9150;
+  --felt: radial-gradient(circle at 50% 45%, #ffffff 0%, #f0e6eb 70%, #e8dce3 100%);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px 40px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+
+/* Top bar */
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; position: sticky; top: 0; z-index: 15; margin-inline: -16px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.brand { font-family: var(--font-display); font-size: 1.6rem; color: var(--accent); margin: 0; line-height: 1; margin-right: auto; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 12px; font-weight: 600; font-size: .9rem; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.sm { padding: 4px 9px; font-size: .82rem; }
+.btn.danger { color: var(--evil); }
+.tabs { display: flex; gap: 4px; width: 100%; overflow-x: auto; scrollbar-width: none; }
+.tab { border: 0; background: none; padding: 7px 12px; border-radius: 8px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.tab[aria-selected="true"] { background: var(--surface-2); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
+.badge { display: inline-block; min-width: 1.3em; padding: 0 5px; border-radius: 99px; background: var(--evil); color: #fff; font-size: .72rem; text-align: center; }
+.badge:empty { display: none; }
+@media (max-width: 600px) {
+  .brand { font-size: 1.2rem; }
+  .bar { gap: 8px; padding-block: 8px; }
+}
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; min-width: 0; align-content: start; }
+.card h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.25rem; color: var(--accent); }
+.card h3 { margin: 4px 0 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+.head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; justify-content: space-between; }
+.foot { font-size: .8rem; color: var(--muted); }
+.label { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 700; }
+.hint { font-size: .82rem; color: var(--muted); margin: 0; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.field { display: grid; gap: 5px; }
+input[type=text], input[type=number], textarea, select { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 7px 10px; min-width: 0; }
+textarea { resize: vertical; min-height: 80px; width: 100%; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; align-items: start; }
+.col { display: grid; gap: 8px; align-content: start; min-width: 0; }
+
+.choice-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.choice { border: 1px solid var(--line); background: var(--surface-2); border-radius: 99px; padding: 5px 11px; font-weight: 600; font-size: .88rem; }
+.choice[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.choice.red[aria-pressed="true"] { background: var(--evil); border-color: var(--evil); color: #fff; }
+.choice.x::after { content: " ×"; opacity: .7; }
+.claim-grid { display: grid; gap: 8px; }
+.claim-grid .choice-list { gap: 5px; }
+.claim-grid .choice { padding: 5px 10px; font-size: .84rem; }
+.choice.taken { box-shadow: inset 0 0 0 2px var(--warn); }
+.claim-grid .label i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.claim-grid details summary { cursor: pointer; font-size: .82rem; color: var(--muted); font-weight: 700; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
+.seg button { border: 0; background: none; padding: 4px 12px; font-weight: 700; font-size: .82rem; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.hub-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+
+.tip { display: grid; gap: 3px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: .9rem; }
+.tip.hi { border-left-color: var(--warn); }
+.tip.bad { border-left-color: var(--evil); }
+.tip.ok { border-left-color: var(--ok); }
+.tip small { color: var(--muted); font-size: .82rem; }
+.tip .say { font-weight: 700; }
+.tip ul { margin: 2px 0 0; padding-left: 1.1em; display: grid; gap: 3px; }
+.who { font-weight: 800; background: none; border: 0; padding: 0; text-align: left; color: var(--fg); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.rank { display: grid; grid-template-columns: 1.6em minmax(0, 1fr) auto; column-gap: 8px; align-items: baseline; }
+.rank small { grid-column: 2 / -1; }
+.rank .n { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.score { font-weight: 800; font-size: .8rem; color: var(--evil); font-variant-numeric: tabular-nums; }
+.empty { color: var(--muted); font-size: .88rem; margin: 0; }
+.t-evil { color: var(--evil); }
+
+/* Table */
+.main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.table { position: relative; width: 100%; max-width: 640px; aspect-ratio: 1; margin: 0 auto; border-radius: 50%; background: var(--felt); border: 1px solid var(--line); }
+.table::before { content: ""; position: absolute; inset: 9%; border-radius: 50%; border: 1px dashed color-mix(in srgb, var(--accent) 35%, transparent); pointer-events: none; }
+.hub { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 46%; display: grid; gap: 6px; justify-items: center; text-align: center; }
+.time { display: flex; align-items: center; gap: 8px; }
+.time-label { font-family: var(--font-display); font-size: 1.35rem; color: var(--accent); min-width: 5.5em; }
+.round { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); font-weight: 800; }
+.stat { font-size: .82rem; color: var(--muted); }
+.stat b { color: var(--fg); }
+.seat { position: absolute; width: var(--tok, 70px); transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 2px; background: none; border: 0; padding: 0; }
+.disc { position: relative; width: var(--tok, 70px); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); display: grid; place-items: center; text-align: center; padding: 12%; box-shadow: 0 2px 6px rgba(0,0,0,.35); border: 3px solid transparent; overflow: hidden; }
+.seat.sel .disc { box-shadow: 0 0 0 3px var(--accent), 0 4px 14px rgba(0,0,0,.45); }
+.seat.team .disc { border-color: var(--evil); background: #3a1820; color: #fbe3e8; }
+.seat.threat .disc { border-color: var(--warn); border-style: dashed; }
+.seat.trusted .disc { border-color: var(--good); }
+.seat.dead .disc { filter: grayscale(1) brightness(.62); }
+.seat.dead .disc::after { content: ""; position: absolute; left: 50%; top: -6%; width: 34%; height: 46%; transform: translateX(-50%); background: #111; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
+.claim-txt { font-weight: 800; font-size: calc(var(--tok, 70px) * .15); line-height: 1.05; overflow-wrap: anywhere; }
+.claim-txt.none { opacity: .45; font-weight: 600; }
+.tag { position: absolute; left: 50%; transform: translateX(-50%); font-size: calc(var(--tok, 70px) * .11); font-weight: 800; letter-spacing: .05em; border-radius: 4px; padding: 0 4px; z-index: 3; white-space: nowrap; }
+.tag.me { top: 4%; background: var(--brass); color: #1a1408; }
+.tag.role { bottom: 5%; background: var(--evil); color: #fff; }
+.vote { position: absolute; top: 14%; right: 14%; width: 9px; height: 9px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px #000; z-index: 3; }
+.nameplate { max-width: calc(var(--tok, 70px) * 1.35); font-size: max(11px, calc(var(--tok, 70px) * .17)); font-weight: 700; line-height: 1.15; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seat.dead .nameplate { color: var(--muted); text-decoration: line-through; }
+.flag.ok { color: var(--good); }
+.flag { font-size: max(10px, calc(var(--tok, 70px) * .14)); font-weight: 800; color: var(--warn); line-height: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; color: var(--muted); justify-content: center; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid; vertical-align: -2px; margin-right: 4px; }
+
+/* Story */
+.story-form { display: grid; gap: 10px; padding: 10px; border-radius: 10px; border: 1px dashed var(--line); }
+.say-box { padding: 10px 12px; border-radius: 8px; background: var(--surface-2); font-weight: 700; font-size: 1.02rem; border-left: 3px solid var(--accent); }
+.say-box small { display: block; font-weight: 400; color: var(--muted); font-size: .82rem; margin-top: 3px; }
+
+/* Overlays */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; z-index: 50; padding: 16px; }
+.dialog { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; }
+.phase-btn { font-size: .95rem; padding: 8px 14px; }
+.win-head { display: grid; gap: 2px; }
+.win-k { font-size: .72rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 800; }
+.win-t { font-family: var(--font-display); font-weight: 400; font-size: clamp(2rem, 7vw, 2.8rem); line-height: 1.05; color: var(--evil); }
+.over.good .win-t { color: var(--good); }
+.win-s { font-size: .88rem; color: var(--muted); font-weight: 500; }
+.over { padding: 16px 18px !important; border-width: 2px !important; }
+.over { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--evil); background: var(--surface-2); font-weight: 700; }
+.over.good { border-color: var(--good); }
+.choice.sugg { box-shadow: inset 0 0 0 2px var(--warn); }
+.step-k { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+.dash { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.tile .k { font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+.tile .v { font-size: 1.5rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tile .v small { font-size: .85rem; color: var(--muted); font-weight: 600; }
+.tile .s { font-size: .8rem; color: var(--muted); }
+.meter { height: 6px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: 4px; }
+.lvl { font-weight: 800; }
+.lvl.low { color: var(--ok); } .lvl.medium { color: var(--warn); } .lvl.high, .lvl.critical { color: var(--evil); }
+@media (max-width: 400px) { .wide { display: none; } .bar { gap: 6px; } .brand { font-size: .95rem; } .bar .btn { padding: 5px 8px; font-size: .82rem; } .phase-pill { padding: 4px 8px; font-size: .78rem; } }
+.phase-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 99px; font-weight: 800; font-size: .88rem; border: 1px solid var(--line); background: var(--surface-2); white-space: nowrap; }
+.phase-pill.night { color: #c9c2ff; border-color: #5a5296; background: #221d3d; }
+.phase-pill.day { color: #f3d27a; border-color: #8a6d23; background: #2e2614; }
+:root[data-theme="light"] .phase-pill.night { color: #3f3790; background: #e7e4fb; border-color: #b9b2ec; }
+:root[data-theme="light"] .phase-pill.day { color: #6d5410; background: #fbf0d3; border-color: #e3c983; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .phase-pill.night { color: #3f3790; background: #e7e4fb; border-color: #b9b2ec; } :root:not([data-theme="dark"]) .phase-pill.day { color: #6d5410; background: #fbf0d3; border-color: #e3c983; } }
+.phase-note { padding: 8px 12px; border-radius: 10px; border: 1px dashed var(--line); color: var(--muted); font-size: .88rem; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.rank.pick { grid-template-columns: 26px 1.4em minmax(0, 1fr) auto; cursor: pointer; }
+.rank.pick small { grid-column: 3 / -1; }
+.rank.pick input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); align-self: center; }
+.rank.pick:has(input:checked) { box-shadow: inset 0 0 0 2px var(--accent); }
+.rank.pick:has(input:disabled) { cursor: default; }
+.recap summary { cursor: pointer; list-style-position: outside; }
+.recap .tl { display: grid; grid-template-columns: 6.2em minmax(0, 1fr); gap: 4px 10px; font-size: .88rem; }
+.recap .tl .when { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.recap .tl .night { color: #a89ff0; }
+.cover { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: grid; place-items: center; text-align: center; color: var(--muted); user-select: none; }
+.cover .moon { font-family: var(--font-display); font-size: 2.4rem; color: var(--muted); }
+
+/* Welcome */
+.welcome { max-width: 760px; margin: 0 auto; padding: 32px 16px 48px; display: grid; gap: 18px; }
+.welcome h1 { font-family: var(--font-display); font-weight: 400; color: var(--accent); font-size: clamp(2rem, 7vw, 3rem); margin: 0; line-height: 1; }
+.welcome .kicker { margin: 0; color: var(--muted); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
+.welcome ol { margin: 0; padding-left: 1.2em; display: grid; gap: 10px; }
+.welcome li b { color: var(--fg); }
+.welcome p, .welcome li { color: var(--fg); }
+.welcome .small { font-size: .84rem; color: var(--muted); }
+.table { container-type: inline-size; }
+@container (max-width: 520px) {
+  .hub { gap: 4px; width: 50%; }
+  .time { gap: 4px; }
+  .time-label { font-size: 1.05rem; min-width: 4.3em; }
+  .round { width: 24px; height: 24px; font-size: .8rem; padding: 0; }
+  .stat { font-size: .7rem; line-height: 1.3; }
+  .phase-btn { font-size: .78rem; padding: 4px 9px; }
+}
+</style>
+</head>
+<body>
+
+<section class="welcome" id="welcome" hidden aria-labelledby="wTitle">
+  <p class="kicker">A secret grimoire for the evil team in Blood on the Clocktower</p>
+  <h1 id="wTitle">Evil Grimoire</h1>
+  <p>You've woken up evil. This keeps your team, your bluffs and your lies straight, and helps you pick who to kill, who to poison and who to push to the block.</p>
+  <div class="row"><button class="btn primary" id="wStart">+ Start a new game</button><button class="btn" id="wContinue" hidden>Continue my game</button></div>
+  <ol>
+    <li><b>Set up.</b> Enter the players in seat order, then under <b>Your team</b> on the Table tab pick your character, tap your seat, mark your teammates and choose the Demon bluffs.</li>
+    <li><b>Pick a bluff.</b> On <b>Story &amp; night</b>, choose the good character you'll claim. Each night, the app suggests made-up info for that character (safe, covering a teammate, or framing a threat) and keeps a log of everything you've said so your story stays straight.</li>
+    <li><b>Track the town.</b> Tap a player and tap the roles they claim: <b>Soft</b> for every role they offered, <b>Hard</b> for the one they commit to. Note who they suspect and whether the town trusts them, and mark deaths as they happen. Record each <b>Virgin</b> nomination and <b>Slayer shot</b> from the middle of the circle.</li>
+    <li><b>End day → night</b> in the middle of the circle asks who was executed, whether the game ended, and your night action. <b>Night → day</b> asks who died. If your Demon dies, a Scarlet Woman takes over or a star-pass is caught automatically, and the app asks whether the game is over.</li>
+    <li><b>Talk to people.</b> After each chat, tap <b>I spoke to someone</b> on the Today tab (or in their panel): their claims, who they suspect, and what they shared, their own info or hearsay. Hearsay about a character counts as a soft claim for them. The table updates when you save.</li>
+    <li><b>Story &amp; night</b> also ranks kill or poison targets for your character. <b>Today</b> covers who to push, who not to nominate, vote counts and how close you are to winning.</li>
+  </ol>
+  <p class="small">Tap <b>Hide</b> at the top whenever someone looks over your shoulder; double-tap the screen to come back. Everything stays on this device. <i>Blood on the Clocktower</i> belongs to The Pandemonium Institute; this is an unofficial fan tool. Good players: the <a href="good.html">Clocktower Notebook</a> is for you. <a href="index.html">Back to all apps</a>.</p>
+</section>
+
+<div class="wrap" id="app" hidden>
+  <header class="bar">
+    <a class="btn" href="index.html" title="Choose another app" aria-label="All apps" style="text-decoration:none">&#8962;</a>
+    <h1 class="brand">Evil Grimoire</h1>
+    <span class="phase-pill" id="phasePill"></span>
+    <button class="btn" id="hideBtn" title="Cover the screen">Hide</button>
+    <button class="btn primary" id="newBtn" aria-label="New game">+ New<span class="wide"> game</span></button>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" data-tab="table">Table &amp; team <span class="badge" id="bTeam"></span></button>
+      <button class="tab" role="tab" data-tab="story">Story &amp; night <span class="badge" id="bStory"></span></button>
+      <button class="tab" role="tab" data-tab="day">Today</button>
+      <button class="tab" role="tab" data-tab="notes">Notes</button>
+    </nav>
+  </header>
+
+  <div class="over" id="overBanner" hidden></div>
+  <details class="card recap" id="recap" open hidden><summary><h2 style="display:inline">Game recap</h2> <span class="foot">How the evil team did</span></summary><div id="recapBody" class="col" style="margin-top:12px"></div></details>
+
+  <div class="tabview" data-view="table">
+    <div class="main">
+      <section class="col">
+        <div class="table" id="table" aria-label="Seating circle">
+          <div class="hub">
+            <div class="time">
+              <button class="round" id="tBack" aria-label="Back in time">−</button>
+              <span class="time-label" id="tLabel"></span>
+              <button class="round" id="tFwd" aria-label="Forward in time">+</button>
+            </div>
+            <div class="stat" id="hubStat"></div>
+            <button class="btn primary phase-btn" id="phaseBtn"></button>
+          </div>
+        </div>
+        <div class="hub-actions"><span class="label" style="align-self:center">Record</span><button class="btn sm" data-dayonly data-event="virgin">Virgin nomination</button><button class="btn sm" data-dayonly data-event="slayer">Slayer shot</button></div>
+        <div class="legend">
+          <span><i style="border-color:var(--evil);background:#3a1820"></i>Your team</span>
+          <span><i style="border-color:var(--warn);border-style:dashed"></i>Top threats</span>
+          <span><i style="border-color:var(--good)"></i>Trusted by the town</span>
+        </div>
+      </section>
+      <aside class="card" id="panel"></aside>
+    </div>
+    <section class="card" aria-labelledby="dashTitle">
+      <div class="head"><h2 id="dashTitle">How the team is doing</h2><span class="foot" id="dashFoot"></span></div>
+      <div class="dash" id="dash"></div>
+      <div class="grid2">
+        <div class="col"><h3>How close is your Demon to the block?</h3><div id="danger" class="col"></div></div>
+        <div class="col"><h3>Biggest threats</h3><div id="dashThreats" class="col"></div></div>
+      </div>
+      <div class="col"><h3>How suspicious each of you looks</h3><div id="heat" class="col"></div></div>
+    </section>
+    <div class="grid2">
+      <section class="card" aria-labelledby="setupTitle">
+        <h2 id="setupTitle">Your team</h2>
+        <div id="teamSetup" class="col"></div>
+      </section>
+      <section class="col">
+        <div class="card"><h2>Is your cover safe?</h2><div id="coverChecks" class="col"></div></div>
+        <div class="card"><h2>Playing your team's characters</h2><div id="roleTips" class="col"></div></div>
+      </section>
+    </div>
+  
+  </div>
+
+  <div class="tabview" data-view="story" hidden>
+    <p class="phase-note" id="storyNote" hidden></p>
+    <div class="grid2">
+      <section class="col">
+        <div class="card"><div class="head"><h2 id="nightTitle">Tonight</h2><span class="foot" id="nightFoot"></span></div><div id="targets" class="col"></div></div>
+        <div class="card" aria-labelledby="storyTitle"><div class="head"><h2 id="storyTitle">Made-up info for your bluff</h2><span class="foot" id="storyFoot"></span></div><div id="storyForm" class="col"></div></div>
+      </section>
+      <section class="col">
+        <div class="card"><h2>Story checks</h2><div id="storyChecks" class="col"></div></div>
+        <div class="card"><div class="head"><h2>What you've said</h2><span class="foot">Keep your story straight</span></div><div id="storyLog" class="col"></div></div>
+        <div class="card"><div class="head"><h2>Who you've told what</h2><span class="foot">From your conversations</span></div><div id="toldLog" class="col"></div></div>
+        <div class="card"><h2 id="myTipsTitle">Your character</h2><div id="myTips" class="col"></div></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="tabview" data-view="day" hidden>
+    <p class="phase-note" id="dayNote" hidden></p>
+    <div class="grid2">
+      <section class="col">
+        <div class="card"><h2>Where the game stands</h2><div id="endgame" class="col"></div></div>
+        <div class="card"><h2>Votes</h2><div id="votes" class="col"></div></div>
+        <div class="card"><div class="head"><h2>Virgin and Slayer</h2><div class="row"><button class="btn sm" data-dayonly data-event="virgin">+ Virgin nomination</button><button class="btn sm" data-dayonly data-event="slayer">+ Slayer shot</button></div></div><div id="events" class="col"></div></div>
+      </section>
+      <section class="col">
+        <div class="card"><div class="head"><h2>Town square</h2><div class="row"><button data-dayonly class="btn sm primary" id="tsSay">+ Public statement</button><button data-dayonly class="btn sm primary" id="tsNom">+ Nomination</button></div></div><span class="hint">What's said in the open during discussion, and each nomination and vote.</span><div id="block" class="col"></div><div id="square" class="col"></div></div>
+        <div class="card"><div class="head"><h2>Conversations</h2><button data-dayonly class="btn sm primary" id="hdAdd">+ I spoke to someone</button></div><span class="hint">Log each chat: their claims, who they suspect, and any info, their own or hearsay. The table updates as you save.</span><div id="heard" class="col"></div></div>
+        <div class="card"><div class="head"><h2>Who to push for execution</h2><span class="foot">Good players the town might believe are evil</span></div><div id="push" class="col"></div></div>
+        <div class="card"><h2>Careful</h2><div id="careful" class="col"></div></div>
+        <div class="card"><div class="head"><h2>Everyone's likely character</h2><span class="foot">From claims, what you know and what's not in play</span></div><div id="likely" class="col"></div></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="tabview" data-view="notes" hidden>
+    <section class="card">
+      <h2>Team notes</h2>
+      <label class="label" for="notes">Plans, signals, nominations, votes</label>
+      <textarea id="notes" style="min-height:260px" placeholder="Day 1: our plan is to push Sam. If I'm nominated, Mia defends me…"></textarea>
+    </section>
+  </div>
+</div>
+
+<div class="overlay" id="ngOverlay" hidden>
+  <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="ngTitle">
+    <h2 id="ngTitle">New game</h2>
+    <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+      <div class="field"><label class="label" for="ngCount">Players</label><input type="number" id="ngCount" min="5" max="20" value="8"></div>
+      <div class="field"><label class="label" for="ngScript">Script</label>
+        <select id="ngScript"><option value="tb">Trouble Brewing</option><option value="bmr">Bad Moon Rising</option><option value="snv">Sects &amp; Violets</option><option value="all">All three</option></select></div>
+    </div>
+    <div class="field">
+      <label class="label" for="ngNames">Names in seat order (optional)</label>
+      <textarea id="ngNames" placeholder="One name per line, going clockwise"></textarea>
+      <span class="hint">If you enter names, the player count follows the list. Your current game will be replaced.</span>
+    </div>
+    <div class="row"><button class="btn primary" id="ngStart">Start game</button><button class="btn" id="ngCancel">Cancel</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="phOverlay" hidden>
+  <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="phTitle" id="phBox"></div>
+</div>
+
+<div class="overlay" id="nmOverlay" hidden>
+  <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="nmTitle" id="nmBox"></div>
+</div>
+
+<div class="overlay" id="hdOverlay" hidden>
+  <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="hdTitle" id="hdBox"></div>
+</div>
+
+<div class="overlay" id="evOverlay" hidden>
+  <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="evTitle" id="evBox"></div>
+</div>
+
+<div class="cover" id="cover" hidden><div><div class="moon">☾</div><p>Double-tap to return</p></div></div>
+
+<script>
+/* ---------- Data ---------- */
+const ROLES = {
+  tb: {
+    townsfolk: ["Washerwoman","Librarian","Investigator","Chef","Empath","Fortune Teller","Undertaker","Monk","Ravenkeeper","Virgin","Slayer","Soldier","Mayor"],
+    outsider: ["Butler","Drunk","Recluse","Saint"],
+    minion: ["Poisoner","Spy","Scarlet Woman","Baron"],
+    demon: ["Imp"]
+  },
+  bmr: {
+    townsfolk: ["Grandmother","Sailor","Chambermaid","Exorcist","Innkeeper","Gambler","Gossip","Courtier","Professor","Minstrel","Tea Lady","Pacifist","Fool"],
+    outsider: ["Goon","Lunatic","Tinker","Moonchild"],
+    minion: ["Godfather","Devil's Advocate","Assassin","Mastermind"],
+    demon: ["Zombuul","Pukka","Shabaloth","Po"]
+  },
+  snv: {
+    townsfolk: ["Clockmaker","Dreamer","Snake Charmer","Mathematician","Flowergirl","Town Crier","Oracle","Savant","Seamstress","Philosopher","Artist","Juggler","Sage"],
+    outsider: ["Mutant","Sweetheart","Barber","Klutz"],
+    minion: ["Evil Twin","Witch","Cerenovus","Pit-Hag"],
+    demon: ["Fang Gu","Vigormortis","No Dashii","Vortox"]
+  }
+};
+const TEAMS = ["townsfolk", "outsider", "minion", "demon"];
+const TEAM_OF = {};
+for (const s of Object.values(ROLES)) for (const t of TEAMS) for (const r of s[t]) TEAM_OF[r.toLowerCase()] = t;
+const lc = s => String(s || "").toLowerCase();
+const teamOf = r => TEAM_OF[lc(r)] || "custom";
+const isEvilRole = r => ["minion", "demon"].includes(teamOf(r));
+// Townsfolk / Outsider / Minion / Demon by player count
+const COMP = {5:[3,0,1,1],6:[3,1,1,1],7:[5,0,1,1],8:[5,1,1,1],9:[5,2,1,1],10:[7,0,2,1],11:[7,1,2,1],12:[7,2,2,1],13:[9,0,3,1],14:[9,1,3,1],15:[9,2,3,1]};
+
+// What each good character says it learned, so a bluff can be filled in
+// p: players named, r/r2: role kinds, n: a number, yn: a yes/no style answer, x: free text
+// when: n1 = first night only, death = when they die, later = from night 2, exec = after an execution
+const SHAPE = {
+  "washerwoman":   { p: 2, r: "townsfolk", when: "n1", t: "{p1} or {p2} is the {r}" },
+  "librarian":     { p: 2, r: "outsider", none: true, when: "n1", t: "{p1} or {p2} is the {r}", tNone: "There are no Outsiders in play" },
+  "investigator":  { p: 2, r: "minion", when: "n1", t: "{p1} or {p2} is the {r}" },
+  "chef":          { n: "Pairs of evil neighbours", when: "n1", t: "I got a {n}" },
+  "empath":        { n: "Evil living neighbours", t: "I got a {n}" },
+  "fortune teller":{ p: 2, yn: ["No", "Yes"], t: "I checked {p1} and {p2}: {yn}" },
+  "undertaker":    { p: 1, r: "any", when: "exec", t: "{p1} was the {r}" },
+  "ravenkeeper":   { p: 1, r: "any", when: "death", t: "I chose {p1}: the {r}" },
+  "monk":          { p: 1, when: "later", t: "I protected {p1}" },
+  "butler":        { p: 1, t: "My master is {p1}" },
+  "grandmother":   { p: 1, r: "good", when: "n1", t: "My grandchild is {p1}, the {r}" },
+  "sailor":        { p: 1, t: "I drank with {p1}" },
+  "chambermaid":   { p: 2, n: "How many woke", t: "I chose {p1} and {p2}: {n} woke tonight" },
+  "exorcist":      { p: 1, when: "later", t: "I chose {p1}" },
+  "innkeeper":     { p: 2, t: "I protected {p1} and {p2}" },
+  "gambler":       { p: 1, r: "any", when: "later", t: "I guessed {p1} as the {r}, and lived" },
+  "courtier":      { r: "any", t: "I made the {r} drunk" },
+  "professor":     { p: 1, when: "later", t: "I tried to revive {p1}" },
+  "clockmaker":    { n: "Steps from the Demon to its nearest Minion", when: "n1", t: "I got a {n}" },
+  "dreamer":       { p: 1, r: "good", r2: "evil", t: "{p1} is the {r} or the {r2}" },
+  "snake charmer": { p: 1, t: "I chose {p1}, and they weren't the Demon" },
+  "mathematician": { n: "Abilities that went wrong", t: "I got a {n}" },
+  "flowergirl":    { yn: ["No", "Yes"], when: "later", t: "Did the Demon vote today? {yn}" },
+  "town crier":    { yn: ["No", "Yes"], when: "later", t: "Did a Minion nominate today? {yn}" },
+  "oracle":        { n: "Dead evil players", when: "later", t: "I got a {n}" },
+  "seamstress":    { p: 2, yn: ["Different teams", "Same team"], t: "I checked {p1} and {p2}: {yn}" },
+  "philosopher":   { r: "good", t: "I became the {r}" },
+  "sage":          { p: 2, when: "death", t: "The Demon is {p1} or {p2}" },
+  "savant":        { xl: "Their two statements", t: "My statements: {x}" },
+  "artist":        { xl: "Their question and the answer", t: "I asked: {x}" },
+  "gossip":        { xl: "What they gossiped", t: "My gossip: {x}" },
+  "juggler":       { n: "Guesses that were right", when: "later", t: "I got {n} right" },
+  "moonchild":     { p: 1, when: "death", t: "I chose {p1}" },
+  "klutz":         { p: 1, when: "death", t: "I chose {p1}" }
+};
+const WHEN_LABEL = { n1: "First night only", death: "Only when they die", later: "From night 2", exec: "The night after an execution" };
+
+// Strategy notes for each evil character
+const TIPS = {
+  "imp": ["Kill the strongest information first: Fortune Teller, Empath, Undertaker.", "Don't kill a claimed Soldier. A Monk may protect the player who looks most at risk.", "Star-pass: kill yourself at night to make a living Minion the new Imp. Good when you're about to be executed, or to lose the town's trail."],
+  "zombuul": ["You only kill on nights when nobody died during the day. Nudge the town to skip executions.", "The first time you die you stay alive in secret, registering as dead. Claim to be dead-but-useful, and keep your vote quiet."],
+  "pukka": ["Each night you poison someone; they die the next night. Your first kill lands on night 2.", "Poison an information player so tonight's info is wrong, and they die tomorrow anyway."],
+  "shabaloth": ["You kill two a night, and may bring one of last night's victims back. A revival looks like a Professor or a Monk.", "Fast games favour you. Push executions every day."],
+  "po": ["Choose nobody one night to kill three the next.", "A quiet night looks like a Monk or Soldier save. Lean on that."],
+  "fang gu": ["The first time you attack an Outsider, they become an evil Fang Gu and you die. Use it to escape suspicion.", "There's an extra Outsider in play, so the town expects one more."],
+  "vigormortis": ["Minions you kill keep their abilities, and a Townsfolk neighbour of theirs is poisoned.", "There's one fewer Outsider than normal."],
+  "no dashii": ["Your two nearest Townsfolk neighbours are poisoned. Sitting next to an info role ruins it.", "Encourage your poisoned neighbours to share info. It's wrong."],
+  "vortox": ["All Townsfolk info is false. If no one is executed in a day, evil wins.", "Back any player whose info is true: they're the Drunk or a Minion, not you. Push 'no execution' days if you can."],
+  "poisoner": ["Poison the info role whose info would hurt your team most tonight.", "Poisoning the Monk, Soldier or Slayer before they act can keep the Demon safe.", "If the Demon is in trouble, poison the player whose info points at them."],
+  "spy": ["You can see the Grimoire. Note everyone's real character in their panel.", "You register as good and as a Townsfolk, so you can survive Virgin and Investigator checks. You can claim any role with real info."],
+  "scarlet woman": ["If the Demon dies with five or more alive, you become the Demon. Keep a low profile.", "Don't defend the Demon so hard that you're executed together."],
+  "baron": ["Two extra Outsiders are in play. If too few Outsiders claim, the town will suspect a Baron.", "An Outsider bluff fills the gap and explains odd info."],
+  "godfather": ["You know which Outsiders are in play. If an Outsider died today, you kill tonight.", "Push to execute a claimed Outsider to unlock a kill."],
+  "devil's advocate": ["Protect the player most likely to be executed tomorrow, usually the Demon.", "You can't choose the same player two nights running."],
+  "assassin": ["Once per game, kill someone through any protection. Save it for the Soldier, a Monk-protected player or a Tea Lady neighbour."],
+  "mastermind": ["If the Demon is executed, the game goes on for one more day. If good then executes a good player, evil wins."],
+  "evil twin": ["You and a good player know each other. While you're both alive, good can't win. If the good twin is executed, evil wins.", "Accuse your twin. The town has to guess which of you is lying."],
+  "witch": ["Curse a player who will nominate tomorrow. If they do, they die.", "Curse an outspoken good leader to silence them."],
+  "cerenovus": ["Make a good player mad about being a character. If they break madness, they may be executed.", "Pick someone loud: make them mad about being an evil character to sow chaos."],
+  "pit-hag": ["Change a player into another character. Turning a good info role into a dull one helps.", "Creating a new Demon causes extra deaths that night. Use it to snowball late game."]
+};
+const GEN_TIPS = {
+  minion: ["Protect the Demon: give them cover, don't vote in a bloc with them.", "Take the heat yourself if you must. A dead Minion is cheaper than a dead Demon."],
+  demon: ["Stay alive. Let your Minions take risks for you.", "Use your bluffs: those characters aren't in play, so nobody can truthfully counter-claim them."]
+};
+
+// Roles the town relies on most, used to rank threats
+const INFO_ONGOING = ["empath", "fortune teller", "undertaker", "dreamer", "flowergirl", "town crier", "oracle", "chambermaid", "mathematician", "savant", "juggler", "seamstress", "gossip", "artist", "snake charmer", "exorcist"];
+const INFO_ONCE = ["washerwoman", "librarian", "investigator", "chef", "clockmaker", "grandmother"];
+const PROTECTORS = ["monk", "innkeeper", "tea lady", "sailor", "courtier", "minstrel"];
+const DEATH_INFO = ["ravenkeeper", "sage", "moonchild", "klutz"];
+const DEMON_PROOF = { soldier: "can't be killed by the Demon", mayor: "another player may die instead", fool: "survives their first death", sailor: "can't die while sober", "tea lady": "can't die while both neighbours are good" };
+
+/* ---------- State ---------- */
+const LS_KEY = "clocktower-evil-v1", TAB_KEY = "clocktower-evil-tab";
+const uid = () => Math.random().toString(36).slice(2, 10);
+const mkPlayer = (name, extra = {}) => ({ id: uid(), name, me: false, team: false, role: "", real: "", claims: [], dead: false, deathBy: "", deathAt: 0, ghostVote: true, trusted: false, townSus: false, onto: [], traveller: false, notes: "", claimType: "soft", shotUsed: false, virginUsed: false, shotCleared: false, ...extra });
+
+function blankGame(names, script) {
+  return { v: 1, script, t: 1, players: names.map(n => mkPlayer(n)), myRole: "", bluffs: [], story: [], acts: [], events: [], heard: [], talks: [], noms: [], notes: "", selected: null };
+}
+function normalize(s) {
+  if (!s || !Array.isArray(s.players) || !s.players.length) return null;
+  s.players = s.players.map(p => ({ ...mkPlayer(""), ...p, claims: Array.isArray(p.claims) ? p.claims : [], onto: Array.isArray(p.onto) ? p.onto : [] }));
+  s.t = Math.max(1, Number(s.t) || 1);
+  s.script = ROLES[s.script] || s.script === "all" ? s.script : "tb";
+  for (const k of ["bluffs", "story", "acts", "events", "heard", "talks", "noms"]) s[k] = Array.isArray(s[k]) ? s[k] : [];
+  s.notes = s.notes || ""; s.myRole = s.myRole || ""; s.over = s.over || null;
+  return s;
+}
+let state = null;
+try { state = normalize(JSON.parse(localStorage.getItem(LS_KEY))); } catch (e) { state = null; }
+function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+// t counts phases: 1 = Night 1, 2 = Day 1, 3 = Night 2 ...
+const nightNo = () => Math.ceil(state.t / 2);
+const isNight = () => state.t % 2 === 1;
+const timeLabel = t => (t % 2 ? "Night " : "Day ") + Math.ceil(t / 2);
+const P = () => state.players;
+const byId = id => P().find(p => p.id === id);
+const meP = () => P().find(p => p.me);
+const nm = p => p ? (p.name || `Seat ${P().indexOf(p) + 1}`) : "someone";
+const btn = p => `<button class="who" data-open="${p.id}">${esc(nm(p))}</button>`;
+const scriptRoles = () => {
+  if (state.script !== "all") return ROLES[state.script];
+  const out = {}; for (const t of TEAMS) out[t] = Object.values(ROLES).flatMap(s => s[t]); return out;
+};
+const roleList = kind => {
+  const R = scriptRoles();
+  return kind === "any" ? TEAMS.flatMap(t => R[t]) : kind === "good" ? [...R.townsfolk, ...R.outsider] : kind === "evil" ? [...R.minion, ...R.demon] : R[kind] || [];
+};
+// You're always evil in this app, so your own seat counts as team
+const onTeam = p => !!p && (p.team || p.me);
+const roleOf = p => p.me ? state.myRole : p.team ? p.role : "";
+// A good player's soft claim can't include a Demon bluff (not in play), so those roles are left off their list
+const notInPlay = r => state.bluffs.some(b => lc(b) === lc(r));
+// ...and roles a dead good player had firmly claimed, since that character has already been used up
+const rawHard = x => x.claims.length === 1 ? x.claims[0] : "";
+const deadClaimer = (r, p) => P().find(x => x !== p && x.dead && !onTeam(x) && lc(rawHard(x)) === lc(r));
+const ruledOut = p => !onTeam(p) && p.claims.length > 1 ? p.claims.filter(r => notInPlay(r) || deadClaimer(r, p)) : [];
+const outReason = (r, p) => notInPlay(r) ? `${r} (not in play)` : `${r} (${nm(deadClaimer(r, p))} died claiming it)`;
+const claimsOf = p => { const out = ruledOut(p); return out.length ? p.claims.filter(c => !out.includes(c)) : p.claims; };
+const hard = p => { const c = claimsOf(p); return c.length === 1 ? c[0] : ""; };
+// Best guess at a good player's character: what the grimoire showed, else their firm claim
+const realOrClaim = p => p.real || hard(p);
+const core = () => P().filter(p => !p.traveller);
+const alive = () => core().filter(p => !p.dead);
+const goodAlive = () => alive().filter(p => !onTeam(p));
+const teamPlayers = () => P().filter(onTeam);
+// The living Demon if there is one; after a star-pass or Scarlet Woman takeover the old Demon is dead
+const demonP = () => { const ds = teamPlayers().filter(p => teamOf(roleOf(p)) === "demon"); return ds.find(p => !p.dead) || ds[0]; };
+function livingNeighbours(p) {
+  const ring = P().filter(x => !x.dead || x === p), i = ring.indexOf(p), n = ring.length;
+  if (n < 2) return [];
+  const a = ring[(i - 1 + n) % n], b = ring[(i + 1) % n];
+  return a === b ? [a] : [a, b];
+}
+function dist(a, b) { const n = P().length, i = P().indexOf(a), j = P().indexOf(b), d = Math.abs(i - j); return Math.min(d, n - d); }
+
+/* ---------- Game size ---------- */
+// The character counts for this many players (travellers excluded), adjusted for setup-changing evil characters you know about
+function setup() {
+  const n = core().length, base = COMP[Math.min(n, 15)];
+  if (!base) return null;
+  let [tf, out, min, dem] = base; const why = [];
+  const roles = teamPlayers().map(x => lc(roleOf(x)));
+  if (roles.includes("baron")) { tf -= 2; out += 2; why.push("Baron: +2 Outsiders"); }
+  if (roles.includes("fang gu")) { tf -= 1; out += 1; why.push("Fang Gu: +1 Outsider"); }
+  if (roles.includes("vigormortis") && out > 0) { tf += 1; out -= 1; why.push("Vigormortis: −1 Outsider"); }
+  return { n, tf, out, min, dem, evil: min + dem, trav: P().length - n, why };
+}
+
+/* ---------- Analysis ---------- */
+function threats(mode) {
+  // mode: "kill" for the Demon, "poison" for poisoners, otherwise general
+  const team = teamPlayers(), demon = demonP();
+  const out = [];
+  for (const p of goodAlive()) {
+    let score = 0; const why = [];
+    const r = lc(realOrClaim(p));
+    if (p.real) why.push(`really the ${p.real}`);
+    if (INFO_ONGOING.includes(r)) { score += 3; why.push(`${p.real ? "" : "claims "}${realOrClaim(p)}: fresh info every night`); }
+    else if (INFO_ONCE.includes(r)) { score += 1; why.push(`${p.real ? "" : "claims "}${realOrClaim(p)}: trusted first-night info`); }
+    if (r === "fortune teller") { score += 1; why.push("can find the Demon"); }
+    if (r === "empath" && livingNeighbours(p).some(onTeam)) { score += 3; why.push("an Empath sitting next to your team"); }
+    if (r === "undertaker" && team.some(x => x.dead && executed(x))) { score += 1; why.push("saw your executed teammate"); }
+    if (r === "slayer" && !p.shotUsed) { score += mode === "kill" ? 4 : 2; why.push("still has a Slayer shot"); }
+    if (r === "virgin" && !p.virginUsed) { score += 1; why.push("unused Virgin: can prove a Townsfolk"); }
+    if (PROTECTORS.includes(r)) { score += 2; why.push("can protect players at night"); }
+    if (p.trusted) { score += 3; why.push("the town trusts them"); }
+    const hit = state.heard.filter(h => hitsTeam(h).length && (h.mode === "hearsay" ? h.via === p.id : h.from === p.id));
+    if (hit.length) { score += 3; why.push(`their info points at ${[...new Set(hit.flatMap(hitsTeam))].map(nm).join(" and ")}`); }
+    const passed = state.heard.filter(h => hitsTeam(h).length && h.mode === "hearsay" && h.from === p.id && h.via !== p.id);
+    if (passed.length) { score += 1; why.push("passing round info about your team"); }
+    const nommed = state.noms.filter(n => n.by === p.id && onTeam(byId(n.on)));
+    if (nommed.length) { score += 2; why.push(`nominated ${[...new Set(nommed.map(n => nm(byId(n.on))))].join(" and ")}`); }
+    const onto = p.onto.map(byId).filter(x => x && onTeam(x) && !x.dead);
+    if (onto.length) { score += 3 * onto.length; why.push(`suspects ${onto.map(nm).join(" and ")}`); }
+    if (demon && p.onto.includes(demon.id)) { score += 2; why.push("onto your Demon"); }
+    if (mode === "kill") {
+      if (DEMON_PROOF[r]) { score -= 8; why.push(DEMON_PROOF[r]); }
+      if (DEATH_INFO.includes(r)) { score -= 3; why.push("learns something when they die"); }
+      if (r === "grandmother") { score -= 1; why.push("their grandchild could die with them later"); }
+    }
+    if (mode === "poison" && (DEATH_INFO.includes(r) || INFO_ONGOING.includes(r) || PROTECTORS.includes(r) || r === "slayer")) { score += 1; }
+    out.push({ p, score, why });
+  }
+  return out.sort((a, b) => b.score - a.score);
+}
+
+function pushList() {
+  const bluffs = state.bluffs.map(lc), th = new Map(threats().map(t => [t.p.id, t.score]));
+  const out = [];
+  for (const p of goodAlive()) {
+    let score = 0; const why = [];
+    if (p.townSus) { score += 3; why.push("the town already suspects them"); }
+    const c = hard(p);
+    if (c && P().some(x => x !== p && !onTeam(x) && lc(hard(x)) === lc(c))) { score += 2; why.push(`double claim on ${c}: one of them is lying`); }
+    if (c && bluffs.includes(lc(c))) { score += 3; why.push(`claims ${c}, which is not in play: they're lying or the Drunk`); }
+    if (!p.claims.length && state.t > 2) { score += 1; why.push("hasn't claimed"); }
+    if (claimsOf(p).length > 1 && state.t > 4) { score += 1; why.push("still soft-claiming"); }
+    const t = th.get(p.id) || 0;
+    if (t >= 3) { score += Math.round(t / 2); why.push("a threat to your team"); }
+    if (p.trusted) { score -= 4; why.push("trusted, so a hard sell"); }
+    if (state.events.some(e => e.type === "virgin" && e.result === "none" && e.b === p.id)) { score += 2; why.push("nominated the Virgin and nothing happened"); }
+    if (p.shotCleared) { score -= 2; why.push("survived a Slayer shot, so the town may think they're not the Demon"); }
+    const townNom = state.noms.filter(n => n.on === p.id && !onTeam(byId(n.by)));
+    if (townNom.length) { const best = Math.max(...townNom.map(n => n.votes)); score += best >= townNom[0].need ? 3 : 1; why.push(`the town already nominated them (${best} votes)`); }
+    if (lc(c) === "saint" && !bluffs.includes("saint")) why.push("claims Saint: if it's true, executing them wins the game for you");
+    out.push({ p, score, why });
+  }
+  return out.sort((a, b) => b.score - a.score);
+}
+
+function teamHeat() {
+  const out = [];
+  for (const p of teamPlayers()) {
+    if (p.dead) continue;
+    let score = 0; const why = [];
+    const accusers = goodAlive().filter(x => x.onto.includes(p.id));
+    if (accusers.length) { score += 3 * accusers.length; why.push(`suspected by ${accusers.map(nm).join(", ")}`); }
+    if (p.townSus) { score += 3; why.push("the town suspects them"); }
+    const c = hard(p);
+    const rivals = c ? P().filter(x => x !== p && !onTeam(x) && lc(hard(x)) === lc(c)) : [];
+    if (rivals.length) { score += 2; why.push(`double claim with ${rivals.map(nm).join(", ")}`); }
+    if (!p.claims.length && state.t > 2) { score += 1; why.push("hasn't claimed"); }
+    if (state.events.some(e => e.type === "virgin" && e.result === "none" && e.b === p.id)) { score += 4; why.push("nominated the Virgin and nothing happened"); }
+    if (state.events.some(e => e.type === "slayer" && e.result === "none" && e.a === p.id)) { score += 1; why.push("their Slayer shot missed"); }
+    if (p.shotCleared) { score -= 2; why.push("survived a Slayer shot: looks cleared"); }
+    const noms = state.noms.filter(n => n.on === p.id);
+    if (noms.length) { score += noms.reduce((a, n) => a + (n.votes >= n.need ? 3 : 1), 0); why.push(`nominated ${noms.length === 1 ? `by ${nm(byId(noms[0].by))} (${noms[0].votes} votes)` : `${noms.length} times`}`); }
+    const pinged = state.heard.filter(h => hitsTeam(h).includes(p));
+    if (pinged.length) { score += 3 * pinged.length; why.push(`named in ${pinged.map(h => h.mode === "hearsay" ? `hearsay via ${nm(byId(h.from))}` : nm(byId(h.from)) + (h.as ? ` (${h.as})` : "")).join(", ")}'s info`); }
+    out.push({ p, score, why });
+  }
+  return out.sort((a, b) => b.score - a.score);
+}
+
+function coverChecks() {
+  const out = [], me = meP(), team = teamPlayers(), bluffs = state.bluffs.map(lc);
+  if (!state.myRole) out.push({ lv: "hi", text: "Choose your character above." });
+  if (!me) out.push({ lv: "hi", text: "Tap your seat in the list above, or open your player on the Table tab and choose This is me." });
+  if (me && !me.claims.length) out.push({ lv: "hi", text: "You haven't picked a bluff.", sub: state.bluffs.length ? `Demon bluffs: ${state.bluffs.join(", ")}. Those are not in play, so no one can truthfully counter-claim them. Set it on Story & night.` : "Choose one on Story & night." });
+  for (const p of team) {
+    const c = hard(p); if (!c) continue;
+    const whose = p.me ? "Your" : `${nm(p)}'s`;
+    const rivals = P().filter(x => !onTeam(x) && lc(hard(x)) === lc(c));
+    if (rivals.length) out.push({ lv: "bad", text: `${rivals.map(nm).join(" and ")} also claim${rivals.length === 1 ? "s" : ""} ${c}, ${whose.toLowerCase()} bluff.`, sub: bluffs.includes(lc(c)) ? `${c} is a Demon bluff, so ${rivals.map(nm).join(" and ")} must be lying, maybe the Drunk. Say so at the right moment.` : `They may be the real ${c}. Expect a showdown, or move to a Demon bluff.` });
+    else if (bluffs.length && !bluffs.includes(lc(c)) && teamOf(c) === "townsfolk") out.push({ lv: "", text: `${whose} bluff, ${c}, isn't a Demon bluff.`, sub: `The real ${c} may be in play and could counter-claim.` });
+    const mates = team.filter(x => x !== p && lc(hard(x)) === lc(c));
+    if (mates.length && P().indexOf(p) < P().indexOf(mates[0])) out.push({ lv: "bad", text: `${nm(p)} and ${mates.map(nm).join(", ")} are both claiming ${c}.`, sub: "Two evil players on one claim will be caught. One of you should switch." });
+    if (isEvilRole(c)) out.push({ lv: "bad", text: `${whose} public claim is an evil character (${c}).` });
+  }
+  const R = scriptRoles();
+  for (const r of state.bluffs) {
+    if (team.some(x => lc(hard(x)) === lc(r))) continue;
+    const holders = P().filter(x => !onTeam(x) && x.claims.some(c => lc(c) === lc(r)));
+    if (holders.length) out.push({ lv: "", text: `${holders.map(nm).join(" and ")} ${holders.length === 1 ? "claims" : "claim"} ${r}, which is not in play.`, sub: "They're lying: maybe the Drunk, or a good player hiding. Use it to cast doubt on them." });
+  }
+  const su = setup(), n = core().length;
+  const roles = team.map(x => lc(roleOf(x)));
+  if (su) {
+    const outs = su.out;
+    const claimed = core().filter(p => p.claims.length && p.claims.every(c => teamOf(c) === "outsider")).length;
+    if (roles.includes("baron") && claimed < outs) out.push({ lv: "", text: `With a Baron, the town will expect about ${outs} Outsiders. ${claimed} claimed so far.`, sub: "An Outsider bluff from your team fills the gap. Otherwise the missing Outsiders point at a Baron." });
+    const evilCount = su.evil;
+    if (team.length && team.length !== evilCount) out.push({ lv: "", text: `With ${n} players there are normally ${evilCount} evil players. You've marked ${team.length}.`, sub: "Mark your teammates in the list above." });
+  }
+  const virgin = P().find(p => !p.dead && lc(hard(p)) === "virgin" && !p.virginUsed);
+  if (virgin) out.push({ lv: "hi", text: `Nobody on your team should nominate ${nm(virgin)} (claims Virgin).`, sub: "If nothing happens, the town knows the nominator isn't a Townsfolk. A Spy may die." });
+  return out;
+}
+
+/* ---------- Team performance ---------- */
+const LEVELS = [[8, "critical", "Critical"], [5, "high", "High"], [2, "medium", "Medium"], [-99, "low", "Low"]];
+const levelOf = sc => LEVELS.find(l => sc >= l[0]);
+const meter = (sc, max = 10) => { const l = levelOf(sc); return `<div class="meter" role="img" aria-label="${l[2]}"><i style="width:${Math.max(6, Math.min(100, sc / max * 100))}%;background:var(--${l[1] === "low" ? "ok" : l[1] === "medium" ? "warn" : "evil"})"></i></div>`; };
+// How likely the Demon is to be executed soon: suspicion on them plus how few days the town has left
+function demonDanger() {
+  const d = demonP();
+  if (!d) return null;
+  if (d.dead) return { d, score: 10, why: ["your Demon is dead"] };
+  const h = teamHeat().find(x => x.p === d) || { score: 0, why: [] };
+  let score = h.score; const why = [...h.why];
+  const A = alive().length;
+  if (A <= 3) { score += 4; why.push("final three: the town only needs to find them once"); }
+  else if (A === 4) { score += 3; why.push("four alive: little room for a wrong execution"); }
+  else if (A === 5) { score += 1; why.push("five alive: the endgame is close"); }
+  const slayer = goodAlive().find(p => lc(realOrClaim(p)) === "slayer" && !p.shotUsed);
+  if (slayer) { score += 1; why.push(`${nm(slayer)} may still have a Slayer shot`); }
+  const backup = teamPlayers().find(p => !p.dead && lc(roleOf(p)) === "scarlet woman");
+  if (backup && A >= 5) why.push(`${nm(backup)} (Scarlet Woman) is a backup if they die`);
+  return { d, score, why };
+}
+function renderDash() {
+  const team = teamPlayers(), su = setup(), A = alive().length;
+  const evilAlive = team.filter(p => !p.dead).length, goodDead = core().filter(p => p.dead && !onTeam(p)).length, goodAll = core().filter(p => !onTeam(p)).length;
+  const dd = demonDanger(), heat = teamHeat(), hot = heat[0];
+  const against = state.heard.filter(h => hitsTeam(h).length).length;
+  const th = threats().filter(t => t.score >= 3);
+  $("dashFoot").textContent = `${timeLabel(state.t)} · ${A} alive`;
+  const tile = (k, v, s, extra = "") => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span>${extra}${s ? `<span class="s">${s}</span>` : ""}</div>`;
+  const lvl = sc => { const l = levelOf(sc); return `<span class="lvl ${l[1]}">${l[2]}</span>`; };
+  $("dash").innerHTML = [
+    dd ? tile("Demon danger", lvl(dd.score), `${esc(nm(dd.d))}${dd.d.dead ? " is dead" : ""}`, meter(dd.score)) : tile("Demon danger", "–", "Mark your Demon"),
+    tile("Team suspicion", hot ? lvl(hot.score) : "–", hot ? `Most suspected: ${esc(nm(hot.p))}` : "Mark your team", hot ? meter(hot.score) : ""),
+    tile("Evil alive", `${evilAlive}<small> of ${su ? su.evil : team.length}</small>`, `${goodDead} of ${goodAll} good players dead`),
+    tile("Threats", `${th.length}`, th.length ? `Top: ${esc(nm(th[0].p))}` : "No strong threat yet"),
+    tile("Info against you", `${against}`, against ? "pieces of info point at your team" : "Nothing logged points at you")
+  ].join("");
+  $("danger").innerHTML = !dd ? '<p class="empty">Mark which teammate is the Demon (or choose your own character) to see this.</p>'
+    : `<div class="tip ${levelOf(dd.score)[1] === "low" ? "ok" : levelOf(dd.score)[1] === "medium" ? "hi" : "bad"}"><span>${btn(dd.d)} · ${lvl(dd.score)} danger</span>${meter(dd.score)}<small>${dd.why.length ? esc(dd.why.join(" · ")) : "Nobody seems onto them yet."}</small>
+      ${!dd.d.dead && dd.score >= 5 ? `<small>${teamPlayers().some(p => !p.dead && teamOf(roleOf(p)) === "minion") ? "Consider a Minion drawing the heat, a bluff change, or for an Imp, a star-pass." : "Shift the town's attention: push a threat or a contested claim."}</small>` : ""}</div>`;
+  $("dashThreats").innerHTML = threats().slice(0, 3).map((t, i) => `<div class="tip rank ${i === 0 && t.score >= 3 ? "bad" : ""}"><span class="n">${i + 1}</span><span>${btn(t.p)} <small>${esc(claimsOf(t.p).join(" / ") || "no claim")}</small></span><span class="score">${t.score}</span><small>${esc(t.why.join(" · ") || "Nothing on record yet")}</small></div>`).join("") || '<p class="empty">No living good players.</p>';
+}
+
+/* ---------- Made-up info ---------- */
+function trueChef() {
+  let n = 0; const ps = P();
+  for (let i = 0; i < ps.length; i++) if (onTeam(ps[i]) && onTeam(ps[(i + 1) % ps.length])) n++;
+  return n;
+}
+// A player killed by nominating the Virgin was executed, so an Undertaker learns them too
+const executed = p => p.deathBy === "exec" || p.deathBy === "virgin";
+function lastExecuted() { return P().filter(p => p.dead && executed(p)).sort((a, b) => b.deathAt - a.deathAt)[0]; }
+function storyModes(role) {
+  const r = lc(role), modes = [];
+  const add = (k, l) => modes.push({ k, l });
+  if (["washerwoman", "grandmother", "dreamer", "undertaker", "ravenkeeper", "fortune teller", "seamstress", "librarian", "chef", "empath", "oracle", "clockmaker", "mathematician"].includes(r)) add("safe", "Safe");
+  if (["washerwoman", "grandmother", "dreamer", "fortune teller", "librarian", "empath", "chef", "oracle", "undertaker"].includes(r)) add("cover", "Cover a teammate");
+  if (["investigator", "fortune teller", "ravenkeeper", "dreamer", "seamstress", "librarian", "empath", "sage"].includes(r)) add("frame", "Frame a threat");
+  if (r === "investigator") add("quiet", "Point at quiet players");
+  return modes;
+}
+function suggest(role, mode) {
+  const r = lc(role), me = meP();
+  const good = goodAlive().filter(p => p !== me), mates = teamPlayers().filter(p => p !== me && !p.dead);
+  const th = threats().map(t => t.p).filter(p => p !== me);
+  const other = (...ex) => pick(good.filter(p => !ex.includes(p))) || null;
+  const claimed = kind => good.filter(p => hard(p) && (kind === "good" ? !isEvilRole(hard(p)) : teamOf(hard(p)) === kind));
+  const mateWith = kind => mates.filter(p => hard(p) && (kind === "good" ? !isEvilRole(hard(p)) : teamOf(hard(p)) === kind));
+  const notInPlay = kind => roleList(kind).filter(x => !P().some(p => p.claims.some(c => lc(c) === lc(x))) && lc(x) !== lc(role));
+  const res = (p, extra, why) => ({ p: p.filter(Boolean).map(x => x.id).sort(() => Math.random() - .5), ...extra, why });
+  if (["washerwoman", "grandmother", "librarian"].includes(r)) {
+    const kind = r === "washerwoman" ? "townsfolk" : r === "librarian" ? "outsider" : "good";
+    if (mode === "cover") { const m = pick(mateWith(kind)); if (!m) return { why: `None of your teammates claims ${kind === "good" ? "a good character" : kind === "outsider" ? "an Outsider" : "a Townsfolk"} yet.` }; return res(r === "grandmother" ? [m] : [m, other(m)], { r: hard(m) }, `Backs up ${nm(m)}'s claim. Strong cover, but if ${nm(m)} is caught, you go down with them.`); }
+    if (r === "librarian" && mode === "frame") { const t = th[0]; const drunk = roleList("outsider").find(x => lc(x) === "drunk"); if (!t || !drunk) return { why: "No clear threat yet, or no Drunk on this script." }; return res([t, other(t)], { r: drunk }, `Suggests ${nm(t)} is the Drunk, so the town doubts their info.`); }
+    const c = pick(claimed(kind));
+    if (c) return res(r === "grandmother" ? [c] : [c, other(c)], { r: hard(c) }, `Confirms ${nm(c)}'s claim of ${hard(c)}. Hard to disprove, since it's probably true.`);
+    if (r === "librarian") { const comp = COMP[Math.min(core().length, 15)]; if (comp && comp[1] === 0) return res([], { r: "-" }, "With this many players there are normally no Outsiders."); }
+    const x = other(); return res(r === "grandmother" ? [x] : [x, other(x)], { r: pick(notInPlay(kind)) }, "Nobody has claimed a matching role yet. This guess could be contradicted. Wait for claims if you can.");
+  }
+  if (r === "investigator") {
+    const minion = pick(roleList("minion").filter(x => !teamPlayers().some(p => lc(roleOf(p)) === lc(x)))) || pick(roleList("minion"));
+    if (mode === "quiet") { const q = [...th].reverse(); return res([q[0], q[1]], { r: minion }, "Points at two low-threat players: a mild story that sends the town off on a hunt."); }
+    const t = th[0]; if (!t) return { why: "No good players to point at yet." };
+    return res([t, other(t)], { r: minion }, `Puts ${nm(t)} under suspicion as a ${minion}.`);
+  }
+  if (r === "chef") {
+    const n = trueChef();
+    if (mode === "cover") return { n: 0, why: n ? `The real number is ${n}, but 0 clears everyone. A real Chef would disagree.` : "0 is also the true number, so a real Chef will agree." };
+    return { n, why: n ? `${n} is the true number. It matches a real Chef, but it hints that your team sits together.` : "0 is the true number, so a real Chef will agree." };
+  }
+  if (r === "empath") {
+    if (!me) return { why: "Choose your seat first." };
+    const nb = livingNeighbours(me), n = nb.filter(onTeam).length;
+    if (mode === "safe") return { n, why: `True for your neighbours ${nb.map(nm).join(" and ")}. A safe number, but it can point at a teammate.` };
+    if (mode === "cover") return { n: 0, why: n ? `Clears your teammate neighbour${n > 1 ? "s" : ""}.` : "Already 0." };
+    const tgt = nb.find(x => !onTeam(x));
+    return { n: Math.min(2, n + 1), why: tgt ? `Puts suspicion on ${nm(tgt)}.` : "Both neighbours are on your team. Raising the number points at them." };
+  }
+  if (r === "fortune teller") {
+    if (mode === "frame") { const t = th[0]; if (!t) return { why: "No clear threat yet." }; return res([t, other(t)], { yn: 1 }, `A Yes on ${nm(t)}. They'll have to defend themselves.`); }
+    if (mode === "cover") { const m = pick(mates); if (!m) return { why: "No living teammate to cover." }; return res([m, other(m)], { yn: 0 }, `Clears ${nm(m)}.`); }
+    const a = other(); return res([a, other(a)], { yn: 0 }, "Two good players, No. True, so hard to disprove.");
+  }
+  if (r === "undertaker") {
+    const x = lastExecuted(); if (!x) return { why: "Nobody has been executed yet. Undertakers learn nothing until someone is." };
+    if (onTeam(x)) return res([x], { r: hard(x) || pick(roleList("townsfolk")) }, `${nm(x)} was on your team. Backing their bluff keeps the town from knowing it got an evil player.`);
+    return res([x], { r: x.real || hard(x) || pick(roleList("good")) }, mode === "cover" ? "Nobody on your team was executed. Confirming their claim is the safe line." : `Confirms ${nm(x)}'s claim.`);
+  }
+  if (r === "ravenkeeper" || r === "sage") {
+    const t = th[0];
+    if (r === "sage") { if (!t) return { why: "No clear threat yet." }; return res([t, other(t)], {}, `Names ${nm(t)} as a possible Demon.`); }
+    if (mode === "frame") { if (!t) return { why: "No clear threat yet." }; return res([t], { r: pick(roleList("minion")) }, `Claims ${nm(t)} is a Minion.`); }
+    const c = pick(claimed("good")); if (!c) return { why: "Nobody has claimed yet." };
+    return res([c], { r: hard(c) }, `Confirms ${nm(c)}'s claim.`);
+  }
+  if (r === "dreamer") {
+    const evil = pick(roleList("evil").filter(x => lc(x) !== lc(state.myRole)));
+    if (mode === "cover") { const m = pick(mateWith("good")); if (!m) return { why: "No teammate has a good claim yet." }; return res([m], { r: hard(m), r2: evil }, `Matches ${nm(m)}'s claim, so it reads as a clear.`); }
+    if (mode === "frame") { const t = th.find(p => hard(p)); if (!t) return { why: "No threat has claimed yet." }; return res([t], { r: pick(roleList("good").filter(x => lc(x) !== lc(hard(t)))), r2: evil }, `The good option isn't ${nm(t)}'s claim, so it suggests they're the ${evil}.`); }
+    const c = pick(claimed("good")); if (!c) return { why: "Nobody has claimed yet." };
+    return res([c], { r: hard(c), r2: evil }, `Matches ${nm(c)}'s claim.`);
+  }
+  if (r === "seamstress") {
+    if (mode === "frame") { const t = th[0]; if (!t) return { why: "No clear threat yet." }; const g = [...th].reverse().find(p => p !== t); return res([t, g], { yn: 0 }, `Says one of ${nm(t)} and ${nm(g)} is evil.`); }
+    const a = other(); return res([a, other(a)], { yn: 1 }, "Two good players, same team. True.");
+  }
+  if (r === "oracle") { const n = P().filter(p => p.dead && onTeam(p)).length; return mode === "cover" ? { n: 0, why: "Says no dead player is evil." } : { n, why: `${n} is the true number.` }; }
+  if (r === "clockmaker") { const d = demonP(), ms = teamPlayers().filter(p => teamOf(roleOf(p)) === "minion"); const real = d && ms.length ? Math.min(...ms.map(m => dist(d, m))) : null; const fake = 1 + Math.floor(Math.random() * Math.max(1, Math.floor(P().length / 2))); return { n: real && fake === real ? (fake % Math.floor(P().length / 2)) + 1 : fake, why: real ? `The real answer is ${real}. Any other number protects your team, but a real Clockmaker will disagree.` : "Mark your Demon and Minions to see the real answer." }; }
+  if (r === "mathematician") return { n: 0, why: "0 is the usual quiet answer. Go higher if your Poisoner or Drunk story needs it." };
+  return { why: "" };
+}
+function sayText(e) {
+  const sh = SHAPE[lc(e.role)];
+  if (!sh) return e.x || "";
+  const names = (e.p || []).map(id => nm(byId(id)));
+  if (sh.none && e.r === "-") return sh.tNone;
+  let t = sh.t.replace("{p1}", names[0] || "…").replace("{p2}", names[1] || "…").replace("{r2}", e.r2 || "…").replace("{r}", e.r || "…")
+    .replace("{n}", e.n === "" || e.n == null ? "…" : e.n).replace("{yn}", sh.yn && e.yn != null && e.yn !== "" ? sh.yn[e.yn] : "…");
+  return t.includes("{x}") ? t.replace("{x}", e.x || "…") : t + (e.x ? `. ${e.x}` : "");
+}
+
+// What you told each player, so your story stays consistent from person to person
+function toldText(t) {
+  const parts = [];
+  if (t.claims.length) parts.push(`${t.claimType === "hard" || t.claims.length === 1 ? "you're the " : "you might be the "}${t.claims.join(t.claimType === "hard" ? "" : " or ")}`);
+  for (const id of t.story) { const e = state.story.find(x => x.id === id); if (e) parts.push(`night ${e.night}: "${sayText(e)}"`); }
+  if (t.x) parts.push(t.x);
+  return parts.join("; ");
+}
+function lastToldTo(pid) { const t = [...state.talks].reverse().find(x => x.with === pid && x.told); return t ? toldText(t.told) : ""; }
+function toldChecks() {
+  const out = [], me = meP(); if (!me) return out;
+  const firm = state.talks.filter(t => t.told && t.told.claims.length === 1 && t.told.claimType === "hard").map(t => ({ p: byId(t.with), r: t.told.claims[0], t }));
+  const byRole = {}; for (const f of firm) if (f.p) (byRole[lc(f.r)] = byRole[lc(f.r)] || { r: f.r, ps: new Set() }).ps.add(f.p);
+  const roles = Object.values(byRole);
+  if (roles.length > 1) out.push({ lv: "bad", text: `You've hard-claimed different characters to different people: ${roles.map(x => `${x.r} to ${[...x.ps].map(nm).join(", ")}`).join("; ")}.`, sub: "If they compare notes, you're caught. Decide which story you're sticking with." });
+  const bluff = hard(me);
+  if (bluff) for (const x of roles) if (lc(x.r) !== lc(bluff)) out.push({ lv: "hi", text: `You told ${[...x.ps].map(nm).join(", ")} you're the ${x.r}, but your public claim is ${bluff}.` });
+  for (const t of state.talks.filter(t => t.told && t.told.story.length)) {
+    for (const id of t.told.story) { const e = state.story.find(x => x.id === id); if (e && t.told.claims.length && !t.told.claims.some(c => lc(c) === lc(e.role))) out.push({ lv: "hi", text: `You shared ${e.role} info with ${nm(byId(t.with))}, but claimed ${t.told.claims.join(" or ")} to them.` }); }
+  }
+  return out;
+}
+function storyChecks() {
+  const out = [], me = meP(); if (!me) return out;
+  const bluff = hard(me), lines = state.story;
+  for (const e of lines) {
+    const sh = SHAPE[lc(e.role)];
+    if (bluff && lc(e.role) !== lc(bluff)) out.push({ lv: "bad", text: `Night ${e.night}: you said this as the ${e.role}, but you now claim ${bluff}.` });
+    if (sh && sh.when === "n1" && e.night > 1) out.push({ lv: "hi", text: `Night ${e.night}: the ${e.role} only learns on the first night.` });
+    if (sh && sh.when === "later" && e.night === 1) out.push({ lv: "hi", text: `Night 1: the ${e.role} doesn't act on the first night.` });
+    const named = (e.p || []).map(byId).filter(Boolean);
+    const mates = named.filter(x => onTeam(x) && !x.me);
+    if (mates.length && ["investigator", "sage"].includes(lc(e.role))) out.push({ lv: "bad", text: `Night ${e.night}: your info names your teammate ${mates.map(nm).join(", ")}.` });
+    if (lc(e.role) === "fortune teller" && e.yn === 1 && mates.length) out.push({ lv: "bad", text: `Night ${e.night}: a Yes that includes your teammate ${mates.map(nm).join(", ")}.` });
+    for (const x of named) {
+      const c = hard(x);
+      if (e.r && e.r !== "-" && c && ["washerwoman", "grandmother", "undertaker", "ravenkeeper"].includes(lc(e.role)) && named.length === 1 && !isEvilRole(e.r) && lc(c) !== lc(e.r) && !onTeam(x))
+        out.push({ lv: "hi", text: `Night ${e.night}: you said ${nm(x)} is the ${e.r}, but they claim ${c}.`, sub: "Either they're lying or your story is. Be ready to explain." });
+    }
+  }
+  const emp = lines.filter(e => lc(e.role) === "empath").sort((a, b) => a.night - b.night);
+  for (let i = 1; i < emp.length; i++) {
+    const a = emp[i - 1], b = emp[i];
+    if (String(a.n) !== String(b.n)) {
+      const diedBetween = P().some(p => p.dead && p.deathAt > (a.night * 2 - 1) && p.deathAt <= (b.night * 2 - 1));
+      if (!diedBetween) out.push({ lv: "hi", text: `Your Empath number changed from ${a.n} to ${b.n} (nights ${a.night} → ${b.night}) with nobody dying in between.`, sub: "Possible if you were poisoned, but the town will notice." });
+    }
+  }
+  if (bluff) {
+    const rivals = P().filter(x => !onTeam(x) && lc(hard(x)) === lc(bluff));
+    if (rivals.length) out.push({ lv: "bad", text: `${rivals.map(nm).join(" and ")} also claim${rivals.length === 1 ? "s" : ""} ${bluff}.` });
+    const sh = SHAPE[lc(bluff)];
+    const need = sh && (!sh.when || (sh.when === "later" && nightNo() > 1) || (sh.when === "n1" && nightNo() === 1));
+    if (need && isNight() && !lines.some(e => e.night === nightNo() && lc(e.role) === lc(bluff))) out.push({ lv: "hi", text: `You have no ${bluff} info ready for night ${nightNo()}.`, sub: "Make it up now, while you're quiet at night." });
+  }
+  return out;
+}
+
+/* ---------- Rendering ---------- */
+let currentTab = "table";
+try { currentTab = localStorage.getItem(TAB_KEY) || "table"; } catch (e) {}
+function setTab(name) {
+  if (name === "night") name = "story";
+  if (!document.querySelector(`.tabview[data-view="${name}"]`)) name = "table";
+  currentTab = name;
+  try { localStorage.setItem(TAB_KEY, name); } catch (e) {}
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === name));
+  document.querySelectorAll(".tabview").forEach(v => v.hidden = v.dataset.view !== name);
+  window.scrollTo({ top: 0 });
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => setTab(t.dataset.tab));
+
+function render() {
+  if (!state) { $("app").hidden = true; $("welcome").hidden = false; $("wContinue").hidden = true; return; }
+  $("app").hidden = false; $("welcome").hidden = true;
+  renderTable(); renderPanel(); renderTeam(); renderStory(); renderNight(); renderDay(); renderOver(); renderPhaseUi();
+  $("notes").value = state.notes;
+  wireOpen();
+  document.querySelectorAll("[data-event]").forEach(b => b.onclick = () => openEvent(b.dataset.event, b.dataset.a));
+  document.querySelectorAll("[data-talk]").forEach(b => b.onclick = () => openHeard(b.dataset.talk));
+}
+// Make the current phase obvious, and offer only that phase's actions
+function renderPhaseUi() {
+  const night = isNight(), over = !!state.over;
+  $("phasePill").className = "phase-pill " + (night ? "night" : "day");
+  $("phasePill").textContent = over ? "Game over" : (night ? "☾ " : "☀ ") + timeLabel(state.t);
+  if (over) $("phasePill").className = "phase-pill";
+  document.body.classList.toggle("is-night", night);
+  document.querySelectorAll("[data-dayonly]").forEach(b => { b.disabled = night && !over; b.title = b.disabled ? "Daytime only: it's night" : ""; });
+  $("dayNote").hidden = !night || over;
+  $("dayNote").innerHTML = `☾ It's ${timeLabel(state.t)}. Nominations, conversations and Virgin or Slayer records open when the day starts. Tap <b>Night → day</b> on the Table tab when the night is over.`;
+  $("storyNote").hidden = night || over;
+  $("storyNote").innerHTML = `☀ It's ${timeLabel(state.t)}. Plan tonight's targets and your made-up info here; your night action is logged at night.`;
+}
+function open(id) { state.selected = id; save(); setTab("table"); render(); $("panel").scrollIntoView({ behavior: "smooth", block: "start" }); }
+function wireOpen() { document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => open(b.dataset.open)); }
+
+function renderTable() {
+  const tb = $("table"), ps = P();
+  tb.querySelectorAll(".seat").forEach(s => s.remove());
+  const w = tb.clientWidth || 360, n = ps.length;
+  const tok = Math.max(38, Math.min(84, (Math.PI * w * .8 / n) * .62));
+  tb.style.setProperty("--tok", tok + "px");
+  const topThreats = new Set(threats().filter(t => t.score >= 3).slice(0, 3).map(t => t.p.id));
+  ps.forEach((p, i) => {
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2, rad = 40;
+    const b = document.createElement("button");
+    b.className = "seat" + (p.id === state.selected ? " sel" : "") + (onTeam(p) ? " team" : topThreats.has(p.id) ? " threat" : p.trusted ? " trusted" : "") + (p.dead ? " dead" : "");
+    b.style.left = (50 + rad * Math.cos(a)) + "%"; b.style.top = (50 + rad * Math.sin(a)) + "%";
+    const claim = claimsOf(p).join(" / ");
+    const role = roleOf(p) || (onTeam(p) ? "EVIL" : "");
+    b.innerHTML = `<span class="disc">
+        ${p.me ? '<span class="tag me">ME</span>' : ""}
+        ${onTeam(p) ? `<span class="tag role">${esc(role)}</span>` : ""}
+        <span class="claim-txt${claim ? "" : " none"}">${esc(claim || "no claim")}</span>
+        ${p.dead && p.ghostVote ? '<span class="vote" title="Ghost vote available"></span>' : ""}
+      </span>
+      <span class="nameplate">${esc(nm(p))}</span>
+      ${virginConfirmed(p) ? '<span class="flag ok">✓ Virgin</span>' : !onTeam(p) && p.real ? `<span class="flag">really ${esc(p.real)}</span>` : topThreats.has(p.id) ? '<span class="flag">threat</span>' : ""}`;
+    b.setAttribute("aria-label", `${nm(p)}${claim ? ", claims " + claim : ""}${p.dead ? ", dead" : ""}`);
+    b.onclick = () => { state.selected = p.id; save(); render(); };
+    tb.appendChild(b);
+  });
+  $("tLabel").textContent = timeLabel(state.t);
+  const tp = teamPlayers(), votes = tp.filter(p => !p.dead || p.ghostVote).length;
+  const su = setup();
+  $("hubStat").innerHTML = `<b>${alive().length}</b> of ${core().length} alive<br>${su ? `<span title="Townsfolk · Outsiders · Minions · Demon">${su.tf} T · ${su.out} O · <b class="t-evil">${su.min} M · ${su.dem} D</b></span><br>` : ""}${su ? `<b class="t-evil">${su.evil} evil</b> in play · ${tp.length === su.evil ? "all marked" : `<b>${tp.length}</b> marked`}<br>` : ""}Team: <b>${tp.filter(p => !p.dead).length}</b> alive · ${votes} vote${votes === 1 ? "" : "s"}`;
+}
+
+function renderPanel() {
+  const p = byId(state.selected), el = $("panel");
+  if (!p) {
+    el.innerHTML = `<h2>Players</h2><p class="hint">Tap a seat to note their claim, whether they're on your team, who they suspect and whether they're dead.</p>
+      <div class="row"><button class="btn sm" id="addP">+ Add player</button></div>`;
+    $("addP").onclick = () => { const x = mkPlayer(""); P().push(x); state.selected = x.id; save(); render(); };
+    return;
+  }
+  const R = scriptRoles(), others = teamPlayers().filter(x => x !== p);
+  const takenBy = r => P().filter(x => x !== p && lc(hard(x)) === lc(r)).map(nm);
+  const group = k => `<div class="field"><span class="label"><i style="background:var(--${k === "townsfolk" ? "good" : k === "outsider" ? "ok" : "evil"})"></i>${{ townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demons" }[k]}</span><div class="choice-list">${R[k].map(r => { const tk = takenBy(r); return `<button class="choice${tk.length ? " taken" : ""}" data-claim="${esc(r)}" aria-pressed="${p.claims.includes(r)}"${ruledOut(p).includes(r) ? ' style="text-decoration:line-through"' : ""}${tk.length ? ` title="Also claimed by ${esc(tk.join(", "))}"` : ""}>${esc(r)}</button>`; }).join("")}</div></div>`;
+  const isHardMode = p.claimType === "hard";
+  el.innerHTML = `
+    <div class="head"><h2>${esc(nm(p))}</h2><span class="foot">Seat ${P().indexOf(p) + 1}</span></div>
+    <div class="row">
+      <input type="text" id="pName" value="${esc(p.name)}" placeholder="Name" aria-label="Name" style="flex:1">
+      <button class="choice" id="pMe" aria-pressed="${p.me}">This is me</button>
+    </div>
+    ${p.me ? "" : `<div class="field"><span class="label">Alignment</span><div class="row">
+      <button class="choice red" id="pTeam" aria-pressed="${p.team}">On my team</button>
+      ${p.team ? `<select id="pRole" aria-label="Their real character"><option value="">Evil, character unknown</option>${roleList("evil").map(r => `<option${r === p.role ? " selected" : ""}>${esc(r)}</option>`).join("")}</select>` : ""}
+    </div></div>`}
+    ${p.me ? `<p class="hint">You're the <b class="t-evil">${esc(state.myRole || "…")}</b>. Change it under Your team on the Table tab; set your bluff on Story & night.</p>` : ""}
+    <div class="field claim-grid"><div class="row" style="justify-content:space-between"><span class="label">Public claim</span>
+        <span class="seg" role="group" aria-label="Claim type"><button data-ctype="soft" aria-pressed="${!isHardMode}">Soft</button><button data-ctype="hard" aria-pressed="${isHardMode}">Hard</button></span></div>
+      <span class="hint">${p.claims.length ? `${isHardMode ? "Hard claim" : "Soft claim"}: <b>${esc(claimsOf(p).join(", ") || "none left")}</b>. ` : ""}${ruledOut(p).length ? `Left off: <s>${esc(ruledOut(p).map(r => outReason(r, p)).join(", "))}</s>. ` : ""}${isHardMode ? "Tap the role they've committed to." : "Tap every role they offered."} An amber ring means someone else has claimed it.</span>
+      ${onTeam(p) ? (state.bluffs.length ? `<div class="field"><span class="label"><i style="background:var(--evil)"></i>Demon bluffs: claiming</span><div class="choice-list">${state.bluffs.map(r => { const tk = takenBy(r); return `<button class="choice red${tk.length ? " taken" : ""}" data-claim="${esc(r)}" aria-pressed="${p.claims.includes(r)}"${tk.length ? ` title="Also claimed by ${esc(tk.join(", "))}"` : ""}>${esc(r)}</button>`; }).join("")}</div></div>` : '<span class="hint">Set the Demon bluffs under Your team below to get them here as quick buttons.</span>') : ""}
+      ${group("townsfolk")}${group("outsider")}
+      <details${p.claims.some(isEvilRole) ? " open" : ""}><summary>Evil claims</summary>${group("minion")}${group("demon")}</details>
+    </div>
+    <div class="field"><span class="label">State</span><div class="row">
+      <button class="choice" id="pDead" aria-pressed="${p.dead}">${p.dead ? "Dead" : "Alive"}</button>
+      ${p.dead ? `<select id="pHow" aria-label="How they died">${[["night", "Died at night"], ["exec", "Executed"], ["virgin", "Executed by the Virgin"], ["slayer", "Shot by the Slayer"], ["other", "Other"]].map(([v, l]) => `<option value="${v}"${p.deathBy === v ? " selected" : ""}>${l}</option>`).join("")}</select>
+        ${p.deathBy === "virgin" && !state.events.some(e => e.type === "virgin" && e.result === "exec" && e.b === p.id) ? `<div class="field" style="flex-basis:100%"><span class="label">Which Virgin did they nominate? They'll be confirmed</span><div class="choice-list">${[...virginCandidates(p.id), ...P().filter(x => x !== p && !x.dead && !virginCandidates(p.id).includes(x))].map(x => `<button class="choice${virginCandidates(p.id).includes(x) ? " sugg" : ""}" data-pvirgin="${x.id}">${esc(nm(x))}</button>`).join("")}</div></div>` : ""}
+        <button class="choice" id="pVote" aria-pressed="${p.ghostVote}">Ghost vote ${p.ghostVote ? "unused" : "used"}</button>` : ""}
+      <button class="choice" id="pTrav" aria-pressed="${p.traveller}">Traveller</button>
+    </div></div>
+    ${onTeam(p) ? "" : `
+    <div class="field"><span class="label">The town</span><div class="row">
+      <button class="choice" id="pTrusted" aria-pressed="${p.trusted}">Trusted by the town</button>
+      <button class="choice" id="pSus" aria-pressed="${p.townSus}">Town suspects them</button>
+
+    </div></div>
+    ${others.length ? `<div class="field"><span class="label">Suspects on your team</span><div class="choice-list">${others.map(x => `<button class="choice red" data-onto="${x.id}" aria-pressed="${p.onto.includes(x.id)}">${esc(nm(x))}</button>`).join("")}</div></div>` : ""}
+    <div class="field"><label class="label" for="pReal">Real character, if you know (Spy, Pit-Hag, a slip)</label>
+      <select id="pReal"><option value="">Unknown</option>${roleList("any").map(r => `<option${r === p.real ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></div>`}
+    ${(() => { if (onTeam(p) || p.dead) return ""; const t = threats().find(x => x.p === p); return t && t.why.length ? `<div class="tip ${t.score >= 5 ? "bad" : t.score >= 3 ? "hi" : ""}"><span>Threat score ${t.score}</span><small>${esc(t.why.join(" · "))}</small></div>` : ""; })()}
+    ${p.claims.some(c => lc(c) === "virgin") && !p.virginUsed ? `<button class="btn sm" data-dayonly data-event="virgin" data-a="${p.id}">Record a nomination of ${esc(nm(p))} (Virgin)</button>` : ""}
+    ${p.claims.some(c => lc(c) === "slayer") && !p.shotUsed ? `<button class="btn sm" data-dayonly data-event="slayer" data-a="${p.id}">Record ${esc(nm(p))}'s Slayer shot</button>` : ""}
+    ${(() => { const ev = state.events.filter(e => e.a === p.id || e.b === p.id); return ev.length ? ev.map(e => `<div class="tip"><span>${esc(eventText(e))}</span></div>`).join("") : ""; })()}
+    ${p.me ? "" : `<button class="btn sm" data-dayonly data-talk="${p.id}">I spoke to ${esc(nm(p))}: log claims and info</button>`}
+    <div class="field"><label class="label" for="pNotes">Notes</label><textarea id="pNotes" placeholder="What they said, how they voted…">${esc(p.notes)}</textarea></div>
+    <div class="row"><button class="btn sm" id="pClose">Close</button><button class="btn sm" id="addP">+ Add player</button><button class="btn sm danger" id="pRemove">Remove player</button></div>`;
+  const upd = f => () => { f(); save(); render(); };
+  $("pName").oninput = e => { p.name = e.target.value; save(); renderTable(); };
+  $("pName").onchange = () => render();
+  $("pMe").onclick = upd(() => { const was = p.me; P().forEach(x => x.me = false); p.me = !was; if (p.me) p.team = false; });
+  if ($("pTeam")) $("pTeam").onclick = upd(() => { p.team = !p.team; if (!p.team) p.role = ""; for (const x of P()) x.onto = x.onto.filter(id => byId(id) && onTeam(byId(id))); });
+  if ($("pRole")) $("pRole").onchange = upd(() => p.role = $("pRole").value);
+  el.querySelectorAll("[data-claim]").forEach(b => b.onclick = upd(() => {
+    const r = b.dataset.claim, has = p.claims.includes(r);
+    if (p.claimType === "hard") p.claims = has && p.claims.length === 1 ? [] : [r];
+    else p.claims = has ? p.claims.filter(c => c !== r) : [...p.claims, r];
+  }));
+  el.querySelectorAll("[data-ctype]").forEach(b => b.onclick = upd(() => { p.claimType = b.dataset.ctype; if (p.claimType === "hard" && p.claims.length > 1) p.claims = []; }));
+  $("pDead").onclick = upd(() => { p.dead = !p.dead; p.deathAt = p.dead ? state.t : 0; p.deathBy = p.dead ? (isNight() ? "night" : "exec") : ""; p.ghostVote = true; });
+  if ($("pHow")) $("pHow").onchange = upd(() => { p.deathBy = $("pHow").value; if (p.deathBy === "virgin") { const c = virginCandidates(p.id); if (c.length === 1) confirmVirgin(p.id, c[0].id); } });
+  el.querySelectorAll("[data-pvirgin]").forEach(b => b.onclick = upd(() => confirmVirgin(p.id, b.dataset.pvirgin)));
+  if ($("pVote")) $("pVote").onclick = upd(() => p.ghostVote = !p.ghostVote);
+  $("pTrav").onclick = upd(() => p.traveller = !p.traveller);
+  if ($("pTrusted")) $("pTrusted").onclick = upd(() => p.trusted = !p.trusted);
+  if ($("pSus")) $("pSus").onclick = upd(() => p.townSus = !p.townSus);
+  el.querySelectorAll("[data-onto]").forEach(b => b.onclick = upd(() => { const id = b.dataset.onto; p.onto = p.onto.includes(id) ? p.onto.filter(x => x !== id) : [...p.onto, id]; }));
+  if ($("pReal")) $("pReal").onchange = upd(() => p.real = $("pReal").value);
+  $("pNotes").oninput = e => { p.notes = e.target.value; save(); };
+  $("pClose").onclick = upd(() => state.selected = null);
+  $("addP").onclick = upd(() => { const x = mkPlayer(""); P().splice(P().indexOf(p) + 1, 0, x); state.selected = x.id; });
+  let confirmRm = false;
+  $("pRemove").onclick = () => {
+    if (!confirmRm) { confirmRm = true; $("pRemove").textContent = "Tap again to remove"; return; }
+    state.players = P().filter(x => x !== p); for (const x of P()) x.onto = x.onto.filter(id => id !== p.id);
+    state.selected = null; save(); render();
+  };
+}
+
+const tip = t => `<div class="tip ${t.lv || ""}"><span>${t.html || esc(t.text)}</span>${t.sub ? `<small>${esc(t.sub)}</small>` : ""}</div>`;
+
+function renderTeam() {
+  const R = scriptRoles(), me = meP();
+  const sel = `<select id="myRole" aria-label="Your character"><option value="">Choose your character</option>
+    <optgroup label="Demons">${R.demon.map(r => `<option${r === state.myRole ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>
+    <optgroup label="Minions">${R.minion.map(r => `<option${r === state.myRole ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>
+    <optgroup label="Good, but turned evil">${[...R.townsfolk, ...R.outsider].map(r => `<option${r === state.myRole ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup></select>`;
+  $("teamSetup").innerHTML = `
+    <div class="field"><label class="label" for="myRole">Your real character</label>${sel}</div>
+    <div class="field"><span class="label">Your seat</span><div class="choice-list">${P().map(p => `<button class="choice" data-me="${p.id}" aria-pressed="${p.me}">${esc(nm(p))}</button>`).join("")}</div></div>
+    ${(() => { const su = setup(); if (!su) return `<div class="tip hi"><span>The game needs at least 5 players (not counting travellers).</span></div>`; const tp = teamPlayers().length;
+      return `<div class="tip ${tp === su.evil ? "ok" : "hi"}"><span><b>${su.n} players${su.trav ? ` + ${su.trav} traveller${su.trav === 1 ? "" : "s"}` : ""}: ${su.evil} evil</b> (${su.min} Minion${su.min === 1 ? "" : "s"} + ${su.dem} Demon) and ${su.n - su.evil} good (${su.tf} Townsfolk, ${su.out} Outsider${su.out === 1 ? "" : "s"}).</span>
+        <small>${tp === su.evil ? "Your whole team is marked." : `You've marked ${tp} of ${su.evil}, including you. Tap your teammates below.`}${su.why.length ? ` Adjusted for ${su.why.join(", ")}.` : ""}${su.n > 15 ? " Over 15 players, the Storyteller may add more." : ""}</small></div>`; })()}
+    <div class="field"><span class="label">Your teammates</span><div class="choice-list">${P().filter(p => !p.me).map(p => `<button class="choice red" data-mate="${p.id}" aria-pressed="${p.team}">${esc(nm(p))}</button>`).join("")}</div></div>
+    ${P().filter(p => p.team).map(p => `<div class="row"><span class="label" style="min-width:7em">${esc(nm(p))} is the</span><select data-mrole="${p.id}" aria-label="${esc(nm(p))}'s character"><option value="">Evil, character unknown</option>${roleList("evil").map(r => `<option${r === p.role ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></div>`).join("")}
+    <div class="field"><span class="label">Demon bluffs: good characters not in play (up to 3)</span>
+      <div class="choice-list">${[...R.townsfolk, ...R.outsider].map(r => `<button class="choice" data-bluff="${esc(r)}" aria-pressed="${state.bluffs.includes(r)}">${esc(r)}</button>`).join("")}</div>
+      <span class="hint">${teamOf(state.myRole) === "demon" ? "The Storyteller showed you these on the first night." : "If your Demon shares the bluffs, mark them here."}</span></div>
+    <div class="field"><span class="label">Team at a glance</span>
+      ${teamPlayers().map(p => `<div class="tip"><span>${btn(p)}${p.dead ? " (dead)" : ""} · <b class="t-evil">${esc(roleOf(p) || "evil")}</b>${p.claims.length ? `, claiming ${esc(p.claims.join(" or "))}` : ", no claim yet"}</span>${state.bluffs.length ? `<div class="choice-list"><small style="align-self:center">Claiming:</small>${state.bluffs.map(r => { const other = teamPlayers().filter(x => x !== p && x.claims.includes(r)); return `<button class="choice red${other.length ? " taken" : ""}" data-tclaim="${p.id}" data-r="${esc(r)}" aria-pressed="${p.claims.includes(r)}"${other.length ? ` title="${esc(other.map(nm).join(", "))} also claims it"` : ""}>${esc(r)}</button>`; }).join("")}</div>` : ""}</div>`).join("") || '<p class="empty">Choose your character and seat, then tap your teammates.</p>'}</div>`;
+  $("myRole").onchange = e => { state.myRole = e.target.value; save(); render(); };
+  document.querySelectorAll("[data-me]").forEach(b => b.onclick = () => { const p = byId(b.dataset.me), was = p.me; P().forEach(x => x.me = false); p.me = !was; if (p.me) p.team = false; save(); render(); });
+  document.querySelectorAll("[data-mate]").forEach(b => b.onclick = () => { const p = byId(b.dataset.mate); p.team = !p.team; if (!p.team) p.role = ""; save(); render(); });
+  // A bluff from the team summary is a hard claim; tap it again to clear
+  document.querySelectorAll("[data-tclaim]").forEach(b => b.onclick = () => { const p = byId(b.dataset.tclaim), r = b.dataset.r; p.claims = p.claims.length === 1 && p.claims[0] === r ? [] : [r]; p.claimType = "hard"; save(); render(); });
+  document.querySelectorAll("[data-mrole]").forEach(s => s.onchange = () => { byId(s.dataset.mrole).role = s.value; save(); render(); });
+  document.querySelectorAll("[data-bluff]").forEach(b => b.onclick = () => {
+    const r = b.dataset.bluff, i = state.bluffs.indexOf(r);
+    if (i >= 0) state.bluffs.splice(i, 1); else if (state.bluffs.length < 3) state.bluffs.push(r);
+    save(); render();
+  });
+
+  const cc = coverChecks();
+  $("coverChecks").innerHTML = cc.length ? cc.map(tip).join("") : '<p class="empty">Your cover looks clean so far.</p>';
+  $("bTeam").textContent = cc.filter(c => c.lv === "bad").length || "";
+  renderDash();
+  const heat = teamHeat();
+  $("heat").innerHTML = heat.length ? heat.map(h => `<div class="tip ${h.score >= 5 ? "bad" : h.score >= 2 ? "hi" : "ok"}"><span>${btn(h.p)} <small>${esc(roleOf(h.p))}</small> · <span class="lvl ${levelOf(h.score)[1]}">${levelOf(h.score)[2]}</span></span>${meter(h.score)}<small>${h.why.length ? esc(h.why.join(" · ")) : "No suspicion on record"}</small></div>`).join("")
+    : '<p class="empty">Mark your team to see how exposed each of you is. In a player\'s panel, mark who they suspect.</p>';
+  const roles = [...new Set(teamPlayers().map(roleOf).filter(Boolean))];
+  $("roleTips").innerHTML = roles.length ? roles.map(r => `<div class="tip"><span><b class="t-evil">${esc(r)}</b>${teamPlayers().filter(p => roleOf(p) === r).map(p => " · " + esc(nm(p))).join("")}</span><ul>${(TIPS[lc(r)] || GEN_TIPS[teamOf(r)] || ["You're on the evil team. Help the Demon survive."]).map(t => `<li>${esc(t)}</li>`).join("")}</ul></div>`).join("")
+    : '<p class="empty">Set your team\'s characters to see tips.</p>';
+}
+
+let draft = null;
+function newDraft() { const me = meP(); return { night: nightNo(), role: me ? hard(me) : "", p: [], r: "", r2: "", n: "", yn: null, x: "", why: "" }; }
+function renderStory() {
+  const me = meP(), el = $("storyForm");
+  $("storyFoot").textContent = `Night ${nightNo()}`;
+  if (!me) { el.innerHTML = '<p class="empty">Choose your seat under Your team on the Table tab first.</p>'; $("storyLog").innerHTML = ""; $("storyChecks").innerHTML = ""; $("bStory").textContent = ""; return; }
+  const R = scriptRoles(), bluff = hard(me);
+  if (!draft || draft.role !== bluff) draft = newDraft();
+  const bl = state.bluffs;
+  const bluffSel = `<select id="myBluff" aria-label="Your bluff"><option value="">Choose your bluff</option>
+    ${bl.length ? `<optgroup label="Demon bluffs (not in play)">${bl.map(r => `<option${r === bluff ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>` : ""}
+    <optgroup label="Townsfolk">${R.townsfolk.filter(r => !bl.includes(r)).map(r => `<option${r === bluff ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>
+    <optgroup label="Outsiders">${R.outsider.filter(r => !bl.includes(r)).map(r => `<option${r === bluff ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup></select>`;
+  const sh = SHAPE[lc(bluff)];
+  const pOpts = sel => `<option value="">Pick player</option>` + P().filter(p => p !== me).map(p => `<option value="${p.id}"${p.id === sel ? " selected" : ""}>${esc(nm(p))}${p.dead ? " (dead)" : ""}${onTeam(p) ? " · team" : ""}</option>`).join("");
+  const rOpts = (kind, sel) => `<option value="">Pick character</option>${sh && sh.none && kind === sh.r ? `<option value="-"${sel === "-" ? " selected" : ""}>No Outsiders in play</option>` : ""}${roleList(kind).map(r => `<option${r === sel ? " selected" : ""}>${esc(r)}</option>`).join("")}`;
+  let form = "";
+  if (bluff && sh) {
+    const modes = storyModes(bluff);
+    form = `<div class="story-form">
+      ${sh.when ? `<span class="hint">${WHEN_LABEL[sh.when]}.</span>` : ""}
+      <div class="row"><span class="label">Night</span><input type="number" id="dNight" min="1" value="${draft.night}" style="width:5em"></div>
+      ${Array.from({ length: sh.p || 0 }, (_, i) => `<div class="row"><span class="label" style="min-width:5em">Player ${i + 1}</span><select data-dp="${i}">${pOpts(draft.p[i])}</select></div>`).join("")}
+      ${sh.r ? `<div class="row"><span class="label" style="min-width:5em">${sh.r2 ? "Good" : "Character"}</span><select id="dR">${rOpts(sh.r, draft.r)}</select></div>` : ""}
+      ${sh.r2 ? `<div class="row"><span class="label" style="min-width:5em">Evil</span><select id="dR2">${rOpts(sh.r2, draft.r2)}</select></div>` : ""}
+      ${sh.n ? `<div class="row"><span class="label">${esc(sh.n)}</span><input type="number" id="dN" min="0" value="${draft.n}" style="width:5em"></div>` : ""}
+      ${sh.yn ? `<div class="row">${sh.yn.map((l, i) => `<button class="choice" data-dyn="${i}" aria-pressed="${draft.yn === i}">${l}</button>`).join("")}</div>` : ""}
+      <input type="text" id="dX" value="${esc(draft.x)}" placeholder="Anything to add (optional)">
+      ${modes.length ? `<div class="field"><span class="label">Suggest something</span><div class="row">${modes.map(m => `<button class="btn sm" data-mode="${m.k}">${m.l}</button>`).join("")}</div></div>` : ""}
+      <div class="say-box">"${esc(sayText({ ...draft, role: bluff }))}"${draft.why ? `<small>${esc(draft.why)}</small>` : ""}</div>
+      <div class="row"><button class="btn primary" id="dSave">Save to my story</button><button class="btn" id="dClear">Clear</button></div>
+    </div>`;
+  } else if (bluff) {
+    form = `<div class="story-form"><p class="hint">${esc(bluff)} has no night information to make up. Note what you'll say anyway, like who you'd protect or what you'd do.</p>
+      <div class="row"><span class="label">Night</span><input type="number" id="dNight" min="1" value="${draft.night}" style="width:5em"></div>
+      <input type="text" id="dX" value="${esc(draft.x)}" placeholder="What you'll say">
+      <div class="row"><button class="btn primary" id="dSave">Save to my story</button></div></div>`;
+  }
+  el.innerHTML = `<div class="field"><label class="label" for="myBluff">You claim to be</label>${bluffSel}</div>
+    ${bluff && bl.length && !bl.includes(bluff) ? `<div class="tip hi"><span>${esc(bluff)} isn't a Demon bluff.</span><small>The real ${esc(bluff)} may be in play and could counter-claim you.</small></div>` : ""}
+    ${!bluff ? `<p class="hint">${bl.length ? "Demon bluffs are safest: nobody can truthfully counter-claim them." : "Pick something you can play convincingly. An Outsider bluff is hard to disprove."}</p>` : ""}
+    ${form}`;
+  $("myBluff").onchange = e => { me.claims = e.target.value ? [e.target.value] : []; me.claimType = "hard"; draft = null; save(); render(); };
+  if (!bluff) { renderStoryLog(); return; }
+  const redraw = () => { save(); renderStory(); wireOpen(); };
+  $("dNight").onchange = e => { draft.night = Math.max(1, +e.target.value || 1); redraw(); };
+  el.querySelectorAll("[data-dp]").forEach(s => s.onchange = () => { draft.p[+s.dataset.dp] = s.value; draft.why = ""; redraw(); });
+  if ($("dR")) $("dR").onchange = e => { draft.r = e.target.value; draft.why = ""; redraw(); };
+  if ($("dR2")) $("dR2").onchange = e => { draft.r2 = e.target.value; draft.why = ""; redraw(); };
+  if ($("dN")) $("dN").onchange = e => { draft.n = e.target.value; draft.why = ""; redraw(); };
+  el.querySelectorAll("[data-dyn]").forEach(b => b.onclick = () => { draft.yn = +b.dataset.dyn; draft.why = ""; redraw(); });
+  $("dX").oninput = e => { draft.x = e.target.value; const sb = el.querySelector(".say-box"); if (sb) sb.firstChild.textContent = `"${sayText({ ...draft, role: bluff })}"`; };
+  el.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => {
+    const s = suggest(bluff, b.dataset.mode);
+    draft = { ...draft, p: s.p || draft.p, r: s.r ?? draft.r, r2: s.r2 ?? draft.r2, n: s.n ?? draft.n, yn: s.yn ?? draft.yn, why: s.why || "" };
+    redraw();
+  });
+  $("dSave").onclick = () => { state.story.push({ id: uid(), night: draft.night, role: bluff, p: draft.p.filter(Boolean), r: draft.r, r2: draft.r2, n: draft.n, yn: draft.yn, x: draft.x }); draft = null; save(); render(); };
+  if ($("dClear")) $("dClear").onclick = () => { draft = null; redraw(); };
+  renderStoryLog();
+}
+function renderToldLog() {
+  const by = new Map();
+  for (const t of state.talks) if (t.told) by.set(t.with, [...(by.get(t.with) || []), t]);
+  $("toldLog").innerHTML = by.size ? [...by.entries()].map(([pid, ts]) => { const p = byId(pid); return p ? `<div class="tip"><span>${btn(p)}</span>${ts.map(t => `<small>${timeLabel(t.t)}: ${esc(toldText(t.told))}</small>`).join("")}</div>` : ""; }).join("")
+    : '<p class="empty">When you log a conversation on the Today tab, fill in "What I told them" to track it here.</p>';
+}
+function renderStoryLog() {
+  renderToldLog();
+  const lines = [...state.story].sort((a, b) => a.night - b.night);
+  $("storyLog").innerHTML = lines.length ? lines.map(e => `<div class="tip"><span><span class="label">Night ${e.night} · ${esc(e.role)}</span></span><span class="say">"${esc(sayText(e))}"</span><div class="row"><button class="btn sm danger" data-unsay="${e.id}">Remove</button></div></div>`).join("")
+    : '<p class="empty">Nothing yet. Save each night\'s made-up info so you can repeat it word for word.</p>';
+  document.querySelectorAll("[data-unsay]").forEach(b => b.onclick = () => { state.story = state.story.filter(e => e.id !== b.dataset.unsay); save(); render(); });
+  const ch = [...storyChecks(), ...toldChecks()];
+  $("storyChecks").innerHTML = ch.length ? ch.map(tip).join("") : '<p class="empty">Your story hangs together.</p>';
+  $("bStory").textContent = ch.filter(c => c.lv === "bad" || c.lv === "hi").length || "";
+}
+
+let tgt = { night: 0, t: 0, p: [], x: "", all: false };
+function renderNight() {
+  const r = lc(state.myRole), t = teamOf(r);
+  const killers = ["imp", "zombuul", "shabaloth", "po", "fang gu", "vigormortis", "no dashii", "vortox", "godfather", "assassin"];
+  const poisoners = ["poisoner", "pukka", "witch", "cerenovus"];
+  const mode = killers.includes(r) ? "kill" : poisoners.includes(r) ? "poison" : "";
+  const title = !state.myRole ? "Tonight" : mode === "kill" ? "Who to kill" : r === "witch" ? "Who to curse" : r === "cerenovus" ? "Who to make mad" : mode === "poison" ? "Who to poison" : r === "devil's advocate" ? "Who to protect" : "Biggest threats";
+  $("nightTitle").textContent = title;
+  $("nightFoot").textContent = timeLabel(state.t) + (isNight() ? "" : ` · next is Night ${nightNo() + 1}`);
+  let html = "";
+  if (!state.myRole) html = '<p class="empty">Choose your character under Your team on the Table tab.</p>';
+  else if (r === "devil's advocate") {
+    const heat = teamHeat(), last = state.acts.filter(a => a.night === nightNo() - 1).flatMap(a => a.p);
+    if (!heat.length) html = '<p class="empty">Mark your team first.</p>'; void last;
+  } else {
+    const dayT = isNight() ? state.t - 1 : state.t;
+    if (r === "zombuul") { const today = P().some(p => p.dead && p.deathAt === dayT); html += tip({ lv: today ? "bad" : "ok", text: today ? "Someone died today, so you can't kill tonight." : "Nobody died today, so you can kill tonight." }); }
+    if (r === "godfather") { const outDied = P().some(p => p.dead && p.deathAt === dayT && teamOf(realOrClaim(p)) === "outsider"); html += tip({ lv: outDied ? "ok" : "", text: outDied ? "An Outsider died today: you kill tonight." : "You only kill on a night after an Outsider died during the day." }); }
+    if (r === "fang gu") { const outs = goodAlive().filter(p => teamOf(realOrClaim(p)) === "outsider"); if (outs.length) html += tip({ lv: "hi", text: `Attacking an Outsider (${outs.map(nm).join(", ")}) makes them the evil Fang Gu, and you die.`, sub: "Do it when you're about to be caught." }); }
+    if (r === "no dashii") { const me = meP(); if (me) { const ring = P(), i = ring.indexOf(me), tf = []; for (const dir of [1, -1]) for (let k = 1; k < ring.length; k++) { const x = ring[(i + dir * k + ring.length) % ring.length]; if (!x.dead && !onTeam(x) && teamOf(realOrClaim(x)) !== "outsider") { tf.push(x); break; } } if (tf.length) html += tip({ text: `Your poisoned neighbours are probably ${[...new Set(tf)].map(nm).join(" and ")}.`, sub: "Encourage them to share their info." }); } }
+    if (r === "imp") { const mins = teamPlayers().filter(p => !p.dead && teamOf(roleOf(p)) === "minion"); if (mins.length) html += tip({ text: `Star-pass: kill yourself to make ${mins.map(nm).join(" or ")} the Imp.`, sub: "Worth it if you're likely to be executed tomorrow. A Scarlet Woman catches it for sure." }); }
+    if (r === "spy") html += tip({ text: "Look at the Grimoire and note real characters in each player's panel. Threat ranking uses them." });
+    if (mode === "kill") html += `<p class="hint">Killing the top threat is obvious. Sometimes kill someone who trusts a teammate, or leave a player alive so the town suspects them.</p>`;
+  }
+  // Tick who you're choosing tonight, then confirm: this is your night action
+  const me = meP(), q = NIGHT_Q[r], n1 = nightNo() === 1;
+  const canChoose = !!(state.myRole && q && me && !me.dead && !(n1 && ((t === "demon" && r !== "pukka") || ["pit-hag", "assassin"].includes(r))));
+  if (tgt.night !== nightNo() || tgt.t !== state.t) tgt = { night: nightNo(), t: state.t, p: [], x: "", all: tgt.all };
+  const done = state.acts.find(a => a.night === nightNo());
+  const live = isNight() && canChoose && !done;
+  let rows = [];
+  if (state.myRole && r === "devil's advocate") {
+    const last = state.acts.filter(a => a.night === nightNo() - 1).flatMap(a => a.p);
+    rows = teamHeat().map(h => ({ p: h.p, score: h.score, why: h.why.join(" · ") || "No suspicion on record", note: last.includes(h.p.id) ? "protected last night: not allowed" : "" }));
+  } else if (state.myRole) {
+    rows = threats(mode || undefined).map(x => ({ p: x.p, score: x.score, why: x.why.join(" · ") || "Nothing on record yet", note: claimsOf(x.p).join(" / ") || "no claim" }));
+    if (r === "imp" && me && !me.dead) rows.splice(Math.min(rows.length, 5), 0, { p: me, score: "", why: "Star-pass: you die and a Minion becomes the Imp", note: "yourself" });
+  }
+  const shown = tgt.all ? rows : rows.slice(0, 6);
+  if (tgt.all && canChoose) for (const x of P()) if (!x.dead && !rows.some(rw => rw.p === x)) shown.push({ p: x, score: "", why: onTeam(x) ? "your teammate" : "", note: claimsOf(x).join(" / ") });
+  const chosen = done ? done.p : tgt.p;
+  html += shown.length ? shown.map((x, i) => `<label class="tip rank${canChoose ? " pick" : ""} ${i === 0 && x.score > 0 && !chosen.length ? "bad" : ""}">${canChoose ? `<input type="checkbox" data-tgt="${x.p.id}"${chosen.includes(x.p.id) ? " checked" : ""}${live ? "" : " disabled"} aria-label="Choose ${esc(nm(x.p))}">` : ""}<span class="n">${i + 1}</span><span><b>${esc(nm(x.p))}</b> <small>${esc(x.note)}</small></span><span class="score">${x.score}</span><small>${esc(x.why)}</small></label>`).join("")
+    : (state.myRole ? '<p class="empty">No living good players.</p>' : "");
+  if (rows.length > 6 || (canChoose && P().some(x => !x.dead && !rows.some(rw => rw.p === x)))) html += `<button class="btn sm" id="tgtAll" style="justify-self:start">${tgt.all ? "Show fewer" : "Show everyone"}</button>`;
+  if (canChoose) {
+    if (done) html += `<div class="tip ok"><span>Night ${done.night}: you chose <b>${done.p.map(id => esc(nm(byId(id)))).join(", ") || "nobody"}</b>${done.x ? ` · ${esc(done.x)}` : ""}.</span><small>Who actually died is asked when the day starts.</small>${isNight() ? `<div class="row"><button class="btn sm" id="tgtChange">Change</button></div>` : ""}</div>`;
+    else if (isNight()) html += `<input type="text" id="tgtX" value="${esc(tgt.x)}" placeholder="Note (optional)">
+      <div class="row"><button class="btn primary" id="tgtOk"${tgt.p.length ? "" : " disabled"}>Confirm${tgt.p.length ? `: ${tgt.p.map(id => esc(nm(byId(id)))).join(", ")}` : ""}</button><button class="btn" id="tgtNone">Nobody tonight</button>${q[1] > 1 ? `<span class="hint">Pick up to ${q[1]}.</span>` : ""}</div>`;
+    else html += `<p class="hint">☀ It's day. Tick and confirm your choice here once night falls.</p>`;
+  } else if (state.myRole && isNight()) html += `<p class="hint">${n1 && t === "demon" ? "Demons don't kill on the first night." : `The ${esc(state.myRole)} makes no choice tonight.`}</p>`;
+  const past = [...state.acts].filter(a => a !== done).sort((a, b) => b.night - a.night);
+  if (past.length) html += `<h3>Earlier nights</h3>` + past.map(a => `<div class="tip"><span><span class="label">Night ${a.night}</span> ${a.p.map(id => byId(id)).filter(Boolean).map(btn).join(", ") || "nobody"}${a.x ? ` · ${esc(a.x)}` : ""}</span><div class="row"><button class="btn sm danger" data-unact="${a.id}">Remove</button></div></div>`).join("");
+  $("targets").innerHTML = html;
+  document.querySelectorAll("[data-tgt]").forEach(c => c.onchange = () => {
+    const id = c.dataset.tgt, max = q ? q[1] : 1;
+    tgt.p = c.checked ? [...tgt.p.filter(x => x !== id), id].slice(-max) : tgt.p.filter(x => x !== id);
+    renderNight(); wireOpen();
+  });
+  if ($("tgtAll")) $("tgtAll").onclick = () => { tgt.all = !tgt.all; renderNight(); wireOpen(); };
+  if ($("tgtX")) $("tgtX").oninput = e => tgt.x = e.target.value;
+  if ($("tgtOk")) $("tgtOk").onclick = () => {
+    if (!tgt.p.length) return;
+    state.acts.push({ id: uid(), night: nightNo(), p: [...tgt.p], x: tgt.x, role: state.myRole, kill: /killing/i.test(q[0]), starpass: !!(me && r === "imp" && tgt.p.includes(me.id)) });
+    tgt = { night: nightNo(), t: state.t, p: [], x: "", all: false }; save(); render();
+  };
+  if ($("tgtNone")) $("tgtNone").onclick = () => { state.acts.push({ id: uid(), night: nightNo(), p: [], x: tgt.x || "chose nobody", role: state.myRole, kill: false, starpass: false }); tgt = { night: nightNo(), t: state.t, p: [], x: "", all: false }; save(); render(); };
+  if ($("tgtChange")) $("tgtChange").onclick = () => { tgt = { night: nightNo(), t: state.t, p: [...done.p], x: done.x || "", all: tgt.all }; state.acts = state.acts.filter(a => a !== done); save(); render(); };
+  document.querySelectorAll("[data-unact]").forEach(b => b.onclick = () => { state.acts = state.acts.filter(a => a.id !== b.dataset.unact); save(); render(); });
+
+  $("myTipsTitle").textContent = state.myRole ? `Playing the ${state.myRole}` : "Your character";
+  const tips = TIPS[r] || GEN_TIPS[t] || (state.myRole ? [`You're a ${state.myRole} who has turned evil. Your ability still works; use it to help the Demon.`] : []);
+  $("myTips").innerHTML = tips.length ? `<ul class="tip" style="padding-left:1.6em">${tips.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : '<p class="empty">Choose your character under Your team on the Table tab.</p>';
+}
+
+function renderDay() {
+  const A = alive().length, all = P().filter(p => !p.dead).length, team = teamPlayers(), demon = demonP();
+  const roles = team.map(p => lc(roleOf(p)));
+  const eg = [];
+  const mayor = goodAlive().find(p => lc(realOrClaim(p)) === "mayor");
+  if (demon && demon.dead && !state.over) eg.push({ lv: "bad", text: "Your Demon is dead.", sub: roles.includes("mastermind") ? "Mastermind: the game goes on one more day. If good executes a good player today, you win." : "Unless something kept the game going, good has won." });
+  if (A <= 2) eg.push({ lv: "ok", text: "Only two players are alive. If the Demon lives, evil has won." });
+  else if (A === 3) {
+    eg.push({ lv: "bad", text: "Final three. Today decides the game.", sub: "If the town executes anyone but the Demon, tonight's kill wins it for you. Protect the Demon at all costs." });
+    if (mayor) eg.push({ lv: "bad", text: `${nm(mayor)} claims Mayor. With three alive and no execution, a real Mayor wins it for good.`, sub: "Make sure a good player is executed today. Your team's votes matter." });
+  } else if (A === 4) eg.push({ lv: "hi", text: "Four alive. Executing a good player today leaves three, and your kill tonight leaves two: a win.", sub: "Push hard on a good player and keep the Demon off the block." });
+  else eg.push({ lv: "", text: `${A} alive. The town has about ${Math.floor((A - 3) / 2) + 1} more days to find the Demon.`, sub: "Each day can cost them an execution and each night a kill." });
+  if (roles.includes("scarlet woman")) { const sw = team.find(p => lc(roleOf(p)) === "scarlet woman"); if (sw && !sw.dead) eg.push({ lv: A >= 5 ? "ok" : "hi", text: A >= 5 ? `Scarlet Woman backup is live: ${nm(sw)} becomes the Demon if yours dies.` : "Under five alive: the Scarlet Woman can no longer take over." }); }
+  if (roles.includes("vortox")) eg.push({ lv: "hi", text: "Vortox: if no one is executed today, evil wins.", sub: "Slow the town down. Argue against every nomination." });
+  if (roles.includes("evil twin")) eg.push({ lv: "", text: "Evil Twin: while both twins live, good can't win. If the good twin is executed, evil wins." });
+  if (roles.includes("zombuul")) eg.push({ lv: "", text: "Zombuul: you can only kill tonight if nobody dies today." });
+  const saint = goodAlive().find(p => lc(realOrClaim(p)) === "saint" && !state.bluffs.map(lc).includes("saint"));
+  if (saint) eg.push({ lv: "ok", text: `${nm(saint)} claims Saint. If it's true and they're executed, evil wins.` });
+  $("endgame").innerHTML = eg.map(tip).join("") + (state.over ? "" : `<div class="row"><span class="label">Game over?</span><button class="btn sm" data-win="evil">Evil won</button><button class="btn sm" data-win="good">Good won</button></div>`);
+  document.querySelectorAll("[data-win]").forEach(b => b.onclick = () => endGame(b.dataset.win, "Recorded on the Today tab."));
+
+  const need = Math.ceil(all / 2);
+  const teamVotes = team.filter(p => !p.dead).length, ghosts = team.filter(p => p.dead && p.ghostVote).length;
+  const goodGhosts = P().filter(p => p.dead && p.ghostVote && !onTeam(p)).length;
+  $("votes").innerHTML = `
+    <div class="tip"><span>An execution needs <b>${need}</b> vote${need === 1 ? "" : "s"} (half of the ${all} living players, rounded up), and more than any other nomination today.</span></div>
+    <div class="tip"><span>Your team has <b>${teamVotes}</b> living vote${teamVotes === 1 ? "" : "s"}${ghosts ? ` and <b>${ghosts}</b> ghost vote${ghosts === 1 ? "" : "s"}` : ""}.</span><small>Good players still hold ${goodGhosts} ghost vote${goodGhosts === 1 ? "" : "s"}.</small></div>
+    <div class="tip hi"><span>Don't all vote the same way.</span><small>A bloc of the same players voting together is how evil teams get spotted.</small></div>`;
+
+  const pl = pushList().filter(x => x.score > 0).slice(0, 5);
+  $("push").innerHTML = pl.length ? pl.map((x, i) => `<div class="tip rank ${i === 0 ? "bad" : ""}"><span class="n">${i + 1}</span><span>${btn(x.p)} <small>${esc(claimsOf(x.p).join(" / ") || "no claim")}</small></span><span class="score">${x.score}</span><small>${esc(x.why.join(" · "))}</small></div>`).join("")
+    : '<p class="empty">No obvious target yet. In a player\'s panel, mark who the town suspects and who claims what.</p>';
+
+  const care = [];
+  const virgin = P().find(p => !p.dead && lc(hard(p)) === "virgin" && !p.virginUsed);
+  if (virgin) care.push({ lv: "bad", text: `Nobody on your team should nominate ${nm(virgin)} (Virgin).`, sub: "If nothing happens, the nominator isn't a Townsfolk." });
+  for (const h of teamHeat().filter(h => h.score >= 4)) care.push({ lv: "hi", text: `${nm(h.p)} is under pressure.`, sub: `${h.why.join(" · ")}. Have a defence ready, or let them take the fall if they're not the Demon.` });
+  const slayer = goodAlive().find(p => lc(realOrClaim(p)) === "slayer" && !p.shotUsed);
+  if (slayer && demon && !demon.dead) care.push({ lv: "hi", text: `${nm(slayer)} may still have a Slayer shot.`, sub: "Keep the Demon from looking like the obvious shot." });
+  for (const p of goodAlive().filter(p => lc(realOrClaim(p)) === "tea lady")) { const nb = livingNeighbours(p); if (nb.length === 2 && nb.every(x => !onTeam(x))) care.push({ lv: "", text: `${nb.map(nm).join(" and ")} sit next to a Tea Lady and can't die.`, sub: "Pushing them wastes a day: fine if that's what you want." }); }
+  const bloc = state.noms.filter(n => { const tv = n.voters.map(byId).filter(x => x && onTeam(x)); return tv.length > 1 && tv.length === teamPlayers().filter(p => !p.dead || n.voters.includes(p.id)).length; });
+  if (bloc.length >= 2) care.push({ lv: "hi", text: `Your whole team has voted together ${bloc.length} times.`, sub: "Split your votes now and then so the town can't spot the bloc." });
+  if (!care.length) care.push({ lv: "ok", text: "Nothing to watch out for right now." });
+  $("careful").innerHTML = care.map(tip).join("");
+  renderEvents();
+  renderHeard();
+  renderSquare();
+  renderLikely();
+}
+
+/* ---------- Virgin nominations and Slayer shots ---------- */
+const virginConfirmed = p => state.events.some(e => e.type === "virgin" && e.result === "exec" && e.a === p.id);
+const virginCandidates = excl => P().filter(p => p.id !== excl && !p.dead && !p.virginUsed && p.claims.some(c => lc(c) === "virgin"));
+// A player who died nominating the Virgin confirms that Virgin: record it as a Virgin nomination
+function confirmVirgin(nominatorId, virginId) {
+  if (!virginId || state.events.some(e => e.type === "virgin" && e.result === "exec" && e.b === nominatorId)) return;
+  applyEvent({ id: uid(), type: "virgin", a: virginId, b: nominatorId, result: "exec" });
+}
+let evDraft = null;
+function eventText(e) {
+  const a = nm(byId(e.a)), b = nm(byId(e.b)), when = timeLabel(e.t);
+  if (e.type === "virgin") return e.result === "exec" ? `${when}: ${b} nominated ${a} (Virgin) and was executed.` : `${when}: ${b} nominated ${a} (Virgin). Nothing happened.`;
+  return e.result === "kill" ? `${when}: ${a} shot ${b} as the Slayer. ${b} died.` : `${when}: ${a} shot ${b} as the Slayer. Nothing happened.`;
+}
+function eventMeaning(e) {
+  const a = byId(e.a), b = byId(e.b); if (!a || !b) return "";
+  if (e.type === "virgin") {
+    if (e.result === "exec") return onTeam(b) ? `${nm(b)} registered as a Townsfolk (a Spy can). The town now trusts ${nm(a)} as the real Virgin.` : `The town now sees ${nm(a)} as the real Virgin and ${nm(b)} as a proven Townsfolk. It counts as an execution: no other execution today, and an Undertaker learns ${nm(b)}.`;
+    if (onTeam(b)) return `Danger: the town will read this as ${nm(b)} not being a Townsfolk. Have a story ready: the Virgin is fake, drunk or poisoned, or ${nm(b)} is an Outsider.`;
+    return onTeam(a) ? `Your teammate's Virgin claim held up for now. ${nm(b)} looks suspicious to the town.` : `The town will suspect ${nm(b)} isn't a Townsfolk, or that ${nm(a)} isn't the real Virgin. Push whichever suits you.`;
+  }
+  if (e.result === "kill") return onTeam(b) ? (teamOf(roleOf(b)) === "demon" ? `Your Demon was shot. Unless a Scarlet Woman takes over, good wins.` : `${nm(b)} died to the shot.`) : `The town now trusts ${nm(a)} as the real Slayer.`;
+  if (onTeam(b)) return `${nm(b)} survived the shot, so the town may think they're not the Demon. Good cover.`;
+  return onTeam(a) ? `Your teammate's fake shot missed, as expected. Expect questions about whether they're really the Slayer.` : `${nm(b)} looks cleared to the town. ${nm(a)}'s shot is spent, unless they're not the real Slayer.`;
+}
+function openEvent(type, preset) {
+  const first = P().find(p => !p.dead && p.claims.some(c => lc(c) === type) && (type === "virgin" ? !p.virginUsed : !p.shotUsed));
+  evDraft = { type, a: preset || (first ? first.id : ""), b: "", result: "" };
+  $("evOverlay").hidden = false; renderEvent();
+}
+function renderEvent() {
+  const d = evDraft, v = d.type === "virgin";
+  const chips = (key, excl) => `<div class="choice-list">${P().filter(p => !p.dead && p.id !== excl).map(p => `<button class="choice${onTeam(p) ? " red" : ""}" data-ev${key}="${p.id}" aria-pressed="${d[key] === p.id}">${esc(nm(p))}${claimsOf(p).length ? ` <small>· ${esc(claimsOf(p).join("/"))}</small>` : ""}</button>`).join("")}</div>`;
+  const results = v ? [["exec", "The nominator was executed"], ["none", "Nothing happened"]] : [["kill", "The target died"], ["none", "Nothing happened"]];
+  const ready = d.a && d.b && d.result;
+  $("evBox").innerHTML = `
+    <h2 id="evTitle">${v ? "Virgin nomination" : "Slayer shot"}</h2>
+    <div class="field"><span class="label">${v ? "The Virgin (nominated)" : "The Slayer (who shot)"}</span>${chips("a", d.b)}</div>
+    <div class="field"><span class="label">${v ? "Who nominated them" : "Who they shot"}</span>${chips("b", d.a)}</div>
+    <div class="field"><span class="label">What happened</span><div class="row">${results.map(([k, l]) => `<button class="choice" data-evr="${k}" aria-pressed="${d.result === k}">${l}</button>`).join("")}</div></div>
+    ${ready ? `<div class="tip hi"><small>${esc(eventMeaning({ ...d, t: state.t }))}</small></div>` : ""}
+    <div class="row"><button class="btn primary" id="evSave"${ready ? "" : " disabled"}>Save</button><button class="btn" id="evCancel">Cancel</button></div>`;
+  $("evBox").querySelectorAll("[data-eva]").forEach(b => b.onclick = () => { d.a = b.dataset.eva; renderEvent(); });
+  $("evBox").querySelectorAll("[data-evb]").forEach(b => b.onclick = () => { d.b = b.dataset.evb; renderEvent(); });
+  $("evBox").querySelectorAll("[data-evr]").forEach(b => b.onclick = () => { d.result = b.dataset.evr; renderEvent(); });
+  $("evCancel").onclick = () => { $("evOverlay").hidden = true; evDraft = null; };
+  $("evSave").onclick = () => { if (!ready) return; const target = byId(d.b), wasDemon = d.result === "kill" && onTeam(target) && teamOf(roleOf(target)) === "demon" && !target.dead, before = alive().length;
+    applyEvent({ id: uid(), ...d }); $("evOverlay").hidden = true; evDraft = null;
+    if (wasDemon) { const o = demonDeath(target, "slayer", before); if (o.certain) { endGame("good", `A Slayer shot killed your Demon, ${nm(target)}. ${notesText(o.notes)}`); return; } save(); render(); openOutcome("Slayer shot", o, true); return; }
+    save(); render(); };
+}
+function applyEvent(e) {
+  const a = byId(e.a), b = byId(e.b);
+  e.t = state.t;
+  e.before = [a, b].map(p => JSON.parse(JSON.stringify(p)));
+  const kill = how => { b.dead = true; b.deathBy = how; b.deathAt = state.t; b.ghostVote = true; };
+  if (e.type === "virgin") {
+    a.virginUsed = true; a.claims = ["Virgin"]; a.claimType = "hard";
+    if (e.result === "exec") { kill("virgin"); if (!onTeam(a)) a.trusted = true; if (!onTeam(b)) b.trusted = true; }
+    else if (!onTeam(b)) b.townSus = true;
+  } else {
+    a.shotUsed = true; a.claims = ["Slayer"]; a.claimType = "hard";
+    if (e.result === "kill") { kill("slayer"); if (!onTeam(a)) a.trusted = true; }
+    else b.shotCleared = true;
+  }
+  state.events.push(e);
+}
+function undoEvent(id) {
+  const e = state.events.find(x => x.id === id); if (!e) return;
+  for (const old of e.before || []) { const i = P().findIndex(p => p.id === old.id); if (i >= 0) state.players[i] = old; }
+  state.events = state.events.filter(x => x !== e);
+}
+function renderEvents() {
+  $("events").innerHTML = state.events.length ? [...state.events].reverse().map(e => `<div class="tip ${e.type === "virgin" && e.result === "none" && onTeam(byId(e.b)) ? "bad" : ""}"><span>${esc(eventText(e))}</span><small>${esc(eventMeaning(e))}</small><div class="row"><button class="btn sm danger" data-unev="${e.id}">Undo</button></div></div>`).join("")
+    : '<p class="empty">Nothing recorded yet. Record each Virgin nomination and Slayer shot as it happens: deaths, used abilities and what the town now believes are all updated.</p>';
+  document.querySelectorAll("[data-unev]").forEach(b => b.onclick = () => { undoEvent(b.dataset.unev); save(); render(); });
+}
+
+/* ---------- Conversations and heard info ---------- */
+// Each conversation updates the player's claims; info is either their own or hearsay passed on from someone else
+const HEARD_KINDS = [["evil", "Evil ping"], ["good", "Good / not evil"], ["demon", "The Demon"], ["minion", "A Minion"], ["notdemon", "Not the Demon"], ["role", "A character"], ["number", "A number"], ["other", "Something else"]];
+// Info given in a character's own form, e.g. a Washerwoman's two players and the Townsfolk
+const shapeOf = h => h.shape && SHAPE[lc(h.as)];
+function shapedHits(h) {
+  const r = lc(h.as), ps = (h.p || []).map(byId).filter(Boolean);
+  if ((h.r && isEvilRole(h.r)) || (r === "dreamer" && h.p && h.p.length)) return ps.filter(onTeam);
+  if (r === "fortune teller" && h.yn === 1) return ps.filter(onTeam);
+  if (r === "seamstress" && h.yn === 0) return ps.filter(onTeam);
+  if (r === "sage") return ps.filter(onTeam);
+  if (r === "empath" && Number(h.n) > 0) { const src = byId(h.mode === "hearsay" ? h.via : h.from); return src ? livingNeighbours(src).filter(onTeam) : []; }
+  return [];
+}
+function hitsTeam(h) {
+  if (shapeOf(h)) return shapedHits(h);
+  const about = (h.about || []).map(byId).filter(Boolean);
+  const evilish = ["evil", "demon", "minion"].includes(h.kind) || (h.kind === "role" && isEvilRole(h.role));
+  return evilish ? about.filter(onTeam) : [];
+}
+function infoText(h) {
+  const about = (h.about || []).map(id => nm(byId(id))), who = about.length ? about.join(about.length > 2 ? ", " : " or ") : "";
+  return ({ evil: `${who || "someone"} pinged evil`, good: `${who || "someone"} ${about.length > 1 ? "are" : "is"} good`, demon: `${who || "someone"} ${about.length > 1 ? "includes" : "is"} the Demon`,
+    minion: `${who || "someone"} ${about.length > 1 ? "includes" : "is"} a Minion`, notdemon: `${who || "someone"} ${about.length > 1 ? "aren't" : "isn't"} the Demon`,
+    role: `${who ? who + (about.length > 1 ? ": one is the " : " is the ") : "the "}${h.role || "…"}${who ? "" : " is in play"}`,
+    number: `${h.n === "" || h.n == null ? "…" : h.n}${who ? ` (${who})` : ""}`, other: who ? `about ${who}` : "" }[h.kind] || "") + (h.x ? `${h.kind ? ". " : ""}${h.x}` : "");
+}
+function heardText(h, short) {
+  const from = nm(byId(h.from)), me = meP();
+  const what = shapeOf(h) ? `"${sayText({ role: h.as, p: h.p, r: h.r, r2: h.r2, n: h.n, yn: h.yn, x: h.x })}"` : infoText(h);
+  if (h.mode === "hearsay") return `${short ? "" : `${timeLabel(h.t)}: ${from} `}heard that ${h.as ? `${/^[aeiou]/i.test(h.as) ? "an" : "a"} ${h.as}` : "someone"}${h.via ? ` (${nm(byId(h.via))})` : ""} learned ${h.kind === "number" && !shapeOf(h) ? "a " : ""}${what || "…"}`;
+  const to = (h.to || []).map(id => id === "all" ? "everyone" : me && id === me.id ? "you" : nm(byId(id)));
+  return `${short ? "" : `${timeLabel(h.t)}: ${from}${h.as ? ` (as the ${h.as})` : ""} told ${to.length ? to.join(", ") : "someone"}: `}${short && h.as ? `As the ${h.as}: ` : ""}${h.kind === "number" && !shapeOf(h) ? "got a " : ""}${what || "…"}`;
+}
+function heardMeaning(h) {
+  const from = byId(h.from); if (!from) return { lv: "", text: "" };
+  const hits = hitsTeam(h), about = (h.about || []).map(byId).filter(Boolean), hs = h.mode === "hearsay";
+  const src = hs ? (h.via ? nm(byId(h.via)) : `whoever the ${h.as || "source"} is`) : nm(from);
+  if (onTeam(from) && !hs) return { lv: "", text: "Your teammate's story. Keep it consistent with what they've said before." };
+  const fake = h.as && notInPlay(h.as) ? ` ${h.as} is not in play, so this ${hs ? "story" : "info"} is false${hs ? "" : " or they're the Drunk"}.` : "";
+  const claimNote = !h.as ? "" : hs ? (onTeam(from) || h.via ? "" : ` Counted as a possible soft claim for ${nm(from)}: they may be the ${h.as} themselves.`)
+    : !from.claims.some(c => lc(c) === lc(h.as)) ? ` They haven't claimed ${h.as} to you.` : "";
+  if (hits.length) return { lv: "bad", text: `Points at your team: ${hits.map(nm).join(" and ")}.${fake || ` If it's real, ${src} is a threat: discredit, kill or poison them.`}${claimNote}` };
+  if (shapeOf(h)) {
+    const ps = (h.p || []).map(byId).filter(Boolean), mates = ps.filter(onTeam);
+    if (h.r && !isEvilRole(h.r) && mates.length) { const backs = mates.filter(m => lc(hard(m)) === lc(h.r)); return backs.length ? { lv: "ok", text: `Backs up ${backs.map(nm).join(" and ")}'s bluff as the ${h.r}. Great cover.${claimNote}` } : { lv: "hi", text: `Names your teammate ${mates.map(nm).join(" and ")} as a possible ${h.r}. If they don't claim it, the town will notice.${claimNote}` }; }
+    if (h.r && isEvilRole(h.r) && ps.length) return { lv: "ok", text: `Wrong: neither ${ps.map(nm).join(" nor ")} is evil.${fake || ` Use it to push ${ps.map(nm).join(" or ")}.`}${claimNote}` };
+    if (lc(h.as) === "fortune teller" && h.yn === 0 && mates.length) return { lv: "ok", text: `A No on your teammate ${mates.map(nm).join(" and ")}. Clears them.${claimNote}` };
+    return { lv: "", text: (fake + claimNote).trim() };
+  }
+  if (["good", "notdemon"].includes(h.kind) && about.some(onTeam)) return { lv: "ok", text: `Clears your teammate ${about.filter(onTeam).map(nm).join(" and ")}. Good for you; don't argue with it.${claimNote}` };
+  if (["evil", "demon", "minion"].includes(h.kind) && about.length) return { lv: "ok", text: `Wrong: ${about.map(nm).join(" and ")} ${about.length > 1 ? "are" : "is"} good.${fake || ` The source may be drunk, poisoned or lying. Use it to push ${about.map(nm).join(" or ")}.`}${claimNote}` };
+  if (h.kind === "role" && h.role && notInPlay(h.role)) return { lv: "hi", text: `${h.role} isn't in play, so this info is false.${claimNote}` };
+  return { lv: "", text: (fake + claimNote).trim() };
+}
+
+let cv = null;
+const newItem = mode => ({ mode, via: "", as: "", kind: "", role: "", n: "", about: [], x: "", shape: true, p: [], r: "", r2: "", yn: null });
+function openHeard(withId, pubMode) {
+  const me = meP();
+  cv = { with: "", claims: [], claimType: "soft", onto: [], items: [], item: null, note: "", pub: false, added: [],
+    told: { claims: me && me.claims.length === 1 ? [...me.claims] : [], claimType: "hard", story: [], x: "" } };
+  if (pubMode) { cv.pubMode = true; cv.pub = true; }
+  if (withId) pickWith(withId);
+  $("hdOverlay").hidden = false; renderTalk();
+}
+function pickWith(id) {
+  const p = byId(id); cv.with = id;
+  cv.claims = p ? [...p.claims] : []; cv.claimType = p ? p.claimType || "soft" : "soft"; cv.onto = p ? [...p.onto] : [];
+}
+// Info from a character counts as a claim: their own info adds the role, hearsay adds it as a soft claim
+function claimFromItem(it) {
+  if (!it.as || cv.claims.some(c => lc(c) === lc(it.as))) return "";
+  if (it.mode === "own") {
+    if (cv.claimType === "hard" && cv.claims.length) return `Gave info as the ${it.as}, but hard-claims ${cv.claims[0]}.`;
+    cv.claims.push(it.as); return `${it.as} added to their claims.`;
+  }
+  if (it.via) return `Noted: ${nm(byId(it.via))} may be the ${it.as}.`;
+  if (cv.claimType === "hard" && cv.claims.length) return `Hearsay about a ${it.as}. Not added: they hard-claim ${cv.claims[0]}.`;
+  cv.claims.push(it.as); cv.claimType = "soft"; return `${it.as} added as a soft claim (hearsay).`;
+}
+function renderTalk() {
+  const box = $("hdBox"), R = scriptRoles(), p = byId(cv.with), it = cv.item, me = meP();
+  const re = () => renderTalk();
+  const playerChips = (attr, sel, filter = () => true, extra = "") => `<div class="choice-list">${extra}${P().filter(filter).map(x => `<button class="choice${onTeam(x) ? " red" : ""}" data-${attr}="${x.id}" aria-pressed="${Array.isArray(sel) ? sel.includes(x.id) : sel === x.id}">${esc(nm(x))}${x.dead ? " †" : ""}</button>`).join("")}</div>`;
+  const roleChips = (attr, sel, kinds, mark = []) => `<div class="choice-list">${kinds.flatMap(k => R[k]).map(r => `<button class="choice${mark.includes(r) ? " sugg" : ""}" data-${attr}="${esc(r)}" aria-pressed="${Array.isArray(sel) ? sel.includes(r) : sel === r}"${notInPlay(r) && attr === "cclaim" && !onTeam(p) && cv.claims.length > 1 && cv.claims.includes(r) ? ' style="text-decoration:line-through"' : ""}>${esc(r)}</button>`).join("")}</div>`;
+  let html = `<h2 id="hdTitle">${cv.pubMode ? "Said in public" : "Conversation"}</h2>
+    <div class="field"><span class="label">${cv.pubMode ? "Who spoke" : "Who I spoke to"}</span>${playerChips("cwith", cv.with, x => !x.me)}</div>`;
+  if (p) {
+    const mates = teamPlayers().filter(x => x !== p);
+    html += `
+    <div class="field claim-grid"><div class="row" style="justify-content:space-between"><span class="label">Their claim</span>
+      <span class="seg" role="group" aria-label="Claim type"><button data-cctype="soft" aria-pressed="${cv.claimType !== "hard"}">Soft</button><button data-cctype="hard" aria-pressed="${cv.claimType === "hard"}">Hard</button></span></div>
+      <span class="hint">${cv.claims.length ? `Now: <b>${esc(cv.claims.join(", "))}</b>` : "No claim yet"}</span>
+      ${onTeam(p) && state.bluffs.length ? `<div class="field"><span class="label">Demon bluffs</span>${roleChips("cclaim", cv.claims, [], []).replace('<div class="choice-list"></div>', `<div class="choice-list">${state.bluffs.map(r => `<button class="choice red" data-cclaim="${esc(r)}" aria-pressed="${cv.claims.includes(r)}">${esc(r)}</button>`).join("")}</div>`)}</div>` : ""}
+      ${roleChips("cclaim", cv.claims, ["townsfolk", "outsider"])}
+    </div>
+    ${!onTeam(p) && mates.length ? `<div class="field"><span class="label">They suspect (your team)</span>${playerChips("conto", cv.onto, x => onTeam(x) && x !== p)}</div>` : ""}
+    <div class="field"><span class="label">Info they shared</span>
+      ${cv.items.map((x, i) => `<div class="tip"><span>${esc(heardText({ ...x, from: p.id, t: state.t }, true))}${x.mode === "hearsay" ? " <small>(hearsay)</small>" : ""}</span>${x.msg ? `<small>${esc(x.msg)}</small>` : ""}<div class="row"><button class="btn sm danger" data-cdel="${i}">Remove</button></div></div>`).join("")}
+      ${it ? "" : `<div class="row"><button class="btn sm" data-cnew="own">+ Their own info</button><button class="btn sm" data-cnew="hearsay">+ Hearsay (someone else's)</button></div>`}
+    </div>`;
+    if (it) {
+      const hs = it.mode === "hearsay";
+      html += `<div class="story-form">
+        <div class="row"><span class="seg"><button data-cmode="own" aria-pressed="${!hs}">Their own info</button><button data-cmode="hearsay" aria-pressed="${hs}">Hearsay</button></span></div>
+        ${hs ? `<div class="field"><span class="label">Who it came from</span>${playerChips("cvia", it.via, x => x !== p, `<button class="choice" data-cvia="" aria-pressed="${!it.via}">Don't know</button>`)}</div>` : ""}
+        <div class="field"><span class="label">${hs ? "The character who learned it" : "As the character"}${!hs && cv.claims.length ? " (amber: their claim)" : ""}</span>${roleChips("cas", it.as, ["townsfolk", "outsider"], hs ? [] : cv.claims)}</div>
+        ${(() => { const sh = SHAPE[lc(it.as)]; if (!sh || it.shape === false) return ""; const pr = (attr, kind, sel) => roleChips(attr, sel, kind === "any" ? ["townsfolk", "outsider", "minion", "demon"] : kind === "good" ? ["townsfolk", "outsider"] : kind === "evil" ? ["minion", "demon"] : [kind]);
+          return `<div class="field"><span class="label">What the ${esc(it.as)} learned</span>${sh.when ? `<span class="hint">${WHEN_LABEL[sh.when]}.</span>` : ""}</div>
+          ${sh.p ? `<div class="field"><span class="label">${sh.p === 1 ? "The player" : `The ${sh.p} players`} (tap in order)</span>${playerChips("cp", it.p)}</div>` : ""}
+          ${sh.r ? `<div class="field"><span class="label">${sh.r2 ? "The good character" : "The character"}</span>${sh.none ? `<div class="choice-list"><button class="choice" data-cr="-" aria-pressed="${it.r === "-"}">${esc(sh.tNone)}</button></div>` : ""}${pr("cr", sh.r, it.r)}</div>` : ""}
+          ${sh.r2 ? `<div class="field"><span class="label">The evil character</span>${pr("cr2", sh.r2, it.r2)}</div>` : ""}
+          ${sh.n ? `<div class="row"><label class="label" for="cN">${esc(sh.n)}</label><input type="number" inputmode="numeric" id="cN" min="0" value="${esc(it.n)}" style="width:6em"></div>` : ""}
+          ${sh.yn ? `<div class="row">${sh.yn.map((l, i) => `<button class="choice" data-cyn="${i}" aria-pressed="${it.yn === i}">${l}</button>`).join("")}</div>` : ""}
+          <button class="btn sm" data-cshape="off" style="justify-self:start">Something else instead</button>`; })()}
+        ${SHAPE[lc(it.as)] && it.shape !== false ? "" : `${SHAPE[lc(it.as)] ? `<button class="btn sm" data-cshape="on" style="justify-self:start">Use the ${esc(it.as)}'s own form</button>` : ""}
+        <div class="field"><span class="label">What it was</span><div class="choice-list">${HEARD_KINDS.map(([k, l]) => `<button class="choice" data-ckind="${k}" aria-pressed="${it.kind === k}">${l}</button>`).join("")}</div></div>
+        ${it.kind === "role" ? `<div class="field"><span class="label">Which character</span>${roleChips("crole", it.role, ["townsfolk", "outsider", "minion", "demon"])}</div>` : ""}
+        ${it.kind === "number" ? `<div class="row"><label class="label" for="cN">The number</label><input type="number" inputmode="numeric" id="cN" min="0" value="${esc(it.n)}" style="width:6em"></div>` : ""}
+        ${it.kind ? `<div class="field"><span class="label">About which players (optional)</span>${playerChips("cabout", it.about)}</div>` : ""}`}
+        <input type="text" id="cX" value="${esc(it.x)}" placeholder="${esc((SHAPE[lc(it.as)] && it.shape !== false && SHAPE[lc(it.as)].xl) || "Anything else, in their words (optional)")}">
+        <div class="say-box" id="cPrev">${esc(heardText({ ...it, shape: !!SHAPE[lc(it.as)] && it.shape !== false, from: p.id, t: state.t }, true))}</div>
+        <div class="row"><button class="btn sm primary" id="cAddItem">Add this info</button><button class="btn sm" id="cDropItem">Cancel</button></div>
+      </div>`;
+    }
+    if (me && !cv.pubMode) {
+      const tc = cv.told, R2 = scriptRoles(), bl = state.bluffs;
+      const lines = [...state.story].sort((a, b) => a.night - b.night);
+      const prior = lastToldTo(p.id);
+      html += `<div class="story-form"><span class="label" style="color:var(--accent)">What I told them</span>
+        ${prior ? `<span class="hint">Last time you told ${esc(nm(p))}: ${esc(prior)}</span>` : ""}
+        <div class="row" style="justify-content:space-between"><span class="label">I claimed</span><span class="seg" role="group" aria-label="My claim type"><button data-tctype="soft" aria-pressed="${tc.claimType === "soft"}">Soft</button><button data-tctype="hard" aria-pressed="${tc.claimType === "hard"}">Hard</button></span></div>
+        ${bl.length ? `<div class="choice-list">${bl.map(r => `<button class="choice red" data-tcl="${esc(r)}" aria-pressed="${tc.claims.includes(r)}">${esc(r)}</button>`).join("")}</div>` : ""}
+        <div class="choice-list">${[...R2.townsfolk, ...R2.outsider].filter(r => !bl.includes(r)).map(r => `<button class="choice" data-tcl="${esc(r)}" aria-pressed="${tc.claims.includes(r)}">${esc(r)}</button>`).join("")}</div>
+        ${lines.length ? `<span class="label">Info I shared (from Story & night)</span><div class="col">${lines.map(e => `<button class="choice" style="text-align:left;border-radius:10px" data-tst="${e.id}" aria-pressed="${tc.story.includes(e.id)}">Night ${e.night}: "${esc(sayText(e))}"</button>`).join("")}</div>` : `<span class="hint">Made-up info you save on Story & night can be picked here.</span>`}
+        <input type="text" id="tX" value="${esc(tc.x)}" placeholder="Anything else I told them (optional)">
+      </div>`;
+    }
+    html += `${cv.pubMode ? "" : `<div class="row"><button class="choice" id="cPub" aria-pressed="${cv.pub}">They said it publicly</button></div>`}
+      <input type="text" id="cNote" value="${esc(cv.note)}" placeholder="${cv.pubMode ? "What else they said (optional)" : "Note about the chat (optional)"}">`;
+  }
+  html += `<div class="row"><button class="btn primary" id="cSave"${p ? "" : " disabled"}>Save and update the table</button><button class="btn" id="cCancel">Cancel</button></div>`;
+  box.innerHTML = html;
+  const on = (sel, f) => box.querySelectorAll(sel).forEach(b => b.onclick = () => { f(b); re(); });
+  on("[data-cwith]", b => { pickWith(b.dataset.cwith); cv.items = []; cv.item = null; });
+  on("[data-cctype]", b => { cv.claimType = b.dataset.cctype; if (cv.claimType === "hard" && cv.claims.length > 1) cv.claims = []; });
+  on("[data-cclaim]", b => { const r = b.dataset.cclaim, has = cv.claims.includes(r); cv.claims = cv.claimType === "hard" ? (has && cv.claims.length === 1 ? [] : [r]) : has ? cv.claims.filter(c => c !== r) : [...cv.claims, r]; });
+  on("[data-conto]", b => { const id = b.dataset.conto; cv.onto = cv.onto.includes(id) ? cv.onto.filter(x => x !== id) : [...cv.onto, id]; });
+  on("[data-cnew]", b => { cv.item = newItem(b.dataset.cnew); if (b.dataset.cnew === "own" && cv.claims.length === 1) cv.item.as = cv.claims[0]; });
+  on("[data-cdel]", b => cv.items.splice(+b.dataset.cdel, 1));
+  if (it) {
+    on("[data-cmode]", b => { it.mode = b.dataset.cmode; if (it.mode === "own" && !it.as && cv.claims.length === 1) it.as = cv.claims[0]; });
+    on("[data-cvia]", b => it.via = b.dataset.cvia);
+    on("[data-cas]", b => { it.as = it.as === b.dataset.cas ? "" : b.dataset.cas; it.p = []; it.r = ""; it.r2 = ""; it.yn = null; it.shape = true; });
+    on("[data-ckind]", b => it.kind = it.kind === b.dataset.ckind ? "" : b.dataset.ckind);
+    on("[data-crole]", b => it.role = it.role === b.dataset.crole ? "" : b.dataset.crole);
+    on("[data-cp]", b => { const id = b.dataset.cp, max = (SHAPE[lc(it.as)] || {}).p || 1; it.p = it.p.includes(id) ? it.p.filter(x => x !== id) : [...it.p, id].slice(-max); });
+    on("[data-cr]", b => it.r = it.r === b.dataset.cr ? "" : b.dataset.cr);
+    on("[data-cr2]", b => it.r2 = it.r2 === b.dataset.cr2 ? "" : b.dataset.cr2);
+    on("[data-cyn]", b => it.yn = it.yn === +b.dataset.cyn ? null : +b.dataset.cyn);
+    on("[data-cshape]", b => it.shape = b.dataset.cshape === "on");
+    on("[data-cabout]", b => { const id = b.dataset.cabout; it.about = it.about.includes(id) ? it.about.filter(x => x !== id) : [...it.about, id]; });
+    const prev = () => { $("cPrev").textContent = heardText({ ...it, shape: !!SHAPE[lc(it.as)] && it.shape !== false, from: p.id, t: state.t }, true); };
+    if ($("cN")) $("cN").oninput = e => { it.n = e.target.value; prev(); };
+    $("cX").oninput = e => { it.x = e.target.value; prev(); };
+    $("cAddItem").onclick = () => { if (!it.kind && !it.x && !it.as) return; it.shape = !!SHAPE[lc(it.as)] && it.shape !== false; it.msg = claimFromItem(it); cv.items.push(it); cv.item = null; re(); };
+    $("cDropItem").onclick = () => { cv.item = null; re(); };
+  }
+  on("[data-tctype]", b => { cv.told.claimType = b.dataset.tctype; if (cv.told.claimType === "hard" && cv.told.claims.length > 1) cv.told.claims = []; });
+  on("[data-tcl]", b => { const r = b.dataset.tcl, t = cv.told, has = t.claims.includes(r); t.claims = t.claimType === "hard" ? (has && t.claims.length === 1 ? [] : [r]) : has ? t.claims.filter(c => c !== r) : [...t.claims, r]; });
+  on("[data-tst]", b => { const id = b.dataset.tst, t = cv.told; t.story = t.story.includes(id) ? t.story.filter(x => x !== id) : [...t.story, id]; });
+  if ($("tX")) $("tX").oninput = e => cv.told.x = e.target.value;
+  if ($("cPub")) $("cPub").onclick = () => { cv.pub = !cv.pub; $("cPub").setAttribute("aria-pressed", cv.pub); };
+  if ($("cNote")) $("cNote").oninput = e => cv.note = e.target.value;
+  $("cCancel").onclick = () => { $("hdOverlay").hidden = true; cv = null; };
+  $("cSave").onclick = () => {
+    const p = byId(cv.with); if (!p) return;
+    if (cv.item && (cv.item.kind || cv.item.x || cv.item.as)) { cv.item.shape = !!SHAPE[lc(cv.item.as)] && cv.item.shape !== false; cv.item.msg = claimFromItem(cv.item); cv.items.push(cv.item); }
+    p.claims = cv.claims; p.claimType = cv.claimType; if (!onTeam(p)) p.onto = cv.onto;
+    const talk = { id: uid(), t: state.t, with: p.id, claims: [...cv.claims], claimType: cv.claimType, note: cv.note, pub: cv.pub,
+      told: !cv.pubMode && (cv.told.claims.length || cv.told.story.length || cv.told.x) ? { ...cv.told, claims: [...cv.told.claims], story: [...cv.told.story] } : null, square: !!cv.pubMode };
+    for (const x of cv.items) { const { msg, ...h } = x; state.heard.push({ id: uid(), ...h, t: state.t, from: p.id, to: cv.pub ? ["all"] : me ? [me.id] : [], talk: talk.id }); }
+    state.talks.push(talk);
+    $("hdOverlay").hidden = true; cv = null; save(); render();
+  };
+}
+function renderHeard() {
+  const items = h => { const m = heardMeaning(h); return `<div class="tip ${m.lv}"><span>${esc(heardText(h))}${h.mode === "hearsay" ? " <small>(hearsay)</small>" : ""}</span>${m.text ? `<small>${esc(m.text)}</small>` : ""}</div>`; };
+  const talks = [...state.talks].filter(t => !t.square).reverse().map(t => {
+    const p = byId(t.with), hs = state.heard.filter(h => h.talk === t.id);
+    return `<div class="tip"><span><span class="label">${timeLabel(t.t)}</span> Spoke to ${p ? btn(p) : "someone"}${t.claims.length ? ` · ${t.claimType === "hard" ? "hard" : "soft"} claim: <b>${esc(t.claims.join(", "))}</b>` : " · no claim"}${t.pub ? " · public" : ""}</span>${t.note ? `<small>${esc(t.note)}</small>` : ""}${t.told ? `<small><b>You told them:</b> ${esc(toldText(t.told))}</small>` : ""}${hs.map(items).join("")}<div class="row"><button class="btn sm danger" data-untalk="${t.id}">Remove</button></div></div>`;
+  });
+  const loose = state.heard.filter(h => !h.talk).reverse().map(h => `<div>${items(h)}<div class="row" style="margin-top:4px"><button class="btn sm danger" data-unheard="${h.id}">Remove</button></div></div>`);
+  $("heard").innerHTML = [...talks, ...loose].join("") || '<p class="empty">Nothing yet. After each chat, tap "I spoke to someone".</p>';
+  document.querySelectorAll("[data-untalk]").forEach(b => b.onclick = () => { const id = b.dataset.untalk; state.talks = state.talks.filter(t => t.id !== id); state.heard = state.heard.filter(h => h.talk !== id); save(); render(); });
+  document.querySelectorAll("[data-unheard]").forEach(b => b.onclick = () => { state.heard = state.heard.filter(h => h.id !== b.dataset.unheard); save(); render(); });
+}
+$("hdAdd").onclick = () => openHeard();
+$("tsSay").onclick = () => openHeard("", true);
+
+/* ---------- Town square: public statements, nominations and votes ---------- */
+const needed = () => Math.ceil(P().filter(p => !p.dead).length / 2);
+const nomsToday = () => state.noms.filter(n => n.t === state.t);
+// Who is on the block today: the highest vote that reached half the living, with no tie
+function onBlock() {
+  const ns = nomsToday().filter(n => n.votes >= n.need);
+  if (!ns.length) return null;
+  const top = Math.max(...ns.map(n => n.votes)), best = ns.filter(n => n.votes === top);
+  return best.length === 1 ? best[0] : { tie: true, votes: top, ns: best };
+}
+let nm0 = null;
+function openNom() { nm0 = { by: "", on: "", voters: [], votes: "", x: "" }; $("nmOverlay").hidden = false; renderNom(); }
+function renderNom() {
+  const d = nm0, box = $("nmBox");
+  const chips = (attr, sel, filter) => `<div class="choice-list">${P().filter(filter).map(x => `<button class="choice${onTeam(x) ? " red" : ""}" data-${attr}="${x.id}" aria-pressed="${Array.isArray(sel) ? sel.includes(x.id) : sel === x.id}">${esc(nm(x))}${x.dead ? (x.ghostVote ? " † ghost vote" : " †") : ""}</button>`).join("")}</div>`;
+  const on = byId(d.on), votes = d.votes === "" ? d.voters.length : +d.votes, need = needed();
+  const ob = onBlock(), top = ob ? (ob.tie ? ob.votes : ob.votes) : 0;
+  const verdict = votes < need ? `Not enough: ${votes} of ${need} needed.` : votes > top ? `${on ? nm(on) : "They"} go${on ? "es" : ""} on the block with ${votes}.` : votes === top ? `Ties the ${top} already on the block: nobody is on the block.` : `Fewer than the ${top} already on the block.`;
+  box.innerHTML = `<h2 id="nmTitle">Nomination</h2>
+    <div class="field"><span class="label">Who nominated</span>${chips("nby", d.by, x => !x.dead)}</div>
+    <div class="field"><span class="label">Who was nominated</span>${chips("non", d.on, x => !x.dead && x.id !== d.by)}</div>
+    ${on && on.claims.some(c => lc(c) === "virgin") && !on.virginUsed ? `<div class="tip hi"><span>${esc(nm(on))} claims Virgin.</span><small>If the nominator died, record it as a Virgin nomination instead.</small><div class="row"><button class="btn sm" id="nmVirgin">Record Virgin nomination</button></div></div>` : ""}
+    <div class="field"><span class="label">Who voted (dead players spend their ghost vote)</span>${chips("nvote", d.voters, x => !x.dead || x.ghostVote || d.voters.includes(x.id))}</div>
+    <div class="row"><label class="label" for="nmVotes">Votes</label><input type="number" inputmode="numeric" id="nmVotes" min="0" value="${esc(d.votes === "" ? d.voters.length : d.votes)}" style="width:5em"><span class="hint">${esc(verdict)}</span></div>
+    <input type="text" id="nmX" value="${esc(d.x)}" placeholder="What was said in the defence or accusation (optional)">
+    <div class="row"><button class="btn primary" id="nmSave"${d.by && d.on ? "" : " disabled"}>Save</button><button class="btn" id="nmCancel">Cancel</button></div>`;
+  const re = () => renderNom();
+  box.querySelectorAll("[data-nby]").forEach(b => b.onclick = () => { d.by = b.dataset.nby; if (d.on === d.by) d.on = ""; re(); });
+  box.querySelectorAll("[data-non]").forEach(b => b.onclick = () => { d.on = b.dataset.non; re(); });
+  box.querySelectorAll("[data-nvote]").forEach(b => b.onclick = () => { const id = b.dataset.nvote; d.voters = d.voters.includes(id) ? d.voters.filter(x => x !== id) : [...d.voters, id]; d.votes = ""; re(); });
+  $("nmVotes").oninput = e => { d.votes = e.target.value === "" ? "" : Math.max(0, +e.target.value); };
+  $("nmVotes").onchange = re;
+  $("nmX").oninput = e => d.x = e.target.value;
+  if ($("nmVirgin")) $("nmVirgin").onclick = () => { $("nmOverlay").hidden = true; const by = d.by, on = d.on; nm0 = null; openEvent("virgin", on); if (evDraft) { evDraft.b = by; renderEvent(); } };
+  $("nmCancel").onclick = () => { $("nmOverlay").hidden = true; nm0 = null; };
+  $("nmSave").onclick = () => {
+    if (!d.by || !d.on) return;
+    const spent = d.voters.filter(id => { const x = byId(id); return x && x.dead && x.ghostVote; });
+    for (const id of spent) byId(id).ghostVote = false;
+    state.noms.push({ id: uid(), t: state.t, by: d.by, on: d.on, voters: [...d.voters], votes: d.votes === "" ? d.voters.length : +d.votes, need: needed(), x: d.x, spent });
+    $("nmOverlay").hidden = true; nm0 = null; save(); render();
+  };
+}
+$("tsNom").onclick = openNom;
+function nomText(n) {
+  const by = byId(n.by), on = byId(n.on);
+  return `${timeLabel(n.t)}: ${nm(by)} nominated ${nm(on)}. ${n.votes} vote${n.votes === 1 ? "" : "s"} (${n.need} needed)${n.voters.length ? `: ${n.voters.map(id => nm(byId(id))).join(", ")}` : ""}.`;
+}
+function nomMeaning(n) {
+  const by = byId(n.by), on = byId(n.on), team = teamPlayers().filter(p => !p.dead || n.voters.includes(p.id));
+  const out = [];
+  if (onTeam(on)) out.push(`Your teammate was nominated${onTeam(by) ? " by your own team" : ` by ${nm(by)}`}.`);
+  if (onTeam(by) && !onTeam(on)) out.push(`Your team pushed ${nm(on)}.`);
+  const teamVoters = n.voters.map(byId).filter(x => x && onTeam(x));
+  if (n.voters.length && team.length > 1 && teamVoters.length === team.length) out.push("Your whole team voted together: that's how blocs get spotted.");
+  if (onTeam(on) && teamVoters.length && teamVoters.length === team.length - 1) out.push(`Every teammate voted for ${nm(on)}.`);
+  return out.join(" ");
+}
+function renderSquare() {
+  const ob = onBlock();
+  $("block").innerHTML = state.t % 2 ? "" : ob ? (ob.tie ? `<div class="tip hi"><span>Tied at ${ob.votes}: nobody is on the block.</span></div>`
+    : `<div class="tip ${onTeam(byId(ob.on)) ? "bad" : "ok"}"><span>On the block: ${btn(byId(ob.on))} with ${ob.votes} vote${ob.votes === 1 ? "" : "s"}.</span><small>${onTeam(byId(ob.on)) ? "Your teammate! Another nomination needs more than " + ob.votes + " votes to replace them." : "If nothing beats it, they're executed at the end of the day."}</small></div>`)
+    : `<div class="tip"><span>Nobody on the block yet. ${needed()} votes needed.</span></div>`;
+  const items = h => { const m = heardMeaning(h); return `<div class="tip ${m.lv}"><span>${esc(heardText(h))}${h.mode === "hearsay" ? " <small>(hearsay)</small>" : ""}</span>${m.text ? `<small>${esc(m.text)}</small>` : ""}</div>`; };
+  const rows = [
+    ...state.noms.map(n => ({ t: n.t, k: 1, html: `<div class="tip ${onTeam(byId(n.on)) ? "bad" : ""}"><span><span class="label">Nomination</span> ${esc(nomText(n))}</span>${nomMeaning(n) ? `<small>${esc(nomMeaning(n))}</small>` : ""}${n.x ? `<small>${esc(n.x)}</small>` : ""}<div class="row"><button class="btn sm danger" data-unnom="${n.id}">Remove</button></div></div>` })),
+    ...state.talks.filter(t => t.square).map(t => { const p = byId(t.with), hs = state.heard.filter(h => h.talk === t.id); return { t: t.t, k: 0, html: `<div class="tip"><span><span class="label">${timeLabel(t.t)} · said in public</span> ${p ? btn(p) : "someone"}${t.claims.length ? ` · ${t.claimType === "hard" ? "hard" : "soft"} claim: <b>${esc(t.claims.join(", "))}</b>` : ""}</span>${t.note ? `<small>${esc(t.note)}</small>` : ""}${hs.map(items).join("")}<div class="row"><button class="btn sm danger" data-untalk="${t.id}">Remove</button></div></div>` }; })
+  ].sort((a, b) => b.t - a.t || b.k - a.k);
+  $("square").innerHTML = rows.map(r => r.html).join("") || '<p class="empty">Nothing yet. Add public claims and info as they come up, and each nomination with its votes.</p>';
+  document.querySelectorAll("[data-unnom]").forEach(b => b.onclick = () => { const n = state.noms.find(x => x.id === b.dataset.unnom); if (n) for (const id of n.spent || []) { const x = byId(id); if (x) x.ghostVote = true; } state.noms = state.noms.filter(x => x !== n); save(); render(); });
+  document.querySelectorAll("#square [data-untalk]").forEach(b => b.onclick = () => { const id = b.dataset.untalk; state.talks = state.talks.filter(t => t.id !== id); state.heard = state.heard.filter(h => h.talk !== id); save(); render(); });
+}
+
+/* ---------- Likely characters ---------- */
+function likelyRole(p) {
+  const l = likelyRole0(p);
+  const gave = [...new Set(state.heard.filter(h => h.from === p.id && h.mode !== "hearsay" && h.as && !claimsOf(p).some(c => lc(c) === lc(h.as))).map(h => h.as))];
+  if (gave.length && !onTeam(p)) l.note = [l.note, `has shared info as the ${gave.join(" and ")}`].filter(Boolean).join(" · ");
+  const said = state.heard.filter(h => h.mode === "hearsay" && h.via === p.id && h.as).map(h => `${nm(byId(h.from))} says they're the ${h.as}`);
+  const named = state.heard.filter(h => shapeOf(h) && h.r && h.r !== "-" && (h.p || []).includes(p.id)).map(h => `${nm(byId(h.mode === "hearsay" && h.via ? h.via : h.from))}'s ${h.as} info: ${(h.p || []).length > 1 ? "maybe " : ""}the ${h.r}${h.r2 ? ` or the ${h.r2}` : ""}`);
+  if (named.length && !onTeam(p)) l.note = [l.note, ...new Set(named)].filter(Boolean).join(" · ");
+  if (said.length && !onTeam(p)) l.note = [l.note, ...new Set(said)].filter(Boolean).join(" · ");
+  return l;
+}
+function likelyRole0(p) {
+  if (onTeam(p)) return { role: roleOf(p) || "Evil", lv: "bad", note: p.claims.length ? `on your team, claiming ${p.claims.join(" or ")}` : "on your team, no claim yet" };
+  if (p.real) return { role: p.real, lv: "ok", note: "you know this" };
+  const c = claimsOf(p), h = hard(p), out = ruledOut(p);
+  const R = scriptRoles(), drunk = R.outsider.some(r => lc(r) === "drunk");
+  const outNote = out.length ? `left off: ${out.map(r => outReason(r, p)).join(", ")}` : "";
+  if (h) {
+    if (notInPlay(h)) return { role: drunk && teamOf(h) === "townsfolk" ? "Drunk?" : "Lying", lv: "hi", note: `claims ${h}, which is not in play${drunk && teamOf(h) === "townsfolk" ? ", so probably the Drunk, or a good player hiding" : ": a good player hiding their role"}` };
+    const rivals = P().filter(x => x !== p && !onTeam(x) && lc(hard(x)) === lc(h));
+    if (rivals.length) return { role: `${h}?`, lv: "hi", note: [`contested with ${rivals.map(nm).join(", ")}: one is lying${drunk ? " or the Drunk" : ""}`, outNote].filter(Boolean).join(" · ") };
+    const ev = state.events.find(e => (e.type === "virgin" && e.result === "exec" && (e.a === p.id || e.b === p.id)) || (e.type === "slayer" && e.result === "kill" && e.a === p.id));
+    if (ev) return { role: ev.type === "virgin" && ev.b === p.id ? (h || "Townsfolk") : h, lv: "ok", note: "confirmed by the Virgin or Slayer" };
+    return { role: h, lv: p.trusted ? "ok" : "", note: [p.trusted ? "the town trusts this" : p.claimType === "hard" || p.claims.length === 1 ? "their claim" : "only role left in their soft claim", outNote].filter(Boolean).join(" · ") };
+  }
+  const virgined = state.events.find(e => e.type === "virgin" && e.result === "exec" && e.b === p.id);
+  if (virgined) return { role: "A Townsfolk", lv: "ok", note: "executed by the Virgin, so a Townsfolk" };
+  if (c.length > 1) {
+    const open = c.filter(r => !P().some(x => x !== p && lc(hard(x)) === lc(r)));
+    const list = open.length ? open : c;
+    return { role: list.length === 1 ? list[0] : `${list.join(" or ")}`, lv: "", note: [open.length < c.length ? `${c.filter(r => !open.includes(r)).join(", ")} already claimed by someone else` : "soft claim", outNote].filter(Boolean).join(" · ") };
+  }
+  if (out.length) return { role: "Unknown", lv: "hi", note: `offered only roles not in play (${out.join(", ")})` };
+  return { role: "Unknown", lv: "", note: "no claim yet" };
+}
+function renderLikely() {
+  const known = teamPlayers().length, comp = COMP[Math.min(core().length, 15)];
+  const allEvilKnown = comp && known >= comp[2] + comp[3];
+  $("likely").innerHTML = (allEvilKnown ? `<p class="hint">You've marked your whole evil team, so everyone else is good.</p>` : "") +
+    P().map((p, i) => { const l = likelyRole(p); return `<div class="tip ${l.lv}"><span><span class="n" style="color:var(--muted);font-variant-numeric:tabular-nums">${i + 1}.</span> ${btn(p)}${p.dead ? " <small>(dead)</small>" : ""} · <b${onTeam(p) ? ' class="t-evil"' : ""}>${esc(l.role)}</b></span>${l.note ? `<small>${esc(l.note)}</small>` : ""}</div>`; }).join("");
+}
+
+/* ---------- Day and night phases ---------- */
+// What happens when your team's Demon dies: Scarlet Woman takeover, Imp star-pass, Mastermind, or good wins
+function becomeDemon(x, role) {
+  x.formerRole = roleOf(x);
+  if (x.me) state.myRole = role; else x.role = role;
+}
+function demonDeath(p, how, aliveBefore) {
+  const role = roleOf(p), notes = [];
+  const living = teamPlayers().filter(x => !x.dead && x !== p);
+  const sw = living.find(x => lc(roleOf(x)) === "scarlet woman");
+  const minions = living.filter(x => teamOf(roleOf(x)) === "minion" || (x.team && !x.role));
+  if (how === "starpass") {
+    if (sw) { becomeDemon(sw, role); notes.push({ lv: "ok", text: `${nm(sw)} (Scarlet Woman) catches the star-pass and becomes the ${role}.` }); return { notes }; }
+    if (minions.length === 1) { becomeDemon(minions[0], role); notes.push({ lv: "ok", text: `${nm(minions[0])} becomes the ${role}.` }); return { notes }; }
+    if (minions.length) return { notes, pick: minions, role };
+    notes.push({ lv: "bad", text: "No Minion is alive to catch the star-pass." });
+    return { notes, suggest: "good", certain: true };
+  }
+  if (sw && aliveBefore >= 5) { becomeDemon(sw, role); notes.push({ lv: "ok", text: `${nm(sw)} (Scarlet Woman) becomes the ${role}. There were ${aliveBefore} alive, so the game goes on.` }); return { notes }; }
+  if (sw) notes.push({ lv: "hi", text: `Only ${aliveBefore} were alive, so the Scarlet Woman can't take over.` });
+  if (how === "night" && lc(role) === "imp" && minions.length) {
+    notes.push({ lv: "", text: `${nm(p)} died at night. If they star-passed, a Minion is the new Imp.` });
+    return { notes, pick: minions, role, optional: true };
+  }
+  const mm = living.find(x => lc(roleOf(x)) === "mastermind");
+  if (mm && how !== "night") { notes.push({ lv: "hi", text: `Mastermind: the game goes on for one more day. If good executes a good player tomorrow, evil wins. Otherwise good wins.` }); return { notes }; }
+  notes.push({ lv: "bad", text: `Your Demon, ${nm(p)}, is dead, and nobody can take over.` });
+  return { notes, suggest: "good", certain: true };
+}
+function endGame(winner, why) {
+  state.over = { winner, t: state.t, why: why || "" };
+  $("phOverlay").hidden = true; $("evOverlay").hidden = true; phase = null; save(); render();
+  $("recap").open = true; window.scrollTo({ top: 0, behavior: "smooth" });
+}
+// A result the app can be sure of ends the game straight away and opens the recap
+const notesText = notes => notes.map(n => n.text).join(" ");
+function renderOver() {
+  const o = state.over, el = $("overBanner");
+  $("phaseBtn").textContent = isNight() ? "Night → day" : "End day → night";
+  $("phaseBtn").hidden = !!o;
+  el.hidden = !o; $("recap").hidden = !o; if (!o) return;
+  el.className = "over" + (o.winner === "good" ? " good" : "");
+  el.innerHTML = `<div class="win-head"><span class="win-k">Game over · ${timeLabel(o.t)}</span><span class="win-t">${o.winner === "evil" ? "☾ Evil wins" : "☀ Good wins"}</span>${o.why ? `<span class="win-s">${esc(o.why)}</span>` : ""}</div><span class="row"><button class="btn sm" id="overUndo">Reopen the game</button><button class="btn sm primary" id="overNew">+ New game</button></span>`;
+  $("overUndo").onclick = () => { state.over = null; save(); render(); };
+  renderRecap();
+  $("overNew").onclick = openNew;
+}
+
+/* ---------- Game recap ---------- */
+// After the game: how the evil team did, built from everything logged
+function renderRecap() {
+  const o = state.over, won = o.winner === "evil";
+  const team = teamPlayers(), good = core().filter(p => !onTeam(p));
+  const origRole = p => p.formerRole || roleOf(p);
+  const nights = Math.ceil(o.t / 2), days = Math.floor(o.t / 2);
+  const isExec = p => p.dead && (p.deathBy === "exec" || p.deathBy === "virgin");
+  const goodExec = good.filter(isExec), evilExec = team.filter(isExec);
+  const goodNight = good.filter(p => p.dead && p.deathBy === "night"), goodSlain = good.filter(p => p.dead && p.deathBy === "slayer");
+  // Did each kill land? A target dying that night means yes
+  const kills = state.acts.filter(a => a.kill && !a.starpass).map(a => ({ a, hits: a.p.map(byId).filter(Boolean).map(x => ({ x, landed: x.dead && x.deathBy === "night" && x.deathAt === a.night * 2 - 1 })) }));
+  const landed = kills.flatMap(k => k.hits).filter(h => h.landed).length, tried = kills.flatMap(k => k.hits).length;
+  const tileH = (k, v, sub) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span>${sub ? `<span class="s">${sub}</span>` : ""}</div>`;
+  const tiles = [
+    tileH("Result", `<span class="${won ? "t-evil" : ""}">${won ? "Evil won" : "Good won"}</span>`, `${days} day${days === 1 ? "" : "s"}, ${nights} night${nights === 1 ? "" : "s"}`),
+    tileH("Good players dead", `${good.filter(p => p.dead).length}<small> of ${good.length}</small>`, `${goodNight.length} at night · ${goodExec.length} executed${goodSlain.length ? ` · ${goodSlain.length} by the Slayer` : ""}`),
+    tileH("Evil players dead", `${team.filter(p => p.dead).length}<small> of ${team.length}</small>`, `${evilExec.length} executed`),
+    tileH("Night kills landed", tried ? `${landed}<small> of ${tried}</small>` : "–", tried ? (tried - landed ? `${tried - landed} stopped or survived` : "every kill worked") : "no kills logged"),
+    tileH("Good executions", `${goodExec.length}<small> of ${goodExec.length + evilExec.length}</small>`, "executions that hit a good player")
+  ];
+  // Teammates
+  const teamRows = team.map(p => {
+    const noms = state.noms.filter(n => n.on === p.id), heat = teamHeat().find(h => h.p === p);
+    const fate = !p.dead ? "survived" : isExec(p) ? `executed on ${timeLabel(p.deathAt)}` : p.deathBy === "slayer" ? `shot by the Slayer on ${timeLabel(p.deathAt)}` : `died on ${timeLabel(p.deathAt)}`;
+    const passed = p.formerRole && p.formerRole !== roleOf(p) ? ` → became the ${roleOf(p)}` : "";
+    return `<div class="tip ${p.dead ? "bad" : "ok"}"><span>${btn(p)}${p.me ? " (you)" : ""} · <b class="t-evil">${esc(origRole(p) || "evil")}</b>${esc(passed)}${p.claims.length ? `, claimed ${esc(p.claims.join(" / "))}` : ""}</span><small>${esc(fate)}${noms.length ? ` · nominated ${noms.length} time${noms.length === 1 ? "" : "s"} (most votes ${Math.max(...noms.map(n => n.votes))})` : " · never nominated"}${heat && heat.score >= 2 && !p.dead ? ` · ended ${levelOf(heat.score)[2].toLowerCase()} on suspicion` : ""}</small></div>`;
+  }).join("");
+  // Night actions
+  const acts = [...state.acts].sort((a, b) => a.night - b.night).map(a => {
+    const tg = a.p.map(byId).filter(Boolean);
+    let res = "";
+    if (a.starpass) { const me = meP(); res = me && me.dead && me.deathAt === a.night * 2 - 1 ? "star-pass went through" : "star-pass didn't happen"; }
+    else if (a.kill) res = tg.map(x => x.dead && x.deathBy === "night" && x.deathAt === a.night * 2 - 1 ? `${nm(x)} died` : `${nm(x)} survived${["soldier", "mayor", "fool"].includes(lc(realOrClaim(x))) ? ` (claimed ${realOrClaim(x)})` : ""}`).join(", ");
+    return `<div class="tl"><span class="when night">Night ${a.night}</span><span>${esc(a.role || "")}: ${tg.length ? tg.map(x => esc(nm(x))).join(", ") : "nobody"}${res ? ` · <b>${esc(res)}</b>` : ""}${a.x && a.x !== "chose nobody" ? ` · ${esc(a.x)}` : ""}</span></div>`;
+  }).join("");
+  // Your story
+  const me = meP(), checks = [...storyChecks(), ...toldChecks()].filter(c => c.lv === "bad");
+  const told = state.talks.filter(t => t.told).length;
+  const story = me ? `<div class="tip ${checks.length ? "hi" : "ok"}"><span>You bluffed ${me.claims.length ? `as the <b>${esc(me.claims.join(" / "))}</b>` : "without a firm claim"}${state.bluffs.length ? ` (Demon bluffs: ${esc(state.bluffs.join(", "))})` : ""}.</span><small>${state.story.length} piece${state.story.length === 1 ? "" : "s"} of made-up info · told your story in ${told} conversation${told === 1 ? "" : "s"} · ${checks.length ? `${checks.length} slip${checks.length === 1 ? "" : "s"} flagged: ${checks.map(c => c.text).join(" ")}` : "no slips flagged"}</small></div>` : "";
+  // Takeaways
+  const take = [];
+  const demon = team.find(p => teamOf(origRole(p)) === "demon") || demonP();
+  if (demon && demon.dead && isExec(demon)) { const n = state.noms.filter(x => x.on === demon.id).sort((a, b) => b.t - a.t)[0]; take.push({ lv: "bad", text: `Your Demon, ${nm(demon)}, was executed on ${timeLabel(demon.deathAt)}${n ? ` after ${nm(byId(n.by))} nominated them (${n.votes} votes)` : ""}.` }); }
+  if (demon && demon.dead && demon.deathBy === "slayer") take.push({ lv: "bad", text: `A Slayer shot killed your Demon, ${nm(demon)}.` });
+  const against = state.heard.filter(h => hitsTeam(h).length);
+  if (against.length) take.push({ lv: "hi", text: `${against.length} piece${against.length === 1 ? "" : "s"} of info pointed at your team.`, sub: [...new Set(against.map(h => nm(byId(h.mode === "hearsay" && h.via ? h.via : h.from))))].join(", ") + (against.length === 1 ? " had it." : " had them.") });
+  const threatDead = good.filter(p => p.dead && (INFO_ONGOING.includes(lc(realOrClaim(p))) || lc(realOrClaim(p)) === "slayer"));
+  if (threatDead.length) take.push({ lv: "ok", text: `You took out ${threatDead.length} key good player${threatDead.length === 1 ? "" : "s"}: ${threatDead.map(p => `${nm(p)} (${realOrClaim(p)})`).join(", ")}.` });
+  if (goodExec.length) take.push({ lv: "ok", text: `The town executed ${goodExec.length} good player${goodExec.length === 1 ? "" : "s"}: ${goodExec.map(nm).join(", ")}.` });
+  const bloc = state.noms.filter(n => { const tv = n.voters.map(byId).filter(x => x && onTeam(x)); return tv.length > 1 && tv.length === team.length; }).length;
+  if (bloc >= 2) take.push({ lv: "hi", text: `Your whole team voted together ${bloc} times.` });
+  const blocked = kills.flatMap(k => k.hits).filter(h => !h.landed);
+  if (blocked.length) take.push({ lv: "hi", text: `${blocked.length} kill${blocked.length === 1 ? "" : "s"} didn't land: ${blocked.map(h => nm(h.x)).join(", ")}.` });
+  // Timeline
+  const ev = [];
+  for (const p of P()) if (p.dead && p.deathAt) ev.push({ t: p.deathAt, k: 2, text: `${nm(p)}${onTeam(p) ? ` (${origRole(p) || "evil"})` : ""} ${p.deathBy === "night" ? "died in the night" : p.deathBy === "virgin" ? "was executed by the Virgin" : p.deathBy === "slayer" ? "was shot by the Slayer" : p.deathBy === "exec" ? "was executed" : "died"}`, team: onTeam(p) });
+  for (const n of state.noms) ev.push({ t: n.t, k: 1, text: `${nm(byId(n.by))} nominated ${nm(byId(n.on))}: ${n.votes} vote${n.votes === 1 ? "" : "s"}`, team: onTeam(byId(n.on)) });
+  for (const e of state.events.filter(e => e.type === "slayer" && e.result === "none")) ev.push({ t: e.t, k: 1, text: `${nm(byId(e.a))} shot ${nm(byId(e.b))}: nothing happened` });
+  ev.sort((a, b) => a.t - b.t || a.k - b.k);
+  const tl = ev.map(e => `<div class="tl"><span class="when${e.t % 2 ? " night" : ""}">${timeLabel(e.t)}</span><span${e.team ? ' class="t-evil"' : ""}>${esc(e.text)}</span></div>`).join("");
+  $("recapBody").innerHTML = `
+    <div class="dash">${tiles.join("")}</div>
+    <div class="grid2">
+      <div class="col"><h3>Your team</h3>${teamRows || '<p class="empty">No teammates were marked.</p>'}</div>
+      <div class="col"><h3>Takeaways</h3>${take.map(tip).join("") || '<p class="empty">Not enough logged for takeaways.</p>'}${story ? `<h3>Your story</h3>${story}` : ""}</div>
+    </div>
+    <div class="grid2">
+      <div class="col"><h3>Your night actions</h3>${acts || '<p class="empty">No night actions logged.</p>'}</div>
+      <div class="col"><h3>Timeline</h3>${tl || '<p class="empty">No deaths or nominations logged.</p>'}</div>
+    </div>`;
+  wireOpen();
+}
+
+// Night actions asked at the start of each night
+const NIGHT_Q = {
+  "imp": ["Who are you killing tonight?", 1, true], "zombuul": ["Who are you killing tonight?", 1], "shabaloth": ["Who are you killing tonight?", 2],
+  "po": ["Who are you killing tonight? Choose nobody to kill three tomorrow.", 2], "fang gu": ["Who are you killing tonight?", 1], "vigormortis": ["Who are you killing tonight?", 1],
+  "no dashii": ["Who are you killing tonight?", 1], "vortox": ["Who are you killing tonight?", 1], "pukka": ["Who are you poisoning tonight? Last night's choice dies.", 1, false, true],
+  "poisoner": ["Who are you poisoning tonight?", 1, false, true], "witch": ["Who are you cursing tonight?", 1, false, true], "cerenovus": ["Who are you making mad, and about what?", 1, false, true],
+  "devil's advocate": ["Who are you protecting from execution tomorrow?", 1, false, true], "godfather": ["Who are you killing tonight? Only if an Outsider died today.", 1],
+  "assassin": ["Are you using your one kill tonight? Choose nobody to save it.", 1], "pit-hag": ["Who are you changing, and into what?", 1]
+};
+let phase = null;
+// Your night action is asked at dawn unless it's already logged (or your character has nothing to choose tonight)
+function needsNightAction() {
+  const r = lc(state.myRole), q = NIGHT_Q[r], n1 = nightNo() === 1, me = meP();
+  if (!state.myRole || !q || !me || me.dead) return false;
+  if (n1 && ((teamOf(r) === "demon" && r !== "pukka") || ["pit-hag", "assassin"].includes(r))) return false;
+  return !state.acts.some(a => a.night === nightNo());
+}
+function startPhase() {
+  if (state.over) return;
+  if (isNight()) { const ask = needsNightAction(); phase = { kind: "dawn", step: ask ? "action" : "deaths", asked: ask, deaths: [], notes: [], picks: [], x: "" }; }
+  else {
+    const already = P().find(p => p.dead && executed(p) && p.deathAt === state.t);
+    const ob = onBlock();
+    phase = { kind: "dusk", step: "exec", exec: already ? already.id : ob && !ob.tie ? ob.on : "", already: !!already, notes: [], picks: [], x: "" };
+  }
+  $("phOverlay").hidden = false; renderPhase();
+}
+function openOutcome(title, o, ask) { phase = { kind: "outcome", title, ask, cont: ask ? "" : "Done", step: "outcome", notes: o.notes || [], pick: o.pick, role: o.role, optional: o.optional, suggest: o.suggest }; $("phOverlay").hidden = false; renderPhase(); }
+function evilWinCheck(notes) {
+  const d = demonP(), A = alive().length;
+  if (d && !d.dead && A <= 2) { notes.push({ lv: "ok", text: `Only ${A} players are alive and your Demon lives.` }); return "evil"; }
+  return "";
+}
+function renderPhase() {
+  const ph = phase, box = $("phBox");
+  const chips = (sel, multi, opts = {}) => {
+    const list = P().filter(p => !p.dead || (opts.inclDead && p.dead));
+    const sugg = opts.sugg || [];
+    const ordered = [...list].sort((a, b) => (sugg.indexOf(a.id) + 1 || 99) - (sugg.indexOf(b.id) + 1 || 99));
+    return `<div class="choice-list">${(opts.sortSugg ? ordered : list).map(p => `<button class="choice${onTeam(p) ? " red" : ""}${sugg.includes(p.id) ? " sugg" : ""}" data-pick="${p.id}" aria-pressed="${multi ? sel.includes(p.id) : sel === p.id}">${esc(nm(p))}${p.me && opts.self ? ` <small>(${opts.self})</small>` : ""}${claimsOf(p).length ? ` <small>· ${esc(claimsOf(p).join("/"))}</small>` : ""}</button>`).join("")}</div>`;
+  };
+  const notesHtml = () => ph.notes.map(tip).join("");
+  const outcomeHtml = ask => `${notesHtml()}
+    ${ph.pick ? `<div class="field"><span class="label">${ph.optional ? "Did they star-pass? Who is the new " : "Who catches it and becomes the "}${esc(ph.role)}?</span><div class="choice-list">${ph.pick.map(p => `<button class="choice red" data-newdemon="${p.id}">${esc(nm(p))}</button>`).join("")}${ph.optional ? `<button class="choice" data-newdemon="">No star-pass</button>` : `<button class="choice" data-newdemon="">Nobody</button>`}</div></div>` : !ask ? `
+    <div class="row"><button class="btn primary" data-end="">${esc(ph.cont || "Continue")}</button></div>` : `
+    <div class="field"><span class="label">Did the game end?</span><div class="row">
+      <button class="btn${ph.suggest ? "" : " primary"}" data-end="">No, it goes on</button>
+      <button class="btn${ph.suggest === "good" ? " primary" : ""}" data-end="good">Good won${ph.suggest === "good" ? " (likely)" : ""}</button>
+      <button class="btn${ph.suggest === "evil" ? " primary" : ""}" data-end="evil">Evil won${ph.suggest === "evil" ? " (likely)" : ""}</button></div></div>`}`;
+  const wireOutcome = after => {
+    box.querySelectorAll("[data-newdemon]").forEach(b => b.onclick = () => {
+      const x = byId(b.dataset.newdemon);
+      if (x) { becomeDemon(x, ph.role); ph.notes.push({ lv: "ok", text: `${nm(x)} is now the ${ph.role}.` }); ph.suggest = ""; }
+      else if (!ph.optional) { ph.notes.push({ lv: "bad", text: "Your Demon is dead with nobody to take over." }); endGame("good", notesText(ph.notes)); return; }
+      else { const d = teamPlayers().find(p => p.dead && teamOf(roleOf(p)) === "demon" && p.deathAt === state.t); if (d && !teamPlayers().some(p => !p.dead && teamOf(roleOf(p)) === "demon")) { ph.notes.push({ lv: "bad", text: "Your Demon is dead with nobody to take over." }); endGame("good", notesText(ph.notes)); return; } }
+      ph.pick = null; save(); renderPhase();
+    });
+    box.querySelectorAll("[data-end]").forEach(b => b.onclick = () => { if (b.dataset.end) endGame(b.dataset.end, ph.notes.map(n => n.text).join(" ")); else after(); });
+  };
+  const close = () => { $("phOverlay").hidden = true; phase = null; save(); render(); };
+
+  if (ph.kind === "outcome") {
+    box.innerHTML = `<h2 id="phTitle">${esc(ph.title)}</h2>${outcomeHtml(ph.ask)}`;
+    wireOutcome(close); return;
+  }
+
+  if (ph.kind === "dusk") {
+    if (ph.step === "exec") {
+      box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)} · 1 of 2</span><h2 id="phTitle">Who was executed today?</h2>
+        ${ph.already ? `<p class="hint">${esc(nm(byId(ph.exec)))} was already executed today (the Virgin). That counts as the day's execution.</p>` : chips(ph.exec, false)}
+        ${ph.already ? "" : `<div class="row"><button class="choice" data-pick="" aria-pressed="${ph.exec === "none"}">Nobody was executed</button></div>`}
+        ${!ph.already && ph.exec && ph.exec !== "none" ? `<div class="field"><span class="label">How</span><div class="row"><button class="choice" data-how="vote" aria-pressed="${!ph.virgin}">By vote</button><button class="choice" data-how="virgin" aria-pressed="${!!ph.virgin}">Died nominating the Virgin</button></div>
+          ${ph.virgin ? `<span class="label">Which Virgin? They'll be confirmed</span><div class="choice-list">${[...virginCandidates(ph.exec), ...P().filter(x => x.id !== ph.exec && !x.dead && !virginCandidates(ph.exec).includes(x))].map(x => `<button class="choice${virginCandidates(ph.exec).includes(x) ? " sugg" : ""}" data-vpick="${x.id}" aria-pressed="${ph.virginId === x.id}">${esc(nm(x))}</button>`).join("")}</div>` : ""}</div>` : ""}
+        <div class="row"><button class="btn primary" id="phNext"${ph.exec ? "" : " disabled"}>Next</button><button class="btn" id="phCancel">Cancel</button></div>`;
+      box.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { ph.exec = b.dataset.pick || "none"; if (ph.exec === "none") ph.virgin = false; renderPhase(); });
+      box.querySelectorAll("[data-how]").forEach(b => b.onclick = () => { ph.virgin = b.dataset.how === "virgin"; if (ph.virgin && !ph.virginId) { const c = virginCandidates(ph.exec); if (c.length === 1) ph.virginId = c[0].id; } renderPhase(); });
+      box.querySelectorAll("[data-vpick]").forEach(b => b.onclick = () => { ph.virginId = b.dataset.vpick; renderPhase(); });
+      $("phCancel").onclick = () => { $("phOverlay").hidden = true; phase = null; };
+      $("phNext").onclick = () => {
+        const x = byId(ph.exec), before = alive().length + (ph.already && x && !x.traveller ? 1 : 0);
+        if (x && !ph.already && ph.virgin && ph.virginId) { confirmVirgin(x.id, ph.virginId); ph.notes.push({ lv: "", text: `${nm(byId(ph.virginId))} is now a confirmed Virgin, and ${nm(x)} a confirmed Townsfolk.` }); }
+        else if (x && !ph.already) { x.dead = true; x.deathBy = ph.virgin ? "virgin" : "exec"; x.deathAt = state.t; x.ghostVote = true; ph.undo = x.id; }
+        if (x) {
+          if (onTeam(x) && teamOf(roleOf(x)) === "demon") { const o = demonDeath(x, "exec", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.suggest = o.suggest; ph.certain = o.certain; }
+          else if (lc(realOrClaim(x)) === "saint" && !onTeam(x)) { ph.notes.push({ lv: "ok", text: `${nm(x)} claimed Saint. If they really were the Saint, evil wins.` }); ph.suggest = state.bluffs.map(lc).includes("saint") ? "" : "evil"; }
+          else if (onTeam(x)) ph.notes.push({ lv: "hi", text: `Your teammate ${nm(x)} was executed. The Demon survives.` });
+          else ph.notes.push({ lv: "ok", text: `${nm(x)} was executed: one fewer good player.` });
+          const mm = state.events && teamPlayers().find(p => !p.dead && lc(roleOf(p)) === "mastermind");
+          if (mm && demonP() && demonP().dead && !onTeam(x) && demonP().deathAt < state.t) { ph.notes.push({ lv: "ok", text: "Mastermind: good executed a good player on the extra day. Evil wins." }); ph.suggest = "evil"; ph.certain = true; }
+        } else {
+          ph.notes.push({ lv: "", text: "No execution today." });
+          if (teamPlayers().some(p => !p.dead && lc(roleOf(p)) === "vortox")) { ph.notes.push({ lv: "ok", text: "Vortox: no execution means evil wins." }); ph.suggest = "evil"; ph.certain = true; }
+          const mayor = goodAlive().find(p => lc(realOrClaim(p)) === "mayor");
+          if (mayor && alive().length === 3) { ph.notes.push({ lv: "bad", text: `Three alive, no execution, and ${nm(mayor)} claims Mayor. If they're the real Mayor, good wins.` }); ph.suggest = "good"; }
+        }
+        if (!ph.suggest && evilWinCheck(ph.notes)) { ph.suggest = "evil"; ph.certain = true; }
+        if (ph.certain && !ph.pick) { endGame(ph.suggest, notesText(ph.notes)); return; }
+        ph.step = "outcome"; save(); renderPhase();
+      };
+      return;
+    }
+    if (ph.step === "outcome") {
+      box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)} · 2 of 2</span><h2 id="phTitle">What happened</h2>${outcomeHtml(true)}`;
+      wireOutcome(() => { state.t++; draft = null; ph.step = "nightfall"; save(); renderPhase(); });
+      return;
+    }
+    if (ph.step === "nightfall") {
+      box.innerHTML = `<span class="step-k">${timeLabel(state.t)} begins</span><h2 id="phTitle">☾ It's night</h2>
+        <p>Daytime actions (nominations, conversations, Virgin and Slayer) are closed until dawn.</p>
+        <p class="hint">Plan on <b>Story &amp; night</b>: tonight's targets and tomorrow's made-up info. When the night is over, tap <b>Night → day</b>: your night action is asked first, then who actually died.</p>
+        <div class="row"><button class="btn primary" id="phGoStory">Go to Story &amp; night</button><button class="btn" id="phClose">Stay here</button></div>`;
+      $("phGoStory").onclick = () => { close(); setTab("story"); };
+      $("phClose").onclick = close;
+      return;
+    }
+  }
+
+  if (ph.kind === "dawn") {
+    if (ph.step === "action") {
+      const r = lc(state.myRole), q = NIGHT_Q[r], n1 = nightNo() === 1;
+      const me = meP();
+      const isDemon = teamOf(r) === "demon";
+      let body;
+      if (!state.myRole) body = `<p class="hint">Choose your character under Your team on the Table tab to get your night question.</p>`;
+      else if (!q || (n1 && isDemon && r !== "pukka") || (n1 && ["pit-hag", "assassin"].includes(r))) body = `<p class="hint">${n1 && isDemon ? "Demons don't kill on the first night." : `The ${esc(state.myRole)} makes no choice tonight.`} </p>
+        <input type="text" id="phX" value="${esc(ph.x)}" placeholder="Anything to note (optional)">`;
+      else {
+        const mode = q[3] ? "poison" : "kill";
+        const sugg = (r === "devil's advocate" ? teamHeat().map(h => h.p.id) : threats(mode).map(t => t.p.id)).slice(0, 3);
+        body = `<p><b>${esc(q[0])}</b></p>
+          <p class="hint">Amber rings are the top suggestions from Story & night.${q[1] > 1 ? ` Pick up to ${q[1]}.` : ""}</p>
+          ${chips(ph.picks, true, { sugg, sortSugg: true, self: q[2] ? "yourself: star-pass" : "" })}
+          <input type="text" id="phX" value="${esc(ph.x)}" placeholder="Note (optional)">`;
+      }
+      box.innerHTML = `<span class="step-k">${timeLabel(state.t)} · 1 of 2</span><h2 id="phTitle">Your night action</h2><p class="hint">Log what you chose tonight before the day starts.</p>${body}
+        <div class="row"><button class="btn primary" id="phDone">Done</button><button class="btn" id="phSkip">Skip</button></div>`;
+      box.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {
+        const id = b.dataset.pick, max = q ? q[1] : 1;
+        ph.picks = ph.picks.includes(id) ? ph.picks.filter(x => x !== id) : [...ph.picks, id].slice(-max);
+        renderPhase();
+      });
+      if ($("phX")) $("phX").oninput = e => ph.x = e.target.value;
+      $("phSkip").onclick = () => { ph.step = "deaths"; renderPhase(); };
+      $("phDone").onclick = () => {
+        // Nobody is killed here: who actually died is asked at dawn, since a Soldier, Monk or Mayor bounce can stop a kill
+        const starpass = !!(me && r === "imp" && ph.picks.includes(me.id));
+        if (ph.picks.length || ph.x) state.acts.push({ id: uid(), night: nightNo(), p: [...ph.picks], x: ph.x, role: state.myRole, kill: /killing/i.test(q ? q[0] : ""), starpass });
+        ph.step = "deaths"; save(); renderPhase();
+      };
+      return;
+    }
+    if (ph.step === "deaths") {
+      const acts = state.acts.filter(a => a.night === nightNo()), mine = acts.flatMap(a => a.p);
+      const kills = acts.filter(a => a.kill).flatMap(a => a.p).map(byId).filter(Boolean), sp = acts.some(a => a.starpass);
+      box.innerHTML = `<span class="step-k">Dawn · ${ph.asked ? "2 of 2" : "who died"}</span><h2 id="phTitle">Who actually died in the night?</h2>
+        <p class="hint">Tap only the players the Storyteller announced as dead.${kills.length ? ` You chose ${sp ? "to star-pass" : kills.map(nm).join(" and ")}, but a Soldier, a Monk or other protection, a Mayor bounce, or a drunk or poisoned Demon can stop a kill.` : mine.length ? " Amber rings are your choices tonight." : ""}</p>
+        ${chips(ph.deaths, true, { sugg: mine })}
+        <div class="row"><button class="choice" id="phNobody" aria-pressed="${ph.nobody ? "true" : "false"}">Nobody died</button></div>
+        <div class="row"><button class="btn primary" id="phNext"${ph.deaths.length || ph.nobody ? "" : " disabled"}>Next</button><button class="btn" id="phCancel">Cancel</button></div>`;
+      box.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { const id = b.dataset.pick; ph.deaths = ph.deaths.includes(id) ? ph.deaths.filter(x => x !== id) : [...ph.deaths, id]; ph.nobody = false; renderPhase(); });
+      $("phNobody").onclick = () => { ph.nobody = !ph.nobody; if (ph.nobody) ph.deaths = []; renderPhase(); };
+      $("phCancel").onclick = () => { $("phOverlay").hidden = true; phase = null; };
+      $("phNext").onclick = () => {
+        const before = alive().length;
+        let demonDied = null;
+        const acts = state.acts.filter(a => a.night === nightNo()), kills = acts.filter(a => a.kill && !a.starpass).flatMap(a => a.p).map(byId).filter(Boolean);
+        const me = meP(), sp = acts.some(a => a.starpass);
+        for (const id of ph.deaths) {
+          const x = byId(id); x.dead = true; x.deathBy = "night"; x.deathAt = state.t; x.ghostVote = true;
+          if (onTeam(x) && teamOf(roleOf(x)) === "demon") demonDied = x;
+        }
+        ph.notes.push({ lv: "", text: ph.deaths.length ? `${ph.deaths.map(id => nm(byId(id))).join(", ")} died in the night.` : "Nobody died in the night." });
+        const others = ph.deaths.map(byId).filter(x => !kills.includes(x) && !(sp && x === me));
+        for (const k of kills) {
+          if (ph.deaths.includes(k.id)) continue;
+          const c = lc(realOrClaim(k));
+          if (c === "mayor" && others.length) ph.notes.push({ lv: "hi", text: `${nm(k)} survived and ${others.map(nm).join(", ")} died instead: a Mayor bounce. ${nm(k)} is probably the real Mayor.` });
+          else if (c === "soldier") ph.notes.push({ lv: "hi", text: `${nm(k)} survived your kill: probably the real Soldier.` });
+          else ph.notes.push({ lv: "hi", text: `${nm(k)} survived your kill.`, sub: c === "mayor" ? "A Mayor can survive with nobody dying instead." : "Protected (Monk, Innkeeper, Tea Lady…), a Soldier or Fool, or your Demon was drunk or poisoned." });
+        }
+        if (sp && me && !ph.deaths.includes(me.id)) ph.notes.push({ lv: "hi", text: "You chose to star-pass, but you didn't die. You're still the Demon." });
+        if (sp && me && ph.deaths.includes(me.id)) { const o = demonDeath(me, "starpass", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.optional = false; ph.suggest = o.suggest; ph.certain = o.certain; }
+        else if (demonDied) { const o = demonDeath(demonDied, "night", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.optional = o.optional; ph.suggest = o.suggest; ph.certain = o.certain; }
+        if (!ph.pick && !ph.certain && evilWinCheck(ph.notes)) { ph.suggest = "evil"; ph.certain = true; }
+        if (ph.certain && !ph.pick) { endGame(ph.suggest, notesText(ph.notes)); return; }
+        ph.step = "outcome"; save(); renderPhase();
+      };
+      return;
+    }
+    if (ph.step === "outcome") {
+      ph.cont = `Start ${timeLabel(state.t + 1)}`;
+      box.innerHTML = `<span class="step-k">Dawn</span><h2 id="phTitle">What happened</h2>${outcomeHtml(false)}<p class="hint">Whether the game has ended is asked at the end of the day.</p>`;
+      wireOutcome(() => { state.t++; draft = null; close(); });
+      return;
+    }
+  }
+}
+$("phaseBtn").onclick = startPhase;
+
+/* ---------- Controls ---------- */
+// Moving forward runs the day/night questions, so deaths are always asked rather than assumed
+$("tFwd").onclick = () => { if (state.over) { state.t++; draft = null; save(); render(); } else startPhase(); };
+$("tBack").onclick = () => { if (state.t > 1) { state.t--; draft = null; save(); render(); } };
+$("notes").oninput = e => { state.notes = e.target.value; save(); };
+
+function openNew() {
+  $("ngScript").value = state ? state.script : "tb";
+  $("ngNames").value = state ? P().map(p => p.name).join("\n") : "";
+  $("ngCount").value = state ? P().length : 8;
+  $("ngOverlay").hidden = false;
+}
+$("newBtn").onclick = openNew; $("wStart").onclick = openNew;
+$("ngCancel").onclick = () => $("ngOverlay").hidden = true;
+$("ngStart").onclick = () => {
+  const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
+  const n = names.length || Math.max(5, Math.min(20, +$("ngCount").value || 8));
+  const list = names.length ? names : Array.from({ length: n }, (_, i) => `Player ${i + 1}`);
+  state = blankGame(list, $("ngScript").value); draft = null;
+  save(); $("ngOverlay").hidden = true; setTab("table"); render();
+};
+
+$("hideBtn").onclick = () => { $("cover").hidden = false; };
+$("cover").ondblclick = () => { $("cover").hidden = true; };
+let lastTap = 0;
+$("cover").addEventListener("touchend", e => { const now = Date.now(); if (now - lastTap < 350) { $("cover").hidden = true; e.preventDefault(); } lastTap = now; });
+
+new ResizeObserver(() => { if (state) renderTable(); }).observe($("table"));
+setTab(currentTab);
+render();
+</script>
+</body>
+</html>

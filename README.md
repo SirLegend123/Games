@@ -1,8 +1,12 @@
 # Games
 
+## Clocktower Companion
+
+Open `index.html` in any web browser for a cover page that lets you pick one of three *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, or the **Storyteller's Grimoire**. Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
+
 ## Clocktower Notebook
 
-A player's notebook for *Blood on the Clocktower*. Open `index.html` in any web browser. No account or install needed.
+A player's notebook for *Blood on the Clocktower*. Open `good.html` in any web browser. No account or install needed.
 
 - Seats shown in a circle, with each player's claimed role(s), alive/dead, ghost vote and your good/evil read
 - Notes on every player, plus town notes for nominations and votes
@@ -10,7 +14,7 @@ A player's notebook for *Blood on the Clocktower*. Open `index.html` in any web 
 - Heard info: log info when you don't know whose it is yet ("the Investigator saw a Baron"). It links to the player once they hard-claim that role
 - Mark players who died nominating the Virgin or to a Slayer shot: the Virgin or Slayer is automatically marked proven good
 - Evil team: ranks Demon candidates with reasons, rates which Minions (and Demon type) are likely in play, and gives a best guess at the evil team
-- End day → night: a guided night phase that records the execution, asks whether the game ended, takes your night info, and records who died
+- Day and night: the header always shows ☀ Day N or ☾ Night N. End day → night asks who was executed and whether the game ended, then night begins. Night → day asks your night action first (if you haven't logged it), then who actually died: a kill or star-pass is never assumed, since a Soldier, Monk, Mayor bounce or poisoning can stop it. Daytime actions (nominations, conversations, Virgin and Slayer) are locked at night, and night actions are locked during the day
 - Mark the evil character you suspect each player of being
 - Slayer shot: record who shot whom, see the best Demon candidates first, and get conclusions from a hit or a miss
 - Test a hunch: "What if they're evil?" or "the Demon?" checks a gut feeling against everything logged
@@ -24,5 +28,42 @@ A player's notebook for *Blood on the Clocktower*. Open `index.html` in any web 
 Games are saved in the browser on the device you use. Nothing is uploaded anywhere.
 
 On a phone, open the site in Safari or Chrome and use **Add to Home Screen** to get an app icon.
+
+## Evil Grimoire
+
+A secret companion for when you're on the evil team. Open `evil.html` in any web browser.
+
+- Claims: tap role buttons, Soft for every role a player offered, Hard for the one they commit to. Roles someone else has claimed get an amber ring. When a good player soft-claims a Demon bluff, or a role that a dead good player had hard-claimed, that role is left off their list. For your team, the Demon bluffs appear as quick buttons in each evil player's panel and on the Team tab
+- A player who dies nominating the Virgin (from End day or their panel) confirms that Virgin automatically, shown with ✓ Virgin on the circle
+- Virgin nominations and Slayer shots: record who nominated or shot whom and what happened. Deaths (an execution by the Virgin counts as the day's execution), used abilities and what the town now believes are updated, with an Undo
+- Game size: how many evil players (Minions and Demon), Townsfolk and Outsiders there are for the player count, adjusted for a Baron, Fang Gu or Vigormortis, and how many teammates you've marked. Shown under Your team, and in the middle of the circle as T · O · M · D
+- How the team is doing: at the top of the team section, tiles for Demon danger, team suspicion, evil alive, threats and info against you; how close your Demon is to the block and why; the biggest threats; and how suspicious each of you looks
+- Table & team: the circle, the player panel and your team on one tab: your real character, your seat, your teammates and their characters, and the Demon bluffs
+- Cover checks: rival claims on your team's bluffs, two teammates on one claim, players claiming a role that's not in play, the Outsider count with a Baron, and the Virgin
+- How suspicious your team looks, from who suspects whom and double claims
+- Story & night: pick your bluff, then get made-up night info for it (safe, covering a teammate, or framing a threat). Everything you say is logged, with checks for slips like a first-night-only role giving info on night 3 or an Empath number that changes for no reason
+- Story & night (tonight): kill, poison, curse or protect targets ranked for your character; at night, tick your choice in the list and tap Confirm (or Nobody tonight), and tips for every Minion and Demon on the three scripts
+- Town square: on the Today tab, log public statements (claims and info said in the open) and each nomination with who voted. It shows who's on the block, spends dead players' ghost votes, warns when your whole team votes together, and fills in the executed player at the end of the day
+- Conversations: on the Today tab (or from a player's panel), log each chat: their soft or hard claim, who on your team they suspect, and what they shared, either their own info or hearsay ("I heard a Chef got a 0"). Info uses the character's own form, so a Washerwoman's two players and the Townsfolk they saw, an Empath's number or a Fortune Teller's two players and yes/no are recorded exactly, for every information character on the three scripts. Hearsay about a character with no known source counts as an extra soft claim for the speaker. You also log what you told them: the claim you gave (soft or hard) and which of your made-up info you shared. Story & night then lists who you've told what, and warns if you've hard-claimed different characters to different people. Saving updates the table. Info pointing at your team is flagged and makes its source a bigger threat
+- Everyone's likely character: on the Today tab, each player's most likely role, with contested claims, likely Drunks and roles already taken by someone else
+- Today: who to push for execution, who not to nominate, vote counts for your team, and endgame warnings (final three, the Mayor, Scarlet Woman, Vortox, Saint)
+- End day → night: asks who was executed, whether the game ended, then your night action (with suggested targets). Night → day asks who actually died: a night kill or star-pass is never assumed, since a Soldier, Monk, Mayor bounce or poisoning can stop it, and a survivor or bounce is explained; whether the game ended is only asked at the end of the day
+- When your Demon dies, the Scarlet Woman takes over automatically with five or more alive, an Imp star-pass goes to the Scarlet Woman or the Minion you pick, and the Mastermind keeps the game going. Otherwise the app suggests the game is over. A finished game shows who won, with a button to reopen it
+- Game recap: when the winner is certain (your Demon executed or shot with nobody to take over, two players left with your Demon alive, the Vortox with no execution, the Mastermind's extra day), the game ends by itself and jumps to the recap under a large Evil wins / Good wins heading. Results that depend on a claim, like a Saint or Mayor, are still asked. The recap shows the result, good and evil deaths, how many night kills landed, good players executed, each teammate's fate, takeaways (what got your Demon caught, key players you removed, kills that failed, bloc voting), your bluff and any slips, your night actions and a timeline
+- **Hide** covers the screen; double-tap to come back
+
+## Storyteller's Grimoire
+
+A tracker for the *Blood on the Clocktower* Storyteller. Open `storyteller.html` in any web browser.
+
+- Setup: paste everyone's names in one go, then pick each player's character from a dropdown once the tokens are handed out (characters already given out are greyed out). Good or evil fills in by itself. Also the Drunk's or Lunatic's fake character, Demon bluffs and the Fortune Teller's red herring. Checks the Townsfolk / Outsider / Minion / Demon counts for the player count (including the Baron)
+- Grimoire: the seating circle with characters, deaths, ghost votes and reminder tokens (Poisoned, Protected, Mad…), which come and go on their own
+- Nights: a wake-order list of who's in play. Log what each player chose and learned, mark false info and why, and log Demon kills (with saves and Imp star-passes)
+- Days: nominations with vote counts, who's on the block, executions, Slayer shots (hit or miss, and why), and other deaths
+- Character changes, revivals, notes, and a star for moments worth calling out
+- Look back at any earlier night or day, and fix or add things there
+- Reveal script: when the game ends, a script to read aloud at the grimoire reveal. It tells the game as a story, night by night, in the Storyteller's voice and reveals each player at the moment they died. Until then, night actions name characters rather than players ("The Poisoner poisoned the Empath, and the Empath received 0 that night"), so no one is given away before their turn. A Drunk is treated as the character they thought they were until their own reveal Survivors come last, evil ones at the very end, then who won. Nights with no deaths and days with no execution are called out
+- Full summary: who was what, the whole game, every lie you told and why, starred moments, the final grimoire and some numbers. Copy either as text
+- Finished games are kept under Past games
 
 *Blood on the Clocktower* and its character names belong to The Pandemonium Institute. This is an unofficial fan-made note-taking tool.
