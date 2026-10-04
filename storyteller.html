@@ -543,8 +543,9 @@ function subject(id, S, acting) {
 }
 function narrate(e, S) {
   const T = e.targets || [];
-  // Night actions on players not yet revealed name the character, not the player ("poisoned the Empath")
-  const priv = ["ability", "kill", "status"].includes(e.type);
+  // Night abilities on players not yet revealed name the character, not the player ("poisoned the Empath").
+  // The Demon's victim is named, since everyone saw them die.
+  const priv = ["ability", "status"].includes(e.type);
   const objs = T.map(t => priv && hidden(t) && S[t] && S[t].role ? `the ${esc(THINKS.includes(S[t].role) && S[t].thinks ? S[t].thinks : S[t].role)}` : roleTag(t, S));
   const when = isNight(e.ph) ? "that night" : "that day";
   const note = e.note ? ` <span class="aside">${esc(endDot(e.note))}</span>` : "";
@@ -1059,12 +1060,11 @@ function buildScript() {
   ] });
 
   const revealed = new Set();
-  const reveal = (id, S, byRole) => {
+  const reveal = (id, S) => {
     revealed.add(id);
     const p = P(id), s = S[id], start = p.role || "?";
     const roleHtml = `<b class="${teamOf(start) === "minion" || teamOf(start) === "demon" ? "evil" : ""}">${esc(start)}</b>`;
-    // A night death was already told by character, so reveal who it was
-    let t = byRole ? `${cue("pause")} The ${roleHtml} was… ${cue("pause")} ${B(id)}!` : `${cue("pause")} ${B(id)} was… ${cue("pause")} the ${roleHtml}!`;
+    let t = `${cue("pause")} ${B(id)} was… ${cue("pause")} the ${roleHtml}!`;
     if (THINKS.includes(start) && p.thinks) {
       t += ` They thought they were the <b>${esc(p.thinks)}</b>.`;
       const got = G.events.filter(e => e.type === "ability" && e.actor === id && e.info);
@@ -1081,7 +1081,7 @@ function buildScript() {
   REVEALED = revealed;
   let phases, finalS;
   try {
-    phases = storyPhases({ noStars: true, onDeath: (id, S, lines, e) => { if (!revealed.has(id)) lines.push(reveal(id, S, e.type === "kill" && e.targets[0] === id && e.actor !== id)); } });
+    phases = storyPhases({ noStars: true, onDeath: (id, S, lines, e) => { if (!revealed.has(id)) lines.push(reveal(id, S)); } });
     finalS = stateAt(G.end ? G.end.ph : G.maxPhase);
   } finally { REVEALED = null; }
   parts.push({ h: "How it happened", intro: `Let's go back to the very first night. ${cue("pause")}`, phases });
