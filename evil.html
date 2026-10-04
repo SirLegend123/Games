@@ -186,6 +186,11 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .phase-pill.night { color: #3f3790; background: #e7e4fb; border-color: #b9b2ec; } :root:not([data-theme="dark"]) .phase-pill.day { color: #6d5410; background: #fbf0d3; border-color: #e3c983; } }
 .phase-note { padding: 8px 12px; border-radius: 10px; border: 1px dashed var(--line); color: var(--muted); font-size: .88rem; }
 button:disabled { opacity: .45; cursor: not-allowed; }
+.rank.pick { grid-template-columns: 26px 1.4em minmax(0, 1fr) auto; cursor: pointer; }
+.rank.pick small { grid-column: 3 / -1; }
+.rank.pick input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); align-self: center; }
+.rank.pick:has(input:checked) { box-shadow: inset 0 0 0 2px var(--accent); }
+.rank.pick:has(input:disabled) { cursor: default; }
 .cover { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: grid; place-items: center; text-align: center; color: var(--muted); user-select: none; }
 .cover .moon { font-family: var(--font-display); font-size: 2.4rem; color: var(--muted); }
 
@@ -295,7 +300,6 @@ button:disabled { opacity: .45; cursor: not-allowed; }
         <div class="card" aria-labelledby="storyTitle"><div class="head"><h2 id="storyTitle">Made-up info for your bluff</h2><span class="foot" id="storyFoot"></span></div><div id="storyForm" class="col"></div></div>
       </section>
       <section class="col">
-        <div class="card"><h2>Log your night action</h2><div id="actForm" class="col"></div><div id="actLog" class="col"></div></div>
         <div class="card"><h2>Story checks</h2><div id="storyChecks" class="col"></div></div>
         <div class="card"><div class="head"><h2>What you've said</h2><span class="foot">Keep your story straight</span></div><div id="storyLog" class="col"></div></div>
         <div class="card"><div class="head"><h2>Who you've told what</h2><span class="foot">From your conversations</span></div><div id="toldLog" class="col"></div></div>
@@ -1155,7 +1159,7 @@ function renderStoryLog() {
   $("bStory").textContent = ch.filter(c => c.lv === "bad" || c.lv === "hi").length || "";
 }
 
-let actDraft = { p: [], x: "" };
+let tgt = { night: 0, t: 0, p: [], x: "", all: false };
 function renderNight() {
   const r = lc(state.myRole), t = teamOf(r);
   const killers = ["imp", "zombuul", "shabaloth", "po", "fang gu", "vigormortis", "no dashii", "vortox", "godfather", "assassin"];
@@ -1168,7 +1172,7 @@ function renderNight() {
   if (!state.myRole) html = '<p class="empty">Choose your character under Your team on the Table tab.</p>';
   else if (r === "devil's advocate") {
     const heat = teamHeat(), last = state.acts.filter(a => a.night === nightNo() - 1).flatMap(a => a.p);
-    html = heat.map((h, i) => `<div class="tip rank ${i === 0 ? "bad" : ""}"><span class="n">${i + 1}</span><span>${btn(h.p)}${last.includes(h.p.id) ? " <small>(protected last night: not allowed)</small>" : ""}</span><span class="score">${h.score}</span><small>${esc(h.why.join(" · ") || "No suspicion on record")}</small></div>`).join("") || '<p class="empty">Mark your team first.</p>';
+    if (!heat.length) html = '<p class="empty">Mark your team first.</p>'; void last;
   } else {
     const dayT = isNight() ? state.t - 1 : state.t;
     if (r === "zombuul") { const today = P().some(p => p.dead && p.deathAt === dayT); html += tip({ lv: today ? "bad" : "ok", text: today ? "Someone died today, so you can't kill tonight." : "Nobody died today, so you can kill tonight." }); }
@@ -1177,23 +1181,51 @@ function renderNight() {
     if (r === "no dashii") { const me = meP(); if (me) { const ring = P(), i = ring.indexOf(me), tf = []; for (const dir of [1, -1]) for (let k = 1; k < ring.length; k++) { const x = ring[(i + dir * k + ring.length) % ring.length]; if (!x.dead && !onTeam(x) && teamOf(realOrClaim(x)) !== "outsider") { tf.push(x); break; } } if (tf.length) html += tip({ text: `Your poisoned neighbours are probably ${[...new Set(tf)].map(nm).join(" and ")}.`, sub: "Encourage them to share their info." }); } }
     if (r === "imp") { const mins = teamPlayers().filter(p => !p.dead && teamOf(roleOf(p)) === "minion"); if (mins.length) html += tip({ text: `Star-pass: kill yourself to make ${mins.map(nm).join(" or ")} the Imp.`, sub: "Worth it if you're likely to be executed tomorrow. A Scarlet Woman catches it for sure." }); }
     if (r === "spy") html += tip({ text: "Look at the Grimoire and note real characters in each player's panel. Threat ranking uses them." });
-    const list = threats(mode || undefined).slice(0, 6);
-    html += list.length ? list.map((x, i) => `<div class="tip rank ${i === 0 && x.score > 0 ? "bad" : ""}"><span class="n">${i + 1}</span><span>${btn(x.p)} <small>${esc(claimsOf(x.p).join(" / ") || "no claim")}</small></span><span class="score">${x.score}</span><small>${esc(x.why.join(" · ") || "Nothing on record yet")}</small></div>`).join("") : '<p class="empty">No living good players.</p>';
     if (mode === "kill") html += `<p class="hint">Killing the top threat is obvious. Sometimes kill someone who trusts a teammate, or leave a player alive so the town suspects them.</p>`;
   }
+  // Tick who you're choosing tonight, then confirm: this is your night action
+  const me = meP(), q = NIGHT_Q[r], n1 = nightNo() === 1;
+  const canChoose = !!(state.myRole && q && me && !me.dead && !(n1 && ((t === "demon" && r !== "pukka") || ["pit-hag", "assassin"].includes(r))));
+  if (tgt.night !== nightNo() || tgt.t !== state.t) tgt = { night: nightNo(), t: state.t, p: [], x: "", all: tgt.all };
+  const done = state.acts.find(a => a.night === nightNo());
+  const live = isNight() && canChoose && !done;
+  let rows = [];
+  if (state.myRole && r === "devil's advocate") {
+    const last = state.acts.filter(a => a.night === nightNo() - 1).flatMap(a => a.p);
+    rows = teamHeat().map(h => ({ p: h.p, score: h.score, why: h.why.join(" · ") || "No suspicion on record", note: last.includes(h.p.id) ? "protected last night: not allowed" : "" }));
+  } else if (state.myRole) {
+    rows = threats(mode || undefined).map(x => ({ p: x.p, score: x.score, why: x.why.join(" · ") || "Nothing on record yet", note: claimsOf(x.p).join(" / ") || "no claim" }));
+    if (r === "imp" && me && !me.dead) rows.splice(Math.min(rows.length, 5), 0, { p: me, score: "", why: "Star-pass: you die and a Minion becomes the Imp", note: "yourself" });
+  }
+  const shown = tgt.all ? rows : rows.slice(0, 6);
+  if (tgt.all && canChoose) for (const x of P()) if (!x.dead && !rows.some(rw => rw.p === x)) shown.push({ p: x, score: "", why: onTeam(x) ? "your teammate" : "", note: claimsOf(x).join(" / ") });
+  const chosen = done ? done.p : tgt.p;
+  html += shown.length ? shown.map((x, i) => `<label class="tip rank${canChoose ? " pick" : ""} ${i === 0 && x.score > 0 && !chosen.length ? "bad" : ""}">${canChoose ? `<input type="checkbox" data-tgt="${x.p.id}"${chosen.includes(x.p.id) ? " checked" : ""}${live ? "" : " disabled"} aria-label="Choose ${esc(nm(x.p))}">` : ""}<span class="n">${i + 1}</span><span><b>${esc(nm(x.p))}</b> <small>${esc(x.note)}</small></span><span class="score">${x.score}</span><small>${esc(x.why)}</small></label>`).join("")
+    : (state.myRole ? '<p class="empty">No living good players.</p>' : "");
+  if (rows.length > 6 || (canChoose && P().some(x => !x.dead && !rows.some(rw => rw.p === x)))) html += `<button class="btn sm" id="tgtAll" style="justify-self:start">${tgt.all ? "Show fewer" : "Show everyone"}</button>`;
+  if (canChoose) {
+    if (done) html += `<div class="tip ok"><span>Night ${done.night}: you chose <b>${done.p.map(id => esc(nm(byId(id)))).join(", ") || "nobody"}</b>${done.x ? ` · ${esc(done.x)}` : ""}.</span><small>Who actually died is asked when the day starts.</small>${isNight() ? `<div class="row"><button class="btn sm" id="tgtChange">Change</button></div>` : ""}</div>`;
+    else if (isNight()) html += `<input type="text" id="tgtX" value="${esc(tgt.x)}" placeholder="Note (optional)">
+      <div class="row"><button class="btn primary" id="tgtOk"${tgt.p.length ? "" : " disabled"}>Confirm${tgt.p.length ? `: ${tgt.p.map(id => esc(nm(byId(id)))).join(", ")}` : ""}</button><button class="btn" id="tgtNone">Nobody tonight</button>${q[1] > 1 ? `<span class="hint">Pick up to ${q[1]}.</span>` : ""}</div>`;
+    else html += `<p class="hint">☀ It's day. Tick and confirm your choice here once night falls.</p>`;
+  } else if (state.myRole && isNight()) html += `<p class="hint">${n1 && t === "demon" ? "Demons don't kill on the first night." : `The ${esc(state.myRole)} makes no choice tonight.`}</p>`;
+  const past = [...state.acts].filter(a => a !== done).sort((a, b) => b.night - a.night);
+  if (past.length) html += `<h3>Earlier nights</h3>` + past.map(a => `<div class="tip"><span><span class="label">Night ${a.night}</span> ${a.p.map(id => byId(id)).filter(Boolean).map(btn).join(", ") || "nobody"}${a.x ? ` · ${esc(a.x)}` : ""}</span><div class="row"><button class="btn sm danger" data-unact="${a.id}">Remove</button></div></div>`).join("");
   $("targets").innerHTML = html;
-
-  const pOpts = sel => `<option value="">Pick player</option>` + P().map(p => `<option value="${p.id}"${p.id === sel ? " selected" : ""}>${esc(nm(p))}${p.dead ? " (dead)" : ""}</option>`).join("");
-  $("actForm").innerHTML = `<div class="row"><span class="label">Night ${nightNo()}</span><select id="aP1" aria-label="Target">${pOpts(actDraft.p[0])}</select>${["shabaloth", "po"].includes(r) ? `<select id="aP2" aria-label="Second target">${pOpts(actDraft.p[1])}</select>` : ""}</div>
-    <input type="text" id="aX" value="${esc(actDraft.x)}" placeholder="Note (optional)">
-    <div class="row"><button class="btn primary sm" id="aSave">Save</button></div>`;
-  $("aP1").onchange = e => actDraft.p[0] = e.target.value;
-  if ($("aP2")) $("aP2").onchange = e => actDraft.p[1] = e.target.value;
-  $("aX").oninput = e => actDraft.x = e.target.value;
-  if (!isNight()) { $("aSave").disabled = true; $("aSave").title = "Night actions are logged at night"; $("aSave").insertAdjacentHTML("afterend", `<span class="hint">Night actions are logged at night.</span>`); }
-  $("aSave").onclick = () => { if (!isNight()) return; if (!actDraft.p.some(Boolean) && !actDraft.x) return; const me = meP(), q = NIGHT_Q[r]; state.acts.push({ id: uid(), night: nightNo(), p: actDraft.p.filter(Boolean), x: actDraft.x, role: state.myRole, kill: /killing/i.test(q ? q[0] : ""), starpass: !!(me && r === "imp" && actDraft.p.includes(me.id)) }); actDraft = { p: [], x: "" }; save(); render(); };
-  const acts = [...state.acts].sort((a, b) => b.night - a.night);
-  $("actLog").innerHTML = acts.map(a => `<div class="tip"><span><span class="label">Night ${a.night}</span> ${a.p.map(id => byId(id)).filter(Boolean).map(btn).join(", ")}${a.x ? ` · ${esc(a.x)}` : ""}</span><div class="row"><button class="btn sm danger" data-unact="${a.id}">Remove</button></div></div>`).join("");
+  document.querySelectorAll("[data-tgt]").forEach(c => c.onchange = () => {
+    const id = c.dataset.tgt, max = q ? q[1] : 1;
+    tgt.p = c.checked ? [...tgt.p.filter(x => x !== id), id].slice(-max) : tgt.p.filter(x => x !== id);
+    renderNight(); wireOpen();
+  });
+  if ($("tgtAll")) $("tgtAll").onclick = () => { tgt.all = !tgt.all; renderNight(); wireOpen(); };
+  if ($("tgtX")) $("tgtX").oninput = e => tgt.x = e.target.value;
+  if ($("tgtOk")) $("tgtOk").onclick = () => {
+    if (!tgt.p.length) return;
+    state.acts.push({ id: uid(), night: nightNo(), p: [...tgt.p], x: tgt.x, role: state.myRole, kill: /killing/i.test(q[0]), starpass: !!(me && r === "imp" && tgt.p.includes(me.id)) });
+    tgt = { night: nightNo(), t: state.t, p: [], x: "", all: false }; save(); render();
+  };
+  if ($("tgtNone")) $("tgtNone").onclick = () => { state.acts.push({ id: uid(), night: nightNo(), p: [], x: tgt.x || "chose nobody", role: state.myRole, kill: false, starpass: false }); tgt = { night: nightNo(), t: state.t, p: [], x: "", all: false }; save(); render(); };
+  if ($("tgtChange")) $("tgtChange").onclick = () => { tgt = { night: nightNo(), t: state.t, p: [...done.p], x: done.x || "", all: tgt.all }; state.acts = state.acts.filter(a => a !== done); save(); render(); };
   document.querySelectorAll("[data-unact]").forEach(b => b.onclick = () => { state.acts = state.acts.filter(a => a.id !== b.dataset.unact); save(); render(); });
 
   $("myTipsTitle").textContent = state.myRole ? `Playing the ${state.myRole}` : "Your character";
