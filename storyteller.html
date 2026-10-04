@@ -555,7 +555,7 @@ function narrate(e, S) {
       const acting = e.role || (S[e.actor] || {}).role;
       s = subject(e.actor, S, acting);
       if (T.length) s += ` ${esc(VERB[acting] || "chose")} ${listJoin(objs)}`;
-      if (e.info) s += REVEALED !== null ? `${T.length ? " and" : ""} received “${esc(e.info)}” ${when}` : `${T.length ? " and" : ""} learned “${esc(e.info)}”`;
+      if (e.info) s += REVEALED !== null ? (T.length ? `, and I showed them “${esc(e.info)}”` : ` woke, and I showed them “${esc(e.info)}”`) : `${T.length ? " and" : ""} learned “${esc(e.info)}”`;
       if (!T.length && !e.info) s += " used their ability";
       const dr = droisoned(e.actor, e.ph, S);
       if (REVEALED !== null) {
@@ -564,7 +564,7 @@ function narrate(e, S) {
         const fakeHidden = hidden(e.actor) && THINKS.includes((S[e.actor] || {}).role);
         const poisoned = /poison|drunk/.test(dr) && !/really the/.test(dr);
         if (fakeHidden) s += ".";
-        else if (e.falseInfo) s += poisoned || !e.why ? `, <span class="lie">which was false</span>.` : `. <span class="lie">That was false: ${esc(e.why)}.</span>`;
+        else if (e.falseInfo) s += poisoned || !e.why ? `, <span class="lie">which was a lie</span>.` : `. <span class="lie">That was a lie: ${esc(e.why)}.</span>`;
         else if (poisoned && e.info) s += ", which happened to be true.";
         else if (poisoned && T.length) s += ", but it had no effect.";
         else s += ".";
@@ -579,6 +579,12 @@ function narrate(e, S) {
     case "kill": {
       const t = T[0];
       s = subject(e.actor, S);
+      if (REVEALED !== null && !(t === e.actor && e.outcome === "died")) {
+        if (!t) s += " stayed their hand, and no one was attacked.";
+        else if (e.outcome === "died") s += ` struck at ${B(t)} in the dead of night, and they did not live to see the morning.`;
+        else s += ` struck at ${B(t)}, but somehow they survived the night.`;
+        break;
+      }
       if (!t) s += " chose not to kill anyone.";
       else if (t === e.actor && e.outcome === "died") s += ` killed themselves${e.newDemon ? hidden(e.newDemon) ? `, and the ${esc((S[e.actor] || {}).role || "Demon")} passed to another player` : `, and ${roleTag(e.newDemon, S)} became the new ${esc((S[e.actor] || {}).role || "Demon")}` : ""}.`;
       else if (e.outcome === "died") s += ` attacked ${objs[0]}, who died.`;
@@ -586,10 +592,12 @@ function narrate(e, S) {
       break;
     }
     case "slayer":
+      if (REVEALED !== null) { s = `${B(e.actor)} stood up and took aim at ${B(T[0])}… ${e.outcome === "died" ? `and ${B(T[0])} fell down dead!` : "but nothing happened."}`; break; }
       s = `${hidden(e.actor) ? B(e.actor) : subject(e.actor, S)} shot at ${objs[0] || "no one"}${e.outcome === "died" ? `, and ${B(T[0])} died!` : `. Nothing happened${e.why ? `: ${esc(e.why)}` : ""}.`}`;
       break;
     case "nom": s = `${B(e.actor)} nominated ${B(T[0])}${e.votes !== "" && e.votes != null ? ` and got ${plural(Number(e.votes), "vote")}` : ""}.`; break;
     case "exec":
+      if (REVEALED !== null) { s = !T[0] ? "In the end, no one was executed." : `The votes were counted, and ${B(T[0])} was executed${e.outcome === "survived" ? "… but somehow they did not die" : ""}.`; break; }
       if (!T[0]) s = "No one was executed.";
       else s = `${objs[0]} was executed${e.votes !== "" && e.votes != null ? ` with ${plural(Number(e.votes), "vote")}` : ""}${e.outcome === "survived" ? `, but did not die${e.why ? `: ${esc(e.why)}` : ""}` : ""}.`;
       break;
@@ -1004,6 +1012,12 @@ function buildReview() {
 }
 
 // The game told phase by phase, with quiet nights and days without an execution called out
+const ORDINAL = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth", "eleventh", "twelfth"];
+const ordinal = n => ORDINAL[n - 1] || `${n}th`;
+const lower1 = h => /^[A-Z][a-z]/.test(h) ? h[0].toLowerCase() + h.slice(1) : h;
+
+// The game told phase by phase, with quiet nights and days without an execution called out.
+// opts.prose joins each phase into paragraphs told in the Storyteller's voice.
 function storyPhases(opts = {}) {
   const star = x => opts.noStars || !x ? "" : `<span class="star">★</span> `;
   const last = G.end ? G.end.ph : G.maxPhase;
@@ -1011,7 +1025,7 @@ function storyPhases(opts = {}) {
   const S = initState();
   for (let ph = 0; ph <= last; ph++) {
     const items = G.events.filter(e => e.ph === ph).map(e => ({ e }));
-    const lines = [];
+    const lines = []; // strings, or {t, k} where k is "reveal" or "plain"
     for (let i = 0; i < items.length; i++) {
       const { e } = items[i];
       if (e.type === "nom") {
@@ -1019,30 +1033,63 @@ function storyPhases(opts = {}) {
         const run = [];
         while (i < items.length && items[i].e.type === "nom") run.push(items[i++].e);
         i--;
-        const bits = run.map(n => `${B(n.actor)} nominated ${B(n.targets[0])}${n.votes !== "" && n.votes != null ? ` (${plural(Number(n.votes), "vote")})` : ""}${opts.noStars || !n.star ? "" : ` <span class="star">★</span>`}`);
+        const votes = n => n.votes !== "" && n.votes != null;
         const notes = run.filter(n => n.note).map(n => esc(endDot(n.note)));
-        lines.push(`${run.length > 1 ? "Nominations: " + listJoin(bits) : bits[0]}.${notes.length ? ` <span class="aside">${notes.join(" ")}</span>` : ""}`);
+        const tail = notes.length ? ` <span class="aside">${notes.join(" ")}</span>` : "";
+        if (opts.prose) {
+          if (run.length === 1) { const n = run[0]; lines.push(`${B(n.actor)} nominated ${B(n.targets[0])}${votes(n) ? `, and ${Number(n.votes)} ${Number(n.votes) === 1 ? "hand went" : "hands went"} up` : ""}.${tail}`); }
+          else lines.push(`The nominations began: ${listJoin(run.map(n => `${B(n.actor)} nominated ${B(n.targets[0])}${votes(n) ? ` (${plural(Number(n.votes), "vote")})` : ""}`))}.${tail}`);
+          continue;
+        }
+        const bits = run.map(n => `${B(n.actor)} nominated ${B(n.targets[0])}${votes(n) ? ` (${plural(Number(n.votes), "vote")})` : ""}${opts.noStars || !n.star ? "" : ` <span class="star">★</span>`}`);
+        lines.push(`${run.length > 1 ? "Nominations: " + listJoin(bits) : bits[0]}.${tail}`);
         continue;
       }
       const before = JSON.parse(JSON.stringify(S));
-      lines.push(star(e.star) + narrate(e, before));
+      const text = star(e.star) + narrate(e, before);
+      lines.push(e.type === "note" ? { t: text, k: "plain" } : text);
       applyEvent(S, e);
-      if (opts.onDeath) for (const p of G.players) if (!before[p.id].dead && S[p.id].dead) opts.onDeath(p.id, S, lines, e);
+      if (opts.onDeath) for (const p of G.players) if (!before[p.id].dead && S[p.id].dead) { const r = opts.onDeath(p.id, S, e); if (r) lines.push({ t: r, k: "reveal" }); }
     }
     const evs = items.map(x => x.e);
     const died = evs.some(e => ((e.type === "kill" || e.type === "slayer") && e.targets[0] && e.outcome === "died") || (e.type === "death" && e.targets.length));
+    const attacked = evs.some(e => e.type === "kill" && e.targets[0]);
+    const quiet = t => lines.push(opts.prose ? { t, k: "plain" } : t);
     if (isNight(ph)) {
-      if (ph > 0 && !died) lines.push(`<b>No one died in the night.</b>${evs.some(e => e.type === "kill" && e.targets[0]) ? "" : evs.some(e => e.type === "kill") ? "" : " The Demon claimed no victim."}`);
-      if (ph === 0 && !lines.length) lines.push(`<span class="aside">The first night passed quietly.</span>`);
+      if (ph > 0 && !died) quiet(opts.prose ? (attacked ? "When dawn broke, everyone was still alive." : "The night passed peacefully, and no one died.") : `<b>No one died in the night.</b>${evs.some(e => e.type === "kill") ? "" : " The Demon claimed no victim."}`);
+      if (ph === 0 && !lines.length) quiet(opts.prose ? "The first night passed quietly." : `<span class="aside">The first night passed quietly.</span>`);
     } else {
       const exec = evs.find(e => e.type === "exec");
       const noms = evs.filter(e => e.type === "nom").length;
       const endedHere = G.end && G.end.ph === ph && died;
-      if (!exec && !endedHere) lines.push(noms ? `<b>No one was executed.</b>` : `<b>No one was nominated, and no one was executed.</b>`);
+      if (!exec && !endedHere) quiet(opts.prose
+        ? (noms ? "In the end, no one was executed." : "The town talked and talked, but no one was nominated, and no one was executed.")
+        : (noms ? `<b>No one was executed.</b>` : `<b>No one was nominated, and no one was executed.</b>`));
     }
-    out.push({ h: phaseName(ph), lines });
+    out.push({ h: phaseName(ph), lines: opts.prose ? toProse(ph, lines) : lines.map(l => typeof l === "string" ? l : l.t) });
   }
   return out;
+}
+
+// Turns a phase's sentences into paragraphs: a scene-setting opener, linking words between
+// events, and each reveal on its own line
+function toProse(ph, lines) {
+  const night = isNight(ph), n = night ? ph / 2 + 1 : (ph + 1) / 2;
+  const clause = night ? (ph === 0 ? "On the very first night, " : `As darkness fell on the ${ordinal(n)} night, `) : (ph === 1 ? "When the town woke on the first day, " : `On the ${ordinal(n)} day, `);
+  const sentence = night ? (ph === 0 ? "Our story begins on the very first night." : `Darkness fell on the ${ordinal(n)} night.`) : (ph === 1 ? "Morning came, and with it the first day." : `Then came the ${ordinal(n)} day.`);
+  const links = night ? ["Meanwhile, ", "Then ", "Later that night, ", "Elsewhere in the town, "] : ["Then ", "After that, ", "Later, ", "Soon after, "];
+  const paras = [];
+  let cur = [], opened = false, li = 0;
+  const flush = () => { if (cur.length) paras.push(cur.join(" ")); cur = []; };
+  for (const l of lines) {
+    const t = typeof l === "string" ? l : l.t, k = typeof l === "string" ? "event" : l.k;
+    if (k === "reveal") { if (!opened) { cur.push(sentence); opened = true; } flush(); paras.push(t); continue; }
+    if (k === "plain") { if (!opened) { cur.push(sentence); opened = true; } cur.push(t); continue; }
+    if (!opened) { cur.push(clause + lower1(t)); opened = true; continue; }
+    cur.push(cur.length ? links[li++ % links.length] + lower1(t) : t);
+  }
+  flush();
+  return paras;
 }
 
 // A script to read aloud at the grimoire reveal. Players are revealed as they die, survivors last
@@ -1081,10 +1128,10 @@ function buildScript() {
   REVEALED = revealed;
   let phases, finalS;
   try {
-    phases = storyPhases({ noStars: true, onDeath: (id, S, lines, e) => { if (!revealed.has(id)) lines.push(reveal(id, S)); } });
+    phases = storyPhases({ noStars: true, prose: true, onDeath: (id, S) => revealed.has(id) ? "" : reveal(id, S) });
     finalS = stateAt(G.end ? G.end.ph : G.maxPhase);
   } finally { REVEALED = null; }
-  parts.push({ h: "How it happened", intro: `Let's go back to the very first night. ${cue("pause")}`, phases });
+  parts.push({ h: "How it happened", intro: `Let me tell you how it all happened. ${cue("pause")}`, phases });
 
   // Survivors: good first, then evil, with the Demon last of all
   const rank = id => { const s = finalS[id]; return s.align !== "evil" ? 0 : teamOf(s.role) === "demon" ? 2 : 1; };
