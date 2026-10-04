@@ -163,6 +163,12 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; z-index: 50; padding: 16px; }
 .dialog { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; }
 .phase-btn { font-size: .95rem; padding: 8px 14px; }
+.win-head { display: grid; gap: 2px; }
+.win-k { font-size: .72rem; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 800; }
+.win-t { font-family: var(--font-display); font-weight: 400; font-size: clamp(2rem, 7vw, 2.8rem); line-height: 1.05; color: var(--evil); }
+.over.good .win-t { color: var(--good); }
+.win-s { font-size: .88rem; color: var(--muted); font-weight: 500; }
+.over { padding: 16px 18px !important; border-width: 2px !important; }
 .over { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--evil); background: var(--surface-2); font-weight: 700; }
 .over.good { border-color: var(--good); }
 .choice.sugg { box-shadow: inset 0 0 0 2px var(--warn); }
@@ -913,7 +919,8 @@ function render() {
 function renderPhaseUi() {
   const night = isNight(), over = !!state.over;
   $("phasePill").className = "phase-pill " + (night ? "night" : "day");
-  $("phasePill").textContent = (night ? "☾ " : "☀ ") + timeLabel(state.t);
+  $("phasePill").textContent = over ? "Game over" : (night ? "☾ " : "☀ ") + timeLabel(state.t);
+  if (over) $("phasePill").className = "phase-pill";
   document.body.classList.toggle("is-night", night);
   document.querySelectorAll("[data-dayonly]").forEach(b => { b.disabled = night && !over; b.title = b.disabled ? "Daytime only: it's night" : ""; });
   $("dayNote").hidden = !night || over;
@@ -1336,7 +1343,7 @@ function renderEvent() {
   $("evCancel").onclick = () => { $("evOverlay").hidden = true; evDraft = null; };
   $("evSave").onclick = () => { if (!ready) return; const target = byId(d.b), wasDemon = d.result === "kill" && onTeam(target) && teamOf(roleOf(target)) === "demon" && !target.dead, before = alive().length;
     applyEvent({ id: uid(), ...d }); $("evOverlay").hidden = true; evDraft = null;
-    if (wasDemon) { const o = demonDeath(target, "slayer", before); save(); render(); openOutcome("Slayer shot", o, true); return; }
+    if (wasDemon) { const o = demonDeath(target, "slayer", before); if (o.certain) { endGame("good", `A Slayer shot killed your Demon, ${nm(target)}. ${notesText(o.notes)}`); return; } save(); render(); openOutcome("Slayer shot", o, true); return; }
     save(); render(); };
 }
 function applyEvent(e) {
@@ -1698,7 +1705,7 @@ function demonDeath(p, how, aliveBefore) {
     if (minions.length === 1) { becomeDemon(minions[0], role); notes.push({ lv: "ok", text: `${nm(minions[0])} becomes the ${role}.` }); return { notes }; }
     if (minions.length) return { notes, pick: minions, role };
     notes.push({ lv: "bad", text: "No Minion is alive to catch the star-pass." });
-    return { notes, suggest: "good" };
+    return { notes, suggest: "good", certain: true };
   }
   if (sw && aliveBefore >= 5) { becomeDemon(sw, role); notes.push({ lv: "ok", text: `${nm(sw)} (Scarlet Woman) becomes the ${role}. There were ${aliveBefore} alive, so the game goes on.` }); return { notes }; }
   if (sw) notes.push({ lv: "hi", text: `Only ${aliveBefore} were alive, so the Scarlet Woman can't take over.` });
@@ -1709,16 +1716,22 @@ function demonDeath(p, how, aliveBefore) {
   const mm = living.find(x => lc(roleOf(x)) === "mastermind");
   if (mm && how !== "night") { notes.push({ lv: "hi", text: `Mastermind: the game goes on for one more day. If good executes a good player tomorrow, evil wins. Otherwise good wins.` }); return { notes }; }
   notes.push({ lv: "bad", text: `Your Demon, ${nm(p)}, is dead, and nobody can take over.` });
-  return { notes, suggest: "good" };
+  return { notes, suggest: "good", certain: true };
 }
-function endGame(winner, why) { state.over = { winner, t: state.t, why: why || "" }; $("phOverlay").hidden = true; phase = null; save(); render(); }
+function endGame(winner, why) {
+  state.over = { winner, t: state.t, why: why || "" };
+  $("phOverlay").hidden = true; $("evOverlay").hidden = true; phase = null; save(); render();
+  $("recap").open = true; window.scrollTo({ top: 0, behavior: "smooth" });
+}
+// A result the app can be sure of ends the game straight away and opens the recap
+const notesText = notes => notes.map(n => n.text).join(" ");
 function renderOver() {
   const o = state.over, el = $("overBanner");
   $("phaseBtn").textContent = isNight() ? "Night → day" : "End day → night";
   $("phaseBtn").hidden = !!o;
   el.hidden = !o; $("recap").hidden = !o; if (!o) return;
   el.className = "over" + (o.winner === "good" ? " good" : "");
-  el.innerHTML = `<span>Game over on ${timeLabel(o.t)}: <span class="${o.winner === "evil" ? "t-evil" : ""}">${o.winner === "evil" ? "Evil won" : "Good won"}</span>.${o.why ? ` <small class="hint">${esc(o.why)}</small>` : ""}</span><span class="row"><button class="btn sm" id="overUndo">Reopen the game</button><button class="btn sm primary" id="overNew">+ New game</button></span>`;
+  el.innerHTML = `<div class="win-head"><span class="win-k">Game over · ${timeLabel(o.t)}</span><span class="win-t">${o.winner === "evil" ? "☾ Evil wins" : "☀ Good wins"}</span>${o.why ? `<span class="win-s">${esc(o.why)}</span>` : ""}</div><span class="row"><button class="btn sm" id="overUndo">Reopen the game</button><button class="btn sm primary" id="overNew">+ New game</button></span>`;
   $("overUndo").onclick = () => { state.over = null; save(); render(); };
   renderRecap();
   $("overNew").onclick = openNew;
@@ -1851,8 +1864,8 @@ function renderPhase() {
     box.querySelectorAll("[data-newdemon]").forEach(b => b.onclick = () => {
       const x = byId(b.dataset.newdemon);
       if (x) { becomeDemon(x, ph.role); ph.notes.push({ lv: "ok", text: `${nm(x)} is now the ${ph.role}.` }); ph.suggest = ""; }
-      else if (!ph.optional) { ph.suggest = "good"; ph.notes.push({ lv: "bad", text: "Then your Demon is dead with nobody to take over." }); }
-      else { const d = teamPlayers().find(p => p.dead && teamOf(roleOf(p)) === "demon" && p.deathAt === state.t); if (d && !teamPlayers().some(p => !p.dead && teamOf(roleOf(p)) === "demon")) { ph.notes.push({ lv: "bad", text: "Then your Demon is dead with nobody to take over." }); ph.suggest = "good"; } }
+      else if (!ph.optional) { ph.notes.push({ lv: "bad", text: "Your Demon is dead with nobody to take over." }); endGame("good", notesText(ph.notes)); return; }
+      else { const d = teamPlayers().find(p => p.dead && teamOf(roleOf(p)) === "demon" && p.deathAt === state.t); if (d && !teamPlayers().some(p => !p.dead && teamOf(roleOf(p)) === "demon")) { ph.notes.push({ lv: "bad", text: "Your Demon is dead with nobody to take over." }); endGame("good", notesText(ph.notes)); return; } }
       ph.pick = null; save(); renderPhase();
     });
     box.querySelectorAll("[data-end]").forEach(b => b.onclick = () => { if (b.dataset.end) endGame(b.dataset.end, ph.notes.map(n => n.text).join(" ")); else after(); });
@@ -1881,19 +1894,20 @@ function renderPhase() {
         if (x && !ph.already && ph.virgin && ph.virginId) { confirmVirgin(x.id, ph.virginId); ph.notes.push({ lv: "", text: `${nm(byId(ph.virginId))} is now a confirmed Virgin, and ${nm(x)} a confirmed Townsfolk.` }); }
         else if (x && !ph.already) { x.dead = true; x.deathBy = ph.virgin ? "virgin" : "exec"; x.deathAt = state.t; x.ghostVote = true; ph.undo = x.id; }
         if (x) {
-          if (onTeam(x) && teamOf(roleOf(x)) === "demon") { const o = demonDeath(x, "exec", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.suggest = o.suggest; }
+          if (onTeam(x) && teamOf(roleOf(x)) === "demon") { const o = demonDeath(x, "exec", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.suggest = o.suggest; ph.certain = o.certain; }
           else if (lc(realOrClaim(x)) === "saint" && !onTeam(x)) { ph.notes.push({ lv: "ok", text: `${nm(x)} claimed Saint. If they really were the Saint, evil wins.` }); ph.suggest = state.bluffs.map(lc).includes("saint") ? "" : "evil"; }
           else if (onTeam(x)) ph.notes.push({ lv: "hi", text: `Your teammate ${nm(x)} was executed. The Demon survives.` });
           else ph.notes.push({ lv: "ok", text: `${nm(x)} was executed: one fewer good player.` });
           const mm = state.events && teamPlayers().find(p => !p.dead && lc(roleOf(p)) === "mastermind");
-          if (mm && demonP() && demonP().dead && !onTeam(x) && demonP().deathAt < state.t) { ph.notes.push({ lv: "ok", text: "Mastermind: good executed a good player on the extra day. Evil wins." }); ph.suggest = "evil"; }
+          if (mm && demonP() && demonP().dead && !onTeam(x) && demonP().deathAt < state.t) { ph.notes.push({ lv: "ok", text: "Mastermind: good executed a good player on the extra day. Evil wins." }); ph.suggest = "evil"; ph.certain = true; }
         } else {
           ph.notes.push({ lv: "", text: "No execution today." });
-          if (teamPlayers().some(p => !p.dead && lc(roleOf(p)) === "vortox")) { ph.notes.push({ lv: "ok", text: "Vortox: no execution means evil wins." }); ph.suggest = "evil"; }
+          if (teamPlayers().some(p => !p.dead && lc(roleOf(p)) === "vortox")) { ph.notes.push({ lv: "ok", text: "Vortox: no execution means evil wins." }); ph.suggest = "evil"; ph.certain = true; }
           const mayor = goodAlive().find(p => lc(realOrClaim(p)) === "mayor");
           if (mayor && alive().length === 3) { ph.notes.push({ lv: "bad", text: `Three alive, no execution, and ${nm(mayor)} claims Mayor. If they're the real Mayor, good wins.` }); ph.suggest = "good"; }
         }
-        ph.suggest = ph.suggest || evilWinCheck(ph.notes);
+        if (!ph.suggest && evilWinCheck(ph.notes)) { ph.suggest = "evil"; ph.certain = true; }
+        if (ph.certain && !ph.pick) { endGame(ph.suggest, notesText(ph.notes)); return; }
         ph.step = "outcome"; save(); renderPhase();
       };
       return;
@@ -1978,9 +1992,10 @@ function renderPhase() {
           else ph.notes.push({ lv: "hi", text: `${nm(k)} survived your kill.`, sub: c === "mayor" ? "A Mayor can survive with nobody dying instead." : "Protected (Monk, Innkeeper, Tea Lady…), a Soldier or Fool, or your Demon was drunk or poisoned." });
         }
         if (sp && me && !ph.deaths.includes(me.id)) ph.notes.push({ lv: "hi", text: "You chose to star-pass, but you didn't die. You're still the Demon." });
-        if (sp && me && ph.deaths.includes(me.id)) { const o = demonDeath(me, "starpass", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.optional = false; ph.suggest = o.suggest; }
-        else if (demonDied) { const o = demonDeath(demonDied, "night", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.optional = o.optional; ph.suggest = o.suggest; }
-        evilWinCheck(ph.notes);
+        if (sp && me && ph.deaths.includes(me.id)) { const o = demonDeath(me, "starpass", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.optional = false; ph.suggest = o.suggest; ph.certain = o.certain; }
+        else if (demonDied) { const o = demonDeath(demonDied, "night", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.optional = o.optional; ph.suggest = o.suggest; ph.certain = o.certain; }
+        if (!ph.pick && !ph.certain && evilWinCheck(ph.notes)) { ph.suggest = "evil"; ph.certain = true; }
+        if (ph.certain && !ph.pick) { endGame(ph.suggest, notesText(ph.notes)); return; }
         ph.step = "outcome"; save(); renderPhase();
       };
       return;
