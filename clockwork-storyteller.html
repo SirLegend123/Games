@@ -31,6 +31,13 @@
     color-scheme: light;
   }
 }
+:root[data-theme="light"] {
+  --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+  --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+  --good: #2463c2; --evil: #be2a42;
+  --townsfolk: #2463c2; --outsider: #1f8296; --minion: #c0344b; --demon: #8a1428; --ok: #2a9150; --warn: #b7791f;
+  color-scheme: light;
+}
 :root[data-theme="dark"] {
   --bg: #15121b; --surface: #211c29; --surface-2: #2b2534; --line: #3b3346;
   --fg: #ece6f2; --muted: #a69cb3; --brass: #d4ab55;
@@ -768,6 +775,8 @@ function overView() {
 }
 
 function menuView() {
+  if (U.menu === 'abandon') return `<section class="card"><p>Abandon this game? It can't be brought back.</p><div class="row">
+    <button class="btn danger" data-act="abandon-yes">Abandon the game</button><button class="btn" data-act="menu">Keep playing</button></div></section>`;
   return `<section class="card"><div class="row">
     <button class="btn" data-act="how">How it works</button>
     ${G && !G.winner ? `<button class="btn danger" data-act="abandon">Abandon this game</button>` : ''}
@@ -807,16 +816,15 @@ document.addEventListener('click', e => {
   const act = b.dataset.act, id = b.dataset.id != null ? +b.dataset.id : null;
   const go = () => { render(); window.scrollTo(0, 0); };
   switch (act) {
-    case 'menu': U.menu = !U.menu; break;
+    case 'menu': U.menu = !U.menu && U.menu !== 'abandon' ? true : false; break;
     case 'home': U.view = 'home'; U.menu = false; break;
     case 'how': U.view = 'how'; U.menu = false; return go();
     case 'resume': U.view = 'game'; break;
     case 'setup': U.view = 'setup'; U.menu = false; return go();
     case 'setup-same': U.setupText = G.players.map(p => p.name).join('\n'); U.view = 'setup'; return go();
     case 'start': newGame(parseNames(U.setupText)); U.view = 'game'; return go();
-    case 'abandon':
-      if (confirm('Abandon this game? It cannot be brought back.')) { G = null; U.view = 'home'; U.menu = false; }
-      break;
+    case 'abandon': U.menu = 'abandon'; break;
+    case 'abandon-yes': G = null; U.view = 'home'; U.menu = false; break;
     case 'turn': U.turn = { id, step: 'confirm' }; U.sel = []; return go();
     case 'hub': U.turn = null; break;
     case 'reveal':
