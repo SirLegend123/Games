@@ -283,6 +283,7 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
         <div class="card"><div class="head"><h2>Virgin and Slayer</h2><div class="row"><button class="btn sm" data-event="virgin">+ Virgin nomination</button><button class="btn sm" data-event="slayer">+ Slayer shot</button></div></div><div id="events" class="col"></div></div>
       </section>
       <section class="col">
+        <div class="card"><div class="head"><h2>Heard around town</h2><button class="btn sm primary" id="hdAdd">+ Add what someone said</button></div><div id="heard" class="col"></div></div>
         <div class="card"><div class="head"><h2>Who to push for execution</h2><span class="foot">Good players the town might believe are evil</span></div><div id="push" class="col"></div></div>
         <div class="card"><h2>Careful</h2><div id="careful" class="col"></div></div>
         <div class="card"><div class="head"><h2>Everyone's likely character</h2><span class="foot">From claims, what you know and what's not in play</span></div><div id="likely" class="col"></div></div>
@@ -318,6 +319,10 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
 
 <div class="overlay" id="phOverlay" hidden>
   <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="phTitle" id="phBox"></div>
+</div>
+
+<div class="overlay" id="hdOverlay" hidden>
+  <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="hdTitle" id="hdBox"></div>
 </div>
 
 <div class="overlay" id="evOverlay" hidden>
@@ -436,14 +441,14 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const mkPlayer = (name, extra = {}) => ({ id: uid(), name, me: false, team: false, role: "", real: "", claims: [], dead: false, deathBy: "", deathAt: 0, ghostVote: true, trusted: false, townSus: false, onto: [], traveller: false, notes: "", claimType: "soft", shotUsed: false, virginUsed: false, shotCleared: false, ...extra });
 
 function blankGame(names, script) {
-  return { v: 1, script, t: 1, players: names.map(n => mkPlayer(n)), myRole: "", bluffs: [], story: [], acts: [], events: [], notes: "", selected: null };
+  return { v: 1, script, t: 1, players: names.map(n => mkPlayer(n)), myRole: "", bluffs: [], story: [], acts: [], events: [], heard: [], notes: "", selected: null };
 }
 function normalize(s) {
   if (!s || !Array.isArray(s.players) || !s.players.length) return null;
   s.players = s.players.map(p => ({ ...mkPlayer(""), ...p, claims: Array.isArray(p.claims) ? p.claims : [], onto: Array.isArray(p.onto) ? p.onto : [] }));
   s.t = Math.max(1, Number(s.t) || 1);
   s.script = ROLES[s.script] || s.script === "all" ? s.script : "tb";
-  for (const k of ["bluffs", "story", "acts", "events"]) s[k] = Array.isArray(s[k]) ? s[k] : [];
+  for (const k of ["bluffs", "story", "acts", "events", "heard"]) s[k] = Array.isArray(s[k]) ? s[k] : [];
   s.notes = s.notes || ""; s.myRole = s.myRole || ""; s.over = s.over || null;
   return s;
 }
@@ -496,6 +501,19 @@ function livingNeighbours(p) {
 }
 function dist(a, b) { const n = P().length, i = P().indexOf(a), j = P().indexOf(b), d = Math.abs(i - j); return Math.min(d, n - d); }
 
+/* ---------- Game size ---------- */
+// The character counts for this many players (travellers excluded), adjusted for setup-changing evil characters you know about
+function setup() {
+  const n = core().length, base = COMP[Math.min(n, 15)];
+  if (!base) return null;
+  let [tf, out, min, dem] = base; const why = [];
+  const roles = teamPlayers().map(x => lc(roleOf(x)));
+  if (roles.includes("baron")) { tf -= 2; out += 2; why.push("Baron: +2 Outsiders"); }
+  if (roles.includes("fang gu")) { tf -= 1; out += 1; why.push("Fang Gu: +1 Outsider"); }
+  if (roles.includes("vigormortis") && out > 0) { tf += 1; out -= 1; why.push("Vigormortis: −1 Outsider"); }
+  return { n, tf, out, min, dem, evil: min + dem, trav: P().length - n, why };
+}
+
 /* ---------- Analysis ---------- */
 function threats(mode) {
   // mode: "kill" for the Demon, "poison" for poisoners, otherwise general
@@ -514,6 +532,8 @@ function threats(mode) {
     if (r === "virgin" && !p.virginUsed) { score += 1; why.push("unused Virgin: can prove a Townsfolk"); }
     if (PROTECTORS.includes(r)) { score += 2; why.push("can protect players at night"); }
     if (p.trusted) { score += 3; why.push("the town trusts them"); }
+    const hit = state.heard.filter(h => h.from === p.id && hitsTeam(h).length);
+    if (hit.length) { score += 3; why.push(`their info points at ${[...new Set(hit.flatMap(hitsTeam))].map(nm).join(" and ")}`); }
     const onto = p.onto.map(byId).filter(x => x && onTeam(x) && !x.dead);
     if (onto.length) { score += 3 * onto.length; why.push(`suspects ${onto.map(nm).join(" and ")}`); }
     if (demon && p.onto.includes(demon.id)) { score += 2; why.push("onto your Demon"); }
@@ -565,6 +585,8 @@ function teamHeat() {
     if (state.events.some(e => e.type === "virgin" && e.result === "none" && e.b === p.id)) { score += 4; why.push("nominated the Virgin and nothing happened"); }
     if (state.events.some(e => e.type === "slayer" && e.result === "none" && e.a === p.id)) { score += 1; why.push("their Slayer shot missed"); }
     if (p.shotCleared) { score -= 2; why.push("survived a Slayer shot: looks cleared"); }
+    const pinged = state.heard.filter(h => hitsTeam(h).includes(p));
+    if (pinged.length) { score += 3 * pinged.length; why.push(`named in ${pinged.map(h => nm(byId(h.from)) + (h.as ? ` (${h.as})` : "")).join(", ")}'s info`); }
     out.push({ p, score, why });
   }
   return out.sort((a, b) => b.score - a.score);
@@ -591,16 +613,13 @@ function coverChecks() {
     const holders = P().filter(x => !onTeam(x) && x.claims.some(c => lc(c) === lc(r)));
     if (holders.length) out.push({ lv: "", text: `${holders.map(nm).join(" and ")} ${holders.length === 1 ? "claims" : "claim"} ${r}, which is not in play.`, sub: "They're lying: maybe the Drunk, or a good player hiding. Use it to cast doubt on them." });
   }
-  const n = core().length, comp = COMP[Math.min(n, 15)];
+  const su = setup(), n = core().length;
   const roles = team.map(x => lc(roleOf(x)));
-  if (comp) {
-    let outs = comp[1];
-    if (roles.includes("baron")) outs += 2;
-    if (roles.includes("fang gu")) outs += 1;
-    if (roles.includes("vigormortis")) outs = Math.max(0, outs - 1);
+  if (su) {
+    const outs = su.out;
     const claimed = core().filter(p => p.claims.length && p.claims.every(c => teamOf(c) === "outsider")).length;
     if (roles.includes("baron") && claimed < outs) out.push({ lv: "", text: `With a Baron, the town will expect about ${outs} Outsiders. ${claimed} claimed so far.`, sub: "An Outsider bluff from your team fills the gap. Otherwise the missing Outsiders point at a Baron." });
-    const evilCount = comp[2] + comp[3];
+    const evilCount = su.evil;
     if (team.length && team.length !== evilCount) out.push({ lv: "", text: `With ${n} players there are normally ${evilCount} evil players. You've marked ${team.length}.`, sub: "Mark your teammates in the list above." });
   }
   const virgin = P().find(p => !p.dead && lc(hard(p)) === "virgin" && !p.virginUsed);
@@ -793,7 +812,8 @@ function renderTable() {
   });
   $("tLabel").textContent = timeLabel(state.t);
   const tp = teamPlayers(), votes = tp.filter(p => !p.dead || p.ghostVote).length;
-  $("hubStat").innerHTML = `<b>${alive().length}</b> of ${core().length} alive<br>Team: <b>${tp.filter(p => !p.dead).length}</b> alive · ${votes} vote${votes === 1 ? "" : "s"}`;
+  const su = setup();
+  $("hubStat").innerHTML = `<b>${alive().length}</b> of ${core().length} alive<br>${su ? `<b class="t-evil">${su.evil} evil</b> in play · ${tp.length === su.evil ? "all marked" : `<b>${tp.length}</b> marked`}<br>` : ""}Team: <b>${tp.filter(p => !p.dead).length}</b> alive · ${votes} vote${votes === 1 ? "" : "s"}`;
 }
 
 function renderPanel() {
@@ -889,6 +909,9 @@ function renderTeam() {
   $("teamSetup").innerHTML = `
     <div class="field"><label class="label" for="myRole">Your real character</label>${sel}</div>
     <div class="field"><span class="label">Your seat</span><div class="choice-list">${P().map(p => `<button class="choice" data-me="${p.id}" aria-pressed="${p.me}">${esc(nm(p))}</button>`).join("")}</div></div>
+    ${(() => { const su = setup(); if (!su) return `<div class="tip hi"><span>The game needs at least 5 players (not counting travellers).</span></div>`; const tp = teamPlayers().length;
+      return `<div class="tip ${tp === su.evil ? "ok" : "hi"}"><span><b>${su.n} players${su.trav ? ` + ${su.trav} traveller${su.trav === 1 ? "" : "s"}` : ""}: ${su.evil} evil</b> (${su.min} Minion${su.min === 1 ? "" : "s"} + ${su.dem} Demon) and ${su.n - su.evil} good (${su.tf} Townsfolk, ${su.out} Outsider${su.out === 1 ? "" : "s"}).</span>
+        <small>${tp === su.evil ? "Your whole team is marked." : `You've marked ${tp} of ${su.evil}, including you. Tap your teammates below.`}${su.why.length ? ` Adjusted for ${su.why.join(", ")}.` : ""}${su.n > 15 ? " Over 15 players, the Storyteller may add more." : ""}</small></div>`; })()}
     <div class="field"><span class="label">Your teammates</span><div class="choice-list">${P().filter(p => !p.me).map(p => `<button class="choice red" data-mate="${p.id}" aria-pressed="${p.team}">${esc(nm(p))}</button>`).join("")}</div></div>
     ${P().filter(p => p.team).map(p => `<div class="row"><span class="label" style="min-width:7em">${esc(nm(p))} is the</span><select data-mrole="${p.id}" aria-label="${esc(nm(p))}'s character"><option value="">Evil, character unknown</option>${roleList("evil").map(r => `<option${r === p.role ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></div>`).join("")}
     <div class="field"><span class="label">Demon bluffs: good characters not in play (up to 3)</span>
@@ -1078,6 +1101,7 @@ function renderDay() {
   if (!care.length) care.push({ lv: "ok", text: "Nothing to watch out for right now." });
   $("careful").innerHTML = care.map(tip).join("");
   renderEvents();
+  renderHeard();
   renderLikely();
 }
 
@@ -1152,8 +1176,81 @@ function renderEvents() {
   document.querySelectorAll("[data-unev]").forEach(b => b.onclick = () => { undoEvent(b.dataset.unev); save(); render(); });
 }
 
+/* ---------- Heard around town ---------- */
+// Info other players say they learned, e.g. "as the Investigator I saw a Baron among Ana and Bob"
+const HEARD_KINDS = [["evil", "Evil ping"], ["good", "Good / not evil"], ["demon", "The Demon"], ["minion", "A Minion"], ["notdemon", "Not the Demon"], ["role", "A character"], ["number", "A number"], ["other", "Something else"]];
+function hitsTeam(h) {
+  const about = (h.about || []).map(byId).filter(Boolean);
+  const evilish = ["evil", "demon", "minion"].includes(h.kind) || (h.kind === "role" && isEvilRole(h.role));
+  return evilish ? about.filter(onTeam) : [];
+}
+function heardText(h) {
+  const from = nm(byId(h.from)), to = (h.to || []).map(id => id === "all" ? "everyone" : nm(byId(id)));
+  const about = (h.about || []).map(id => nm(byId(id))), who = about.length ? about.join(about.length > 2 ? ", " : " or ") : "";
+  const k = { evil: `${who || "someone"} pinged evil`, good: `${who || "someone"} ${about.length > 1 ? "are" : "is"} good`, demon: `${who || "someone"} ${about.length > 1 ? "includes" : "is"} the Demon`,
+    minion: `${who || "someone"} ${about.length > 1 ? "includes" : "is"} a Minion`, notdemon: `${who || "someone"} ${about.length > 1 ? "aren't" : "isn't"} the Demon`,
+    role: `${who ? who + (about.length > 1 ? ": one is the " : " is the ") : "the "}${h.role || "…"}${who ? "" : " is in play"}`,
+    number: `they got a ${h.n === "" || h.n == null ? "…" : h.n}${who ? ` (${who})` : ""}`, other: who ? `about ${who}` : "" }[h.kind] || "";
+  return `${timeLabel(h.t)}: ${from}${h.as ? ` (as the ${h.as})` : ""} told ${to.length ? to.join(", ") : "someone"}: ${k}${h.x ? `${k ? ". " : ""}${h.x}` : ""}`;
+}
+function heardMeaning(h) {
+  const from = byId(h.from); if (!from) return { lv: "", text: "" };
+  const hits = hitsTeam(h), about = (h.about || []).map(byId).filter(Boolean);
+  if (onTeam(from)) return { lv: "", text: "Your teammate's story. Keep it consistent with what they've said before." };
+  const asClaim = h.as && !from.claims.some(c => lc(c) === lc(h.as)) ? ` They haven't claimed ${h.as} to you yet.` : "";
+  const fake = h.as && notInPlay(h.as) ? ` ${h.as} is not in play, so this is made up or they're the Drunk.` : "";
+  if (hits.length) return { lv: "bad", text: `Points at your team: ${hits.map(nm).join(" and ")}.${fake || ` If it's real info, ${nm(from)} is a threat: discredit them, kill them or poison them.`}${asClaim}` };
+  if (["good", "notdemon"].includes(h.kind) && about.some(onTeam)) return { lv: "ok", text: `Clears your teammate ${about.filter(onTeam).map(nm).join(" and ")}. Good for you; don't argue with it.${asClaim}` };
+  if (["evil", "demon", "minion"].includes(h.kind) && about.length) return { lv: "ok", text: `Wrong: ${about.map(nm).join(" and ")} ${about.length > 1 ? "are" : "is"} good. ${fake || `${nm(from)} may be drunk, poisoned or lying. Use it to push ${about.map(nm).join(" or ")}.`}${asClaim}` };
+  if (h.kind === "role" && h.role && notInPlay(h.role)) return { lv: "hi", text: `${h.role} isn't in play, so this info is false.${asClaim}` };
+  return { lv: "", text: (fake + asClaim).trim() };
+}
+let hdDraft = null;
+function openHeard() { hdDraft = { t: state.t, from: "", to: [], as: "", about: [], kind: "", role: "", n: "", x: "" }; $("hdOverlay").hidden = false; renderHeardForm(); }
+function renderHeardForm() {
+  const d = hdDraft, R = scriptRoles();
+  const chips = (key, multi, extra = "") => `<div class="choice-list">${extra}${P().filter(p => key !== "from" || !p.me).map(p => `<button class="choice${onTeam(p) ? " red" : ""}" data-h${key}="${p.id}" aria-pressed="${multi ? d[key].includes(p.id) : d[key] === p.id}">${esc(nm(p))}${p.dead ? " †" : ""}</button>`).join("")}</div>`;
+  const from = byId(d.from);
+  const roleBtns = (key, kinds) => `<div class="choice-list">${kinds.flatMap(k => R[k]).map(r => `<button class="choice${from && key === "as" && from.claims.includes(r) ? " sugg" : ""}" data-h${key}r="${esc(r)}" aria-pressed="${d[key] === r}">${esc(r)}</button>`).join("")}</div>`;
+  $("hdBox").innerHTML = `<h2 id="hdTitle">Heard around town</h2>
+    <div class="field"><span class="label">Who said it</span>${chips("from", false)}</div>
+    <div class="field"><span class="label">Who they told</span>${chips("to", true, `<button class="choice" data-hto="all" aria-pressed="${d.to.includes("all")}">Everyone</button>`)}</div>
+    <div class="field"><span class="label">The character it came from${from && from.claims.length ? " (amber: what they claim)" : ""}</span>${roleBtns("as", ["townsfolk", "outsider"])}</div>
+    <div class="field"><span class="label">What they learned</span><div class="choice-list">${HEARD_KINDS.map(([k, l]) => `<button class="choice" data-hkind="${k}" aria-pressed="${d.kind === k}">${l}</button>`).join("")}</div></div>
+    ${d.kind === "role" ? `<div class="field"><span class="label">Which character</span>${roleBtns("role", ["townsfolk", "outsider", "minion", "demon"])}</div>` : ""}
+    ${d.kind === "number" ? `<div class="row"><span class="label">The number</span><input type="number" id="hdN" min="0" value="${esc(d.n)}" style="width:5em"></div>` : ""}
+    ${d.kind && d.kind !== "number" ? `<div class="field"><span class="label">About which players (optional)</span>${chips("about", true)}</div>` : ""}
+    <input type="text" id="hdX" value="${esc(d.x)}" placeholder="Anything else, in their words (optional)">
+    ${d.from && (d.kind || d.x) ? `<div class="say-box">"${esc(heardText(d))}"${heardMeaning(d).text ? `<small>${esc(heardMeaning(d).text)}</small>` : ""}</div>` : ""}
+    <div class="row"><button class="btn primary" id="hdSave"${d.from && (d.kind || d.x) ? "" : " disabled"}>Save</button><button class="btn" id="hdCancel">Cancel</button></div>`;
+  const box = $("hdBox"), re = () => renderHeardForm();
+  box.querySelectorAll("[data-hfrom]").forEach(b => b.onclick = () => { d.from = d.from === b.dataset.hfrom ? "" : b.dataset.hfrom; const p = byId(d.from); if (p && !d.as && claimsOf(p).length === 1) d.as = claimsOf(p)[0]; re(); });
+  box.querySelectorAll("[data-hto]").forEach(b => b.onclick = () => { const id = b.dataset.hto; d.to = d.to.includes(id) ? d.to.filter(x => x !== id) : [...d.to, id]; re(); });
+  box.querySelectorAll("[data-habout]").forEach(b => b.onclick = () => { const id = b.dataset.habout; d.about = d.about.includes(id) ? d.about.filter(x => x !== id) : [...d.about, id]; re(); });
+  box.querySelectorAll("[data-hasr]").forEach(b => b.onclick = () => { d.as = d.as === b.dataset.hasr ? "" : b.dataset.hasr; re(); });
+  box.querySelectorAll("[data-hroler]").forEach(b => b.onclick = () => { d.role = d.role === b.dataset.hroler ? "" : b.dataset.hroler; re(); });
+  box.querySelectorAll("[data-hkind]").forEach(b => b.onclick = () => { d.kind = d.kind === b.dataset.hkind ? "" : b.dataset.hkind; re(); });
+  if ($("hdN")) $("hdN").onchange = e => { d.n = e.target.value; re(); };
+  $("hdX").oninput = e => { d.x = e.target.value; const sv = $("hdSave"); if (sv) sv.disabled = !(d.from && (d.kind || d.x)); };
+  $("hdCancel").onclick = () => { $("hdOverlay").hidden = true; hdDraft = null; };
+  $("hdSave").onclick = () => { if (!(d.from && (d.kind || d.x))) return; state.heard.push({ id: uid(), ...hdDraft }); $("hdOverlay").hidden = true; hdDraft = null; save(); render(); };
+}
+function renderHeard() {
+  const list = [...state.heard].reverse();
+  $("heard").innerHTML = list.length ? list.map(h => { const m = heardMeaning(h); return `<div class="tip ${m.lv}"><span>${esc(heardText(h))}</span>${m.text ? `<small>${esc(m.text)}</small>` : ""}<div class="row"><button class="btn sm danger" data-unheard="${h.id}">Remove</button></div></div>`; }).join("")
+    : '<p class="empty">When a player says what they learned ("I heard there\'s a Baron", "Bob pinged evil"), add it here: who said it, who they told, the character it came from and what it was.</p>';
+  document.querySelectorAll("[data-unheard]").forEach(b => b.onclick = () => { state.heard = state.heard.filter(h => h.id !== b.dataset.unheard); save(); render(); });
+}
+$("hdAdd").onclick = openHeard;
+
 /* ---------- Likely characters ---------- */
 function likelyRole(p) {
+  const l = likelyRole0(p);
+  const gave = [...new Set(state.heard.filter(h => h.from === p.id && h.as && !claimsOf(p).some(c => lc(c) === lc(h.as))).map(h => h.as))];
+  if (gave.length && !onTeam(p)) l.note = [l.note, `has shared info as the ${gave.join(" and ")}`].filter(Boolean).join(" · ");
+  return l;
+}
+function likelyRole0(p) {
   if (onTeam(p)) return { role: roleOf(p) || "Evil", lv: "bad", note: p.claims.length ? `on your team, claiming ${p.claims.join(" or ")}` : "on your team, no claim yet" };
   if (p.real) return { role: p.real, lv: "ok", note: "you know this" };
   const c = claimsOf(p), h = hard(p), out = ruledOut(p);

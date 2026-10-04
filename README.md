@@ -31,11 +31,13 @@ A secret companion for when you're on the evil team. Open `evil.html` in any web
 
 - Claims: tap role buttons, Soft for every role a player offered, Hard for the one they commit to. Roles someone else has claimed get an amber ring. When a good player soft-claims a Demon bluff, that role is left off their list, since it's not in play. For your team, the Demon bluffs appear as quick buttons in each evil player's panel and on the Team tab
 - Virgin nominations and Slayer shots: record who nominated or shot whom and what happened. Deaths (an execution by the Virgin counts as the day's execution), used abilities and what the town now believes are updated, with an Undo
+- Game size: how many evil players (Minions and Demon), Townsfolk and Outsiders there are for the player count, adjusted for a Baron, Fang Gu or Vigormortis, and how many teammates you've marked. Shown on the Team tab and in the middle of the circle
 - Your team: your real character, your seat, your teammates and their characters, and the Demon bluffs
 - Cover checks: rival claims on your team's bluffs, two teammates on one claim, players claiming a role that's not in play, the Outsider count with a Baron, and the Virgin
 - How suspicious your team looks, from who suspects whom and double claims
 - My story: pick your bluff, then get made-up night info for it (safe, covering a teammate, or framing a threat). Everything you say is logged, with checks for slips like a first-night-only role giving info on night 3 or an Empath number that changes for no reason
 - Tonight: kill, poison, curse or protect targets ranked for your character, a night action log, and tips for every Minion and Demon on the three scripts
+- Heard around town: on the Today tab, log what a player says they learned: who said it, who they told, the character it came from and what it was (an evil ping, a character, a number…). Info that points at your team is flagged and makes that player a bigger threat
 - Everyone's likely character: on the Today tab, each player's most likely role, with contested claims, likely Drunks and roles already taken by someone else
 - Today: who to push for execution, who not to nominate, vote counts for your team, and endgame warnings (final three, the Mayor, Scarlet Woman, Vortox, Saint)
 - End day → night: asks who was executed, whether the game ended, then your night action (with suggested targets). Night → day asks who died in the night; whether the game ended is only asked at the end of the day
