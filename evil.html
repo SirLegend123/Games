@@ -402,6 +402,10 @@ const SHAPE = {
   "seamstress":    { p: 2, yn: ["Different teams", "Same team"], t: "I checked {p1} and {p2}: {yn}" },
   "philosopher":   { r: "good", t: "I became the {r}" },
   "sage":          { p: 2, when: "death", t: "The Demon is {p1} or {p2}" },
+  "savant":        { xl: "Their two statements", t: "My statements: {x}" },
+  "artist":        { xl: "Their question and the answer", t: "I asked: {x}" },
+  "gossip":        { xl: "What they gossiped", t: "My gossip: {x}" },
+  "juggler":       { n: "Guesses that were right", when: "later", t: "I got {n} right" },
   "moonchild":     { p: 1, when: "death", t: "I chose {p1}" },
   "klutz":         { p: 1, when: "death", t: "I chose {p1}" }
 };
@@ -490,7 +494,11 @@ const onTeam = p => !!p && (p.team || p.me);
 const roleOf = p => p.me ? state.myRole : p.team ? p.role : "";
 // A good player's soft claim can't include a Demon bluff (not in play), so those roles are left off their list
 const notInPlay = r => state.bluffs.some(b => lc(b) === lc(r));
-const ruledOut = p => !onTeam(p) && p.claims.length > 1 ? p.claims.filter(notInPlay) : [];
+// ...and roles a dead good player had firmly claimed, since that character has already been used up
+const rawHard = x => x.claims.length === 1 ? x.claims[0] : "";
+const deadClaimer = (r, p) => P().find(x => x !== p && x.dead && !onTeam(x) && lc(rawHard(x)) === lc(r));
+const ruledOut = p => !onTeam(p) && p.claims.length > 1 ? p.claims.filter(r => notInPlay(r) || deadClaimer(r, p)) : [];
+const outReason = (r, p) => notInPlay(r) ? `${r} (not in play)` : `${r} (${nm(deadClaimer(r, p))} died claiming it)`;
 const claimsOf = p => { const out = ruledOut(p); return out.length ? p.claims.filter(c => !out.includes(c)) : p.claims; };
 const hard = p => { const c = claimsOf(p); return c.length === 1 ? c[0] : ""; };
 // Best guess at a good player's character: what the grimoire showed, else their firm claim
@@ -732,7 +740,7 @@ function sayText(e) {
   if (sh.none && e.r === "-") return sh.tNone;
   let t = sh.t.replace("{p1}", names[0] || "…").replace("{p2}", names[1] || "…").replace("{r2}", e.r2 || "…").replace("{r}", e.r || "…")
     .replace("{n}", e.n === "" || e.n == null ? "…" : e.n).replace("{yn}", sh.yn && e.yn != null && e.yn !== "" ? sh.yn[e.yn] : "…");
-  return t + (e.x ? `. ${e.x}` : "");
+  return t.includes("{x}") ? t.replace("{x}", e.x || "…") : t + (e.x ? `. ${e.x}` : "");
 }
 
 function storyChecks() {
@@ -853,7 +861,7 @@ function renderPanel() {
     ${p.me ? `<p class="hint">You're the <b class="t-evil">${esc(state.myRole || "…")}</b>. Change it under Your team on the Table tab; set your bluff on My story.</p>` : ""}
     <div class="field claim-grid"><div class="row" style="justify-content:space-between"><span class="label">Public claim</span>
         <span class="seg" role="group" aria-label="Claim type"><button data-ctype="soft" aria-pressed="${!isHardMode}">Soft</button><button data-ctype="hard" aria-pressed="${isHardMode}">Hard</button></span></div>
-      <span class="hint">${p.claims.length ? `${isHardMode ? "Hard claim" : "Soft claim"}: <b>${esc(claimsOf(p).join(", ") || "none left")}</b>. ` : ""}${ruledOut(p).length ? `Left off because they're not in play: <s>${esc(ruledOut(p).join(", "))}</s>. ` : ""}${isHardMode ? "Tap the role they've committed to." : "Tap every role they offered."} An amber ring means someone else has claimed it.</span>
+      <span class="hint">${p.claims.length ? `${isHardMode ? "Hard claim" : "Soft claim"}: <b>${esc(claimsOf(p).join(", ") || "none left")}</b>. ` : ""}${ruledOut(p).length ? `Left off: <s>${esc(ruledOut(p).map(r => outReason(r, p)).join(", "))}</s>. ` : ""}${isHardMode ? "Tap the role they've committed to." : "Tap every role they offered."} An amber ring means someone else has claimed it.</span>
       ${onTeam(p) ? (state.bluffs.length ? `<div class="field"><span class="label"><i style="background:var(--evil)"></i>Demon bluffs: claiming</span><div class="choice-list">${state.bluffs.map(r => { const tk = takenBy(r); return `<button class="choice red${tk.length ? " taken" : ""}" data-claim="${esc(r)}" aria-pressed="${p.claims.includes(r)}"${tk.length ? ` title="Also claimed by ${esc(tk.join(", "))}"` : ""}>${esc(r)}</button>`; }).join("")}</div></div>` : '<span class="hint">Set the Demon bluffs under Your team below to get them here as quick buttons.</span>') : ""}
       ${group("townsfolk")}${group("outsider")}
       <details${p.claims.some(isEvilRole) ? " open" : ""}><summary>Evil claims</summary>${group("minion")}${group("demon")}</details>
@@ -1201,7 +1209,19 @@ function renderEvents() {
 /* ---------- Conversations and heard info ---------- */
 // Each conversation updates the player's claims; info is either their own or hearsay passed on from someone else
 const HEARD_KINDS = [["evil", "Evil ping"], ["good", "Good / not evil"], ["demon", "The Demon"], ["minion", "A Minion"], ["notdemon", "Not the Demon"], ["role", "A character"], ["number", "A number"], ["other", "Something else"]];
+// Info given in a character's own form, e.g. a Washerwoman's two players and the Townsfolk
+const shapeOf = h => h.shape && SHAPE[lc(h.as)];
+function shapedHits(h) {
+  const r = lc(h.as), ps = (h.p || []).map(byId).filter(Boolean);
+  if ((h.r && isEvilRole(h.r)) || (r === "dreamer" && h.p && h.p.length)) return ps.filter(onTeam);
+  if (r === "fortune teller" && h.yn === 1) return ps.filter(onTeam);
+  if (r === "seamstress" && h.yn === 0) return ps.filter(onTeam);
+  if (r === "sage") return ps.filter(onTeam);
+  if (r === "empath" && Number(h.n) > 0) { const src = byId(h.mode === "hearsay" ? h.via : h.from); return src ? livingNeighbours(src).filter(onTeam) : []; }
+  return [];
+}
 function hitsTeam(h) {
+  if (shapeOf(h)) return shapedHits(h);
   const about = (h.about || []).map(byId).filter(Boolean);
   const evilish = ["evil", "demon", "minion"].includes(h.kind) || (h.kind === "role" && isEvilRole(h.role));
   return evilish ? about.filter(onTeam) : [];
@@ -1215,10 +1235,10 @@ function infoText(h) {
 }
 function heardText(h, short) {
   const from = nm(byId(h.from)), me = meP();
-  const what = infoText(h);
-  if (h.mode === "hearsay") return `${short ? "" : `${timeLabel(h.t)}: ${from} `}heard that ${h.as ? `${/^[aeiou]/i.test(h.as) ? "an" : "a"} ${h.as}` : "someone"}${h.via ? ` (${nm(byId(h.via))})` : ""} learned ${h.kind === "number" ? "a " : ""}${what || "…"}`;
+  const what = shapeOf(h) ? `"${sayText({ role: h.as, p: h.p, r: h.r, r2: h.r2, n: h.n, yn: h.yn, x: h.x })}"` : infoText(h);
+  if (h.mode === "hearsay") return `${short ? "" : `${timeLabel(h.t)}: ${from} `}heard that ${h.as ? `${/^[aeiou]/i.test(h.as) ? "an" : "a"} ${h.as}` : "someone"}${h.via ? ` (${nm(byId(h.via))})` : ""} learned ${h.kind === "number" && !shapeOf(h) ? "a " : ""}${what || "…"}`;
   const to = (h.to || []).map(id => id === "all" ? "everyone" : me && id === me.id ? "you" : nm(byId(id)));
-  return `${short ? "" : `${timeLabel(h.t)}: ${from}${h.as ? ` (as the ${h.as})` : ""} told ${to.length ? to.join(", ") : "someone"}: `}${short && h.as ? `As the ${h.as}: ` : ""}${h.kind === "number" ? "got a " : ""}${what || "…"}`;
+  return `${short ? "" : `${timeLabel(h.t)}: ${from}${h.as ? ` (as the ${h.as})` : ""} told ${to.length ? to.join(", ") : "someone"}: `}${short && h.as ? `As the ${h.as}: ` : ""}${h.kind === "number" && !shapeOf(h) ? "got a " : ""}${what || "…"}`;
 }
 function heardMeaning(h) {
   const from = byId(h.from); if (!from) return { lv: "", text: "" };
@@ -1229,6 +1249,13 @@ function heardMeaning(h) {
   const claimNote = !h.as ? "" : hs ? (onTeam(from) || h.via ? "" : ` Counted as a possible soft claim for ${nm(from)}: they may be the ${h.as} themselves.`)
     : !from.claims.some(c => lc(c) === lc(h.as)) ? ` They haven't claimed ${h.as} to you.` : "";
   if (hits.length) return { lv: "bad", text: `Points at your team: ${hits.map(nm).join(" and ")}.${fake || ` If it's real, ${src} is a threat: discredit, kill or poison them.`}${claimNote}` };
+  if (shapeOf(h)) {
+    const ps = (h.p || []).map(byId).filter(Boolean), mates = ps.filter(onTeam);
+    if (h.r && !isEvilRole(h.r) && mates.length) { const backs = mates.filter(m => lc(hard(m)) === lc(h.r)); return backs.length ? { lv: "ok", text: `Backs up ${backs.map(nm).join(" and ")}'s bluff as the ${h.r}. Great cover.${claimNote}` } : { lv: "hi", text: `Names your teammate ${mates.map(nm).join(" and ")} as a possible ${h.r}. If they don't claim it, the town will notice.${claimNote}` }; }
+    if (h.r && isEvilRole(h.r) && ps.length) return { lv: "ok", text: `Wrong: neither ${ps.map(nm).join(" nor ")} is evil.${fake || ` Use it to push ${ps.map(nm).join(" or ")}.`}${claimNote}` };
+    if (lc(h.as) === "fortune teller" && h.yn === 0 && mates.length) return { lv: "ok", text: `A No on your teammate ${mates.map(nm).join(" and ")}. Clears them.${claimNote}` };
+    return { lv: "", text: (fake + claimNote).trim() };
+  }
   if (["good", "notdemon"].includes(h.kind) && about.some(onTeam)) return { lv: "ok", text: `Clears your teammate ${about.filter(onTeam).map(nm).join(" and ")}. Good for you; don't argue with it.${claimNote}` };
   if (["evil", "demon", "minion"].includes(h.kind) && about.length) return { lv: "ok", text: `Wrong: ${about.map(nm).join(" and ")} ${about.length > 1 ? "are" : "is"} good.${fake || ` The source may be drunk, poisoned or lying. Use it to push ${about.map(nm).join(" or ")}.`}${claimNote}` };
   if (h.kind === "role" && h.role && notInPlay(h.role)) return { lv: "hi", text: `${h.role} isn't in play, so this info is false.${claimNote}` };
@@ -1236,7 +1263,7 @@ function heardMeaning(h) {
 }
 
 let cv = null;
-const newItem = mode => ({ mode, via: "", as: "", kind: "", role: "", n: "", about: [], x: "" });
+const newItem = mode => ({ mode, via: "", as: "", kind: "", role: "", n: "", about: [], x: "", shape: true, p: [], r: "", r2: "", yn: null });
 function openHeard(withId) {
   cv = { with: "", claims: [], claimType: "soft", onto: [], items: [], item: null, note: "", pub: false, added: [] };
   if (withId) pickWith(withId);
@@ -1284,12 +1311,21 @@ function renderTalk() {
         <div class="row"><span class="seg"><button data-cmode="own" aria-pressed="${!hs}">Their own info</button><button data-cmode="hearsay" aria-pressed="${hs}">Hearsay</button></span></div>
         ${hs ? `<div class="field"><span class="label">Who it came from</span>${playerChips("cvia", it.via, x => x !== p, `<button class="choice" data-cvia="" aria-pressed="${!it.via}">Don't know</button>`)}</div>` : ""}
         <div class="field"><span class="label">${hs ? "The character who learned it" : "As the character"}${!hs && cv.claims.length ? " (amber: their claim)" : ""}</span>${roleChips("cas", it.as, ["townsfolk", "outsider"], hs ? [] : cv.claims)}</div>
+        ${(() => { const sh = SHAPE[lc(it.as)]; if (!sh || it.shape === false) return ""; const pr = (attr, kind, sel) => roleChips(attr, sel, kind === "any" ? ["townsfolk", "outsider", "minion", "demon"] : kind === "good" ? ["townsfolk", "outsider"] : kind === "evil" ? ["minion", "demon"] : [kind]);
+          return `<div class="field"><span class="label">What the ${esc(it.as)} learned</span>${sh.when ? `<span class="hint">${WHEN_LABEL[sh.when]}.</span>` : ""}</div>
+          ${sh.p ? `<div class="field"><span class="label">${sh.p === 1 ? "The player" : `The ${sh.p} players`} (tap in order)</span>${playerChips("cp", it.p)}</div>` : ""}
+          ${sh.r ? `<div class="field"><span class="label">${sh.r2 ? "The good character" : "The character"}</span>${sh.none ? `<div class="choice-list"><button class="choice" data-cr="-" aria-pressed="${it.r === "-"}">${esc(sh.tNone)}</button></div>` : ""}${pr("cr", sh.r, it.r)}</div>` : ""}
+          ${sh.r2 ? `<div class="field"><span class="label">The evil character</span>${pr("cr2", sh.r2, it.r2)}</div>` : ""}
+          ${sh.n ? `<div class="row"><label class="label" for="cN">${esc(sh.n)}</label><input type="number" inputmode="numeric" id="cN" min="0" value="${esc(it.n)}" style="width:6em"></div>` : ""}
+          ${sh.yn ? `<div class="row">${sh.yn.map((l, i) => `<button class="choice" data-cyn="${i}" aria-pressed="${it.yn === i}">${l}</button>`).join("")}</div>` : ""}
+          <button class="btn sm" data-cshape="off" style="justify-self:start">Something else instead</button>`; })()}
+        ${SHAPE[lc(it.as)] && it.shape !== false ? "" : `${SHAPE[lc(it.as)] ? `<button class="btn sm" data-cshape="on" style="justify-self:start">Use the ${esc(it.as)}'s own form</button>` : ""}
         <div class="field"><span class="label">What it was</span><div class="choice-list">${HEARD_KINDS.map(([k, l]) => `<button class="choice" data-ckind="${k}" aria-pressed="${it.kind === k}">${l}</button>`).join("")}</div></div>
         ${it.kind === "role" ? `<div class="field"><span class="label">Which character</span>${roleChips("crole", it.role, ["townsfolk", "outsider", "minion", "demon"])}</div>` : ""}
         ${it.kind === "number" ? `<div class="row"><label class="label" for="cN">The number</label><input type="number" inputmode="numeric" id="cN" min="0" value="${esc(it.n)}" style="width:6em"></div>` : ""}
-        ${it.kind ? `<div class="field"><span class="label">About which players (optional)</span>${playerChips("cabout", it.about)}</div>` : ""}
-        <input type="text" id="cX" value="${esc(it.x)}" placeholder="Anything else, in their words (optional)">
-        <div class="say-box" id="cPrev">"${esc(heardText({ ...it, from: p.id, t: state.t }, true))}"</div>
+        ${it.kind ? `<div class="field"><span class="label">About which players (optional)</span>${playerChips("cabout", it.about)}</div>` : ""}`}
+        <input type="text" id="cX" value="${esc(it.x)}" placeholder="${esc((SHAPE[lc(it.as)] && it.shape !== false && SHAPE[lc(it.as)].xl) || "Anything else, in their words (optional)")}">
+        <div class="say-box" id="cPrev">${esc(heardText({ ...it, shape: !!SHAPE[lc(it.as)] && it.shape !== false, from: p.id, t: state.t }, true))}</div>
         <div class="row"><button class="btn sm primary" id="cAddItem">Add this info</button><button class="btn sm" id="cDropItem">Cancel</button></div>
       </div>`;
     }
@@ -1308,14 +1344,19 @@ function renderTalk() {
   if (it) {
     on("[data-cmode]", b => { it.mode = b.dataset.cmode; if (it.mode === "own" && !it.as && cv.claims.length === 1) it.as = cv.claims[0]; });
     on("[data-cvia]", b => it.via = b.dataset.cvia);
-    on("[data-cas]", b => it.as = it.as === b.dataset.cas ? "" : b.dataset.cas);
+    on("[data-cas]", b => { it.as = it.as === b.dataset.cas ? "" : b.dataset.cas; it.p = []; it.r = ""; it.r2 = ""; it.yn = null; it.shape = true; });
     on("[data-ckind]", b => it.kind = it.kind === b.dataset.ckind ? "" : b.dataset.ckind);
     on("[data-crole]", b => it.role = it.role === b.dataset.crole ? "" : b.dataset.crole);
+    on("[data-cp]", b => { const id = b.dataset.cp, max = (SHAPE[lc(it.as)] || {}).p || 1; it.p = it.p.includes(id) ? it.p.filter(x => x !== id) : [...it.p, id].slice(-max); });
+    on("[data-cr]", b => it.r = it.r === b.dataset.cr ? "" : b.dataset.cr);
+    on("[data-cr2]", b => it.r2 = it.r2 === b.dataset.cr2 ? "" : b.dataset.cr2);
+    on("[data-cyn]", b => it.yn = it.yn === +b.dataset.cyn ? null : +b.dataset.cyn);
+    on("[data-cshape]", b => it.shape = b.dataset.cshape === "on");
     on("[data-cabout]", b => { const id = b.dataset.cabout; it.about = it.about.includes(id) ? it.about.filter(x => x !== id) : [...it.about, id]; });
-    const prev = () => { $("cPrev").textContent = `"${heardText({ ...it, from: p.id, t: state.t }, true)}"`; };
+    const prev = () => { $("cPrev").textContent = heardText({ ...it, shape: !!SHAPE[lc(it.as)] && it.shape !== false, from: p.id, t: state.t }, true); };
     if ($("cN")) $("cN").oninput = e => { it.n = e.target.value; prev(); };
     $("cX").oninput = e => { it.x = e.target.value; prev(); };
-    $("cAddItem").onclick = () => { if (!it.kind && !it.x && !it.as) return; it.msg = claimFromItem(it); cv.items.push(it); cv.item = null; re(); };
+    $("cAddItem").onclick = () => { if (!it.kind && !it.x && !it.as) return; it.shape = !!SHAPE[lc(it.as)] && it.shape !== false; it.msg = claimFromItem(it); cv.items.push(it); cv.item = null; re(); };
     $("cDropItem").onclick = () => { cv.item = null; re(); };
   }
   if ($("cPub")) $("cPub").onclick = () => { cv.pub = !cv.pub; $("cPub").setAttribute("aria-pressed", cv.pub); };
@@ -1323,7 +1364,7 @@ function renderTalk() {
   $("cCancel").onclick = () => { $("hdOverlay").hidden = true; cv = null; };
   $("cSave").onclick = () => {
     const p = byId(cv.with); if (!p) return;
-    if (cv.item && (cv.item.kind || cv.item.x || cv.item.as)) { cv.item.msg = claimFromItem(cv.item); cv.items.push(cv.item); }
+    if (cv.item && (cv.item.kind || cv.item.x || cv.item.as)) { cv.item.shape = !!SHAPE[lc(cv.item.as)] && cv.item.shape !== false; cv.item.msg = claimFromItem(cv.item); cv.items.push(cv.item); }
     p.claims = cv.claims; p.claimType = cv.claimType; if (!onTeam(p)) p.onto = cv.onto;
     const talk = { id: uid(), t: state.t, with: p.id, claims: [...cv.claims], claimType: cv.claimType, note: cv.note, pub: cv.pub };
     for (const x of cv.items) { const { msg, ...h } = x; state.heard.push({ id: uid(), ...h, t: state.t, from: p.id, to: cv.pub ? ["all"] : me ? [me.id] : [], talk: talk.id }); }
@@ -1350,6 +1391,8 @@ function likelyRole(p) {
   const gave = [...new Set(state.heard.filter(h => h.from === p.id && h.mode !== "hearsay" && h.as && !claimsOf(p).some(c => lc(c) === lc(h.as))).map(h => h.as))];
   if (gave.length && !onTeam(p)) l.note = [l.note, `has shared info as the ${gave.join(" and ")}`].filter(Boolean).join(" · ");
   const said = state.heard.filter(h => h.mode === "hearsay" && h.via === p.id && h.as).map(h => `${nm(byId(h.from))} says they're the ${h.as}`);
+  const named = state.heard.filter(h => shapeOf(h) && h.r && h.r !== "-" && (h.p || []).includes(p.id)).map(h => `${nm(byId(h.mode === "hearsay" && h.via ? h.via : h.from))}'s ${h.as} info: ${(h.p || []).length > 1 ? "maybe " : ""}the ${h.r}${h.r2 ? ` or the ${h.r2}` : ""}`);
+  if (named.length && !onTeam(p)) l.note = [l.note, ...new Set(named)].filter(Boolean).join(" · ");
   if (said.length && !onTeam(p)) l.note = [l.note, ...new Set(said)].filter(Boolean).join(" · ");
   return l;
 }
@@ -1358,7 +1401,7 @@ function likelyRole0(p) {
   if (p.real) return { role: p.real, lv: "ok", note: "you know this" };
   const c = claimsOf(p), h = hard(p), out = ruledOut(p);
   const R = scriptRoles(), drunk = R.outsider.some(r => lc(r) === "drunk");
-  const outNote = out.length ? `${out.join(", ")} left off: not in play` : "";
+  const outNote = out.length ? `left off: ${out.map(r => outReason(r, p)).join(", ")}` : "";
   if (h) {
     if (notInPlay(h)) return { role: drunk && teamOf(h) === "townsfolk" ? "Drunk?" : "Lying", lv: "hi", note: `claims ${h}, which is not in play${drunk && teamOf(h) === "townsfolk" ? ", so probably the Drunk, or a good player hiding" : ": a good player hiding their role"}` };
     const rivals = P().filter(x => x !== p && !onTeam(x) && lc(hard(x)) === lc(h));
