@@ -803,6 +803,7 @@ function renderPanel() {
     <div class="field claim-grid"><div class="row" style="justify-content:space-between"><span class="label">Public claim</span>
         <span class="seg" role="group" aria-label="Claim type"><button data-ctype="soft" aria-pressed="${!isHardMode}">Soft</button><button data-ctype="hard" aria-pressed="${isHardMode}">Hard</button></span></div>
       <span class="hint">${p.claims.length ? `${isHardMode ? "Hard claim" : "Soft claim"}: <b>${esc(p.claims.join(", "))}</b>. ` : ""}${isHardMode ? "Tap the role they've committed to." : "Tap every role they offered."} An amber ring means someone else has claimed it.</span>
+      ${onTeam(p) ? (state.bluffs.length ? `<div class="field"><span class="label"><i style="background:var(--evil)"></i>Demon bluffs: claiming</span><div class="choice-list">${state.bluffs.map(r => { const tk = takenBy(r); return `<button class="choice red${tk.length ? " taken" : ""}" data-claim="${esc(r)}" aria-pressed="${p.claims.includes(r)}"${tk.length ? ` title="Also claimed by ${esc(tk.join(", "))}"` : ""}>${esc(r)}</button>`; }).join("")}</div></div>` : '<span class="hint">Set the Demon bluffs on the Team tab to get them here as quick buttons.</span>') : ""}
       ${group("townsfolk")}${group("outsider")}
       <details${p.claims.some(isEvilRole) ? " open" : ""}><summary>Evil claims</summary>${group("minion")}${group("demon")}</details>
     </div>
@@ -875,10 +876,12 @@ function renderTeam() {
       <div class="choice-list">${[...R.townsfolk, ...R.outsider].map(r => `<button class="choice" data-bluff="${esc(r)}" aria-pressed="${state.bluffs.includes(r)}">${esc(r)}</button>`).join("")}</div>
       <span class="hint">${teamOf(state.myRole) === "demon" ? "The Storyteller showed you these on the first night." : "If your Demon shares the bluffs, mark them here."}</span></div>
     <div class="field"><span class="label">Team at a glance</span>
-      ${teamPlayers().map(p => `<div class="tip"><span>${btn(p)}${p.dead ? " (dead)" : ""} · <b class="t-evil">${esc(roleOf(p) || "evil")}</b>${p.claims.length ? `, claiming ${esc(p.claims.join(" or "))}` : ", no claim yet"}</span></div>`).join("") || '<p class="empty">Choose your character and seat, then tap your teammates.</p>'}</div>`;
+      ${teamPlayers().map(p => `<div class="tip"><span>${btn(p)}${p.dead ? " (dead)" : ""} · <b class="t-evil">${esc(roleOf(p) || "evil")}</b>${p.claims.length ? `, claiming ${esc(p.claims.join(" or "))}` : ", no claim yet"}</span>${state.bluffs.length ? `<div class="choice-list"><small style="align-self:center">Claiming:</small>${state.bluffs.map(r => { const other = teamPlayers().filter(x => x !== p && x.claims.includes(r)); return `<button class="choice red${other.length ? " taken" : ""}" data-tclaim="${p.id}" data-r="${esc(r)}" aria-pressed="${p.claims.includes(r)}"${other.length ? ` title="${esc(other.map(nm).join(", "))} also claims it"` : ""}>${esc(r)}</button>`; }).join("")}</div>` : ""}</div>`).join("") || '<p class="empty">Choose your character and seat, then tap your teammates.</p>'}</div>`;
   $("myRole").onchange = e => { state.myRole = e.target.value; save(); render(); };
   document.querySelectorAll("[data-me]").forEach(b => b.onclick = () => { const p = byId(b.dataset.me), was = p.me; P().forEach(x => x.me = false); p.me = !was; if (p.me) p.team = false; save(); render(); });
   document.querySelectorAll("[data-mate]").forEach(b => b.onclick = () => { const p = byId(b.dataset.mate); p.team = !p.team; if (!p.team) p.role = ""; save(); render(); });
+  // A bluff from the Team tab is a hard claim; tap it again to clear
+  document.querySelectorAll("[data-tclaim]").forEach(b => b.onclick = () => { const p = byId(b.dataset.tclaim), r = b.dataset.r; p.claims = p.claims.length === 1 && p.claims[0] === r ? [] : [r]; p.claimType = "hard"; save(); render(); });
   document.querySelectorAll("[data-mrole]").forEach(s => s.onchange = () => { byId(s.dataset.mrole).role = s.value; save(); render(); });
   document.querySelectorAll("[data-bluff]").forEach(b => b.onclick = () => {
     const r = b.dataset.bluff, i = state.bluffs.indexOf(r);
