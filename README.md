@@ -1,8 +1,12 @@
 # Games
 
+## Clocktower Companion
+
+Open `index.html` in any web browser for a cover page that lets you pick one of three *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, or the **Storyteller's Grimoire**. Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
+
 ## Clocktower Notebook
 
-A player's notebook for *Blood on the Clocktower*. Open `index.html` in any web browser. No account or install needed.
+A player's notebook for *Blood on the Clocktower*. Open `good.html` in any web browser. No account or install needed.
 
 - Seats shown in a circle, with each player's claimed role(s), alive/dead, ghost vote and your good/evil read
 - Notes on every player, plus town notes for nominations and votes
