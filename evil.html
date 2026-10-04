@@ -96,6 +96,16 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
 .choice[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .choice.red[aria-pressed="true"] { background: var(--evil); border-color: var(--evil); color: #fff; }
 .choice.x::after { content: " ×"; opacity: .7; }
+.claim-grid { display: grid; gap: 8px; }
+.claim-grid .choice-list { gap: 5px; }
+.claim-grid .choice { padding: 5px 10px; font-size: .84rem; }
+.choice.taken { box-shadow: inset 0 0 0 2px var(--warn); }
+.claim-grid .label i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.claim-grid details summary { cursor: pointer; font-size: .82rem; color: var(--muted); font-weight: 700; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
+.seg button { border: 0; background: none; padding: 4px 12px; font-weight: 700; font-size: .82rem; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.hub-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 
 .tip { display: grid; gap: 3px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: .9rem; }
 .tip.hi { border-left-color: var(--warn); }
@@ -174,7 +184,7 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
   <ol>
     <li><b>Set up.</b> Enter the players in seat order, then on the <b>Team</b> tab pick your character, tap your seat, mark your teammates and choose the Demon bluffs.</li>
     <li><b>Pick a bluff.</b> On <b>My story</b>, choose the good character you'll claim. Each night, the app suggests made-up info for that character (safe, covering a teammate, or framing a threat) and keeps a log of everything you've said so your story stays straight.</li>
-    <li><b>Track the town.</b> Tap a player to note what they claim, who they suspect, and whether the town trusts them. Mark deaths as they happen.</li>
+    <li><b>Track the town.</b> Tap a player and tap the roles they claim: <b>Soft</b> for every role they offered, <b>Hard</b> for the one they commit to. Note who they suspect and whether the town trusts them, and mark deaths as they happen. Record each <b>Virgin</b> nomination and <b>Slayer shot</b> from the middle of the circle.</li>
     <li><b>Tonight</b> ranks kill or poison targets for your character. <b>Today</b> covers who to push, who not to nominate, vote counts and how close you are to winning.</li>
   </ol>
   <p class="small">Tap <b>Hide</b> at the top whenever someone looks over your shoulder; double-tap the screen to come back. Everything stays on this device. <i>Blood on the Clocktower</i> belongs to The Pandemonium Institute; this is an unofficial fan tool. Good players: the <a href="index.html">Clocktower Notebook</a> is for you.</p>
@@ -206,6 +216,7 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
               <button class="round" id="tFwd" aria-label="Forward in time">+</button>
             </div>
             <div class="stat" id="hubStat"></div>
+            <div class="hub-actions"><button class="btn sm" data-event="virgin">Virgin</button><button class="btn sm" data-event="slayer">Slayer shot</button></div>
           </div>
         </div>
         <div class="legend">
@@ -260,6 +271,7 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
       <section class="col">
         <div class="card"><h2>Where the game stands</h2><div id="endgame" class="col"></div></div>
         <div class="card"><h2>Votes</h2><div id="votes" class="col"></div></div>
+        <div class="card"><div class="head"><h2>Virgin and Slayer</h2><div class="row"><button class="btn sm" data-event="virgin">+ Virgin nomination</button><button class="btn sm" data-event="slayer">+ Slayer shot</button></div></div><div id="events" class="col"></div></div>
       </section>
       <section class="col">
         <div class="card"><div class="head"><h2>Who to push for execution</h2><span class="foot">Good players the town might believe are evil</span></div><div id="push" class="col"></div></div>
@@ -292,6 +304,10 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
     </div>
     <div class="row"><button class="btn primary" id="ngStart">Start game</button><button class="btn" id="ngCancel">Cancel</button></div>
   </div>
+</div>
+
+<div class="overlay" id="evOverlay" hidden>
+  <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="evTitle" id="evBox"></div>
 </div>
 
 <div class="cover" id="cover" hidden><div><div class="moon">☾</div><p>Double-tap to return</p></div></div>
@@ -403,17 +419,17 @@ const DEMON_PROOF = { soldier: "can't be killed by the Demon", mayor: "another p
 /* ---------- State ---------- */
 const LS_KEY = "clocktower-evil-v1", TAB_KEY = "clocktower-evil-tab";
 const uid = () => Math.random().toString(36).slice(2, 10);
-const mkPlayer = (name, extra = {}) => ({ id: uid(), name, me: false, team: false, role: "", real: "", claims: [], dead: false, deathBy: "", deathAt: 0, ghostVote: true, trusted: false, townSus: false, onto: [], traveller: false, notes: "", ...extra });
+const mkPlayer = (name, extra = {}) => ({ id: uid(), name, me: false, team: false, role: "", real: "", claims: [], dead: false, deathBy: "", deathAt: 0, ghostVote: true, trusted: false, townSus: false, onto: [], traveller: false, notes: "", claimType: "soft", shotUsed: false, virginUsed: false, shotCleared: false, ...extra });
 
 function blankGame(names, script) {
-  return { v: 1, script, t: 1, players: names.map(n => mkPlayer(n)), myRole: "", bluffs: [], story: [], acts: [], notes: "", selected: null };
+  return { v: 1, script, t: 1, players: names.map(n => mkPlayer(n)), myRole: "", bluffs: [], story: [], acts: [], events: [], notes: "", selected: null };
 }
 function normalize(s) {
   if (!s || !Array.isArray(s.players) || !s.players.length) return null;
   s.players = s.players.map(p => ({ ...mkPlayer(""), ...p, claims: Array.isArray(p.claims) ? p.claims : [], onto: Array.isArray(p.onto) ? p.onto : [] }));
   s.t = Math.max(1, Number(s.t) || 1);
   s.script = ROLES[s.script] || s.script === "all" ? s.script : "tb";
-  for (const k of ["bluffs", "story", "acts"]) s[k] = Array.isArray(s[k]) ? s[k] : [];
+  for (const k of ["bluffs", "story", "acts", "events"]) s[k] = Array.isArray(s[k]) ? s[k] : [];
   s.notes = s.notes || ""; s.myRole = s.myRole || "";
   return s;
 }
@@ -474,7 +490,7 @@ function threats(mode) {
     else if (INFO_ONCE.includes(r)) { score += 1; why.push(`${p.real ? "" : "claims "}${realOrClaim(p)}: trusted first-night info`); }
     if (r === "fortune teller") { score += 1; why.push("can find the Demon"); }
     if (r === "empath" && livingNeighbours(p).some(onTeam)) { score += 3; why.push("an Empath sitting next to your team"); }
-    if (r === "undertaker" && team.some(x => x.dead && x.deathBy === "exec")) { score += 1; why.push("saw your executed teammate"); }
+    if (r === "undertaker" && team.some(x => x.dead && executed(x))) { score += 1; why.push("saw your executed teammate"); }
     if (r === "slayer" && !p.shotUsed) { score += mode === "kill" ? 4 : 2; why.push("still has a Slayer shot"); }
     if (r === "virgin" && !p.virginUsed) { score += 1; why.push("unused Virgin: can prove a Townsfolk"); }
     if (PROTECTORS.includes(r)) { score += 2; why.push("can protect players at night"); }
@@ -507,6 +523,8 @@ function pushList() {
     const t = th.get(p.id) || 0;
     if (t >= 3) { score += Math.round(t / 2); why.push("a threat to your team"); }
     if (p.trusted) { score -= 4; why.push("trusted, so a hard sell"); }
+    if (state.events.some(e => e.type === "virgin" && e.result === "none" && e.b === p.id)) { score += 2; why.push("nominated the Virgin and nothing happened"); }
+    if (p.shotCleared) { score -= 2; why.push("survived a Slayer shot, so the town may think they're not the Demon"); }
     if (lc(c) === "saint" && !bluffs.includes("saint")) why.push("claims Saint: if it's true, executing them wins the game for you");
     out.push({ p, score, why });
   }
@@ -525,6 +543,9 @@ function teamHeat() {
     const rivals = c ? P().filter(x => x !== p && !onTeam(x) && lc(hard(x)) === lc(c)) : [];
     if (rivals.length) { score += 2; why.push(`double claim with ${rivals.map(nm).join(", ")}`); }
     if (!p.claims.length && state.t > 2) { score += 1; why.push("hasn't claimed"); }
+    if (state.events.some(e => e.type === "virgin" && e.result === "none" && e.b === p.id)) { score += 4; why.push("nominated the Virgin and nothing happened"); }
+    if (state.events.some(e => e.type === "slayer" && e.result === "none" && e.a === p.id)) { score += 1; why.push("their Slayer shot missed"); }
+    if (p.shotCleared) { score -= 2; why.push("survived a Slayer shot: looks cleared"); }
     out.push({ p, score, why });
   }
   return out.sort((a, b) => b.score - a.score);
@@ -574,7 +595,9 @@ function trueChef() {
   for (let i = 0; i < ps.length; i++) if (onTeam(ps[i]) && onTeam(ps[(i + 1) % ps.length])) n++;
   return n;
 }
-function lastExecuted() { return P().filter(p => p.dead && p.deathBy === "exec").sort((a, b) => b.deathAt - a.deathAt)[0]; }
+// A player killed by nominating the Virgin was executed, so an Undertaker learns them too
+const executed = p => p.deathBy === "exec" || p.deathBy === "virgin";
+function lastExecuted() { return P().filter(p => p.dead && executed(p)).sort((a, b) => b.deathAt - a.deathAt)[0]; }
 function storyModes(role) {
   const r = lc(role), modes = [];
   const add = (k, l) => modes.push({ k, l });
@@ -718,6 +741,7 @@ function render() {
   renderTable(); renderPanel(); renderTeam(); renderStory(); renderNight(); renderDay();
   $("notes").value = state.notes;
   wireOpen();
+  document.querySelectorAll("[data-event]").forEach(b => b.onclick = () => openEvent(b.dataset.event, b.dataset.a));
 }
 function open(id) { state.selected = id; save(); setTab("table"); render(); $("panel").scrollIntoView({ behavior: "smooth", block: "start" }); }
 function wireOpen() { document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => open(b.dataset.open)); }
@@ -762,7 +786,9 @@ function renderPanel() {
     return;
   }
   const R = scriptRoles(), others = teamPlayers().filter(x => x !== p);
-  const claimOpts = kinds => kinds.map(k => `<optgroup label="${k[0].toUpperCase() + k.slice(1)}">${R[k].filter(r => !p.claims.includes(r)).map(r => `<option>${esc(r)}</option>`).join("")}</optgroup>`).join("");
+  const takenBy = r => P().filter(x => x !== p && lc(hard(x)) === lc(r)).map(nm);
+  const group = k => `<div class="field"><span class="label"><i style="background:var(--${k === "townsfolk" ? "good" : k === "outsider" ? "ok" : "evil"})"></i>${{ townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demons" }[k]}</span><div class="choice-list">${R[k].map(r => { const tk = takenBy(r); return `<button class="choice${tk.length ? " taken" : ""}" data-claim="${esc(r)}" aria-pressed="${p.claims.includes(r)}"${tk.length ? ` title="Also claimed by ${esc(tk.join(", "))}"` : ""}>${esc(r)}</button>`; }).join("")}</div></div>`;
+  const isHardMode = p.claimType === "hard";
   el.innerHTML = `
     <div class="head"><h2>${esc(nm(p))}</h2><span class="foot">Seat ${P().indexOf(p) + 1}</span></div>
     <div class="row">
@@ -774,13 +800,15 @@ function renderPanel() {
       ${p.team ? `<select id="pRole" aria-label="Their real character"><option value="">Evil, character unknown</option>${roleList("evil").map(r => `<option${r === p.role ? " selected" : ""}>${esc(r)}</option>`).join("")}</select>` : ""}
     </div></div>`}
     ${p.me ? `<p class="hint">You're the <b class="t-evil">${esc(state.myRole || "…")}</b>. Change it on the Team tab; set your bluff on My story.</p>` : ""}
-    <div class="field"><span class="label">Public claim${p.claims.length > 1 ? "s (soft claim)" : ""}</span>
-      <div class="choice-list">${p.claims.map((c, i) => `<button class="choice x" data-unclaim="${i}">${esc(c)}</button>`).join("") || '<span class="hint">No claim yet</span>'}</div>
-      <select id="pClaim" aria-label="Add a claim"><option value="">+ Add a claim${p.claims.length ? " (soft: several roles)" : ""}</option>${claimOpts(["townsfolk", "outsider"])}${claimOpts(["minion", "demon"])}</select>
+    <div class="field claim-grid"><div class="row" style="justify-content:space-between"><span class="label">Public claim</span>
+        <span class="seg" role="group" aria-label="Claim type"><button data-ctype="soft" aria-pressed="${!isHardMode}">Soft</button><button data-ctype="hard" aria-pressed="${isHardMode}">Hard</button></span></div>
+      <span class="hint">${p.claims.length ? `${isHardMode ? "Hard claim" : "Soft claim"}: <b>${esc(p.claims.join(", "))}</b>. ` : ""}${isHardMode ? "Tap the role they've committed to." : "Tap every role they offered."} An amber ring means someone else has claimed it.</span>
+      ${group("townsfolk")}${group("outsider")}
+      <details${p.claims.some(isEvilRole) ? " open" : ""}><summary>Evil claims</summary>${group("minion")}${group("demon")}</details>
     </div>
     <div class="field"><span class="label">State</span><div class="row">
       <button class="choice" id="pDead" aria-pressed="${p.dead}">${p.dead ? "Dead" : "Alive"}</button>
-      ${p.dead ? `<select id="pHow" aria-label="How they died">${[["night", "Died at night"], ["exec", "Executed"], ["other", "Other"]].map(([v, l]) => `<option value="${v}"${p.deathBy === v ? " selected" : ""}>${l}</option>`).join("")}</select>
+      ${p.dead ? `<select id="pHow" aria-label="How they died">${[["night", "Died at night"], ["exec", "Executed"], ["virgin", "Executed by the Virgin"], ["slayer", "Shot by the Slayer"], ["other", "Other"]].map(([v, l]) => `<option value="${v}"${p.deathBy === v ? " selected" : ""}>${l}</option>`).join("")}</select>
         <button class="choice" id="pVote" aria-pressed="${p.ghostVote}">Ghost vote ${p.ghostVote ? "unused" : "used"}</button>` : ""}
       <button class="choice" id="pTrav" aria-pressed="${p.traveller}">Traveller</button>
     </div></div>
@@ -788,13 +816,15 @@ function renderPanel() {
     <div class="field"><span class="label">The town</span><div class="row">
       <button class="choice" id="pTrusted" aria-pressed="${p.trusted}">Trusted by the town</button>
       <button class="choice" id="pSus" aria-pressed="${p.townSus}">Town suspects them</button>
-      ${lc(hard(p)) === "slayer" ? `<button class="choice" id="pShot" aria-pressed="${!!p.shotUsed}">Shot used</button>` : ""}
-      ${lc(hard(p)) === "virgin" ? `<button class="choice" id="pVirgin" aria-pressed="${!!p.virginUsed}">Virgin used</button>` : ""}
+
     </div></div>
     ${others.length ? `<div class="field"><span class="label">Suspects on your team</span><div class="choice-list">${others.map(x => `<button class="choice red" data-onto="${x.id}" aria-pressed="${p.onto.includes(x.id)}">${esc(nm(x))}</button>`).join("")}</div></div>` : ""}
     <div class="field"><label class="label" for="pReal">Real character, if you know (Spy, Pit-Hag, a slip)</label>
       <select id="pReal"><option value="">Unknown</option>${roleList("any").map(r => `<option${r === p.real ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></div>`}
     ${(() => { if (onTeam(p) || p.dead) return ""; const t = threats().find(x => x.p === p); return t && t.why.length ? `<div class="tip ${t.score >= 5 ? "bad" : t.score >= 3 ? "hi" : ""}"><span>Threat score ${t.score}</span><small>${esc(t.why.join(" · "))}</small></div>` : ""; })()}
+    ${p.claims.some(c => lc(c) === "virgin") && !p.virginUsed ? `<button class="btn sm" data-event="virgin" data-a="${p.id}">Record a nomination of ${esc(nm(p))} (Virgin)</button>` : ""}
+    ${p.claims.some(c => lc(c) === "slayer") && !p.shotUsed ? `<button class="btn sm" data-event="slayer" data-a="${p.id}">Record ${esc(nm(p))}'s Slayer shot</button>` : ""}
+    ${(() => { const ev = state.events.filter(e => e.a === p.id || e.b === p.id); return ev.length ? ev.map(e => `<div class="tip"><span>${esc(eventText(e))}</span></div>`).join("") : ""; })()}
     <div class="field"><label class="label" for="pNotes">Notes</label><textarea id="pNotes" placeholder="What they said, how they voted…">${esc(p.notes)}</textarea></div>
     <div class="row"><button class="btn sm" id="pClose">Close</button><button class="btn sm" id="addP">+ Add player</button><button class="btn sm danger" id="pRemove">Remove player</button></div>`;
   const upd = f => () => { f(); save(); render(); };
@@ -803,16 +833,18 @@ function renderPanel() {
   $("pMe").onclick = upd(() => { const was = p.me; P().forEach(x => x.me = false); p.me = !was; if (p.me) p.team = false; });
   if ($("pTeam")) $("pTeam").onclick = upd(() => { p.team = !p.team; if (!p.team) p.role = ""; for (const x of P()) x.onto = x.onto.filter(id => byId(id) && onTeam(byId(id))); });
   if ($("pRole")) $("pRole").onchange = upd(() => p.role = $("pRole").value);
-  el.querySelectorAll("[data-unclaim]").forEach(b => b.onclick = upd(() => p.claims.splice(+b.dataset.unclaim, 1)));
-  $("pClaim").onchange = upd(() => { const v = $("pClaim").value; if (v && !p.claims.includes(v)) p.claims.push(v); });
+  el.querySelectorAll("[data-claim]").forEach(b => b.onclick = upd(() => {
+    const r = b.dataset.claim, has = p.claims.includes(r);
+    if (p.claimType === "hard") p.claims = has && p.claims.length === 1 ? [] : [r];
+    else p.claims = has ? p.claims.filter(c => c !== r) : [...p.claims, r];
+  }));
+  el.querySelectorAll("[data-ctype]").forEach(b => b.onclick = upd(() => { p.claimType = b.dataset.ctype; if (p.claimType === "hard" && p.claims.length > 1) p.claims = []; }));
   $("pDead").onclick = upd(() => { p.dead = !p.dead; p.deathAt = p.dead ? state.t : 0; p.deathBy = p.dead ? (isNight() ? "night" : "exec") : ""; p.ghostVote = true; });
   if ($("pHow")) $("pHow").onchange = upd(() => p.deathBy = $("pHow").value);
   if ($("pVote")) $("pVote").onclick = upd(() => p.ghostVote = !p.ghostVote);
   $("pTrav").onclick = upd(() => p.traveller = !p.traveller);
   if ($("pTrusted")) $("pTrusted").onclick = upd(() => p.trusted = !p.trusted);
   if ($("pSus")) $("pSus").onclick = upd(() => p.townSus = !p.townSus);
-  if ($("pShot")) $("pShot").onclick = upd(() => p.shotUsed = !p.shotUsed);
-  if ($("pVirgin")) $("pVirgin").onclick = upd(() => p.virginUsed = !p.virginUsed);
   el.querySelectorAll("[data-onto]").forEach(b => b.onclick = upd(() => { const id = b.dataset.onto; p.onto = p.onto.includes(id) ? p.onto.filter(x => x !== id) : [...p.onto, id]; }));
   if ($("pReal")) $("pReal").onchange = upd(() => p.real = $("pReal").value);
   $("pNotes").oninput = e => { p.notes = e.target.value; save(); };
@@ -907,7 +939,7 @@ function renderStory() {
     ${bluff && bl.length && !bl.includes(bluff) ? `<div class="tip hi"><span>${esc(bluff)} isn't a Demon bluff.</span><small>The real ${esc(bluff)} may be in play and could counter-claim you.</small></div>` : ""}
     ${!bluff ? `<p class="hint">${bl.length ? "Demon bluffs are safest: nobody can truthfully counter-claim them." : "Pick something you can play convincingly. An Outsider bluff is hard to disprove."}</p>` : ""}
     ${form}`;
-  $("myBluff").onchange = e => { me.claims = e.target.value ? [e.target.value] : []; draft = null; save(); render(); };
+  $("myBluff").onchange = e => { me.claims = e.target.value ? [e.target.value] : []; me.claimType = "hard"; draft = null; save(); render(); };
   if (!bluff) { renderStoryLog(); return; }
   const redraw = () => { save(); renderStory(); wireOpen(); };
   $("dNight").onchange = e => { draft.night = Math.max(1, +e.target.value || 1); redraw(); };
@@ -1022,6 +1054,75 @@ function renderDay() {
   for (const p of goodAlive().filter(p => lc(realOrClaim(p)) === "tea lady")) { const nb = livingNeighbours(p); if (nb.length === 2 && nb.every(x => !onTeam(x))) care.push({ lv: "", text: `${nb.map(nm).join(" and ")} sit next to a Tea Lady and can't die.`, sub: "Pushing them wastes a day: fine if that's what you want." }); }
   if (!care.length) care.push({ lv: "ok", text: "Nothing to watch out for right now." });
   $("careful").innerHTML = care.map(tip).join("");
+  renderEvents();
+}
+
+/* ---------- Virgin nominations and Slayer shots ---------- */
+let evDraft = null;
+function eventText(e) {
+  const a = nm(byId(e.a)), b = nm(byId(e.b)), when = timeLabel(e.t);
+  if (e.type === "virgin") return e.result === "exec" ? `${when}: ${b} nominated ${a} (Virgin) and was executed.` : `${when}: ${b} nominated ${a} (Virgin). Nothing happened.`;
+  return e.result === "kill" ? `${when}: ${a} shot ${b} as the Slayer. ${b} died.` : `${when}: ${a} shot ${b} as the Slayer. Nothing happened.`;
+}
+function eventMeaning(e) {
+  const a = byId(e.a), b = byId(e.b); if (!a || !b) return "";
+  if (e.type === "virgin") {
+    if (e.result === "exec") return onTeam(b) ? `${nm(b)} registered as a Townsfolk (a Spy can). The town now trusts ${nm(a)} as the real Virgin.` : `The town now sees ${nm(a)} as the real Virgin and ${nm(b)} as a proven Townsfolk. It counts as an execution: no other execution today, and an Undertaker learns ${nm(b)}.`;
+    if (onTeam(b)) return `Danger: the town will read this as ${nm(b)} not being a Townsfolk. Have a story ready: the Virgin is fake, drunk or poisoned, or ${nm(b)} is an Outsider.`;
+    return onTeam(a) ? `Your teammate's Virgin claim held up for now. ${nm(b)} looks suspicious to the town.` : `The town will suspect ${nm(b)} isn't a Townsfolk, or that ${nm(a)} isn't the real Virgin. Push whichever suits you.`;
+  }
+  if (e.result === "kill") return onTeam(b) ? (teamOf(roleOf(b)) === "demon" ? `Your Demon was shot. Unless a Scarlet Woman takes over, good wins.` : `${nm(b)} died to the shot.`) : `The town now trusts ${nm(a)} as the real Slayer.`;
+  if (onTeam(b)) return `${nm(b)} survived the shot, so the town may think they're not the Demon. Good cover.`;
+  return onTeam(a) ? `Your teammate's fake shot missed, as expected. Expect questions about whether they're really the Slayer.` : `${nm(b)} looks cleared to the town. ${nm(a)}'s shot is spent, unless they're not the real Slayer.`;
+}
+function openEvent(type, preset) {
+  const first = P().find(p => !p.dead && p.claims.some(c => lc(c) === type) && (type === "virgin" ? !p.virginUsed : !p.shotUsed));
+  evDraft = { type, a: preset || (first ? first.id : ""), b: "", result: "" };
+  $("evOverlay").hidden = false; renderEvent();
+}
+function renderEvent() {
+  const d = evDraft, v = d.type === "virgin";
+  const chips = (key, excl) => `<div class="choice-list">${P().filter(p => !p.dead && p.id !== excl).map(p => `<button class="choice${onTeam(p) ? " red" : ""}" data-ev${key}="${p.id}" aria-pressed="${d[key] === p.id}">${esc(nm(p))}${p.claims.length ? ` <small>· ${esc(p.claims.join("/"))}</small>` : ""}</button>`).join("")}</div>`;
+  const results = v ? [["exec", "The nominator was executed"], ["none", "Nothing happened"]] : [["kill", "The target died"], ["none", "Nothing happened"]];
+  const ready = d.a && d.b && d.result;
+  $("evBox").innerHTML = `
+    <h2 id="evTitle">${v ? "Virgin nomination" : "Slayer shot"}</h2>
+    <div class="field"><span class="label">${v ? "The Virgin (nominated)" : "The Slayer (who shot)"}</span>${chips("a", d.b)}</div>
+    <div class="field"><span class="label">${v ? "Who nominated them" : "Who they shot"}</span>${chips("b", d.a)}</div>
+    <div class="field"><span class="label">What happened</span><div class="row">${results.map(([k, l]) => `<button class="choice" data-evr="${k}" aria-pressed="${d.result === k}">${l}</button>`).join("")}</div></div>
+    ${ready ? `<div class="tip hi"><small>${esc(eventMeaning({ ...d, t: state.t }))}</small></div>` : ""}
+    <div class="row"><button class="btn primary" id="evSave"${ready ? "" : " disabled"}>Save</button><button class="btn" id="evCancel">Cancel</button></div>`;
+  $("evBox").querySelectorAll("[data-eva]").forEach(b => b.onclick = () => { d.a = b.dataset.eva; renderEvent(); });
+  $("evBox").querySelectorAll("[data-evb]").forEach(b => b.onclick = () => { d.b = b.dataset.evb; renderEvent(); });
+  $("evBox").querySelectorAll("[data-evr]").forEach(b => b.onclick = () => { d.result = b.dataset.evr; renderEvent(); });
+  $("evCancel").onclick = () => { $("evOverlay").hidden = true; evDraft = null; };
+  $("evSave").onclick = () => { if (!ready) return; applyEvent({ id: uid(), ...d }); $("evOverlay").hidden = true; evDraft = null; save(); render(); };
+}
+function applyEvent(e) {
+  const a = byId(e.a), b = byId(e.b);
+  e.t = state.t;
+  e.before = [a, b].map(p => JSON.parse(JSON.stringify(p)));
+  const kill = how => { b.dead = true; b.deathBy = how; b.deathAt = state.t; b.ghostVote = true; };
+  if (e.type === "virgin") {
+    a.virginUsed = true; a.claims = ["Virgin"]; a.claimType = "hard";
+    if (e.result === "exec") { kill("virgin"); if (!onTeam(a)) a.trusted = true; if (!onTeam(b)) b.trusted = true; }
+    else if (!onTeam(b)) b.townSus = true;
+  } else {
+    a.shotUsed = true; a.claims = ["Slayer"]; a.claimType = "hard";
+    if (e.result === "kill") { kill("slayer"); if (!onTeam(a)) a.trusted = true; }
+    else b.shotCleared = true;
+  }
+  state.events.push(e);
+}
+function undoEvent(id) {
+  const e = state.events.find(x => x.id === id); if (!e) return;
+  for (const old of e.before || []) { const i = P().findIndex(p => p.id === old.id); if (i >= 0) state.players[i] = old; }
+  state.events = state.events.filter(x => x !== e);
+}
+function renderEvents() {
+  $("events").innerHTML = state.events.length ? [...state.events].reverse().map(e => `<div class="tip ${e.type === "virgin" && e.result === "none" && onTeam(byId(e.b)) ? "bad" : ""}"><span>${esc(eventText(e))}</span><small>${esc(eventMeaning(e))}</small><div class="row"><button class="btn sm danger" data-unev="${e.id}">Undo</button></div></div>`).join("")
+    : '<p class="empty">Nothing recorded yet. Record each Virgin nomination and Slayer shot as it happens: deaths, used abilities and what the town now believes are all updated.</p>';
+  document.querySelectorAll("[data-unev]").forEach(b => b.onclick = () => { undoEvent(b.dataset.unev); save(); render(); });
 }
 
 /* ---------- Controls ---------- */
