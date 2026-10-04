@@ -535,7 +535,7 @@ function subject(id, S, acting) {
   const s = S[id] || {};
   const real = s.role;
   if (hidden(id)) {
-    if (acting && real && real !== acting) return `Someone who thought they were the ${esc(acting)}`;
+    if (acting && real && real !== acting) return `The ${esc(acting)}`;
     return real || acting ? `The ${esc(acting || real)}` : "Someone";
   }
   if (acting && real && real !== acting) return `${B(id)}, the ${esc(real)} who thought they were the ${esc(acting)},`;
@@ -545,7 +545,7 @@ function narrate(e, S) {
   const T = e.targets || [];
   // Night actions on players not yet revealed name the character, not the player ("poisoned the Empath")
   const priv = ["ability", "kill", "status"].includes(e.type);
-  const objs = T.map(t => priv && hidden(t) && S[t] && S[t].role ? `the ${esc(S[t].role)}` : roleTag(t, S));
+  const objs = T.map(t => priv && hidden(t) && S[t] && S[t].role ? `the ${esc(THINKS.includes(S[t].role) && S[t].thinks ? S[t].thinks : S[t].role)}` : roleTag(t, S));
   const when = isNight(e.ph) ? "that night" : "that day";
   const note = e.note ? ` <span class="aside">${esc(endDot(e.note))}</span>` : "";
   let s = "";
@@ -556,8 +556,20 @@ function narrate(e, S) {
       if (T.length) s += ` ${esc(VERB[acting] || "chose")} ${listJoin(objs)}`;
       if (e.info) s += REVEALED !== null ? `${T.length ? " and" : ""} received “${esc(e.info)}” ${when}` : `${T.length ? " and" : ""} learned “${esc(e.info)}”`;
       if (!T.length && !e.info) s += " used their ability";
-      s += ".";
       const dr = droisoned(e.actor, e.ph, S);
+      if (REVEALED !== null) {
+        // Reveal script: a hidden Drunk's info is told as if it were real, and a poisoning
+        // already told earlier in the story isn't explained again
+        const fakeHidden = hidden(e.actor) && THINKS.includes((S[e.actor] || {}).role);
+        const poisoned = /poison|drunk/.test(dr) && !/really the/.test(dr);
+        if (fakeHidden) s += ".";
+        else if (e.falseInfo) s += poisoned || !e.why ? `, <span class="lie">which was false</span>.` : `. <span class="lie">That was false: ${esc(e.why)}.</span>`;
+        else if (poisoned && e.info) s += ", which happened to be true.";
+        else if (poisoned && T.length) s += ", but it had no effect.";
+        else s += ".";
+        break;
+      }
+      s += ".";
       if (e.falseInfo) s += ` <span class="lie">That was false${e.why ? ": " + esc(e.why) : dr ? ": " + esc(dr) : ""}.</span>`;
       else if (dr && e.info) s += ` <span class="aside">${esc(cap(dr))}, but the information happened to be true.</span>`;
       else if (dr && T.length) s += ` <span class="aside">${esc(cap(dr))}, so it had no effect.</span>`;
@@ -1053,7 +1065,11 @@ function buildScript() {
     const roleHtml = `<b class="${teamOf(start) === "minion" || teamOf(start) === "demon" ? "evil" : ""}">${esc(start)}</b>`;
     // A night death was already told by character, so reveal who it was
     let t = byRole ? `${cue("pause")} The ${roleHtml} was… ${cue("pause")} ${B(id)}!` : `${cue("pause")} ${B(id)} was… ${cue("pause")} the ${roleHtml}!`;
-    if (THINKS.includes(start) && p.thinks) t += ` They thought they were the <b>${esc(p.thinks)}</b>.`;
+    if (THINKS.includes(start) && p.thinks) {
+      t += ` They thought they were the <b>${esc(p.thinks)}</b>.`;
+      const got = G.events.filter(e => e.type === "ability" && e.actor === id && e.info);
+      if (got.length) t += ` So ${listJoin(got.map(e => `the “${esc(e.info)}” on ${phaseName(e.ph)}`))} ${got.length > 1 ? "were" : "was"} never real information${got.some(e => !e.falseInfo) ? `, even if ${got.length > 1 ? "some of it was" : "it was"} true` : ""}!`;
+    }
     if (s.role && s.role !== start) t += ` Later they became the <b>${esc(s.role)}</b>.`;
     if ((s.align || p.align) === "evil" && !["minion", "demon"].includes(teamOf(start))) t += ` <b class="evil">They were evil.</b>`;
     if (start === "Fortune Teller" && G.redHerring && P(G.redHerring)) t += ` Their red herring was ${B(G.redHerring)}.`;
