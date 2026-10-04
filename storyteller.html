@@ -1,0 +1,1505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Grimoire">
+<title>Storyteller's Grimoire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+/* Layout: setup / grimoire (circle + phase panel) / log / review tabs. Dark-first, matches the Clocktower Notebook. */
+:root {
+  --bg: #15121b; --surface: #211c29; --surface-2: #2b2534; --line: #3b3346;
+  --fg: #ece6f2; --muted: #a69cb3; --brass: #d4ab55;
+  --parch: #efe4c9; --parch-ink: #2a2118;
+  --good: #4c8ce4; --good-soft: rgba(76,140,228,.18); --evil: #d8435a; --evil-soft: rgba(216,67,90,.18);
+  --townsfolk: #3e7fd6; --outsider: #3aa0b5; --minion: #d4485e; --demon: #9e1f33; --traveller: #9c6cc4; --custom: #7d7487;
+  --ok: #3aa35c; --warn: #e3a53c;
+  --felt: radial-gradient(circle at 50% 45%, #2c2436 0%, #1b1622 62%, #15121b 100%);
+  --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+    --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+    --good: #2463c2; --good-soft: rgba(36,99,194,.12); --evil: #be2a42; --evil-soft: rgba(190,42,66,.12);
+    --townsfolk: #2463c2; --outsider: #1f8296; --minion: #c0344b; --demon: #8a1428; --traveller: #7b4ba6; --custom: #6c6278; --ok: #2a9150; --warn: #b7791f;
+    --felt: radial-gradient(circle at 50% 45%, #ffffff 0%, #ebe5f0 70%, #e2dbe9 100%);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+  --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+  --good: #2463c2; --good-soft: rgba(36,99,194,.12); --evil: #be2a42; --evil-soft: rgba(190,42,66,.12);
+  --townsfolk: #2463c2; --outsider: #1f8296; --minion: #c0344b; --demon: #8a1428; --traveller: #7b4ba6; --custom: #6c6278; --ok: #2a9150; --warn: #b7791f;
+  --felt: radial-gradient(circle at 50% 45%, #ffffff 0%, #ebe5f0 70%, #e2dbe9 100%);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 0 40px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+
+/* Top bar */
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 15; margin-inline: -16px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); box-shadow: 0 6px 14px -10px rgba(0,0,0,.5); }
+.brand { font-family: var(--font-display); font-weight: 400; font-size: 1.6rem; letter-spacing: .02em; color: var(--brass); margin: 0; line-height: 1; margin-right: auto; }
+.sync { font-size: .78rem; color: var(--muted); }
+@media (max-width: 600px) { .brand { font-size: 1.2rem; } .brand-x, .sync { display: none; } }
+.tabs { flex: 1 1 100%; min-width: 0; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; margin-bottom: -10px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { border: 0; background: none; padding: 8px 14px 10px; font-weight: 700; font-size: .92rem; color: var(--muted); border-bottom: 3px solid transparent; white-space: nowrap; border-radius: 6px 6px 0 0; }
+.tab:hover { color: var(--fg); background: var(--surface); }
+.tab[aria-selected="true"] { color: var(--brass); border-bottom-color: var(--brass); }
+@media (max-width: 600px) { .tab { padding: 7px 10px 9px; font-size: .86rem; } }
+
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 12px; font-weight: 600; font-size: .9rem; }
+.btn:hover { border-color: var(--brass); }
+.btn.primary { background: var(--brass); color: #1a1408; border-color: var(--brass); }
+.btn.danger { color: var(--evil); }
+.btn.sm { padding: 4px 9px; font-size: .82rem; }
+.btn.good { background: var(--good); color: #fff; border-color: var(--good); }
+.btn.evil { background: var(--evil); color: #fff; border-color: var(--evil); }
+.btn:disabled { opacity: .45; cursor: default; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; min-width: 0; align-content: start; }
+.card h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.3rem; color: var(--brass); }
+.card h3 { margin: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+.label { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 700; }
+.hint { font-size: .82rem; color: var(--muted); margin: 0; }
+textarea, input[type="text"], input[type="number"], select.inp { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+textarea { resize: vertical; min-height: 70px; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.field { display: grid; gap: 4px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 600px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.banner { background: var(--surface-2); border: 1px dashed var(--brass); border-radius: 10px; padding: 8px 12px; font-size: .9rem; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.banner.solid { border-style: solid; }
+.empty { color: var(--muted); font-size: .9rem; font-style: italic; }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 99px; overflow: hidden; flex-wrap: wrap; }
+.seg button { border: 0; background: var(--surface-2); padding: 5px 12px; font-size: .85rem; font-weight: 600; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.seg button[aria-pressed="true"].g { background: var(--good); color: #fff; }
+.seg button[aria-pressed="true"].e { background: var(--evil); color: #fff; }
+.types { display: flex; flex-wrap: wrap; gap: 6px; }
+.toggle { border: 1px solid var(--line); background: var(--surface-2); border-radius: 99px; padding: 5px 11px; font-size: .85rem; font-weight: 600; }
+.toggle[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+.chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 99px; padding: 2px 10px; font-weight: 700; font-size: .85rem; color: #fff; background: var(--custom); white-space: nowrap; }
+.chip.townsfolk { background: var(--townsfolk); } .chip.outsider { background: var(--outsider); } .chip.minion { background: var(--minion); } .chip.demon { background: var(--demon); } .chip.traveller { background: var(--traveller); }
+.t-townsfolk { color: var(--townsfolk); } .t-outsider { color: var(--outsider); } .t-minion { color: var(--minion); } .t-demon { color: var(--demon); } .t-traveller { color: var(--traveller); } .t-custom { color: var(--custom); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: 1px; background: var(--good); }
+.dot.evil { background: var(--evil); }
+
+/* Setup */
+.setup { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .setup { grid-template-columns: minmax(0, 1fr); } }
+.prow { display: grid; grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1.2fr) auto auto; gap: 6px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.prow:first-child { border-top: 0; }
+.prow .n { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .85rem; text-align: right; }
+.prow .role { border-left: 5px solid var(--custom); }
+.prow .role.townsfolk { border-left-color: var(--townsfolk); } .prow .role.outsider { border-left-color: var(--outsider); } .prow .role.minion { border-left-color: var(--minion); } .prow .role.demon { border-left-color: var(--demon); } .prow .role.traveller { border-left-color: var(--traveller); }
+.prow .thinks { grid-column: 2 / -1; display: flex; gap: 8px; align-items: center; font-size: .85rem; color: var(--muted); }
+.prow .thinks input { flex: 1; }
+.mini-btns { display: flex; gap: 2px; }
+.icon { border: 1px solid transparent; background: none; border-radius: 6px; width: 28px; height: 28px; padding: 0; color: var(--muted); font-size: 1rem; line-height: 1; }
+.icon:hover { border-color: var(--line); color: var(--fg); }
+.icon.x:hover { color: var(--evil); }
+.icon.on { color: var(--brass); }
+@media (max-width: 600px) {
+  .prow { grid-template-columns: 22px minmax(0, 1fr) auto; }
+  .prow .role { grid-column: 2 / 3; }
+  .prow .seg { grid-column: 3; grid-row: 2; }
+  .prow .mini-btns { grid-column: 3; grid-row: 1; }
+}
+.comp { display: flex; gap: 6px; flex-wrap: wrap; font-size: .82rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.comp span { border-radius: 99px; padding: 2px 9px; color: #fff; }
+.comp .off { box-shadow: 0 0 0 2px var(--warn); }
+.c-t { background: var(--townsfolk); } .c-o { background: var(--outsider); } .c-m { background: var(--minion); } .c-d { background: var(--demon); } .c-x { background: var(--traveller); }
+.past { display: grid; gap: 6px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 600px) { .grid3 { grid-template-columns: minmax(0, 1fr); } }
+details summary { list-style-position: inside; }
+.past-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding: 6px 0; border-top: 1px solid var(--line); font-size: .9rem; }
+.past-row:first-child { border-top: 0; }
+
+/* Grimoire */
+.main { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+.table { position: relative; width: 100%; max-width: 660px; aspect-ratio: 1; margin: 0 auto; border-radius: 50%; background: var(--felt); border: 1px solid var(--line); }
+.table::before { content: ""; position: absolute; inset: 9%; border-radius: 50%; border: 1px dashed color-mix(in srgb, var(--brass) 35%, transparent); pointer-events: none; }
+.seat { position: absolute; width: var(--tok, 70px); transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 2px; background: none; border: 0; padding: 0; z-index: 1; }
+.disc { position: relative; width: var(--tok, 70px); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); display: grid; place-items: center; text-align: center; padding: 10%; box-shadow: 0 2px 6px rgba(0,0,0,.35); border: 4px solid var(--good); overflow: hidden; transition: transform .15s ease; }
+.seat.evil .disc { border-color: var(--evil); }
+.seat:hover .disc { transform: scale(1.05); }
+.seat.sel .disc { box-shadow: 0 0 0 3px var(--brass), 0 4px 14px rgba(0,0,0,.45); }
+.seat.dead .disc { filter: grayscale(1) brightness(.62); }
+.seat.dead .disc::after { content: ""; position: absolute; left: 50%; top: -6%; width: 34%; height: 46%; transform: translateX(-50%); background: #111; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
+.role-txt { font-weight: 800; font-size: calc(var(--tok, 70px) * var(--fs, .15)); line-height: 1.05; overflow-wrap: break-word; }
+.role-txt.townsfolk { color: #1f5bb0; } .role-txt.outsider { color: #187789; } .role-txt.minion { color: #b02c42; } .role-txt.demon { color: #85132a; } .role-txt.traveller { color: #6d3d98; } .role-txt.custom { color: #4a4153; }
+.role-txt.none { color: #8d826f; font-weight: 500; font-style: italic; }
+.thinks-txt { display: block; font-size: calc(var(--tok, 70px) * .1); font-weight: 600; color: #6b5d48; line-height: 1.1; }
+.vote { position: absolute; right: 4%; bottom: 4%; width: 24%; aspect-ratio: 1; border-radius: 50%; background: #fff; border: 2px solid #111; z-index: 2; }
+.nameplate { max-width: calc(var(--tok, 70px) * 1.4); font-size: max(11px, calc(var(--tok, 70px) * .17)); font-weight: 700; line-height: 1.15; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fg); }
+.seat.dead .nameplate { color: var(--muted); text-decoration: line-through; }
+.rems { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; max-width: calc(var(--tok, 70px) * 1.6); }
+.rem { font-size: max(9px, calc(var(--tok, 70px) * .12)); font-weight: 800; line-height: 1.2; border-radius: 4px; padding: 0 4px; background: var(--warn); color: #1a1408; white-space: nowrap; }
+.rem.bad { background: var(--evil); color: #fff; } .rem.safe { background: var(--good); color: #fff; } .rem.info { background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); }
+.hub { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 48%; display: grid; justify-items: center; gap: 6px; text-align: center; }
+.ph-nav { display: flex; align-items: center; gap: 8px; }
+.ph-label { font-family: var(--font-display); font-size: clamp(1.2rem, 3.6vw, 2rem); color: var(--brass); line-height: 1; }
+.round { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); font-weight: 800; line-height: 1; display: grid; place-items: center; padding: 0; }
+.round:disabled { opacity: .35; }
+.stat { font-size: clamp(.72rem, 2vw, .92rem); color: var(--muted); font-variant-numeric: tabular-nums; }
+.stat b { color: var(--fg); }
+.hub .btn { font-size: clamp(.72rem, 1.9vw, .9rem); padding: 6px 12px; }
+
+.side { display: grid; gap: 14px; min-width: 0; }
+.ph-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.ph-head h2 { margin-right: auto; font-size: 1.6rem !important; }
+.wake { display: grid; gap: 0; }
+.wake-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 2px; border-top: 1px solid var(--line); }
+.wake-row:first-child { border-top: 0; }
+.wake-row .tick { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: .75rem; font-weight: 800; }
+.wake-row.done .tick { background: var(--ok); border-color: var(--ok); color: #fff; }
+.wake-row.done .what { color: var(--muted); }
+.wake-row .what b { font-weight: 800; }
+.wake-row .what small { display: block; color: var(--muted); font-size: .8rem; }
+.wake-row.pseudo .what { font-style: italic; }
+.noms { display: grid; gap: 4px; }
+.nom-row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 8px; border-radius: 6px; background: var(--surface-2); font-size: .9rem; }
+.nom-row.block { box-shadow: inset 3px 0 0 var(--evil); font-weight: 700; }
+.nom-row .v { font-variant-numeric: tabular-nums; font-weight: 800; }
+
+.events { display: grid; gap: 6px; }
+.ev { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: start; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: .92rem; }
+.ev.kill, .ev.exec, .ev.death, .ev.slayer { border-left-color: var(--evil); }
+.ev.ability { border-left-color: var(--good); }
+.ev.nom { border-left-color: var(--warn); }
+.ev.change, .ev.status { border-left-color: var(--traveller); }
+.ev .tools { display: flex; gap: 0; }
+.ev .tools .icon { width: 26px; height: 26px; }
+.lie { color: var(--evil); font-weight: 700; }
+.aside { color: var(--muted); font-style: italic; }
+.ev-type { font-size: .68rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; display: block; }
+
+.who-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.who-head h2 { margin-right: auto; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Log */
+.log-phase { display: grid; gap: 6px; }
+.log-phase h3 { display: flex; gap: 8px; align-items: center; }
+.log-phase h3 .btn { text-transform: none; letter-spacing: 0; }
+
+/* Review */
+.review { max-width: 760px; margin: 0 auto; width: 100%; }
+.review-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.review-tools .hint { margin-right: auto; }
+.scroll { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: clamp(18px, 4vw, 36px); display: grid; gap: 22px; font-size: 1.05rem; line-height: 1.6; }
+.scroll.big { font-size: 1.32rem; }
+.scroll h1 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: clamp(2rem, 6vw, 2.8rem); line-height: 1.05; text-align: center; text-wrap: balance; }
+.scroll .verdict { text-align: center; margin: 0; font-size: 1.15em; }
+.scroll .verdict b.good { color: var(--good); } .scroll .verdict b.evil { color: var(--evil); }
+.scroll section { display: grid; gap: 10px; }
+.scroll h2 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.45em; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.scroll h3 { margin: 4px 0 0; font-size: .78em; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); font-weight: 800; }
+.scroll p { margin: 0; }
+.scroll ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+.scroll .star { color: var(--brass); }
+.cue { color: var(--muted); font-style: italic; font-size: .85em; }
+.scroll b.good { color: var(--good); } .scroll b.evil { color: var(--evil); }
+.final { width: 100%; border-collapse: collapse; font-size: .9em; }
+.final th, .final td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.final th { font-size: .75em; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.final td.dead { color: var(--muted); }
+.final-wrap { overflow-x: auto; }
+.numbers { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; }
+.num { background: var(--surface-2); border-radius: 10px; padding: 10px; text-align: center; }
+.num b { display: block; font-size: 1.8em; font-family: var(--font-display); font-weight: 400; color: var(--brass); line-height: 1.1; }
+.num span { font-size: .78em; color: var(--muted); }
+
+/* Dialog */
+.overlay { position: fixed; inset: 0; background: rgba(8,6,12,.62); display: grid; place-items: center; padding: 16px; z-index: 30; }
+.dialog { width: min(620px, 100%); max-height: calc(100vh - 32px); overflow: auto; }
+.picks { display: flex; flex-wrap: wrap; gap: 5px; }
+.pick { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 4px 9px; font-size: .86rem; font-weight: 600; text-align: left; line-height: 1.2; }
+.pick small { display: block; font-weight: 500; font-size: .72rem; color: var(--muted); }
+.pick.dead { opacity: .6; text-decoration: line-through; }
+.pick[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); text-decoration: none; opacity: 1; }
+.pick[aria-pressed="true"] small { color: var(--bg); }
+.warnbox { background: color-mix(in srgb, var(--warn) 14%, transparent); border: 1px dashed var(--warn); border-radius: 8px; padding: 6px 10px; font-size: .88rem; }
+.err { color: var(--evil); font-weight: 700; font-size: .88rem; }
+.check { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+.check input { width: 18px; height: 18px; accent-color: var(--brass); }
+.dlg-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+
+.foot { font-size: .8rem; color: var(--muted); text-align: center; }
+.foot a { color: inherit; }
+
+@media print {
+  .bar, .review-tools, .foot, .no-print { display: none !important; }
+  body { background: #fff; color: #000; }
+  .scroll { border: 0; padding: 0; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <h1 class="brand">Storyteller's<span class="brand-x"> Grimoire</span></h1>
+    <span class="sync" id="sync">Saved on this device</span>
+    <button class="btn primary" data-act="new-game">+ New game</button>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" data-tab="setup">Setup</button>
+      <button class="tab" role="tab" data-tab="grim">Grimoire</button>
+      <button class="tab" role="tab" data-tab="log">Log</button>
+      <button class="tab" role="tab" data-tab="review">Review</button>
+    </nav>
+  </header>
+  <main id="view"></main>
+  <p class="foot"><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool.</p>
+</div>
+<div id="modal"></div>
+<datalist id="roleList"></datalist>
+<datalist id="saveList"><option value="protected by the Monk"><option value="the Soldier can't die to the Demon"><option value="protected by the Innkeeper"><option value="the Tea Lady protected them"><option value="the Sailor can't die"><option value="the Mayor bounced the kill"><option value="the Demon was poisoned"><option value="Storyteller's choice"></datalist>
+<datalist id="causeList"><option value="Slayer shot"><option value="nominated the Virgin"><option value="killed by the Assassin"><option value="killed by the Godfather"><option value="Witch curse"><option value="Gossip"><option value="Tinker"><option value="Moonchild"><option value="Storyteller's choice"></datalist>
+<datalist id="remList"><option value="Poisoned"><option value="Drunk"><option value="Protected"><option value="Mad"><option value="Cursed"><option value="Red herring"><option value="Master"><option value="Grandchild"><option value="Safe"><option value="No ability"><option value="Twin"></datalist>
+<datalist id="endList"><option value="The Demon was executed"><option value="The Demon was killed by the Slayer"><option value="Only two players were left alive"><option value="The Saint was executed"><option value="The Mayor won with three players alive and no execution"><option value="Good executed every evil player"><option value="Evil had the majority"></datalist>
+
+<script>
+/* ---------- Data ---------- */
+const ROLES = {
+  tb: {
+    townsfolk: ["Washerwoman","Librarian","Investigator","Chef","Empath","Fortune Teller","Undertaker","Monk","Ravenkeeper","Virgin","Slayer","Soldier","Mayor"],
+    outsider: ["Butler","Drunk","Recluse","Saint"],
+    minion: ["Poisoner","Spy","Scarlet Woman","Baron"],
+    demon: ["Imp"],
+    traveller: ["Scapegoat","Gunslinger","Beggar","Bureaucrat","Thief"]
+  },
+  bmr: {
+    townsfolk: ["Grandmother","Sailor","Chambermaid","Exorcist","Innkeeper","Gambler","Gossip","Courtier","Professor","Minstrel","Tea Lady","Pacifist","Fool"],
+    outsider: ["Goon","Lunatic","Tinker","Moonchild"],
+    minion: ["Godfather","Devil's Advocate","Assassin","Mastermind"],
+    demon: ["Zombuul","Pukka","Shabaloth","Po"],
+    traveller: ["Apprentice","Matron","Judge","Bishop","Voudon"]
+  },
+  snv: {
+    townsfolk: ["Clockmaker","Dreamer","Snake Charmer","Mathematician","Flowergirl","Town Crier","Oracle","Savant","Seamstress","Philosopher","Artist","Juggler","Sage"],
+    outsider: ["Mutant","Sweetheart","Barber","Klutz"],
+    minion: ["Evil Twin","Witch","Cerenovus","Pit-Hag"],
+    demon: ["Fang Gu","Vigormortis","No Dashii","Vortox"],
+    traveller: ["Barista","Harlot","Butcher","Bone Collector","Deviant"]
+  }
+};
+const SCRIPT_NAME = { tb: "Trouble Brewing", bmr: "Bad Moon Rising", snv: "Sects & Violets", all: "All three scripts" };
+const TEAMS = ["townsfolk","outsider","minion","demon","traveller"];
+const TEAM_LABEL = { townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demon", traveller: "Travellers" };
+const TEAM_OF = {};
+for (const s of Object.values(ROLES)) for (const t of TEAMS) for (const r of s[t]) TEAM_OF[r.toLowerCase()] = t;
+const teamOf = r => TEAM_OF[String(r || "").toLowerCase()] || "custom";
+const defAlign = r => ["minion","demon"].includes(teamOf(r)) ? "evil" : "good";
+// Townsfolk / Outsider / Minion / Demon by player count (travellers excluded)
+const COMP = {5:[3,0,1,1],6:[3,1,1,1],7:[5,0,1,1],8:[5,1,1,1],9:[5,2,1,1],10:[7,0,2,1],11:[7,1,2,1],12:[7,2,2,1],13:[9,0,3,1],14:[9,1,3,1],15:[9,2,3,1]};
+// Roles whose player is shown a different character
+const THINKS = ["Drunk","Lunatic"];
+
+// Wake order. MINION / DEMON are the evil-team info steps (7+ players).
+const FIRST_NIGHT = ["Apprentice","Barista","Bureaucrat","Thief","Philosopher","MINION","Lunatic","DEMON","Sailor","Courtier","Poisoner","Snake Charmer","Godfather","Devil's Advocate","Evil Twin","Witch","Cerenovus","Pukka","Washerwoman","Librarian","Investigator","Chef","Empath","Fortune Teller","Butler","Grandmother","Clockmaker","Dreamer","Seamstress","Spy","Chambermaid","Mathematician"];
+const OTHER_NIGHTS = ["Barista","Bureaucrat","Thief","Harlot","Bone Collector","Philosopher","Sailor","Poisoner","Courtier","Innkeeper","Gambler","Snake Charmer","Monk","Devil's Advocate","Witch","Cerenovus","Pit-Hag","Scarlet Woman","Lunatic","Exorcist","Imp","Zombuul","Pukka","Shabaloth","Po","Fang Gu","No Dashii","Vortox","Vigormortis","Assassin","Godfather","Gossip","Barber","Sweetheart","Sage","Professor","Tinker","Moonchild","Grandmother","Ravenkeeper","Empath","Fortune Teller","Undertaker","Dreamer","Flowergirl","Town Crier","Oracle","Seamstress","Juggler","Butler","Spy","Chambermaid","Mathematician"];
+const WAKE_HINT = { "Ravenkeeper": "if killed tonight", "Scarlet Woman": "if the Demon died", "Grandmother": "if the grandchild was killed", "Gossip": "if today's statement was true", "Undertaker": "if someone was executed", "Godfather": "if an Outsider died today", "Professor": "once per game", "Assassin": "once per game", "Sage": "if killed by the Demon", "Barber": "if they died today", "Sweetheart": "if they died", "Moonchild": "if they died", "Tinker": "if you want them to die", "Philosopher": "once per game", "Courtier": "once per game", "Pit-Hag": "", "Exorcist": "", "Lunatic": "show them a fake kill" };
+const VERB = { "Washerwoman": "was shown", "Librarian": "was shown", "Investigator": "was shown", "Grandmother": "was shown", "Poisoner": "poisoned", "Monk": "protected", "Innkeeper": "protected", "Fortune Teller": "checked", "Butler": "chose as their master", "Slayer": "shot at", "Ravenkeeper": "chose", "Witch": "cursed", "Cerenovus": "made mad about", "Snake Charmer": "charmed", "Dreamer": "dreamt about", "Seamstress": "compared", "Sailor": "drank with", "Chambermaid": "watched", "Professor": "tried to revive", "Assassin": "assassinated", "Devil's Advocate": "protected from execution", "Evil Twin": "was twinned with", "Gambler": "gambled on", "Exorcist": "exorcised", "Harlot": "visited", "Thief": "stole a vote from", "Bureaucrat": "gave three votes to", "Bone Collector": "restored", "Pit-Hag": "transformed", "Barber": "swapped", "Gunslinger": "shot", "Pukka": "poisoned", "Juggler": "juggled", "Philosopher": "chose" };
+// Abilities that leave a reminder on their targets: [label, how long, style]
+const AUTO_REM = { "Poisoner": ["Poisoned","next","bad"], "Pukka": ["Poisoned","next","bad"], "Monk": ["Protected","phase","safe"], "Innkeeper": ["Protected","phase","safe"], "Witch": ["Cursed","next","bad"], "Cerenovus": ["Mad","next","bad"], "Devil's Advocate": ["Safe from execution","next","safe"], "Exorcist": ["Exorcised","phase","bad"], "Butler": ["Master","next","info"], "Bureaucrat": ["3 votes","next","info"], "Thief": ["Negative vote","next","info"], "Sailor": ["Drinking","phase","info"] };
+
+const TYPES = {
+  ability: { label: "Ability / info", when: "both" },
+  kill: { label: "Demon kill", when: "night" },
+  nom: { label: "Nomination", when: "day" },
+  exec: { label: "Execution", when: "day" },
+  slayer: { label: "Slayer shot", when: "day" },
+  death: { label: "Other death", when: "both" },
+  status: { label: "Reminder", when: "both" },
+  change: { label: "Character change", when: "both" },
+  revive: { label: "Revived", when: "both" },
+  note: { label: "Note", when: "both" }
+};
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => Math.random().toString(36).slice(2, 10);
+const isNight = ph => ph % 2 === 0;
+const phaseName = ph => ph < 0 ? "Setup" : isNight(ph) ? `Night ${ph / 2 + 1}` : `Day ${(ph + 1) / 2}`;
+const listJoin = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+const endDot = s => { s = String(s || "").trim(); return !s ? "" : /[.!?…”"')]$/.test(s) ? s : s + "."; };
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+const stripTags = html => { const d = document.createElement("div"); d.innerHTML = html; return d.textContent.replace(/\s+/g, " ").trim(); };
+
+function scriptRoles(s) {
+  const out = { townsfolk: [], outsider: [], minion: [], demon: [], traveller: [] };
+  for (const k of (s === "all" || !ROLES[s]) ? Object.keys(ROLES) : [s]) for (const t of TEAMS) out[t].push(...ROLES[k][t]);
+  return out;
+}
+
+/* ---------- State ---------- */
+const LS = "botc-storyteller-v1";
+const mkPlayer = (name = "") => ({ id: uid(), name, role: "", thinks: "", align: "good" });
+const mkGame = (players = []) => ({ v: 1, id: uid(), title: "", script: "tb", started: false, createdAt: Date.now(), players, bluffs: ["", "", ""], redHerring: "", notes: "", phase: 0, maxPhase: 0, events: [], ghost: {}, end: null });
+
+let store;
+try { store = JSON.parse(localStorage.getItem(LS)); } catch (e) { store = null; }
+if (!store || !store.game) store = { game: null, archive: [] };
+if (!store.game) store.game = exampleGame();
+store.archive = Array.isArray(store.archive) ? store.archive : [];
+let G = store.game;
+
+let ui = { tab: "setup", sel: null, big: false };
+try { ui.tab = localStorage.getItem(LS + "-tab") || (G.started ? "grim" : "setup"); } catch (e) {}
+
+// Saved on this device, and to the viewer's account when the page runs on claude.ai
+let saveT, lastJson = "", acct = null, acctBusy = false, acctAgain = false;
+const snapshotJson = () => JSON.stringify(store.game) + "|" + store.archive.map(g => g.id).join(",");
+function save() { clearTimeout(saveT); saveT = setTimeout(flush, 400); }
+function flush() {
+  const j = snapshotJson();
+  if (j === lastJson) return;
+  lastJson = j;
+  store.savedAt = Date.now();
+  try { localStorage.setItem(LS, JSON.stringify(store)); } catch (e) {}
+  pushAccount();
+}
+addEventListener("pagehide", () => { clearTimeout(saveT); flush(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) { clearTimeout(saveT); flush(); } });
+function setSync(t) { const el = $("sync"); if (el) el.textContent = t; }
+async function pushAccount() {
+  if (!acct) return;
+  if (acctBusy) { acctAgain = true; return; }
+  acctBusy = true;
+  try {
+    await acct.col.doc("current").set(JSON.parse(JSON.stringify({ game: store.game, savedAt: store.savedAt || Date.now() })));
+    const want = new Set(store.archive.map(g => g.id));
+    for (const g of store.archive) if (!acct.past.has(g.id)) { await acct.col.doc("past-" + g.id).set(JSON.parse(JSON.stringify({ game: g }))); acct.past.add(g.id); }
+    for (const id of [...acct.past]) if (!want.has(id)) { await acct.col.doc("past-" + id).delete(); acct.past.delete(id); }
+    setSync("Saved to your account");
+  } catch (e) { setSync("Saved on this device only"); }
+  acctBusy = false;
+  if (acctAgain) { acctAgain = false; pushAccount(); }
+}
+async function connectAccount() {
+  const C = window.claude;
+  if (!C || !C.use) return;
+  try {
+    const [db, user] = await Promise.all([C.use("db"), C.use("user")]);
+    if (!db || !user) return;
+    const id = await user.id();
+    if (!id) return;
+    const col = db.collection("data/users/" + id);
+    const snap = await col.get();
+    const past = new Set();
+    let remote = null;
+    const archive = [];
+    for (const d of snap.docs) {
+      const body = d.data();
+      if (!body || !body.game) continue;
+      if (d.id === "current") remote = body;
+      else if (d.id.startsWith("past-")) { past.add(body.game.id); archive.push(JSON.parse(JSON.stringify(body.game))); }
+    }
+    acct = { col, past };
+    const localIds = new Set(store.archive.map(g => g.id));
+    for (const g of archive) if (!localIds.has(g.id) && g.id !== store.game.id) store.archive.push(g);
+    store.archive.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    if (remote && (remote.savedAt || 0) > (store.savedAt || 0)) {
+      if (!store.archive.some(g => g.id === store.game.id) && store.game.started && !store.game.example && store.game.id !== remote.game.id) store.archive.push(store.game);
+      store.game = G = JSON.parse(JSON.stringify(remote.game));
+      store.savedAt = remote.savedAt;
+      ui.sel = null;
+      if (!F) render();
+    }
+    lastJson = "";
+    setSync("Saved to your account");
+    flush();
+  } catch (e) { acct = null; }
+}
+
+const P = id => G.players.find(p => p.id === id);
+const nameOf = id => (P(id) && P(id).name.trim()) || (P(id) ? `Seat ${G.players.indexOf(P(id)) + 1}` : "someone");
+const seatOf = id => G.players.findIndex(p => p.id === id) + 1;
+
+/* ---------- Replaying the game ---------- */
+function initState() {
+  const S = {};
+  for (const p of G.players) S[p.id] = { role: p.role, thinks: THINKS.includes(p.role) ? p.thinks : "", align: p.align || defAlign(p.role), dead: false, deathPh: null, cause: "" };
+  return S;
+}
+function applyEvent(S, e) {
+  const die = (pid, cause) => { const s = S[pid]; if (!s || s.dead) return; s.dead = true; s.deathPh = e.ph; s.cause = cause; };
+  const t = (e.targets || [])[0];
+  switch (e.type) {
+    case "kill":
+      if (t && e.outcome === "died") {
+        die(t, t === e.actor ? "killed themselves" : "killed by the Demon");
+        if (t === e.actor && e.newDemon && S[e.newDemon] && S[e.actor]) Object.assign(S[e.newDemon], { role: S[e.actor].role, align: "evil", thinks: "" });
+      }
+      break;
+    case "exec": if (t && e.outcome !== "survived") die(t, "executed"); break;
+    case "slayer": if (t && e.outcome === "died") die(t, "shot by the Slayer"); break;
+    case "death": for (const x of e.targets || []) die(x, e.cause || "died"); break;
+    case "revive": for (const x of e.targets || []) if (S[x]) Object.assign(S[x], { dead: false, deathPh: null, cause: "" }); break;
+    case "change": if (S[t]) Object.assign(S[t], { role: e.role || S[t].role, align: e.align || S[t].align, thinks: THINKS.includes(e.role) ? (e.thinks || "") : "" }); break;
+  }
+}
+// State at the end of phase `ph` (events in later phases ignored)
+function stateAt(ph) {
+  const S = initState();
+  for (const e of G.events) if (e.ph <= ph) applyEvent(S, e);
+  return S;
+}
+// Calls fn(event, stateBeforeEvent) for every event in order
+function replay(fn) {
+  const S = initState();
+  for (const e of G.events) {
+    fn(e, JSON.parse(JSON.stringify(S)));
+    applyEvent(S, e);
+  }
+  return S;
+}
+function stateBefore(eid) {
+  const S = initState();
+  for (const e of G.events) { if (e.id === eid) break; applyEvent(S, e); }
+  return S;
+}
+
+// Reminder tokens active during phase `ph`
+function remindersAt(ph) {
+  const out = {};
+  const add = (pid, r) => (out[pid] = out[pid] || []).push(r);
+  for (const e of G.events) {
+    if (e.ph > ph) continue;
+    let r = null;
+    if (e.type === "status") r = [e.label || "Reminder", e.dur || "next", /poison|drunk|mad|curse/i.test(e.label) ? "bad" : /protect|safe/i.test(e.label) ? "safe" : "info"];
+    else if (e.type === "ability" && AUTO_REM[e.role]) r = AUTO_REM[e.role];
+    if (!r) continue;
+    const until = r[1] === "phase" ? e.ph : r[1] === "next" ? e.ph + 1 : Infinity;
+    if (ph > until) continue;
+    for (const t of e.targets || []) {
+      if (e.removed && e.removed[t] != null && e.removed[t] <= ph) continue;
+      add(t, { label: r[0], cls: r[2], eid: e.id, src: e.actor, srcRole: e.type === "ability" ? e.role : "" });
+    }
+  }
+  for (const p of G.players) if (p.id === G.redHerring) add(p.id, { label: "Red herring", cls: "info", fixed: true });
+  return out;
+}
+// Why a player's ability might not work: Drunk, Lunatic, poisoned, drunk
+// While the reveal script is being built, players not yet revealed are spoken of by character only
+let REVEALED = null;
+const hidden = id => REVEALED !== null && !REVEALED.has(id);
+
+function droisoned(pid, ph, S) {
+  const s = S[pid];
+  if (!s) return "";
+  if (s.role === "Drunk") return "they were really the Drunk";
+  if (s.role === "Lunatic") return "they were really the Lunatic";
+  const rem = (remindersAt(ph)[pid] || []).find(r => /poison|drunk/i.test(r.label));
+  if (!rem) return "";
+  if (/poison/i.test(rem.label)) return "they were poisoned" + (rem.src && rem.srcRole ? (hidden(rem.src) ? ` by the ${rem.srcRole}` : ` by ${nameOf(rem.src)} the ${rem.srcRole}`) : "");
+  return "they were drunk";
+}
+
+function aliveCount(S) { return Object.values(S).filter(s => !s.dead).length; }
+
+/* ---------- Narration (shared by the log and the review) ---------- */
+const B = id => `<b>${esc(nameOf(id))}</b>`;
+function roleTag(id, S) {
+  const s = S[id];
+  if (!s || !s.role || hidden(id)) return B(id);
+  if (THINKS.includes(s.role) && s.thinks) return `${B(id)} (the ${esc(s.role)}, who thought they were the ${esc(s.thinks)})`;
+  return `${B(id)} (the ${esc(s.role)})`;
+}
+function subject(id, S, acting) {
+  const s = S[id] || {};
+  const real = s.role;
+  if (hidden(id)) {
+    if (acting && real && real !== acting) return `The ${esc(acting)}`;
+    return real || acting ? `The ${esc(acting || real)}` : "Someone";
+  }
+  if (acting && real && real !== acting) return `${B(id)}, the ${esc(real)} who thought they were the ${esc(acting)},`;
+  return real || acting ? `${B(id)} the ${esc(acting || real)}` : B(id);
+}
+function narrate(e, S) {
+  const T = e.targets || [];
+  // Night abilities on players not yet revealed name the character, not the player ("poisoned the Empath").
+  // The Demon's victim is named, since everyone saw them die.
+  const priv = ["ability", "status"].includes(e.type);
+  const objs = T.map(t => priv && hidden(t) && S[t] && S[t].role ? `the ${esc(THINKS.includes(S[t].role) && S[t].thinks ? S[t].thinks : S[t].role)}` : roleTag(t, S));
+  const when = isNight(e.ph) ? "that night" : "that day";
+  const note = e.note ? ` <span class="aside">${esc(endDot(e.note))}</span>` : "";
+  let s = "";
+  switch (e.type) {
+    case "ability": {
+      const acting = e.role || (S[e.actor] || {}).role;
+      s = subject(e.actor, S, acting);
+      if (T.length) s += ` ${esc(VERB[acting] || "chose")} ${listJoin(objs)}`;
+      if (e.info) s += REVEALED !== null ? (T.length ? `, and I showed them “${esc(e.info)}”` : ` woke, and I showed them “${esc(e.info)}”`) : `${T.length ? " and" : ""} learned “${esc(e.info)}”`;
+      if (!T.length && !e.info) s += " used their ability";
+      const dr = droisoned(e.actor, e.ph, S);
+      if (REVEALED !== null) {
+        // Reveal script: a hidden Drunk's info is told as if it were real, and a poisoning
+        // already told earlier in the story isn't explained again
+        const fakeHidden = hidden(e.actor) && THINKS.includes((S[e.actor] || {}).role);
+        const poisoned = /poison|drunk/.test(dr) && !/really the/.test(dr);
+        if (fakeHidden) s += ".";
+        else if (e.falseInfo) s += poisoned || !e.why ? `, <span class="lie">which was a lie</span>.` : `. <span class="lie">That was a lie: ${esc(e.why)}.</span>`;
+        else if (poisoned && e.info) s += ", which happened to be true.";
+        else if (poisoned && T.length) s += ", but it had no effect.";
+        else s += ".";
+        break;
+      }
+      s += ".";
+      if (e.falseInfo) s += ` <span class="lie">That was false${e.why ? ": " + esc(e.why) : dr ? ": " + esc(dr) : ""}.</span>`;
+      else if (dr && e.info) s += ` <span class="aside">${esc(cap(dr))}, but the information happened to be true.</span>`;
+      else if (dr && T.length) s += ` <span class="aside">${esc(cap(dr))}, so it had no effect.</span>`;
+      break;
+    }
+    case "kill": {
+      const t = T[0];
+      s = subject(e.actor, S);
+      if (REVEALED !== null && !(t === e.actor && e.outcome === "died")) {
+        if (!t) s += " stayed their hand, and no one was attacked.";
+        else if (e.outcome === "died") s += ` struck at ${B(t)} in the dead of night, and they did not live to see the morning.`;
+        else s += ` struck at ${B(t)}, but somehow they survived the night.`;
+        break;
+      }
+      if (!t) s += " chose not to kill anyone.";
+      else if (t === e.actor && e.outcome === "died") s += ` killed themselves${e.newDemon ? hidden(e.newDemon) ? `, and the ${esc((S[e.actor] || {}).role || "Demon")} passed to another player` : `, and ${roleTag(e.newDemon, S)} became the new ${esc((S[e.actor] || {}).role || "Demon")}` : ""}.`;
+      else if (e.outcome === "died") s += ` attacked ${objs[0]}, who died.`;
+      else s += ` attacked ${objs[0]}, but they survived${e.why ? `: ${esc(e.why)}` : ""}.`;
+      break;
+    }
+    case "slayer":
+      if (REVEALED !== null) { s = `${B(e.actor)} stood up and took aim at ${B(T[0])}… ${e.outcome === "died" ? `and ${B(T[0])} fell down dead!` : "but nothing happened."}`; break; }
+      s = `${hidden(e.actor) ? B(e.actor) : subject(e.actor, S)} shot at ${objs[0] || "no one"}${e.outcome === "died" ? `, and ${B(T[0])} died!` : `. Nothing happened${e.why ? `: ${esc(e.why)}` : ""}.`}`;
+      break;
+    case "nom": s = `${B(e.actor)} nominated ${B(T[0])}${e.votes !== "" && e.votes != null ? ` and got ${plural(Number(e.votes), "vote")}` : ""}.`; break;
+    case "exec":
+      if (REVEALED !== null) { s = !T[0] ? "In the end, no one was executed." : `The votes were counted, and ${B(T[0])} was executed${e.outcome === "survived" ? "… but somehow they did not die" : ""}.`; break; }
+      if (!T[0]) s = "No one was executed.";
+      else s = `${objs[0]} was executed${e.votes !== "" && e.votes != null ? ` with ${plural(Number(e.votes), "vote")}` : ""}${e.outcome === "survived" ? `, but did not die${e.why ? `: ${esc(e.why)}` : ""}` : ""}.`;
+      break;
+    case "death": s = `${listJoin(objs)} died${e.cause ? ` (${esc(e.cause)})` : ""}.`; break;
+    case "revive": s = `${listJoin(objs)} came back to life${e.cause ? ` (${esc(e.cause)})` : ""}.`; break;
+    case "change": {
+      const was = S[T[0]] || {};
+      s = `${hidden(T[0]) ? (was.role ? `The ${esc(was.role)}` : "Someone") : roleTag(T[0], S)} became the ${esc(e.role)}${e.align && e.align !== was.align ? ` and turned ${e.align}` : ""}${e.why ? ` (${esc(e.why)})` : ""}.`;
+      break;
+    }
+    case "status": s = `${cap(listJoin(objs))} ${T.length > 1 ? "were" : "was"} marked <b>${esc(e.label)}</b>${e.why ? ` (${esc(e.why)})` : ""}.`; break;
+    case "note": s = esc(endDot(e.text)); break;
+  }
+  return s + (e.type === "note" ? "" : note);
+}
+
+/* ---------- Example game ---------- */
+function exampleGame() {
+  const names = ["Anna","Ben","Cara","Dan","Eve","Finn","Gus","Hana"];
+  const roles = ["Fortune Teller","Poisoner","Empath","Monk","Imp","Drunk","Slayer","Undertaker"];
+  const g = mkGame(names.map((n, i) => ({ ...mkPlayer(n), role: roles[i], align: defAlign(roles[i]) })));
+  const id = n => g.players.find(p => p.name === n).id;
+  g.players.find(p => p.name === "Finn").thinks = "Chef";
+  Object.assign(g, { title: "Example: the Ravenswood Bluff fair", example: true, started: true, bluffs: ["Washerwoman", "Virgin", "Soldier"], redHerring: id("Dan"), phase: 3, maxPhase: 3 });
+  const E = (ph, type, x) => g.events.push({ id: uid(), ph, type, targets: [], ...x });
+  E(0, "note", { text: "The evil team met each other, and the Demon was shown three bluffs." });
+  E(0, "ability", { actor: id("Ben"), role: "Poisoner", targets: [id("Cara")] });
+  E(0, "ability", { actor: id("Cara"), role: "Empath", info: "0", falseInfo: true, why: "the Empath was poisoned", star: true });
+  E(0, "ability", { actor: id("Anna"), role: "Fortune Teller", targets: [id("Eve"), id("Finn")], info: "Yes" });
+  E(0, "ability", { actor: id("Finn"), role: "Chef", info: "2", falseInfo: true, why: "they were the Drunk" });
+  E(1, "slayer", { actor: id("Gus"), targets: [id("Ben")], outcome: "none", why: "Ben wasn't the Demon" });
+  E(1, "nom", { actor: id("Ben"), targets: [id("Anna")], votes: 4 });
+  E(1, "nom", { actor: id("Cara"), targets: [id("Ben")], votes: 3 });
+  E(1, "exec", { targets: [id("Anna")], votes: 4, outcome: "died", note: "Ben led the charge" });
+  E(2, "ability", { actor: id("Ben"), role: "Poisoner", targets: [id("Dan")] });
+  E(2, "ability", { actor: id("Dan"), role: "Monk", targets: [id("Cara")] });
+  E(2, "kill", { actor: id("Eve"), targets: [id("Cara")], outcome: "died" });
+  E(2, "ability", { actor: id("Hana"), role: "Undertaker", info: "Fortune Teller" });
+  E(3, "nom", { actor: id("Gus"), targets: [id("Eve")], votes: 4, star: true, note: "Gus trusted Anna's Yes from beyond the grave" });
+  E(3, "exec", { targets: [id("Eve")], votes: 4, outcome: "died" });
+  g.end = { winner: "good", reason: "The Demon was executed", ph: 3 };
+  return g;
+}
+
+/* ---------- Rendering ---------- */
+function render() {
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === ui.tab)));
+  const v = $("view");
+  const views = { setup: renderSetup, grim: renderGrim, log: renderLog, review: renderReview };
+  v.innerHTML = (G.example ? `<div class="banner" style="margin-bottom:14px"><span>This is an example game so you can see how it works, including the review. Start a new game to run your own.</span><button class="btn sm primary" data-act="new-game">Start a game</button></div>` : "") + views[ui.tab]();
+  fillRoleList();
+  if (ui.tab === "grim") layoutCircle();
+  try { localStorage.setItem(LS + "-tab", ui.tab); } catch (e) {}
+  save();
+}
+
+function fillRoleList() {
+  const R = scriptRoles(G.script);
+  $("roleList").innerHTML = TEAMS.flatMap(t => R[t]).map(r => `<option value="${esc(r)}">`).join("");
+}
+
+/* Setup tab */
+// A character dropdown grouped by team. Characters already given to someone are greyed out.
+function roleSelect(attrs, value, taken, cls = "", teams = TEAMS, blank = "Choose a character") {
+  const R = scriptRoles(G.script);
+  const known = TEAMS.some(t => R[t].includes(value));
+  return `<select class="inp ${cls}" ${attrs}><option value="">${blank}</option>${value && !known ? `<option value="${esc(value)}" selected>${esc(value)}</option>` : ""}${teams.map(t => `<optgroup label="${TEAM_LABEL[t]}">${R[t].map(r => `<option value="${esc(r)}" ${r === value ? "selected" : ""} ${taken.has(r) && r !== value ? "disabled" : ""}>${esc(r)}${taken.has(r) && r !== value ? " (taken)" : ""}</option>`).join("")}</optgroup>`).join("")}</select>`;
+}
+
+function renderSetup() {
+  const R = scriptRoles(G.script);
+  const taken = new Set(G.players.map(p => p.role).filter(Boolean));
+  const rows = G.players.map((p, i) => `
+    <div class="prow" data-pid="${p.id}">
+      <span class="n">${i + 1}</span>
+      <input type="text" data-f="name" value="${esc(p.name)}" placeholder="Player name" aria-label="Seat ${i + 1} name">
+      ${roleSelect(`data-f="role" aria-label="Seat ${i + 1} character"`, p.role, taken, "role " + teamOf(p.role))}
+      <span class="seg" role="group" aria-label="Alignment"><button class="g" data-act="align" data-v="good" aria-pressed="${p.align !== "evil"}">Good</button><button class="e" data-act="align" data-v="evil" aria-pressed="${p.align === "evil"}">Evil</button></span>
+      <span class="mini-btns">
+        <button class="icon" data-act="up" aria-label="Move up" ${i === 0 ? "disabled" : ""}>↑</button>
+        <button class="icon" data-act="down" aria-label="Move down" ${i === G.players.length - 1 ? "disabled" : ""}>↓</button>
+        <button class="icon x" data-act="del-player" aria-label="Remove">×</button>
+      </span>
+      ${THINKS.includes(p.role) ? `<label class="thinks">Thinks they are ${roleSelect(`data-f="thinks"`, p.thinks, taken, "", p.role === "Lunatic" ? ["demon"] : ["townsfolk"], "Choose")}</label>` : ""}
+    </div>`).join("");
+
+  const counts = { townsfolk: 0, outsider: 0, minion: 0, demon: 0, traveller: 0, custom: 0 };
+  for (const p of G.players) if (p.role) counts[teamOf(p.role)]++;
+  const n = G.players.filter(p => teamOf(p.role) !== "traveller").length;
+  let comp = COMP[n] ? [...COMP[n]] : null;
+  const has = r => G.players.some(p => p.role === r);
+  const mods = [];
+  if (comp) {
+    if (has("Baron")) { comp[0] -= 2; comp[1] += 2; mods.push("Baron: +2 Outsiders"); }
+    if (has("Fang Gu")) { comp[0] -= 1; comp[1] += 1; mods.push("Fang Gu: +1 Outsider"); }
+    if (has("Vigormortis")) { comp[0] += 1; comp[1] -= 1; mods.push("Vigormortis: −1 Outsider"); }
+    if (has("Godfather")) mods.push("Godfather: ±1 Outsider");
+  }
+  const have = [counts.townsfolk, counts.outsider, counts.minion, counts.demon];
+  const compHtml = `<div class="comp">${["c-t","c-o","c-m","c-d"].map((c, i) => `<span class="${c}${comp && comp[i] !== have[i] ? " off" : ""}">${have[i]}${comp ? " / " + comp[i] : ""} ${["Townsfolk","Outsiders","Minions","Demon"][i]}</span>`).join("")}${counts.traveller ? `<span class="c-x">${counts.traveller} Travellers</span>` : ""}</div>
+    <p class="hint">${comp ? `Expected for ${n} players${mods.length ? " (" + mods.join(", ") + ")" : ""}. Amber means it doesn't match.` : n < 5 ? "Add at least 5 players." : "More than 15 players: no standard setup."}${counts.custom ? ` ${plural(counts.custom, "character")} not on the script.` : ""}</p>`;
+
+  const ft = G.players.some(p => ["Fortune Teller"].includes(p.role) || p.thinks === "Fortune Teller");
+  const past = store.archive.slice().reverse();
+  return `
+  <div class="setup">
+    <section class="card">
+      <div class="grid2">
+        <label class="field"><span class="label">Game name (optional)</span><input type="text" data-g="title" value="${esc(G.title)}" placeholder="e.g. Friday night, game 2"></label>
+        <label class="field"><span class="label">Script</span><select class="inp" data-g="script">${Object.entries(SCRIPT_NAME).map(([k, v]) => `<option value="${k}" ${G.script === k ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+      </div>
+      ${G.players.length ? `
+      <h2>Players and characters</h2>
+      <p class="hint">Once the tokens are handed out, pick each player's character. Good or evil fills in by itself.</p>
+      ${compHtml}
+      <div>${rows}</div>
+      <details>
+        <summary class="label" style="cursor:pointer">Add more players</summary>
+        <div class="field" style="margin-top:8px">
+          <textarea id="bulk" rows="3" placeholder="One name per line, or separated by commas"></textarea>
+          <div class="row"><button class="btn" data-act="bulk">Add players</button><button class="btn" data-act="add-player">+ One empty seat</button></div>
+        </div>
+      </details>` : `
+      <h2>Who's playing?</h2>
+      <p class="hint">Type or paste everyone's names in seat order, going clockwise. One per line, or separated by commas.</p>
+      <textarea id="bulk" rows="8" placeholder="Sophie&#10;Mum&#10;Dad&#10;Adam&#10;Ellie&#10;Roman"></textarea>
+      <div class="row"><button class="btn primary" data-act="bulk">Add players</button></div>`}
+    </section>
+    <div class="side">
+      <section class="card">
+        <h2>Setup details</h2>
+        <div class="field"><span class="label">Demon bluffs</span>
+          <div class="grid3">${[0,1,2].map(i => roleSelect(`data-bluff="${i}" aria-label="Bluff ${i + 1}"`, G.bluffs[i] || "", new Set([...taken, ...G.bluffs.filter((b, j) => b && j !== i)]), "", ["townsfolk", "outsider"], `Bluff ${i + 1}`)).join("")}</div>
+          <p class="hint">Characters not in play that the Demon can claim.</p>
+        </div>
+        ${ft ? `<label class="field"><span class="label">Fortune Teller's red herring</span><select class="inp" data-g="redHerring"><option value="">Not chosen</option>${G.players.filter(p => defAlign(p.role) === "good" || !p.role).map(p => `<option value="${p.id}" ${G.redHerring === p.id ? "selected" : ""}>${esc(nameOf(p.id))}${p.role ? " (" + esc(p.role) + ")" : ""}</option>`).join("")}</select></label>` : ""}
+        <label class="field"><span class="label">Setup notes</span><textarea data-g="notes" placeholder="Why you picked this setup, anything you want to mention at the reveal">${esc(G.notes)}</textarea></label>
+        <button class="btn primary" data-act="start">${G.started ? "Go to the Grimoire →" : "Start Night 1 →"}</button>
+      </section>
+      <section class="card">
+        <h2>Past games</h2>
+        ${past.length ? `<div class="past">${past.map(g => `<div class="past-row"><span><b>${esc(g.title || "Untitled game")}</b><br><small class="hint">${new Date(g.createdAt).toLocaleDateString()} · ${esc(SCRIPT_NAME[g.script] || "")} · ${g.end ? (g.end.winner === "good" ? "Good won" : "Evil won") : "unfinished"}</small></span><span class="row"><button class="btn sm" data-act="open-past" data-id="${g.id}">Open</button><button class="icon x" data-act="del-past" data-id="${g.id}" aria-label="Delete">×</button></span></div>`).join("")}</div>` : `<p class="empty">Games you finish are kept here when you start a new one.</p>`}
+      </section>
+    </div>
+  </div>`;
+}
+
+/* Grimoire tab */
+function renderGrim() {
+  if (!G.players.length) return `<div class="card"><p class="empty">Add players on the Setup tab first.</p><button class="btn primary" data-tab-go="setup">Go to Setup</button></div>`;
+  const ph = G.phase;
+  const S = stateAt(ph);
+  const R = remindersAt(ph);
+  const alive = aliveCount(S);
+  const seats = G.players.map((p, i) => {
+    const s = S[p.id];
+    const team = teamOf(s.role);
+    const word = Math.max(...String(s.role || "x").split(/\s+/).map(w => w.length));
+    const rems = (R[p.id] || []).map(r => `<span class="rem ${r.cls}">${esc(r.label)}</span>`).join("");
+    return `<button class="seat ${s.align === "evil" ? "evil" : ""} ${s.dead ? "dead" : ""} ${ui.sel === p.id ? "sel" : ""}" data-act="sel" data-pid="${p.id}" data-i="${i}" aria-label="Seat ${i + 1}: ${esc(nameOf(p.id))}, ${esc(s.role || "no character")}${s.dead ? ", dead" : ""}">
+      <span class="disc">${s.role ? `<span class="role-txt ${team}" style="--fs:${Math.min(.16, 1.05 / word).toFixed(3)}">${esc(s.role)}${s.thinks ? `<span class="thinks-txt">thinks ${esc(s.thinks)}</span>` : ""}</span>` : `<span class="role-txt none">no character</span>`}
+      ${s.dead && !G.ghost[p.id] ? `<span class="vote" title="Ghost vote available"></span>` : ""}</span>
+      <span class="nameplate">${esc(nameOf(p.id))}</span>
+      ${rems ? `<span class="rems">${rems}</span>` : ""}
+    </button>`;
+  }).join("");
+
+  const viewingOld = ph < G.maxPhase;
+  const demons = G.players.filter(p => teamOf(S[p.id].role) === "demon");
+  let suggest = "";
+  if (!G.end && G.started) {
+    if (demons.length && demons.every(p => S[p.id].dead)) suggest = `<div class="banner solid">Every Demon is dead. Unless a Scarlet Woman or similar takes over, good wins. <button class="btn sm good" data-act="end-game" data-w="good">End game: good wins</button></div>`;
+    else if (alive <= 2) suggest = `<div class="banner solid">Only ${alive} players are alive. <button class="btn sm evil" data-act="end-game" data-w="evil">End game: evil wins</button></div>`;
+  }
+
+  return `
+  ${viewingOld ? `<div class="banner" style="margin-bottom:14px">You're looking back at ${phaseName(ph)}. The game is at ${phaseName(G.maxPhase)}. Anything you log goes into ${phaseName(ph)}. <button class="btn sm" data-act="goto" data-ph="${G.maxPhase}">Back to ${phaseName(G.maxPhase)}</button></div>` : ""}
+  ${G.end ? `<div class="banner solid" style="margin-bottom:14px"><span><b>${G.end.winner === "good" ? "Good" : "Evil"} won</b> on ${phaseName(G.end.ph)}. ${esc(G.end.reason || "")}</span><button class="btn sm primary" data-tab-go="review">Read the review</button></div>` : ""}
+  ${suggest ? `<div style="margin-bottom:14px">${suggest}</div>` : ""}
+  <div class="main">
+    <section>
+      <div class="table" id="table">
+        <div class="hub">
+          <div class="ph-nav">
+            <button class="round" data-act="goto" data-ph="${ph - 1}" ${ph === 0 ? "disabled" : ""} aria-label="Previous phase">‹</button>
+            <span class="ph-label">${phaseName(ph)}</span>
+            <button class="round" data-act="goto" data-ph="${ph + 1}" ${ph >= G.maxPhase ? "disabled" : ""} aria-label="Next phase">›</button>
+          </div>
+          <div class="stat"><b>${alive}</b> alive · <b>${Math.ceil(alive / 2)}</b> votes to execute</div>
+          ${G.end ? "" : `<button class="btn primary" data-act="next-phase">${isNight(ph) ? "Dawn → " + phaseName(ph + 1) : "Dusk → " + phaseName(ph + 1)}</button>`}
+          ${G.end ? "" : `<button class="btn sm" data-act="end-game">End game</button>`}
+        </div>
+        ${seats}
+      </div>
+    </section>
+    <div class="side">
+      ${ui.sel && P(ui.sel) ? renderPlayerCard(ui.sel, S, R, ph) : ""}
+      ${renderPhaseCard(ph, S)}
+    </div>
+  </div>`;
+}
+
+function layoutCircle() {
+  const table = $("table");
+  if (!table) return;
+  const n = G.players.length;
+  const w = table.clientWidth;
+  const r = w * 0.41;
+  const tok = Math.max(32, Math.min(w * 0.16, (2 * Math.PI * r) / n * 0.7));
+  table.style.setProperty("--tok", tok + "px");
+  table.querySelectorAll(".seat").forEach(b => {
+    const a = (Number(b.dataset.i) / n) * Math.PI * 2 - Math.PI / 2;
+    b.style.left = (50 + 41 * Math.cos(a)) + "%";
+    b.style.top = (50 + 41 * Math.sin(a)) + "%";
+  });
+}
+window.addEventListener("resize", () => { if (ui.tab === "grim") layoutCircle(); });
+
+function wakeRows(ph, S) {
+  const order = ph === 0 ? FIRST_NIGHT : OTHER_NIGHTS;
+  const nonTrav = G.players.filter(p => teamOf(p.role) !== "traveller").length;
+  const rows = [];
+  const awake = p => !S[p.id].dead || S[p.id].deathPh === ph;
+  for (const r of order) {
+    if (r === "MINION" || r === "DEMON") {
+      if (nonTrav < 7) continue;
+      const team = r === "MINION" ? "minion" : "demon";
+      const who = G.players.filter(p => teamOf(S[p.id].role) === team);
+      if (who.length) rows.push({ pseudo: true, title: r === "MINION" ? "Minion info" : "Demon info", sub: r === "MINION" ? "Show the Minions each other and the Demon" : `Show the Demon its Minions and the bluffs${G.bluffs.filter(Boolean).length ? ": " + G.bluffs.filter(Boolean).join(", ") : ""}`, pids: who.map(p => p.id) });
+      continue;
+    }
+    for (const p of G.players) {
+      const s = S[p.id];
+      if ((s.role === r || s.thinks === r) && awake(p)) rows.push({ role: r, pid: p.id, sub: [s.thinks === r ? `really the ${s.role}` : "", WAKE_HINT[r] || "", s.dead ? "died tonight" : ""].filter(Boolean).join(" · ") });
+    }
+  }
+  return rows;
+}
+
+function phaseEvents(ph) { return G.events.filter(e => e.ph === ph); }
+
+function evHtml(e, S, opts = {}) {
+  return `<div class="ev ${e.type}">
+    <span>${opts.type ? `<span class="ev-type">${TYPES[e.type].label}</span>` : ""}${e.star ? `<span class="star" title="Starred">★ </span>` : ""}${narrate(e, S)}</span>
+    <span class="tools no-print">
+      <button class="icon ${e.star ? "on" : ""}" data-act="star" data-eid="${e.id}" aria-label="${e.star ? "Unstar" : "Star for the review"}" title="Star for the review">★</button>
+      <button class="icon" data-act="edit" data-eid="${e.id}" aria-label="Edit">✎</button>
+      <button class="icon" data-act="ev-up" data-eid="${e.id}" aria-label="Move earlier">↑</button>
+      <button class="icon x" data-act="del-ev" data-eid="${e.id}" aria-label="Delete">×</button>
+    </span>
+  </div>`;
+}
+function eventList(filter) {
+  const out = [];
+  replay((e, S) => { if (filter(e)) out.push(evHtml(e, S, { type: true })); });
+  return out;
+}
+
+function renderPhaseCard(ph, S) {
+  const evs = eventList(e => e.ph === ph);
+  let body = "";
+  if (isNight(ph)) {
+    const rows = wakeRows(ph, S);
+    const done = new Set(phaseEvents(ph).map(e => e.actor));
+    body = `<h3>Wake order</h3>
+      <div class="wake">${rows.length ? rows.map(r => r.pseudo
+        ? `<div class="wake-row pseudo"><span class="tick">•</span><span class="what"><b>${r.title}</b>: ${r.pids.map(id => esc(nameOf(id))).join(", ")}<small>${esc(r.sub)}</small></span><span></span></div>`
+        : `<div class="wake-row ${done.has(r.pid) ? "done" : ""}"><span class="tick">${done.has(r.pid) ? "✓" : ""}</span><span class="what"><b class="t-${teamOf(r.role)}">${esc(r.role)}</b> · ${esc(nameOf(r.pid))}${r.sub ? `<small>${esc(r.sub)}</small>` : ""}</span><button class="btn sm" data-act="add" data-type="${teamOf(r.role) === "demon" && !S[r.pid].thinks ? "kill" : "ability"}" data-actor="${r.pid}" data-role="${esc(r.role)}">Log</button></div>`
+      ).join("") : `<p class="empty">No one with a night ability is in play tonight. Characters you add on Setup show up here.</p>`}</div>
+      <p class="hint">A guide to the usual wake order. Anything you log for a player ticks them off.</p>`;
+  } else {
+    const noms = phaseEvents(ph).filter(e => e.type === "nom");
+    const start = stateAt(ph - 1);
+    const need = Math.ceil(aliveCount(start) / 2);
+    const top = noms.reduce((m, e) => Math.max(m, Number(e.votes) || 0), 0);
+    const tops = noms.filter(e => (Number(e.votes) || 0) === top);
+    const block = top >= need && tops.length === 1 ? tops[0].targets[0] : null;
+    const executed = phaseEvents(ph).some(e => e.type === "exec");
+    body = `<h3>Nominations</h3>
+      <div class="noms">${noms.length ? noms.map(e => `<div class="nom-row ${e.targets[0] === block ? "block" : ""}"><span>${esc(nameOf(e.actor))} → ${esc(nameOf(e.targets[0]))}</span><span class="v">${e.votes === "" || e.votes == null ? "?" : e.votes}</span></div>`).join("") : `<p class="empty">No nominations yet.</p>`}</div>
+      <p class="hint">${need} votes needed to put someone on the block. ${block ? `<b>${esc(nameOf(block))}</b> is on the block.` : top >= need ? "Tied, so no one is on the block." : ""}</p>
+      <div class="actions">
+        <button class="btn" data-act="add" data-type="nom">+ Nomination</button>
+        <button class="btn" data-act="add" data-type="slayer">Slayer shot</button>
+        ${executed ? "" : block ? `<button class="btn evil" data-act="add" data-type="exec" data-target="${block}" data-votes="${top}">Execute ${esc(nameOf(block))}</button>` : ""}
+        ${executed ? "" : `<button class="btn" data-act="add" data-type="exec">${block ? "Execute someone else" : "Execution"}</button><button class="btn" data-act="no-exec">No execution today</button>`}
+      </div>`;
+  }
+  const types = Object.entries(TYPES).filter(([, t]) => t.when === "both" || (t.when === "night") === isNight(ph));
+  return `<section class="card">
+    <div class="ph-head"><h2>${phaseName(ph)}</h2><span class="hint">${G.end && G.end.ph === ph ? "Game ended" : ""}</span></div>
+    ${body}
+    <h3>Log something else</h3>
+    <div class="types">${types.map(([k, t]) => `<button class="btn sm" data-act="add" data-type="${k}">${t.label}</button>`).join("")}</div>
+    <h3>What happened in ${phaseName(ph)}</h3>
+    <div class="events">${evs.length ? evs.join("") : `<p class="empty">Nothing logged yet.</p>`}</div>
+  </section>`;
+}
+
+function renderPlayerCard(pid, S, R, ph) {
+  const p = P(pid), s = S[pid];
+  const night = isNight(ph);
+  const rems = R[pid] || [];
+  const evs = eventList(e => e.ph <= ph && (e.actor === pid || (e.targets || []).includes(pid) || e.newDemon === pid));
+  return `<section class="card">
+    <div class="who-head">
+      <h2>${seatOf(pid)}. ${esc(nameOf(pid))}</h2>
+      <button class="icon" data-act="sel" data-pid="${pid}" aria-label="Close">×</button>
+    </div>
+    <div class="row">
+      ${s.role ? `<span class="chip ${teamOf(s.role)}">${esc(s.role)}</span>` : `<span class="empty">No character</span>`}
+      ${s.thinks ? `<span class="hint">thinks they are the <b>${esc(s.thinks)}</b></span>` : ""}
+      <span><span class="dot ${s.align === "evil" ? "evil" : ""}"></span>${s.align === "evil" ? "Evil" : "Good"}</span>
+      ${s.role !== p.role ? `<span class="hint">started as the ${esc(p.role)}</span>` : ""}
+    </div>
+    ${s.dead ? `<div class="row"><span>Died ${phaseName(s.deathPh)} (${esc(s.cause)}).</span><button class="toggle" data-act="ghost" data-pid="${pid}" aria-pressed="${!!G.ghost[pid]}">${G.ghost[pid] ? "Ghost vote used" : "Ghost vote available"}</button></div>` : ""}
+    ${rems.length ? `<div class="row">${rems.map(r => `<span class="chip" style="background:var(--${r.cls === "bad" ? "evil" : r.cls === "safe" ? "good" : "custom"})">${esc(r.label)}${r.fixed ? "" : ` <button class="icon" style="color:#fff;width:20px;height:20px" data-act="unrem" data-eid="${r.eid}" data-pid="${pid}" aria-label="Remove reminder">×</button>`}</span>`).join("")}</div>` : ""}
+    <div class="actions">
+      <button class="btn sm" data-act="add" data-type="ability" data-actor="${pid}">Ability / info</button>
+      ${night && teamOf(s.role) === "demon" ? `<button class="btn sm" data-act="add" data-type="kill" data-actor="${pid}">Demon kill</button>` : ""}
+      ${night ? `<button class="btn sm" data-act="add" data-type="kill" data-target="${pid}">Demon attacks them</button>` : `<button class="btn sm" data-act="add" data-type="nom" data-actor="${pid}">Nominates…</button><button class="btn sm" data-act="add" data-type="slayer" data-actor="${pid}">Slayer shot…</button><button class="btn sm" data-act="add" data-type="exec" data-target="${pid}">Execute</button>`}
+      ${s.dead ? `<button class="btn sm" data-act="add" data-type="revive" data-target="${pid}">Revive</button>` : `<button class="btn sm" data-act="add" data-type="death" data-target="${pid}">Dies</button>`}
+      <button class="btn sm" data-act="add" data-type="change" data-target="${pid}">Change character</button>
+      <button class="btn sm" data-act="add" data-type="status" data-target="${pid}">Reminder</button>
+    </div>
+    ${evs.length ? `<h3>Their game so far</h3><div class="events">${evs.join("")}</div>` : ""}
+  </section>`;
+}
+
+/* Log tab */
+function renderLog() {
+  if (!G.events.length) return `<div class="card"><h2>Game log</h2><p class="empty">Nothing logged yet. Use the Grimoire tab during the game.</p></div>`;
+  const byPh = {};
+  replay((e, S) => (byPh[e.ph] = byPh[e.ph] || []).push(evHtml(e, S, { type: true })));
+  let out = "";
+  for (let ph = 0; ph <= G.maxPhase; ph++) {
+    out += `<div class="log-phase"><h3>${phaseName(ph)} <button class="btn sm" data-act="goto-grim" data-ph="${ph}">Open</button></h3>${byPh[ph] ? `<div class="events">${byPh[ph].join("")}</div>` : `<p class="empty">Nothing logged.</p>`}</div>`;
+  }
+  return `<section class="card"><h2>Game log</h2><p class="hint">Everything you've logged, in order. Star the moments you want to call out at the reveal.</p>${out}</section>`;
+}
+
+/* Review tab */
+function buildReview() {
+  const S0 = initState();
+  const Send = stateAt(Infinity);
+  const sec = [];
+  const byTeam = t => G.players.filter(p => teamOf(p.role) === t);
+  const say = (id, S = S0) => roleTag(id, S);
+
+  // Opening
+  const head = { title: G.title || "The Grimoire Revealed", verdict: G.end ? `<b class="${G.end.winner}">${G.end.winner === "good" ? "Good wins!" : "Evil wins!"}</b> ${esc(endDot(G.end.reason || ""))} The game ended on ${phaseName(G.end.ph)}.` : `The game isn't over yet. This is the story so far, up to ${phaseName(G.maxPhase)}.` };
+
+  // The setup
+  const setup = [];
+  const nameRole = p => `${B(p.id)} was the <b>${esc(p.role)}</b>`;
+  const dem = byTeam("demon"), min = byTeam("minion"), out = byTeam("outsider"), tf = byTeam("townsfolk"), tr = byTeam("traveller");
+  if (dem.length) setup.push(`The Demon: ${listJoin(dem.map(nameRole))}.`);
+  if (min.length) setup.push(`${min.length > 1 ? "The Minions" : "The Minion"}: ${listJoin(min.map(nameRole))}.`);
+  if (out.length) setup.push(`${out.length > 1 ? "The Outsiders" : "The Outsider"}: ${listJoin(out.map(p => nameRole(p) + (THINKS.includes(p.role) && p.thinks ? `, but they thought they were the <b>${esc(p.thinks)}</b>` : "")))}.`);
+  if (tf.length) setup.push(`The Townsfolk: ${listJoin(tf.map(p => `${B(p.id)} (${esc(p.role)})`))}.`);
+  if (tr.length) setup.push(`Travellers: ${listJoin(tr.map(p => `${B(p.id)} (${esc(p.role)}, ${p.align})`))}.`);
+  const other = G.players.filter(p => teamOf(p.role) === "custom" && p.role);
+  if (other.length) setup.push(`Also in play: ${listJoin(other.map(p => `${B(p.id)} (${esc(p.role)}, ${p.align})`))}.`);
+  const bl = G.bluffs.filter(Boolean);
+  if (bl.length) setup.push(`The Demon's bluffs were ${listJoin(bl.map(b => `the <b>${esc(b)}</b>`))}.`);
+  if (G.redHerring && P(G.redHerring)) setup.push(`The Fortune Teller's red herring was ${B(G.redHerring)}.`);
+  if (G.notes.trim()) setup.push(`<span class="aside">${esc(endDot(G.notes))}</span>`);
+  sec.push({ h: "The Grimoire", paras: setup });
+
+  sec.push({ h: "How it happened", phases: storyPhases() });
+  const last = G.end ? G.end.ph : G.maxPhase;
+
+  // Storyteller's secrets
+  const lies = [], quiet = [], changes = [];
+  replay((e, S) => {
+    if (e.type === "ability" && e.falseInfo) lies.push(`${phaseName(e.ph)}: ${narrate(e, S)}`);
+    else if (e.type === "ability" && droisoned(e.actor, e.ph, S)) quiet.push(`${phaseName(e.ph)}: ${narrate(e, S)}`);
+    if (e.type === "change" || (e.type === "kill" && e.newDemon)) changes.push(`${phaseName(e.ph)}: ${narrate(e, S)}`);
+  });
+  const secrets = [];
+  if (lies.length) secrets.push({ h: `False information (${lies.length})`, items: lies });
+  if (quiet.length) secrets.push({ h: "Drunk or poisoned, with no false info", items: quiet });
+  if (changes.length) secrets.push({ h: "Characters that changed", items: changes });
+  sec.push({ h: "The Storyteller's secrets", groups: secrets, empty: "No false information was logged. Everything you were told was true!" });
+
+  // Starred
+  const stars = [];
+  replay((e, S) => { if (e.star) stars.push(`${phaseName(e.ph)}: ${narrate(e, S)}`); });
+  if (stars.length) sec.push({ h: "Moments to remember", items: stars });
+
+  // Final grimoire
+  const rows = G.players.map((p, i) => {
+    const s = Send[p.id];
+    const changed = s.role !== p.role || s.align !== (p.align || defAlign(p.role));
+    const fate = s.dead ? `${s.cause === "executed" ? "Executed" : s.cause === "killed by the Demon" ? "Killed" : cap(s.cause)} · ${phaseName(s.deathPh)}` : "Survived";
+    return { i: i + 1, name: nameOf(p.id), start: p.role + (p.thinks && THINKS.includes(p.role) ? ` (thought: ${p.thinks})` : ""), end: changed ? `${s.role} (${s.align})` : "", align: s.align, dead: s.dead, fate };
+  });
+  sec.push({ h: "Final Grimoire", table: rows });
+
+  // Numbers
+  const count = f => G.events.filter(f).length;
+  const nums = [
+    [Math.floor(last / 2) + 1, "nights"],
+    [count(e => e.type === "exec" && e.targets[0]), "executions"],
+    [count(e => e.type === "nom"), "nominations"],
+    [count(e => e.type === "kill" && e.targets[0] && e.targets[0] !== e.actor && e.outcome === "died"), "Demon kills"],
+    [count(e => e.type === "kill" && e.targets[0] && e.outcome !== "died"), "kills that failed"],
+    [lies.length, "lies told"]
+  ];
+  sec.push({ h: "By the numbers", nums });
+  return { head, sec };
+}
+
+// The game told phase by phase, with quiet nights and days without an execution called out
+const ORDINAL = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth", "eleventh", "twelfth"];
+const ordinal = n => ORDINAL[n - 1] || `${n}th`;
+const lower1 = h => /^[A-Z][a-z]/.test(h) ? h[0].toLowerCase() + h.slice(1) : h;
+
+// The game told phase by phase, with quiet nights and days without an execution called out.
+// opts.prose joins each phase into paragraphs told in the Storyteller's voice.
+function storyPhases(opts = {}) {
+  const star = x => opts.noStars || !x ? "" : `<span class="star">★</span> `;
+  const last = G.end ? G.end.ph : G.maxPhase;
+  const out = [];
+  const S = initState();
+  for (let ph = 0; ph <= last; ph++) {
+    const items = G.events.filter(e => e.ph === ph).map(e => ({ e }));
+    const lines = []; // strings, or {t, k} where k is "reveal" or "plain"
+    for (let i = 0; i < items.length; i++) {
+      const { e } = items[i];
+      if (e.type === "nom") {
+        // Fold runs of nominations into one sentence
+        const run = [];
+        while (i < items.length && items[i].e.type === "nom") run.push(items[i++].e);
+        i--;
+        const votes = n => n.votes !== "" && n.votes != null;
+        const notes = run.filter(n => n.note).map(n => esc(endDot(n.note)));
+        const tail = notes.length ? ` <span class="aside">${notes.join(" ")}</span>` : "";
+        if (opts.prose) {
+          if (run.length === 1) { const n = run[0]; lines.push(`${B(n.actor)} nominated ${B(n.targets[0])}${votes(n) ? `, and ${Number(n.votes)} ${Number(n.votes) === 1 ? "hand went" : "hands went"} up` : ""}.${tail}`); }
+          else lines.push(`The nominations began: ${listJoin(run.map(n => `${B(n.actor)} nominated ${B(n.targets[0])}${votes(n) ? ` (${plural(Number(n.votes), "vote")})` : ""}`))}.${tail}`);
+          continue;
+        }
+        const bits = run.map(n => `${B(n.actor)} nominated ${B(n.targets[0])}${votes(n) ? ` (${plural(Number(n.votes), "vote")})` : ""}${opts.noStars || !n.star ? "" : ` <span class="star">★</span>`}`);
+        lines.push(`${run.length > 1 ? "Nominations: " + listJoin(bits) : bits[0]}.${tail}`);
+        continue;
+      }
+      const before = JSON.parse(JSON.stringify(S));
+      const text = star(e.star) + narrate(e, before);
+      lines.push(e.type === "note" ? { t: text, k: "plain" } : text);
+      applyEvent(S, e);
+      if (opts.onDeath) for (const p of G.players) if (!before[p.id].dead && S[p.id].dead) { const r = opts.onDeath(p.id, S, e); if (r) lines.push({ t: r, k: "reveal" }); }
+    }
+    const evs = items.map(x => x.e);
+    const died = evs.some(e => ((e.type === "kill" || e.type === "slayer") && e.targets[0] && e.outcome === "died") || (e.type === "death" && e.targets.length));
+    const attacked = evs.some(e => e.type === "kill" && e.targets[0]);
+    const quiet = t => lines.push(opts.prose ? { t, k: "plain" } : t);
+    if (isNight(ph)) {
+      if (ph > 0 && !died) quiet(opts.prose ? (attacked ? "When dawn broke, everyone was still alive." : "The night passed peacefully, and no one died.") : `<b>No one died in the night.</b>${evs.some(e => e.type === "kill") ? "" : " The Demon claimed no victim."}`);
+      if (ph === 0 && !lines.length) quiet(opts.prose ? "The first night passed quietly." : `<span class="aside">The first night passed quietly.</span>`);
+    } else {
+      const exec = evs.find(e => e.type === "exec");
+      const noms = evs.filter(e => e.type === "nom").length;
+      const endedHere = G.end && G.end.ph === ph && died;
+      if (!exec && !endedHere) quiet(opts.prose
+        ? (noms ? "In the end, no one was executed." : "The town talked and talked, but no one was nominated, and no one was executed.")
+        : (noms ? `<b>No one was executed.</b>` : `<b>No one was nominated, and no one was executed.</b>`));
+    }
+    out.push({ h: phaseName(ph), lines: opts.prose ? toProse(ph, lines) : lines.map(l => typeof l === "string" ? l : l.t) });
+  }
+  return out;
+}
+
+// Turns a phase's sentences into paragraphs: a scene-setting opener, linking words between
+// events, and each reveal on its own line
+function toProse(ph, lines) {
+  const night = isNight(ph), n = night ? ph / 2 + 1 : (ph + 1) / 2;
+  const clause = night ? (ph === 0 ? "On the very first night, " : `As darkness fell on the ${ordinal(n)} night, `) : (ph === 1 ? "When the town woke on the first day, " : `On the ${ordinal(n)} day, `);
+  const sentence = night ? (ph === 0 ? "Our story begins on the very first night." : `Darkness fell on the ${ordinal(n)} night.`) : (ph === 1 ? "Morning came, and with it the first day." : `Then came the ${ordinal(n)} day.`);
+  const links = night ? ["Meanwhile, ", "Then ", "Later that night, ", "Elsewhere in the town, "] : ["Then ", "After that, ", "Later, ", "Soon after, "];
+  const paras = [];
+  let cur = [], opened = false, li = 0;
+  const flush = () => { if (cur.length) paras.push(cur.join(" ")); cur = []; };
+  for (const l of lines) {
+    const t = typeof l === "string" ? l : l.t, k = typeof l === "string" ? "event" : l.k;
+    if (k === "reveal") { if (!opened) { cur.push(sentence); opened = true; } flush(); paras.push(t); continue; }
+    if (k === "plain") { if (!opened) { cur.push(sentence); opened = true; } cur.push(t); continue; }
+    if (!opened) { cur.push(clause + lower1(t)); opened = true; continue; }
+    cur.push(cur.length ? links[li++ % links.length] + lower1(t) : t);
+  }
+  flush();
+  return paras;
+}
+
+// A script to read aloud at the grimoire reveal. Players are revealed as they die, survivors last
+// (evil last of all), and the winner is only named at the very end.
+function buildScript() {
+  const cue = t => `<span class="cue">(${esc(t)})</span>`;
+  const parts = [];
+  const counts = { townsfolk: 0, outsider: 0, minion: 0, demon: 0, traveller: 0 };
+  for (const p of G.players) if (counts[teamOf(p.role)] != null) counts[teamOf(p.role)]++;
+  const comp = [[counts.townsfolk, "Townsfolk", "Townsfolk"], [counts.outsider, "Outsider", "Outsiders"], [counts.minion, "Minion", "Minions"], [counts.demon, "Demon", "Demons"], [counts.traveller, "Traveller", "Travellers"]].filter(c => c[0]).map(c => `${c[0]} ${c[0] === 1 ? c[1] : c[2]}`);
+  parts.push({ h: "Opening", lines: [
+    "Everyone, gather round. The game is over, and it's time to open the Grimoire.",
+    `This was ${G.title ? `<b>${esc(G.title)}</b>, ` : ""}a game of ${esc(SCRIPT_NAME[G.script] || "Blood on the Clocktower")} with ${plural(G.players.length, "player")}${comp.length ? `: ${listJoin(comp)}` : ""}.`,
+    "We'll go through the game from the beginning. I'll reveal each of you at the moment you died, and the survivors at the very end."
+  ] });
+
+  const revealed = new Set();
+  const reveal = (id, S) => {
+    revealed.add(id);
+    const p = P(id), s = S[id], start = p.role || "?";
+    const roleHtml = `<b class="${teamOf(start) === "minion" || teamOf(start) === "demon" ? "evil" : ""}">${esc(start)}</b>`;
+    let t = `${cue("pause")} ${B(id)} was… ${cue("pause")} the ${roleHtml}!`;
+    if (THINKS.includes(start) && p.thinks) {
+      t += ` They thought they were the <b>${esc(p.thinks)}</b>.`;
+      const got = G.events.filter(e => e.type === "ability" && e.actor === id && e.info);
+      if (got.length) t += ` So ${listJoin(got.map(e => `the “${esc(e.info)}” on ${phaseName(e.ph)}`))} ${got.length > 1 ? "were" : "was"} never real information${got.some(e => !e.falseInfo) ? `, even if ${got.length > 1 ? "some of it was" : "it was"} true` : ""}!`;
+    }
+    if (s.role && s.role !== start) t += ` Later they became the <b>${esc(s.role)}</b>.`;
+    if ((s.align || p.align) === "evil" && !["minion", "demon"].includes(teamOf(start))) t += ` <b class="evil">They were evil.</b>`;
+    if (start === "Fortune Teller" && G.redHerring && P(G.redHerring)) t += ` Their red herring was ${B(G.redHerring)}.`;
+    const bl = G.bluffs.filter(Boolean);
+    if (teamOf(start) === "demon" && bl.length) t += ` Their bluffs were ${listJoin(bl.map(b => `the <b>${esc(b)}</b>`))}.`;
+    return t;
+  };
+
+  REVEALED = revealed;
+  let phases, finalS;
+  try {
+    phases = storyPhases({ noStars: true, prose: true, onDeath: (id, S) => revealed.has(id) ? "" : reveal(id, S) });
+    finalS = stateAt(G.end ? G.end.ph : G.maxPhase);
+  } finally { REVEALED = null; }
+  parts.push({ h: "How it happened", intro: `Let me tell you how it all happened. ${cue("pause")}`, phases });
+
+  // Survivors: good first, then evil, with the Demon last of all
+  const rank = id => { const s = finalS[id]; return s.align !== "evil" ? 0 : teamOf(s.role) === "demon" ? 2 : 1; };
+  const alive = G.players.filter(p => !revealed.has(p.id)).sort((a, b) => rank(a.id) - rank(b.id));
+  if (alive.length) {
+    const lines = [`That leaves the players still standing. ${cue("pause")}`];
+    for (const p of alive) lines.push(reveal(p.id, finalS));
+    parts.push({ h: "The survivors", lines });
+  }
+
+  let lies = 0;
+  G.events.forEach(e => { if (e.type === "ability" && e.falseInfo) lies++; });
+  const end = [];
+  if (lies) end.push(`Over the game I gave out ${plural(lies, "piece")} of false information. I hope you'll forgive me.`);
+  if (G.end) {
+    end.push(`And so we come to the end, on ${phaseName(G.end.ph)}. ${cue("pause")}`);
+    if (G.end.reason) end.push(esc(endDot(G.end.reason)));
+    end.push(`${cue("long pause")}`);
+    end.push(`<b class="${G.end.winner}" style="font-size:1.3em">${G.end.winner === "good" ? "The good team wins!" : "The evil team wins!"}</b>`);
+    end.push("Thank you all for playing.");
+  } else end.push(`That's where things stand at ${phaseName(G.maxPhase)}. The game isn't over yet.`);
+  parts.push({ h: "The ending", lines: end });
+  return parts;
+}
+function scriptHtml(parts) {
+  return `<h1>${esc(G.title || "The Grimoire Revealed")}</h1>` + parts.map(pt => `<section><h2>${esc(pt.h)}</h2>${pt.intro ? `<p>${pt.intro}</p>` : ""}${(pt.lines || []).map(l => `<p>${l}</p>`).join("")}${(pt.phases || []).map(ph => `<h3>${esc(ph.h)}</h3>${ph.lines.map(l => `<p>${l}</p>`).join("")}`).join("")}</section>`).join("");
+}
+function scriptText(parts) {
+  const L = [(G.title || "The Grimoire Revealed").toUpperCase(), ""];
+  for (const pt of parts) {
+    L.push(pt.h.toUpperCase());
+    if (pt.intro) L.push(stripTags(pt.intro));
+    (pt.lines || []).forEach(l => L.push(stripTags(l)));
+    (pt.phases || []).forEach(ph => { L.push("", ph.h); ph.lines.forEach(l => L.push(stripTags(l))); });
+    L.push("");
+  }
+  return L.join("\n");
+}
+
+function reviewHtml(rv) {
+  let h = `<h1>${esc(rv.head.title)}</h1><p class="verdict">${rv.head.verdict}</p>`;
+  for (const s of rv.sec) {
+    h += `<section><h2>${esc(s.h)}</h2>`;
+    if (s.paras) h += s.paras.map(p => `<p>${p}</p>`).join("");
+    if (s.phases) h += s.phases.map(ph => `<h3>${esc(ph.h)}</h3>${ph.lines.map(l => `<p>${l}</p>`).join("")}`).join("");
+    if (s.groups) h += s.groups.length ? s.groups.map(g => `<h3>${esc(g.h)}</h3><ul>${g.items.map(x => `<li>${x}</li>`).join("")}</ul>`).join("") : `<p class="aside">${esc(s.empty)}</p>`;
+    if (s.items) h += `<ul>${s.items.map(x => `<li>${x}</li>`).join("")}</ul>`;
+    if (s.table) h += `<div class="final-wrap"><table class="final"><thead><tr><th>#</th><th>Player</th><th>Character</th><th>Fate</th></tr></thead><tbody>${s.table.map(r => `<tr><td>${r.i}</td><td><span class="dot ${r.align === "evil" ? "evil" : ""}"></span><b>${esc(r.name)}</b></td><td><span class="t-${teamOf(r.start.replace(/ \(.*/, ""))}">${esc(r.start)}</span>${r.end ? `<br><small>→ ${esc(r.end)}</small>` : ""}</td><td class="${r.dead ? "dead" : ""}">${esc(r.fate)}</td></tr>`).join("")}</tbody></table></div>`;
+    if (s.nums) h += `<div class="numbers">${s.nums.map(([n, l]) => `<div class="num"><b>${n}</b><span>${esc(l)}</span></div>`).join("")}</div>`;
+    h += `</section>`;
+  }
+  return h;
+}
+
+function reviewText(rv) {
+  const L = [rv.head.title.toUpperCase(), stripTags(rv.head.verdict), ""];
+  for (const s of rv.sec) {
+    L.push(s.h.toUpperCase());
+    if (s.paras) s.paras.forEach(p => L.push(stripTags(p)));
+    if (s.phases) s.phases.forEach(ph => { L.push("", ph.h); ph.lines.forEach(l => L.push(stripTags(l))); });
+    if (s.groups) { if (!s.groups.length) L.push(s.empty); s.groups.forEach(g => { L.push("", g.h); g.items.forEach(x => L.push("- " + stripTags(x))); }); }
+    if (s.items) s.items.forEach(x => L.push("- " + stripTags(x)));
+    if (s.table) s.table.forEach(r => L.push(`${r.i}. ${r.name} (${r.align}): ${r.start}${r.end ? " → " + r.end : ""}. ${r.fate}.`));
+    if (s.nums) L.push(s.nums.map(([n, l]) => `${n} ${l}`).join(" · "));
+    L.push("");
+  }
+  return L.join("\n");
+}
+
+function renderReview() {
+  if (!G.players.length) return `<div class="card"><p class="empty">Set up a game first.</p></div>`;
+  const script = ui.rv !== "summary";
+  const body = script ? scriptHtml(buildScript()) : reviewHtml(buildReview());
+  return `<div class="review" style="display:grid;gap:14px">
+    ${G.end ? "" : `<div class="card no-print"><h2>Has the game ended?</h2><p class="hint">End it to finish the review. You can preview it below in the meantime.</p><div class="row"><button class="btn good" data-act="end-game" data-w="good">Good won</button><button class="btn evil" data-act="end-game" data-w="evil">Evil won</button></div></div>`}
+    <div class="review-tools">
+      <span class="seg" role="group" aria-label="Review view"><button data-act="rv" data-v="script" aria-pressed="${script}">Reveal script</button><button data-act="rv" data-v="summary" aria-pressed="${!script}">Full summary</button></span>
+      <span class="hint">${script ? "Read this aloud. Players are revealed as they die, and the winner comes last." : "Everything at a glance, for you."}</span>
+      <button class="toggle" data-act="big" aria-pressed="${ui.big}">Large text</button>
+      <button class="btn sm" data-act="copy">Copy as text</button>
+      ${G.end ? `<button class="btn sm" data-act="reopen">Reopen game</button>` : ""}
+    </div>
+    <article class="scroll ${ui.big ? "big" : ""}">${body}</article>
+  </div>`;
+}
+
+/* ---------- In-page confirm ---------- */
+let asking = null;
+function ask(msg, buttons = [["Cancel", null, ""], ["OK", true, "primary"]]) {
+  return new Promise(res => {
+    asking = { res, vals: buttons.map(b => b[1]) };
+    $("modal").innerHTML = `<div class="overlay" data-act="close-bg"><div class="card dialog" role="alertdialog" aria-modal="true" aria-label="Confirm"><p style="margin:0;white-space:pre-line">${esc(msg)}</p><div class="dlg-actions">${buttons.map(([l, , c], i) => `<button class="btn ${c}" data-act="ask" data-i="${i}">${esc(l)}</button>`).join("")}</div></div></div>`;
+  });
+}
+
+/* ---------- Event editor ---------- */
+let F = null;
+function openEditor(init) {
+  const e = init.eid ? G.events.find(x => x.id === init.eid) : null;
+  F = e ? JSON.parse(JSON.stringify(e)) : { id: null, ph: G.phase, type: init.type || "ability", actor: init.actor || "", targets: init.target ? [init.target] : [], role: init.role || "", info: "", falseInfo: false, why: "", note: "", star: false, votes: init.votes ?? "", outcome: "died", newDemon: "", cause: "", label: "", dur: "next", align: "", thinks: "", text: "" };
+  if (!e && F.type === "slayer") F.outcome = "none";
+  if (!e) {
+    const S = stateAt(F.ph);
+    if (F.type === "ability" && F.actor && !F.role) F.role = S[F.actor].thinks || S[F.actor].role;
+    if (F.type === "kill" && !F.actor) { const d = G.players.find(p => teamOf(S[p.id].role) === "demon" && !S[p.id].dead); if (d) F.actor = d.id; }
+  }
+  F.err = "";
+  renderEditor();
+}
+function closeEditor() { F = null; $("modal").innerHTML = ""; if (asking) { const r = asking.res; asking = null; r(null); } }
+
+function picks(field, multi, S, opts = {}) {
+  const sel = Array.isArray(F[field]) ? F[field] : [F[field]];
+  const none = opts.none ? `<button class="pick" data-act="pick" data-f="${field}" data-id="" aria-pressed="${!sel[0]}">${esc(opts.none)}</button>` : "";
+  return `<div class="picks">${none}${G.players.map(p => {
+    const s = S[p.id];
+    return `<button class="pick ${s.dead ? "dead" : ""}" data-act="pick" data-f="${field}" data-id="${p.id}" data-multi="${multi ? 1 : ""}" aria-pressed="${sel.includes(p.id)}">${esc(nameOf(p.id))}<small>${esc(s.role || "—")}</small></button>`;
+  }).join("")}</div>`;
+}
+
+function renderEditor() {
+  if (!F) return;
+  const S = F.id ? stateBefore(F.id) : stateAt(F.ph);
+  const t = F.type;
+  const field = (label, inner) => `<div class="field"><span class="label">${label}</span>${inner}</div>`;
+  const txt = (k, ph, list) => `<input type="text" data-ff="${k}" value="${esc(F[k] ?? "")}" placeholder="${esc(ph || "")}" ${list ? `list="${list}"` : ""}>`;
+  let body = "";
+  if (t === "ability") {
+    const dr = F.actor ? droisoned(F.actor, F.ph, S) : "";
+    body = field("Who", picks("actor", false, S))
+      + field("As which character", txt("role", "Their character", "roleList"))
+      + (dr ? `<div class="warnbox">${esc(cap(dr))}, so you can give them false information.</div>` : "")
+      + field("They chose (optional)", picks("targets", true, S))
+      + field("What they learned or what happened (optional)", txt("info", "e.g. 1, Yes, “Ben or Cara is the Poisoner”"))
+      + `<label class="check"><input type="checkbox" data-fc="falseInfo" ${F.falseInfo ? "checked" : ""}> This was false information</label>`
+      + (F.falseInfo ? field("Why (read out in the review, so avoid naming evil players)", txt("why", dr || "e.g. they were poisoned, the Recluse registered as evil")) : "");
+  } else if (t === "kill") {
+    const tgt = F.targets[0];
+    body = field("Demon", picks("actor", false, S))
+      + field("Attacked", picks("targets", false, S, { none: "No one" }))
+      + (tgt ? field("Outcome", `<span class="seg"><button data-act="fset" data-k="outcome" data-v="died" aria-pressed="${F.outcome === "died"}">Died</button><button data-act="fset" data-k="outcome" data-v="survived" aria-pressed="${F.outcome === "survived"}">Survived</button></span>`) : "")
+      + (tgt && F.outcome === "survived" ? field("Why they survived", txt("why", "e.g. protected by the Monk", "saveList")) : "")
+      + (tgt && tgt === F.actor && F.outcome === "died" ? field("Who becomes the new Demon?", picks("newDemon", false, S, { none: "No one" })) : "");
+  } else if (t === "nom") {
+    body = field("Nominator", picks("actor", false, S)) + field("Nominee", picks("targets", false, S))
+      + field("Votes", `<input type="number" min="0" data-ff="votes" value="${esc(F.votes)}" style="width:7rem">`);
+  } else if (t === "exec") {
+    body = field("Executed", picks("targets", false, S, { none: "No one" }))
+      + (F.targets[0] ? field("Votes", `<input type="number" min="0" data-ff="votes" value="${esc(F.votes)}" style="width:7rem">`)
+        + field("Outcome", `<span class="seg"><button data-act="fset" data-k="outcome" data-v="died" aria-pressed="${F.outcome !== "survived"}">Died</button><button data-act="fset" data-k="outcome" data-v="survived" aria-pressed="${F.outcome === "survived"}">Didn't die</button></span>`)
+        + (F.outcome === "survived" ? field("Why", txt("why", "e.g. the Fool, Devil's Advocate, Zombuul")) : "") : "");
+  } else if (t === "slayer") {
+    body = field("Who shot", picks("actor", false, S)) + field("At whom", picks("targets", false, S))
+      + field("What happened", `<span class="seg"><button data-act="fset" data-k="outcome" data-v="none" aria-pressed="${F.outcome !== "died"}">Nothing happened</button><button data-act="fset" data-k="outcome" data-v="died" aria-pressed="${F.outcome === "died"}">They died</button></span>`)
+      + (F.outcome !== "died" ? field("Why (optional, read out in the review)", txt("why", "e.g. they weren't the Demon, the shooter isn't the Slayer")) : "");
+  } else if (t === "death" || t === "revive") {
+    body = field(t === "death" ? "Who died" : "Who came back", picks("targets", true, S)) + field("How", txt("cause", t === "death" ? "e.g. Slayer shot" : "e.g. the Professor", t === "death" ? "causeList" : ""));
+  } else if (t === "change") {
+    const cur = F.targets[0] && S[F.targets[0]];
+    body = field("Who", picks("targets", false, S))
+      + (cur ? `<p class="hint">Currently the ${esc(cur.role || "?")} (${cur.align}).</p>` : "")
+      + field("New character", txt("role", "e.g. Imp", "roleList"))
+      + (THINKS.includes(F.role) ? field("Thinks they are", txt("thinks", "", "roleList")) : "")
+      + field("Alignment", `<span class="seg"><button class="g" data-act="fset" data-k="align" data-v="good" aria-pressed="${F.align === "good"}">Good</button><button class="e" data-act="fset" data-k="align" data-v="evil" aria-pressed="${F.align === "evil"}">Evil</button></span>`)
+      + field("Why", txt("why", "e.g. Scarlet Woman took over, Pit-Hag, Barber swap"));
+  } else if (t === "status") {
+    body = field("On whom", picks("targets", true, S)) + field("Reminder", txt("label", "e.g. Poisoned, Drunk, Mad", "remList"))
+      + field("Lasts", `<span class="seg"><button data-act="fset" data-k="dur" data-v="phase" aria-pressed="${F.dur === "phase"}">${isNight(F.ph) ? "Tonight" : "Today"}</button><button data-act="fset" data-k="dur" data-v="next" aria-pressed="${F.dur === "next"}">${isNight(F.ph) ? "Until dusk tomorrow" : "Until tonight ends"}</button><button data-act="fset" data-k="dur" data-v="game" aria-pressed="${F.dur === "game"}">Until removed</button></span>`)
+      + field("Why (optional)", txt("why", "e.g. the Courtier chose the Empath"));
+  } else if (t === "note") {
+    body = field("Note", `<textarea data-ff="text" placeholder="Anything you want to remember or mention at the reveal">${esc(F.text)}</textarea>`);
+  }
+  if (t !== "note") body += field("Note for the review (optional)", txt("note", "e.g. I thought this would expose them"));
+  const types = Object.entries(TYPES).filter(([, x]) => x.when === "both" || (x.when === "night") === isNight(F.ph));
+  $("modal").innerHTML = `<div class="overlay" data-act="close-bg"><div class="card dialog" role="dialog" aria-modal="true" aria-label="Log event">
+    <h2>${F.id ? "Edit" : "Log"}: ${phaseName(F.ph)}</h2>
+    ${F.id ? "" : `<div class="types">${types.map(([k, x]) => `<button class="toggle" data-act="ftype" data-v="${k}" aria-pressed="${t === k}">${x.label}</button>`).join("")}</div>`}
+    ${body}
+    <label class="check"><input type="checkbox" data-fc="star" ${F.star ? "checked" : ""}> ★ Star this for the review</label>
+    ${F.err ? `<p class="err">${esc(F.err)}</p>` : ""}
+    <div class="dlg-actions"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="save-ev">Save</button></div>
+  </div></div>`;
+}
+
+function saveEditor() {
+  const t = F.type, T = F.targets.filter(Boolean);
+  const need = { ability: F.actor ? "" : "Pick who used their ability.", kill: F.actor ? "" : "Pick the Demon.", nom: F.actor && T[0] ? "" : "Pick the nominator and the nominee.", slayer: F.actor && T[0] ? "" : "Pick who shot and at whom.", death: T.length ? "" : "Pick who died.", revive: T.length ? "" : "Pick who came back.", change: T[0] && F.role ? "" : "Pick a player and their new character.", status: T.length && F.label ? "" : "Pick players and name the reminder.", note: F.text.trim() ? "" : "Write the note.", exec: "" }[t];
+  if (need) { F.err = need; renderEditor(); return; }
+  const keep = { ability: ["actor","role","targets","info","falseInfo","why"], kill: ["actor","targets","outcome","why","newDemon"], nom: ["actor","targets","votes"], exec: ["targets","votes","outcome","why"], slayer: ["actor","targets","outcome","why"], death: ["targets","cause"], revive: ["targets","cause"], change: ["targets","role","align","why","thinks"], status: ["targets","label","dur","why"], note: ["text"] }[t];
+  const ev = { id: F.id || uid(), ph: F.ph, type: t, targets: [], star: F.star, note: t === "note" ? "" : (F.note || "").trim() };
+  for (const k of keep) ev[k] = k === "targets" ? T : typeof F[k] === "string" ? F[k].trim() : F[k];
+  if (t === "kill" && !(T[0] && T[0] === F.actor && F.outcome === "died")) ev.newDemon = "";
+  if (t === "ability" && !ev.falseInfo) ev.why = "";
+  if (t === "slayer" && ev.outcome !== "died") { ev.outcome = "none"; }
+  if ((t === "nom" || t === "exec") && ev.votes !== "") ev.votes = Number(ev.votes);
+  if (t === "change" && !ev.align) ev.align = defAlign(ev.role);
+  if (F.id) {
+    const i = G.events.findIndex(x => x.id === F.id);
+    ev.removed = G.events[i].removed;
+    G.events[i] = ev;
+  } else insertEvent(ev);
+  closeEditor();
+  render();
+}
+function insertEvent(ev) {
+  let at = G.events.length;
+  for (let i = G.events.length - 1; i >= -1; i--) { if (i < 0 || G.events[i].ph <= ev.ph) { at = i + 1; break; } }
+  G.events.splice(at, 0, ev);
+}
+
+/* ---------- End-game dialog ---------- */
+function openEnd(w) {
+  const S = stateAt(G.phase);
+  const dead = G.players.filter(p => teamOf(S[p.id].role) === "demon" && S[p.id].dead).length;
+  const guess = w === "evil" ? (aliveCount(S) <= 2 ? "Only two players were left alive" : "") : dead ? "The Demon was executed" : "";
+  $("modal").innerHTML = `<div class="overlay" data-act="close-bg"><div class="card dialog" role="dialog" aria-modal="true" aria-label="End the game">
+    <h2>End the game on ${phaseName(G.phase)}</h2>
+    <div class="field"><span class="label">Who won?</span><span class="seg" id="endW"><button class="g" data-act="endw" data-v="good" aria-pressed="${w === "good"}">Good</button><button class="e" data-act="endw" data-v="evil" aria-pressed="${w === "evil"}">Evil</button></span></div>
+    <label class="field"><span class="label">How</span><input type="text" id="endReason" list="endList" value="${esc(guess)}" placeholder="e.g. The Demon was executed"></label>
+    <p class="err" id="endErr" hidden>Pick who won.</p>
+    <div class="dlg-actions"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="end-save">End game and show the review</button></div>
+  </div></div>`;
+}
+
+/* ---------- Events ---------- */
+document.addEventListener("click", ev => {
+  const tabBtn = ev.target.closest("[data-tab]");
+  if (tabBtn) return setTab(tabBtn.dataset.tab);
+  const go = ev.target.closest("[data-tab-go]");
+  if (go) return setTab(go.dataset.tabGo);
+  const el = ev.target.closest("[data-act]");
+  if (!el) return;
+  const act = el.dataset.act;
+  const row = el.closest("[data-pid]");
+  const rp = row && P(row.dataset.pid);
+  const E = id => G.events.find(x => x.id === id);
+  switch (act) {
+    case "close-bg": if (ev.target === el) { closeEditor(); } return;
+    case "close": closeEditor(); return;
+    case "ask": { const r = asking.res, v = asking.vals[Number(el.dataset.i)]; asking = null; $("modal").innerHTML = ""; r(v); return; }
+    case "new-game": return newGame();
+    case "add-player": G.players.push(mkPlayer()); break;
+    case "del-player": {
+      const drop = () => { G.players = G.players.filter(p => p !== rp); render(); };
+      if (G.events.some(e => e.actor === rp.id || (e.targets || []).includes(rp.id))) ask(`${nameOf(rp.id)} appears in the log. Remove them anyway?`, [["Cancel", null, ""], ["Remove", true, "evil"]]).then(ok => ok && drop());
+      else drop();
+      return;
+    }
+    case "up": case "down": { const i = G.players.indexOf(rp), j = act === "up" ? i - 1 : i + 1; if (j < 0 || j >= G.players.length) return; [G.players[i], G.players[j]] = [G.players[j], G.players[i]]; break; }
+    case "align": rp.align = el.dataset.v; break;
+    case "bulk": { const v = $("bulk").value.split(/[,\n;\t]+/).map(s => s.trim()).filter(Boolean); v.forEach(n => G.players.push(mkPlayer(n))); break; }
+    case "shuffle-roles": {
+      if (G.started && !el.dataset.sure) { ask("The game has started. Shuffle characters anyway?", [["Cancel", null, ""], ["Shuffle", true, "primary"]]).then(ok => { if (ok) { el.dataset.sure = 1; el.click(); } }); return; }
+      const rs = G.players.map(p => [p.role, p.thinks]);
+      for (let i = rs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rs[i], rs[j]] = [rs[j], rs[i]]; }
+      G.players.forEach((p, i) => { p.role = rs[i][0]; p.thinks = rs[i][1]; p.align = defAlign(p.role); });
+      break;
+    }
+    case "start": G.started = true; delete G.example; ui.tab = "grim"; break;
+    case "open-past": {
+      const g = store.archive.find(x => x.id === el.dataset.id);
+      if (!g) return;
+      store.archive = store.archive.filter(x => x !== g);
+      if (G.started && !G.example) store.archive.push(G);
+      store.game = G = g; ui.sel = null; ui.tab = "review";
+      break;
+    }
+    case "del-past": ask("Delete this game for good?", [["Cancel", null, ""], ["Delete", true, "evil"]]).then(ok => { if (ok) { store.archive = store.archive.filter(x => x.id !== el.dataset.id); render(); } }); return;
+    case "sel": ui.sel = ui.sel === el.dataset.pid ? null : el.dataset.pid; break;
+    case "goto": G.phase = Math.max(0, Math.min(G.maxPhase, Number(el.dataset.ph))); break;
+    case "goto-grim": G.phase = Number(el.dataset.ph); ui.tab = "grim"; break;
+    case "next-phase": G.phase += 1; G.maxPhase = Math.max(G.maxPhase, G.phase); break;
+    case "add": return openEditor({ type: el.dataset.type, actor: el.dataset.actor, target: el.dataset.target, role: el.dataset.role, votes: el.dataset.votes });
+    case "no-exec": insertEvent({ id: uid(), ph: G.phase, type: "exec", targets: [], note: "" }); break;
+    case "edit": return openEditor({ eid: el.dataset.eid });
+    case "star": { const e = E(el.dataset.eid); e.star = !e.star; break; }
+    case "del-ev": ask("Delete this entry?", [["Cancel", null, ""], ["Delete", true, "evil"]]).then(ok => { if (ok) { G.events = G.events.filter(x => x.id !== el.dataset.eid); render(); } }); return;
+    case "ev-up": {
+      const i = G.events.findIndex(x => x.id === el.dataset.eid);
+      if (i > 0 && G.events[i - 1].ph === G.events[i].ph) [G.events[i - 1], G.events[i]] = [G.events[i], G.events[i - 1]];
+      break;
+    }
+    case "ghost": G.ghost[el.dataset.pid] = !G.ghost[el.dataset.pid]; break;
+    case "unrem": { const e = E(el.dataset.eid); e.removed = e.removed || {}; e.removed[el.dataset.pid] = G.phase; break; }
+    case "end-game": return openEnd(el.dataset.w || "");
+    case "endw": document.querySelectorAll("#endW button").forEach(b => b.setAttribute("aria-pressed", String(b === el))); return;
+    case "end-save": {
+      const w = document.querySelector('#endW [aria-pressed="true"]');
+      if (!w) { $("endErr").hidden = false; return; }
+      G.end = { winner: w.dataset.v, reason: $("endReason").value.trim(), ph: G.phase };
+      G.maxPhase = G.phase;
+      closeEditor(); ui.tab = "review"; break;
+    }
+    case "reopen": G.end = null; ui.tab = "grim"; break;
+    case "big": ui.big = !ui.big; break;
+    case "rv": ui.rv = el.dataset.v; break;
+    case "copy": {
+      const text = ui.rv !== "summary" ? scriptText(buildScript()) : reviewText(buildReview());
+      const fallback = () => { const r = document.createRange(); r.selectNodeContents(document.querySelector(".scroll")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); el.textContent = "Selected: copy it now"; };
+      try { (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => { el.textContent = "Copied ✓"; setTimeout(() => (el.textContent = "Copy as text"), 1500); }, fallback); } catch (e) { fallback(); }
+      return;
+    }
+    // Editor
+    case "ftype": F.type = el.dataset.v; if (F.type === "slayer" && F.outcome === "died") F.outcome = "none"; if (F.type === "ability" && F.actor && !F.role) { const s = stateAt(F.ph)[F.actor]; F.role = s.thinks || s.role; } F.err = ""; renderEditor(); return;
+    case "fset": F[el.dataset.k] = el.dataset.v; renderEditor(); return;
+    case "pick": {
+      const f = el.dataset.f, id = el.dataset.id;
+      if (el.dataset.multi) F[f] = F[f].includes(id) ? F[f].filter(x => x !== id) : [...F[f], id];
+      else if (f === "targets") F.targets = id ? [id] : [];
+      else F[f] = F[f] === id ? "" : id;
+      const S = F.id ? stateBefore(F.id) : stateAt(F.ph);
+      if (f === "actor" && F.type === "ability" && F.actor) F.role = S[F.actor].thinks || S[F.actor].role;
+      if (f === "targets" && F.type === "change" && F.targets[0] && !F.align) F.align = S[F.targets[0]].align;
+      renderEditor(); return;
+    }
+    case "save-ev": return saveEditor();
+    default: return;
+  }
+  render();
+});
+
+document.addEventListener("input", ev => {
+  const t = ev.target;
+  if (t.dataset.ff && F) { F[t.dataset.ff] = t.value; if (t.dataset.ff === "role" && F.type === "change") { F.align = defAlign(t.value); } return; }
+  if (t.dataset.fc && F) { F[t.dataset.fc] = t.checked; renderEditor(); return; }
+  if (t.dataset.f) {
+    const p = P(t.closest("[data-pid]").dataset.pid);
+    p[t.dataset.f] = t.value;
+    if (t.dataset.f === "role") { p.align = defAlign(t.value); if (!THINKS.includes(t.value)) p.thinks = ""; }
+    save(); return;
+  }
+  if (t.dataset.bluff) { G.bluffs[Number(t.dataset.bluff)] = t.value; save(); return; }
+  if (t.dataset.g) { G[t.dataset.g] = t.value; save(); if (t.tagName === "SELECT") render(); }
+});
+document.addEventListener("change", ev => {
+  const t = ev.target;
+  if (t.dataset.f === "role" || t.dataset.f === "name" || t.dataset.f === "thinks" || t.dataset.bluff) render();
+  if (t.dataset.ff === "role" && F && F.type === "change") renderEditor();
+});
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape" && $("modal").innerHTML) closeEditor();
+});
+
+function setTab(t) {
+  ui.tab = t;
+  render();
+  window.scrollTo({ top: 0 });
+}
+
+async function newGame() {
+  let keep = false;
+  if (G.players.length) {
+    const a = await ask("Start a new game. Keep the same players and seats? Characters are cleared either way.", [["Cancel", null, ""], ["Empty table", "empty", ""], ["Keep players", "keep", "primary"]]);
+    if (!a) return;
+    keep = a === "keep";
+  }
+  if (G.started && !G.example) store.archive.push(G);
+  store.archive = store.archive.slice(-25);
+  const players = keep ? G.players.map(p => mkPlayer(p.name)) : [];
+  store.game = G = mkGame(players);
+  G.script = (store.archive[store.archive.length - 1] || {}).script || "tb";
+  ui.sel = null;
+  setTab("setup");
+}
+
+lastJson = snapshotJson();
+render();
+connectAccount();
+</script>
+</body>
+</html>

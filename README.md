@@ -48,6 +48,18 @@ A secret companion for when you're on the evil team. Open `evil.html` in any web
 - Game recap: when the winner is certain (your Demon executed or shot with nobody to take over, two players left with your Demon alive, the Vortox with no execution, the Mastermind's extra day), the game ends by itself and jumps to the recap under a large Evil wins / Good wins heading. Results that depend on a claim, like a Saint or Mayor, are still asked. The recap shows the result, good and evil deaths, how many night kills landed, good players executed, each teammate's fate, takeaways (what got your Demon caught, key players you removed, kills that failed, bloc voting), your bluff and any slips, your night actions and a timeline
 - **Hide** covers the screen; double-tap to come back
 
-Like the notebook, games are saved only in the browser on your device.
+## Storyteller's Grimoire
+
+A tracker for the *Blood on the Clocktower* Storyteller. Open `storyteller.html` in any web browser.
+
+- Setup: paste everyone's names in one go, then pick each player's character from a dropdown once the tokens are handed out (characters already given out are greyed out). Good or evil fills in by itself. Also the Drunk's or Lunatic's fake character, Demon bluffs and the Fortune Teller's red herring. Checks the Townsfolk / Outsider / Minion / Demon counts for the player count (including the Baron)
+- Grimoire: the seating circle with characters, deaths, ghost votes and reminder tokens (Poisoned, Protected, Mad…), which come and go on their own
+- Nights: a wake-order list of who's in play. Log what each player chose and learned, mark false info and why, and log Demon kills (with saves and Imp star-passes)
+- Days: nominations with vote counts, who's on the block, executions, Slayer shots (hit or miss, and why), and other deaths
+- Character changes, revivals, notes, and a star for moments worth calling out
+- Look back at any earlier night or day, and fix or add things there
+- Reveal script: when the game ends, a script to read aloud at the grimoire reveal. It tells the game as a story, night by night, in the Storyteller's voice and reveals each player at the moment they died. Until then, night actions name characters rather than players ("The Poisoner poisoned the Empath, and the Empath received 0 that night"), so no one is given away before their turn. A Drunk is treated as the character they thought they were until their own reveal Survivors come last, evil ones at the very end, then who won. Nights with no deaths and days with no execution are called out
+- Full summary: who was what, the whole game, every lie you told and why, starred moments, the final grimoire and some numbers. Copy either as text
+- Finished games are kept under Past games
 
 *Blood on the Clocktower* and its character names belong to The Pandemonium Institute. This is an unofficial fan-made note-taking tool.
