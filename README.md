@@ -68,4 +68,19 @@ A tracker for the *Blood on the Clocktower* Storyteller. Open `storyteller.html`
 - Full summary: who was what, the whole game, every lie you told and why, starred moments, the final grimoire and some numbers. Copy either as text
 - Finished games are kept under Past games
 
+## Clockwork Storyteller
+
+An automated Storyteller for *Trouble Brewing*, so nobody has to sit out. It's a separate app from the Clocktower Companion. Open `clockwork-storyteller.html` in any web browser on one phone and pass it round the table.
+
+- Setup: type 5 to 15 names in seating order. Characters are dealt at random with the standard counts (including the Baron), along with the Drunk's fake character, three Demon bluffs and the Fortune Teller's red herring. With 7 or more players, the evil team learns each other and the Imp learns the bluffs
+- Night turns: each player taps their own name, checks nobody else can see, and makes their choice (Poisoner, Monk, Imp, Fortune Teller, Butler). Players with nothing to do tap a player too, so nobody watching can tell who has an ability
+- The night is resolved in the real wake order: poison, Monk protection, the Imp's kill (Soldier, Mayor bounce, star-pass to a Minion), then information worked out after the deaths
+- Morning news: a second pass round, where each player privately reads what they learned. Washerwoman, Librarian, Investigator, Chef, Empath, Fortune Teller, Undertaker and the Spy's view of the Grimoire are all covered, and a Ravenkeeper killed in the night chooses here. Then the town hears who died
+- Storyteller choices: drunk and poisoned players usually get false information, the Spy and the Recluse sometimes register as the other team, and a kill on the Mayor sometimes bounces
+- Day: nominations with vote counting, ghost votes, who's on the block and ties, and the Virgin working automatically. Slayer shots (only the real Slayer's work), a discussion timer, and **My character**, where any player can privately re-read their character and everything they've learned
+- End of day: the execution, then the Saint, Scarlet Woman, Mayor, final-two and Demon-death wins are checked
+- Game over: the winner, the full Grimoire and a Storyteller's log of every choice, including each piece of false information and why it was given
+
+Games are saved in the browser on the device you use. Nothing is uploaded anywhere.
+
 *Blood on the Clocktower* and its character names belong to The Pandemonium Institute. This is an unofficial fan-made note-taking tool.
