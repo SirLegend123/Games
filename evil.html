@@ -191,6 +191,10 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .rank.pick input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); align-self: center; }
 .rank.pick:has(input:checked) { box-shadow: inset 0 0 0 2px var(--accent); }
 .rank.pick:has(input:disabled) { cursor: default; }
+.recap summary { cursor: pointer; list-style-position: outside; }
+.recap .tl { display: grid; grid-template-columns: 6.2em minmax(0, 1fr); gap: 4px 10px; font-size: .88rem; }
+.recap .tl .when { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.recap .tl .night { color: #a89ff0; }
 .cover { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: grid; place-items: center; text-align: center; color: var(--muted); user-select: none; }
 .cover .moon { font-family: var(--font-display); font-size: 2.4rem; color: var(--muted); }
 
@@ -246,6 +250,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   </header>
 
   <div class="over" id="overBanner" hidden></div>
+  <details class="card recap" id="recap" open hidden><summary><h2 style="display:inline">Game recap</h2> <span class="foot">How the evil team did</span></summary><div id="recapBody" class="col" style="margin-top:12px"></div></details>
 
   <div class="tabview" data-view="table">
     <div class="main">
@@ -1711,11 +1716,86 @@ function renderOver() {
   const o = state.over, el = $("overBanner");
   $("phaseBtn").textContent = isNight() ? "Night → day" : "End day → night";
   $("phaseBtn").hidden = !!o;
-  el.hidden = !o; if (!o) return;
+  el.hidden = !o; $("recap").hidden = !o; if (!o) return;
   el.className = "over" + (o.winner === "good" ? " good" : "");
   el.innerHTML = `<span>Game over on ${timeLabel(o.t)}: <span class="${o.winner === "evil" ? "t-evil" : ""}">${o.winner === "evil" ? "Evil won" : "Good won"}</span>.${o.why ? ` <small class="hint">${esc(o.why)}</small>` : ""}</span><span class="row"><button class="btn sm" id="overUndo">Reopen the game</button><button class="btn sm primary" id="overNew">+ New game</button></span>`;
   $("overUndo").onclick = () => { state.over = null; save(); render(); };
+  renderRecap();
   $("overNew").onclick = openNew;
+}
+
+/* ---------- Game recap ---------- */
+// After the game: how the evil team did, built from everything logged
+function renderRecap() {
+  const o = state.over, won = o.winner === "evil";
+  const team = teamPlayers(), good = core().filter(p => !onTeam(p));
+  const origRole = p => p.formerRole || roleOf(p);
+  const nights = Math.ceil(o.t / 2), days = Math.floor(o.t / 2);
+  const isExec = p => p.dead && (p.deathBy === "exec" || p.deathBy === "virgin");
+  const goodExec = good.filter(isExec), evilExec = team.filter(isExec);
+  const goodNight = good.filter(p => p.dead && p.deathBy === "night"), goodSlain = good.filter(p => p.dead && p.deathBy === "slayer");
+  // Did each kill land? A target dying that night means yes
+  const kills = state.acts.filter(a => a.kill && !a.starpass).map(a => ({ a, hits: a.p.map(byId).filter(Boolean).map(x => ({ x, landed: x.dead && x.deathBy === "night" && x.deathAt === a.night * 2 - 1 })) }));
+  const landed = kills.flatMap(k => k.hits).filter(h => h.landed).length, tried = kills.flatMap(k => k.hits).length;
+  const tileH = (k, v, sub) => `<div class="tile"><span class="k">${k}</span><span class="v">${v}</span>${sub ? `<span class="s">${sub}</span>` : ""}</div>`;
+  const tiles = [
+    tileH("Result", `<span class="${won ? "t-evil" : ""}">${won ? "Evil won" : "Good won"}</span>`, `${days} day${days === 1 ? "" : "s"}, ${nights} night${nights === 1 ? "" : "s"}`),
+    tileH("Good players dead", `${good.filter(p => p.dead).length}<small> of ${good.length}</small>`, `${goodNight.length} at night · ${goodExec.length} executed${goodSlain.length ? ` · ${goodSlain.length} by the Slayer` : ""}`),
+    tileH("Evil players dead", `${team.filter(p => p.dead).length}<small> of ${team.length}</small>`, `${evilExec.length} executed`),
+    tileH("Night kills landed", tried ? `${landed}<small> of ${tried}</small>` : "–", tried ? (tried - landed ? `${tried - landed} stopped or survived` : "every kill worked") : "no kills logged"),
+    tileH("Good executions", `${goodExec.length}<small> of ${goodExec.length + evilExec.length}</small>`, "executions that hit a good player")
+  ];
+  // Teammates
+  const teamRows = team.map(p => {
+    const noms = state.noms.filter(n => n.on === p.id), heat = teamHeat().find(h => h.p === p);
+    const fate = !p.dead ? "survived" : isExec(p) ? `executed on ${timeLabel(p.deathAt)}` : p.deathBy === "slayer" ? `shot by the Slayer on ${timeLabel(p.deathAt)}` : `died on ${timeLabel(p.deathAt)}`;
+    const passed = p.formerRole && p.formerRole !== roleOf(p) ? ` → became the ${roleOf(p)}` : "";
+    return `<div class="tip ${p.dead ? "bad" : "ok"}"><span>${btn(p)}${p.me ? " (you)" : ""} · <b class="t-evil">${esc(origRole(p) || "evil")}</b>${esc(passed)}${p.claims.length ? `, claimed ${esc(p.claims.join(" / "))}` : ""}</span><small>${esc(fate)}${noms.length ? ` · nominated ${noms.length} time${noms.length === 1 ? "" : "s"} (most votes ${Math.max(...noms.map(n => n.votes))})` : " · never nominated"}${heat && heat.score >= 2 && !p.dead ? ` · ended ${levelOf(heat.score)[2].toLowerCase()} on suspicion` : ""}</small></div>`;
+  }).join("");
+  // Night actions
+  const acts = [...state.acts].sort((a, b) => a.night - b.night).map(a => {
+    const tg = a.p.map(byId).filter(Boolean);
+    let res = "";
+    if (a.starpass) { const me = meP(); res = me && me.dead && me.deathAt === a.night * 2 - 1 ? "star-pass went through" : "star-pass didn't happen"; }
+    else if (a.kill) res = tg.map(x => x.dead && x.deathBy === "night" && x.deathAt === a.night * 2 - 1 ? `${nm(x)} died` : `${nm(x)} survived${["soldier", "mayor", "fool"].includes(lc(realOrClaim(x))) ? ` (claimed ${realOrClaim(x)})` : ""}`).join(", ");
+    return `<div class="tl"><span class="when night">Night ${a.night}</span><span>${esc(a.role || "")}: ${tg.length ? tg.map(x => esc(nm(x))).join(", ") : "nobody"}${res ? ` · <b>${esc(res)}</b>` : ""}${a.x && a.x !== "chose nobody" ? ` · ${esc(a.x)}` : ""}</span></div>`;
+  }).join("");
+  // Your story
+  const me = meP(), checks = [...storyChecks(), ...toldChecks()].filter(c => c.lv === "bad");
+  const told = state.talks.filter(t => t.told).length;
+  const story = me ? `<div class="tip ${checks.length ? "hi" : "ok"}"><span>You bluffed ${me.claims.length ? `as the <b>${esc(me.claims.join(" / "))}</b>` : "without a firm claim"}${state.bluffs.length ? ` (Demon bluffs: ${esc(state.bluffs.join(", "))})` : ""}.</span><small>${state.story.length} piece${state.story.length === 1 ? "" : "s"} of made-up info · told your story in ${told} conversation${told === 1 ? "" : "s"} · ${checks.length ? `${checks.length} slip${checks.length === 1 ? "" : "s"} flagged: ${checks.map(c => c.text).join(" ")}` : "no slips flagged"}</small></div>` : "";
+  // Takeaways
+  const take = [];
+  const demon = team.find(p => teamOf(origRole(p)) === "demon") || demonP();
+  if (demon && demon.dead && isExec(demon)) { const n = state.noms.filter(x => x.on === demon.id).sort((a, b) => b.t - a.t)[0]; take.push({ lv: "bad", text: `Your Demon, ${nm(demon)}, was executed on ${timeLabel(demon.deathAt)}${n ? ` after ${nm(byId(n.by))} nominated them (${n.votes} votes)` : ""}.` }); }
+  if (demon && demon.dead && demon.deathBy === "slayer") take.push({ lv: "bad", text: `A Slayer shot killed your Demon, ${nm(demon)}.` });
+  const against = state.heard.filter(h => hitsTeam(h).length);
+  if (against.length) take.push({ lv: "hi", text: `${against.length} piece${against.length === 1 ? "" : "s"} of info pointed at your team.`, sub: [...new Set(against.map(h => nm(byId(h.mode === "hearsay" && h.via ? h.via : h.from))))].join(", ") + (against.length === 1 ? " had it." : " had them.") });
+  const threatDead = good.filter(p => p.dead && (INFO_ONGOING.includes(lc(realOrClaim(p))) || lc(realOrClaim(p)) === "slayer"));
+  if (threatDead.length) take.push({ lv: "ok", text: `You took out ${threatDead.length} key good player${threatDead.length === 1 ? "" : "s"}: ${threatDead.map(p => `${nm(p)} (${realOrClaim(p)})`).join(", ")}.` });
+  if (goodExec.length) take.push({ lv: "ok", text: `The town executed ${goodExec.length} good player${goodExec.length === 1 ? "" : "s"}: ${goodExec.map(nm).join(", ")}.` });
+  const bloc = state.noms.filter(n => { const tv = n.voters.map(byId).filter(x => x && onTeam(x)); return tv.length > 1 && tv.length === team.length; }).length;
+  if (bloc >= 2) take.push({ lv: "hi", text: `Your whole team voted together ${bloc} times.` });
+  const blocked = kills.flatMap(k => k.hits).filter(h => !h.landed);
+  if (blocked.length) take.push({ lv: "hi", text: `${blocked.length} kill${blocked.length === 1 ? "" : "s"} didn't land: ${blocked.map(h => nm(h.x)).join(", ")}.` });
+  // Timeline
+  const ev = [];
+  for (const p of P()) if (p.dead && p.deathAt) ev.push({ t: p.deathAt, k: 2, text: `${nm(p)}${onTeam(p) ? ` (${origRole(p) || "evil"})` : ""} ${p.deathBy === "night" ? "died in the night" : p.deathBy === "virgin" ? "was executed by the Virgin" : p.deathBy === "slayer" ? "was shot by the Slayer" : p.deathBy === "exec" ? "was executed" : "died"}`, team: onTeam(p) });
+  for (const n of state.noms) ev.push({ t: n.t, k: 1, text: `${nm(byId(n.by))} nominated ${nm(byId(n.on))}: ${n.votes} vote${n.votes === 1 ? "" : "s"}`, team: onTeam(byId(n.on)) });
+  for (const e of state.events.filter(e => e.type === "slayer" && e.result === "none")) ev.push({ t: e.t, k: 1, text: `${nm(byId(e.a))} shot ${nm(byId(e.b))}: nothing happened` });
+  ev.sort((a, b) => a.t - b.t || a.k - b.k);
+  const tl = ev.map(e => `<div class="tl"><span class="when${e.t % 2 ? " night" : ""}">${timeLabel(e.t)}</span><span${e.team ? ' class="t-evil"' : ""}>${esc(e.text)}</span></div>`).join("");
+  $("recapBody").innerHTML = `
+    <div class="dash">${tiles.join("")}</div>
+    <div class="grid2">
+      <div class="col"><h3>Your team</h3>${teamRows || '<p class="empty">No teammates were marked.</p>'}</div>
+      <div class="col"><h3>Takeaways</h3>${take.map(tip).join("") || '<p class="empty">Not enough logged for takeaways.</p>'}${story ? `<h3>Your story</h3>${story}` : ""}</div>
+    </div>
+    <div class="grid2">
+      <div class="col"><h3>Your night actions</h3>${acts || '<p class="empty">No night actions logged.</p>'}</div>
+      <div class="col"><h3>Timeline</h3>${tl || '<p class="empty">No deaths or nominations logged.</p>'}</div>
+    </div>`;
+  wireOpen();
 }
 
 // Night actions asked at the start of each night

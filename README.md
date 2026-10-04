@@ -45,6 +45,7 @@ A secret companion for when you're on the evil team. Open `evil.html` in any web
 - Today: who to push for execution, who not to nominate, vote counts for your team, and endgame warnings (final three, the Mayor, Scarlet Woman, Vortox, Saint)
 - End day → night: asks who was executed, whether the game ended, then your night action (with suggested targets). Night → day asks who actually died: a night kill or star-pass is never assumed, since a Soldier, Monk, Mayor bounce or poisoning can stop it, and a survivor or bounce is explained; whether the game ended is only asked at the end of the day
 - When your Demon dies, the Scarlet Woman takes over automatically with five or more alive, an Imp star-pass goes to the Scarlet Woman or the Minion you pick, and the Mastermind keeps the game going. Otherwise the app suggests the game is over. A finished game shows who won, with a button to reopen it
+- Game recap: when the game ends, a recap shows the result, good and evil deaths, how many night kills landed, good players executed, each teammate's fate, takeaways (what got your Demon caught, key players you removed, kills that failed, bloc voting), your bluff and any slips, your night actions and a timeline
 - **Hide** covers the screen; double-tap to come back
 
 Like the notebook, games are saved only in the browser on your device.
