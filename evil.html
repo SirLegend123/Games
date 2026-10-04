@@ -208,11 +208,11 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
   <div class="row"><button class="btn primary" id="wStart">+ Start a new game</button><button class="btn" id="wContinue" hidden>Continue my game</button></div>
   <ol>
     <li><b>Set up.</b> Enter the players in seat order, then under <b>Your team</b> on the Table tab pick your character, tap your seat, mark your teammates and choose the Demon bluffs.</li>
-    <li><b>Pick a bluff.</b> On <b>My story</b>, choose the good character you'll claim. Each night, the app suggests made-up info for that character (safe, covering a teammate, or framing a threat) and keeps a log of everything you've said so your story stays straight.</li>
+    <li><b>Pick a bluff.</b> On <b>Story &amp; night</b>, choose the good character you'll claim. Each night, the app suggests made-up info for that character (safe, covering a teammate, or framing a threat) and keeps a log of everything you've said so your story stays straight.</li>
     <li><b>Track the town.</b> Tap a player and tap the roles they claim: <b>Soft</b> for every role they offered, <b>Hard</b> for the one they commit to. Note who they suspect and whether the town trusts them, and mark deaths as they happen. Record each <b>Virgin</b> nomination and <b>Slayer shot</b> from the middle of the circle.</li>
     <li><b>End day → night</b> in the middle of the circle asks who was executed, whether the game ended, and your night action. <b>Night → day</b> asks who died. If your Demon dies, a Scarlet Woman takes over or a star-pass is caught automatically, and the app asks whether the game is over.</li>
     <li><b>Talk to people.</b> After each chat, tap <b>I spoke to someone</b> on the Today tab (or in their panel): their claims, who they suspect, and what they shared, their own info or hearsay. Hearsay about a character counts as a soft claim for them. The table updates when you save.</li>
-    <li><b>Tonight</b> ranks kill or poison targets for your character. <b>Today</b> covers who to push, who not to nominate, vote counts and how close you are to winning.</li>
+    <li><b>Story &amp; night</b> also ranks kill or poison targets for your character. <b>Today</b> covers who to push, who not to nominate, vote counts and how close you are to winning.</li>
   </ol>
   <p class="small">Tap <b>Hide</b> at the top whenever someone looks over your shoulder; double-tap the screen to come back. Everything stays on this device. <i>Blood on the Clocktower</i> belongs to The Pandemonium Institute; this is an unofficial fan tool. Good players: the <a href="index.html">Clocktower Notebook</a> is for you.</p>
 </section>
@@ -224,8 +224,7 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
     <button class="btn primary" id="newBtn">+ New game</button>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab" role="tab" data-tab="table">Table &amp; team <span class="badge" id="bTeam"></span></button>
-      <button class="tab" role="tab" data-tab="story">My story <span class="badge" id="bStory"></span></button>
-      <button class="tab" role="tab" data-tab="night">Tonight</button>
+      <button class="tab" role="tab" data-tab="story">Story &amp; night <span class="badge" id="bStory"></span></button>
       <button class="tab" role="tab" data-tab="day">Today</button>
       <button class="tab" role="tab" data-tab="notes">Notes</button>
     </nav>
@@ -280,23 +279,15 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
 
   <div class="tabview" data-view="story" hidden>
     <div class="grid2">
-      <section class="card" aria-labelledby="storyTitle">
-        <div class="head"><h2 id="storyTitle">Tonight's made-up info</h2><span class="foot" id="storyFoot"></span></div>
-        <div id="storyForm" class="col"></div>
-      </section>
       <section class="col">
-        <div class="card"><div class="head"><h2>What you've said</h2><span class="foot">Keep your story straight</span></div><div id="storyLog" class="col"></div></div>
-        <div class="card"><div class="head"><h2>Who you've told what</h2><span class="foot">From your conversations</span></div><div id="toldLog" class="col"></div></div>
-        <div class="card"><h2>Story checks</h2><div id="storyChecks" class="col"></div></div>
+        <div class="card"><div class="head"><h2 id="nightTitle">Tonight</h2><span class="foot" id="nightFoot"></span></div><div id="targets" class="col"></div></div>
+        <div class="card" aria-labelledby="storyTitle"><div class="head"><h2 id="storyTitle">Made-up info for your bluff</h2><span class="foot" id="storyFoot"></span></div><div id="storyForm" class="col"></div></div>
       </section>
-    </div>
-  </div>
-
-  <div class="tabview" data-view="night" hidden>
-    <div class="grid2">
-      <section class="card"><div class="head"><h2 id="nightTitle">Tonight</h2><span class="foot" id="nightFoot"></span></div><div id="targets" class="col"></div></section>
       <section class="col">
         <div class="card"><h2>Log your night action</h2><div id="actForm" class="col"></div><div id="actLog" class="col"></div></div>
+        <div class="card"><h2>Story checks</h2><div id="storyChecks" class="col"></div></div>
+        <div class="card"><div class="head"><h2>What you've said</h2><span class="foot">Keep your story straight</span></div><div id="storyLog" class="col"></div></div>
+        <div class="card"><div class="head"><h2>Who you've told what</h2><span class="foot">From your conversations</span></div><div id="toldLog" class="col"></div></div>
         <div class="card"><h2 id="myTipsTitle">Your character</h2><div id="myTips" class="col"></div></div>
       </section>
     </div>
@@ -310,6 +301,7 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
         <div class="card"><div class="head"><h2>Virgin and Slayer</h2><div class="row"><button class="btn sm" data-event="virgin">+ Virgin nomination</button><button class="btn sm" data-event="slayer">+ Slayer shot</button></div></div><div id="events" class="col"></div></div>
       </section>
       <section class="col">
+        <div class="card"><div class="head"><h2>Town square</h2><div class="row"><button class="btn sm primary" id="tsSay">+ Public statement</button><button class="btn sm primary" id="tsNom">+ Nomination</button></div></div><span class="hint">What's said in the open during discussion, and each nomination and vote.</span><div id="block" class="col"></div><div id="square" class="col"></div></div>
         <div class="card"><div class="head"><h2>Conversations</h2><button class="btn sm primary" id="hdAdd">+ I spoke to someone</button></div><span class="hint">Log each chat: their claims, who they suspect, and any info, their own or hearsay. The table updates as you save.</span><div id="heard" class="col"></div></div>
         <div class="card"><div class="head"><h2>Who to push for execution</h2><span class="foot">Good players the town might believe are evil</span></div><div id="push" class="col"></div></div>
         <div class="card"><h2>Careful</h2><div id="careful" class="col"></div></div>
@@ -346,6 +338,10 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
 
 <div class="overlay" id="phOverlay" hidden>
   <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="phTitle" id="phBox"></div>
+</div>
+
+<div class="overlay" id="nmOverlay" hidden>
+  <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="nmTitle" id="nmBox"></div>
 </div>
 
 <div class="overlay" id="hdOverlay" hidden>
@@ -472,14 +468,14 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const mkPlayer = (name, extra = {}) => ({ id: uid(), name, me: false, team: false, role: "", real: "", claims: [], dead: false, deathBy: "", deathAt: 0, ghostVote: true, trusted: false, townSus: false, onto: [], traveller: false, notes: "", claimType: "soft", shotUsed: false, virginUsed: false, shotCleared: false, ...extra });
 
 function blankGame(names, script) {
-  return { v: 1, script, t: 1, players: names.map(n => mkPlayer(n)), myRole: "", bluffs: [], story: [], acts: [], events: [], heard: [], talks: [], notes: "", selected: null };
+  return { v: 1, script, t: 1, players: names.map(n => mkPlayer(n)), myRole: "", bluffs: [], story: [], acts: [], events: [], heard: [], talks: [], noms: [], notes: "", selected: null };
 }
 function normalize(s) {
   if (!s || !Array.isArray(s.players) || !s.players.length) return null;
   s.players = s.players.map(p => ({ ...mkPlayer(""), ...p, claims: Array.isArray(p.claims) ? p.claims : [], onto: Array.isArray(p.onto) ? p.onto : [] }));
   s.t = Math.max(1, Number(s.t) || 1);
   s.script = ROLES[s.script] || s.script === "all" ? s.script : "tb";
-  for (const k of ["bluffs", "story", "acts", "events", "heard", "talks"]) s[k] = Array.isArray(s[k]) ? s[k] : [];
+  for (const k of ["bluffs", "story", "acts", "events", "heard", "talks", "noms"]) s[k] = Array.isArray(s[k]) ? s[k] : [];
   s.notes = s.notes || ""; s.myRole = s.myRole || ""; s.over = s.over || null;
   return s;
 }
@@ -571,6 +567,8 @@ function threats(mode) {
     if (hit.length) { score += 3; why.push(`their info points at ${[...new Set(hit.flatMap(hitsTeam))].map(nm).join(" and ")}`); }
     const passed = state.heard.filter(h => hitsTeam(h).length && h.mode === "hearsay" && h.from === p.id && h.via !== p.id);
     if (passed.length) { score += 1; why.push("passing round info about your team"); }
+    const nommed = state.noms.filter(n => n.by === p.id && onTeam(byId(n.on)));
+    if (nommed.length) { score += 2; why.push(`nominated ${[...new Set(nommed.map(n => nm(byId(n.on))))].join(" and ")}`); }
     const onto = p.onto.map(byId).filter(x => x && onTeam(x) && !x.dead);
     if (onto.length) { score += 3 * onto.length; why.push(`suspects ${onto.map(nm).join(" and ")}`); }
     if (demon && p.onto.includes(demon.id)) { score += 2; why.push("onto your Demon"); }
@@ -601,6 +599,8 @@ function pushList() {
     if (p.trusted) { score -= 4; why.push("trusted, so a hard sell"); }
     if (state.events.some(e => e.type === "virgin" && e.result === "none" && e.b === p.id)) { score += 2; why.push("nominated the Virgin and nothing happened"); }
     if (p.shotCleared) { score -= 2; why.push("survived a Slayer shot, so the town may think they're not the Demon"); }
+    const townNom = state.noms.filter(n => n.on === p.id && !onTeam(byId(n.by)));
+    if (townNom.length) { const best = Math.max(...townNom.map(n => n.votes)); score += best >= townNom[0].need ? 3 : 1; why.push(`the town already nominated them (${best} votes)`); }
     if (lc(c) === "saint" && !bluffs.includes("saint")) why.push("claims Saint: if it's true, executing them wins the game for you");
     out.push({ p, score, why });
   }
@@ -622,6 +622,8 @@ function teamHeat() {
     if (state.events.some(e => e.type === "virgin" && e.result === "none" && e.b === p.id)) { score += 4; why.push("nominated the Virgin and nothing happened"); }
     if (state.events.some(e => e.type === "slayer" && e.result === "none" && e.a === p.id)) { score += 1; why.push("their Slayer shot missed"); }
     if (p.shotCleared) { score -= 2; why.push("survived a Slayer shot: looks cleared"); }
+    const noms = state.noms.filter(n => n.on === p.id);
+    if (noms.length) { score += noms.reduce((a, n) => a + (n.votes >= n.need ? 3 : 1), 0); why.push(`nominated ${noms.length === 1 ? `by ${nm(byId(noms[0].by))} (${noms[0].votes} votes)` : `${noms.length} times`}`); }
     const pinged = state.heard.filter(h => hitsTeam(h).includes(p));
     if (pinged.length) { score += 3 * pinged.length; why.push(`named in ${pinged.map(h => h.mode === "hearsay" ? `hearsay via ${nm(byId(h.from))}` : nm(byId(h.from)) + (h.as ? ` (${h.as})` : "")).join(", ")}'s info`); }
     out.push({ p, score, why });
@@ -633,7 +635,7 @@ function coverChecks() {
   const out = [], me = meP(), team = teamPlayers(), bluffs = state.bluffs.map(lc);
   if (!state.myRole) out.push({ lv: "hi", text: "Choose your character above." });
   if (!me) out.push({ lv: "hi", text: "Tap your seat in the list above, or open your player on the Table tab and choose This is me." });
-  if (me && !me.claims.length) out.push({ lv: "hi", text: "You haven't picked a bluff.", sub: state.bluffs.length ? `Demon bluffs: ${state.bluffs.join(", ")}. Those are not in play, so no one can truthfully counter-claim them. Set it on My story.` : "Choose one on My story." });
+  if (me && !me.claims.length) out.push({ lv: "hi", text: "You haven't picked a bluff.", sub: state.bluffs.length ? `Demon bluffs: ${state.bluffs.join(", ")}. Those are not in play, so no one can truthfully counter-claim them. Set it on Story & night.` : "Choose one on Story & night." });
   for (const p of team) {
     const c = hard(p); if (!c) continue;
     const whose = p.me ? "Your" : `${nm(p)}'s`;
@@ -867,6 +869,7 @@ function storyChecks() {
 let currentTab = "table";
 try { currentTab = localStorage.getItem(TAB_KEY) || "table"; } catch (e) {}
 function setTab(name) {
+  if (name === "night") name = "story";
   if (!document.querySelector(`.tabview[data-view="${name}"]`)) name = "table";
   currentTab = name;
   try { localStorage.setItem(TAB_KEY, name); } catch (e) {}
@@ -942,7 +945,7 @@ function renderPanel() {
       <button class="choice red" id="pTeam" aria-pressed="${p.team}">On my team</button>
       ${p.team ? `<select id="pRole" aria-label="Their real character"><option value="">Evil, character unknown</option>${roleList("evil").map(r => `<option${r === p.role ? " selected" : ""}>${esc(r)}</option>`).join("")}</select>` : ""}
     </div></div>`}
-    ${p.me ? `<p class="hint">You're the <b class="t-evil">${esc(state.myRole || "…")}</b>. Change it under Your team on the Table tab; set your bluff on My story.</p>` : ""}
+    ${p.me ? `<p class="hint">You're the <b class="t-evil">${esc(state.myRole || "…")}</b>. Change it under Your team on the Table tab; set your bluff on Story & night.</p>` : ""}
     <div class="field claim-grid"><div class="row" style="justify-content:space-between"><span class="label">Public claim</span>
         <span class="seg" role="group" aria-label="Claim type"><button data-ctype="soft" aria-pressed="${!isHardMode}">Soft</button><button data-ctype="hard" aria-pressed="${isHardMode}">Hard</button></span></div>
       <span class="hint">${p.claims.length ? `${isHardMode ? "Hard claim" : "Soft claim"}: <b>${esc(claimsOf(p).join(", ") || "none left")}</b>. ` : ""}${ruledOut(p).length ? `Left off: <s>${esc(ruledOut(p).map(r => outReason(r, p)).join(", "))}</s>. ` : ""}${isHardMode ? "Tap the role they've committed to." : "Tap every role they offered."} An amber ring means someone else has claimed it.</span>
@@ -1213,10 +1216,13 @@ function renderDay() {
   const slayer = goodAlive().find(p => lc(realOrClaim(p)) === "slayer" && !p.shotUsed);
   if (slayer && demon && !demon.dead) care.push({ lv: "hi", text: `${nm(slayer)} may still have a Slayer shot.`, sub: "Keep the Demon from looking like the obvious shot." });
   for (const p of goodAlive().filter(p => lc(realOrClaim(p)) === "tea lady")) { const nb = livingNeighbours(p); if (nb.length === 2 && nb.every(x => !onTeam(x))) care.push({ lv: "", text: `${nb.map(nm).join(" and ")} sit next to a Tea Lady and can't die.`, sub: "Pushing them wastes a day: fine if that's what you want." }); }
+  const bloc = state.noms.filter(n => { const tv = n.voters.map(byId).filter(x => x && onTeam(x)); return tv.length > 1 && tv.length === teamPlayers().filter(p => !p.dead || n.voters.includes(p.id)).length; });
+  if (bloc.length >= 2) care.push({ lv: "hi", text: `Your whole team has voted together ${bloc.length} times.`, sub: "Split your votes now and then so the town can't spot the bloc." });
   if (!care.length) care.push({ lv: "ok", text: "Nothing to watch out for right now." });
   $("careful").innerHTML = care.map(tip).join("");
   renderEvents();
   renderHeard();
+  renderSquare();
   renderLikely();
 }
 
@@ -1356,10 +1362,11 @@ function heardMeaning(h) {
 
 let cv = null;
 const newItem = mode => ({ mode, via: "", as: "", kind: "", role: "", n: "", about: [], x: "", shape: true, p: [], r: "", r2: "", yn: null });
-function openHeard(withId) {
+function openHeard(withId, pubMode) {
   const me = meP();
   cv = { with: "", claims: [], claimType: "soft", onto: [], items: [], item: null, note: "", pub: false, added: [],
     told: { claims: me && me.claims.length === 1 ? [...me.claims] : [], claimType: "hard", story: [], x: "" } };
+  if (pubMode) { cv.pubMode = true; cv.pub = true; }
   if (withId) pickWith(withId);
   $("hdOverlay").hidden = false; renderTalk();
 }
@@ -1383,8 +1390,8 @@ function renderTalk() {
   const re = () => renderTalk();
   const playerChips = (attr, sel, filter = () => true, extra = "") => `<div class="choice-list">${extra}${P().filter(filter).map(x => `<button class="choice${onTeam(x) ? " red" : ""}" data-${attr}="${x.id}" aria-pressed="${Array.isArray(sel) ? sel.includes(x.id) : sel === x.id}">${esc(nm(x))}${x.dead ? " †" : ""}</button>`).join("")}</div>`;
   const roleChips = (attr, sel, kinds, mark = []) => `<div class="choice-list">${kinds.flatMap(k => R[k]).map(r => `<button class="choice${mark.includes(r) ? " sugg" : ""}" data-${attr}="${esc(r)}" aria-pressed="${Array.isArray(sel) ? sel.includes(r) : sel === r}"${notInPlay(r) && attr === "cclaim" && !onTeam(p) && cv.claims.length > 1 && cv.claims.includes(r) ? ' style="text-decoration:line-through"' : ""}>${esc(r)}</button>`).join("")}</div>`;
-  let html = `<h2 id="hdTitle">Conversation</h2>
-    <div class="field"><span class="label">Who I spoke to</span>${playerChips("cwith", cv.with, x => !x.me)}</div>`;
+  let html = `<h2 id="hdTitle">${cv.pubMode ? "Said in public" : "Conversation"}</h2>
+    <div class="field"><span class="label">${cv.pubMode ? "Who spoke" : "Who I spoke to"}</span>${playerChips("cwith", cv.with, x => !x.me)}</div>`;
   if (p) {
     const mates = teamPlayers().filter(x => x !== p);
     html += `
@@ -1423,7 +1430,7 @@ function renderTalk() {
         <div class="row"><button class="btn sm primary" id="cAddItem">Add this info</button><button class="btn sm" id="cDropItem">Cancel</button></div>
       </div>`;
     }
-    if (me) {
+    if (me && !cv.pubMode) {
       const tc = cv.told, R2 = scriptRoles(), bl = state.bluffs;
       const lines = [...state.story].sort((a, b) => a.night - b.night);
       const prior = lastToldTo(p.id);
@@ -1432,12 +1439,12 @@ function renderTalk() {
         <div class="row" style="justify-content:space-between"><span class="label">I claimed</span><span class="seg" role="group" aria-label="My claim type"><button data-tctype="soft" aria-pressed="${tc.claimType === "soft"}">Soft</button><button data-tctype="hard" aria-pressed="${tc.claimType === "hard"}">Hard</button></span></div>
         ${bl.length ? `<div class="choice-list">${bl.map(r => `<button class="choice red" data-tcl="${esc(r)}" aria-pressed="${tc.claims.includes(r)}">${esc(r)}</button>`).join("")}</div>` : ""}
         <div class="choice-list">${[...R2.townsfolk, ...R2.outsider].filter(r => !bl.includes(r)).map(r => `<button class="choice" data-tcl="${esc(r)}" aria-pressed="${tc.claims.includes(r)}">${esc(r)}</button>`).join("")}</div>
-        ${lines.length ? `<span class="label">Info I shared (from My story)</span><div class="col">${lines.map(e => `<button class="choice" style="text-align:left;border-radius:10px" data-tst="${e.id}" aria-pressed="${tc.story.includes(e.id)}">Night ${e.night}: "${esc(sayText(e))}"</button>`).join("")}</div>` : `<span class="hint">Made-up info you save on My story can be picked here.</span>`}
+        ${lines.length ? `<span class="label">Info I shared (from Story & night)</span><div class="col">${lines.map(e => `<button class="choice" style="text-align:left;border-radius:10px" data-tst="${e.id}" aria-pressed="${tc.story.includes(e.id)}">Night ${e.night}: "${esc(sayText(e))}"</button>`).join("")}</div>` : `<span class="hint">Made-up info you save on Story & night can be picked here.</span>`}
         <input type="text" id="tX" value="${esc(tc.x)}" placeholder="Anything else I told them (optional)">
       </div>`;
     }
-    html += `<div class="row"><button class="choice" id="cPub" aria-pressed="${cv.pub}">They said it publicly</button></div>
-      <input type="text" id="cNote" value="${esc(cv.note)}" placeholder="Note about the chat (optional)">`;
+    html += `${cv.pubMode ? "" : `<div class="row"><button class="choice" id="cPub" aria-pressed="${cv.pub}">They said it publicly</button></div>`}
+      <input type="text" id="cNote" value="${esc(cv.note)}" placeholder="${cv.pubMode ? "What else they said (optional)" : "Note about the chat (optional)"}">`;
   }
   html += `<div class="row"><button class="btn primary" id="cSave"${p ? "" : " disabled"}>Save and update the table</button><button class="btn" id="cCancel">Cancel</button></div>`;
   box.innerHTML = html;
@@ -1478,7 +1485,7 @@ function renderTalk() {
     if (cv.item && (cv.item.kind || cv.item.x || cv.item.as)) { cv.item.shape = !!SHAPE[lc(cv.item.as)] && cv.item.shape !== false; cv.item.msg = claimFromItem(cv.item); cv.items.push(cv.item); }
     p.claims = cv.claims; p.claimType = cv.claimType; if (!onTeam(p)) p.onto = cv.onto;
     const talk = { id: uid(), t: state.t, with: p.id, claims: [...cv.claims], claimType: cv.claimType, note: cv.note, pub: cv.pub,
-      told: cv.told.claims.length || cv.told.story.length || cv.told.x ? { ...cv.told, claims: [...cv.told.claims], story: [...cv.told.story] } : null };
+      told: !cv.pubMode && (cv.told.claims.length || cv.told.story.length || cv.told.x) ? { ...cv.told, claims: [...cv.told.claims], story: [...cv.told.story] } : null, square: !!cv.pubMode };
     for (const x of cv.items) { const { msg, ...h } = x; state.heard.push({ id: uid(), ...h, t: state.t, from: p.id, to: cv.pub ? ["all"] : me ? [me.id] : [], talk: talk.id }); }
     state.talks.push(talk);
     $("hdOverlay").hidden = true; cv = null; save(); render();
@@ -1486,7 +1493,7 @@ function renderTalk() {
 }
 function renderHeard() {
   const items = h => { const m = heardMeaning(h); return `<div class="tip ${m.lv}"><span>${esc(heardText(h))}${h.mode === "hearsay" ? " <small>(hearsay)</small>" : ""}</span>${m.text ? `<small>${esc(m.text)}</small>` : ""}</div>`; };
-  const talks = [...state.talks].reverse().map(t => {
+  const talks = [...state.talks].filter(t => !t.square).reverse().map(t => {
     const p = byId(t.with), hs = state.heard.filter(h => h.talk === t.id);
     return `<div class="tip"><span><span class="label">${timeLabel(t.t)}</span> Spoke to ${p ? btn(p) : "someone"}${t.claims.length ? ` · ${t.claimType === "hard" ? "hard" : "soft"} claim: <b>${esc(t.claims.join(", "))}</b>` : " · no claim"}${t.pub ? " · public" : ""}</span>${t.note ? `<small>${esc(t.note)}</small>` : ""}${t.told ? `<small><b>You told them:</b> ${esc(toldText(t.told))}</small>` : ""}${hs.map(items).join("")}<div class="row"><button class="btn sm danger" data-untalk="${t.id}">Remove</button></div></div>`;
   });
@@ -1496,6 +1503,80 @@ function renderHeard() {
   document.querySelectorAll("[data-unheard]").forEach(b => b.onclick = () => { state.heard = state.heard.filter(h => h.id !== b.dataset.unheard); save(); render(); });
 }
 $("hdAdd").onclick = () => openHeard();
+$("tsSay").onclick = () => openHeard("", true);
+
+/* ---------- Town square: public statements, nominations and votes ---------- */
+const needed = () => Math.ceil(P().filter(p => !p.dead).length / 2);
+const nomsToday = () => state.noms.filter(n => n.t === state.t);
+// Who is on the block today: the highest vote that reached half the living, with no tie
+function onBlock() {
+  const ns = nomsToday().filter(n => n.votes >= n.need);
+  if (!ns.length) return null;
+  const top = Math.max(...ns.map(n => n.votes)), best = ns.filter(n => n.votes === top);
+  return best.length === 1 ? best[0] : { tie: true, votes: top, ns: best };
+}
+let nm0 = null;
+function openNom() { nm0 = { by: "", on: "", voters: [], votes: "", x: "" }; $("nmOverlay").hidden = false; renderNom(); }
+function renderNom() {
+  const d = nm0, box = $("nmBox");
+  const chips = (attr, sel, filter) => `<div class="choice-list">${P().filter(filter).map(x => `<button class="choice${onTeam(x) ? " red" : ""}" data-${attr}="${x.id}" aria-pressed="${Array.isArray(sel) ? sel.includes(x.id) : sel === x.id}">${esc(nm(x))}${x.dead ? (x.ghostVote ? " † ghost vote" : " †") : ""}</button>`).join("")}</div>`;
+  const on = byId(d.on), votes = d.votes === "" ? d.voters.length : +d.votes, need = needed();
+  const ob = onBlock(), top = ob ? (ob.tie ? ob.votes : ob.votes) : 0;
+  const verdict = votes < need ? `Not enough: ${votes} of ${need} needed.` : votes > top ? `${on ? nm(on) : "They"} go${on ? "es" : ""} on the block with ${votes}.` : votes === top ? `Ties the ${top} already on the block: nobody is on the block.` : `Fewer than the ${top} already on the block.`;
+  box.innerHTML = `<h2 id="nmTitle">Nomination</h2>
+    <div class="field"><span class="label">Who nominated</span>${chips("nby", d.by, x => !x.dead)}</div>
+    <div class="field"><span class="label">Who was nominated</span>${chips("non", d.on, x => !x.dead && x.id !== d.by)}</div>
+    ${on && on.claims.some(c => lc(c) === "virgin") && !on.virginUsed ? `<div class="tip hi"><span>${esc(nm(on))} claims Virgin.</span><small>If the nominator died, record it as a Virgin nomination instead.</small><div class="row"><button class="btn sm" id="nmVirgin">Record Virgin nomination</button></div></div>` : ""}
+    <div class="field"><span class="label">Who voted (dead players spend their ghost vote)</span>${chips("nvote", d.voters, x => !x.dead || x.ghostVote || d.voters.includes(x.id))}</div>
+    <div class="row"><label class="label" for="nmVotes">Votes</label><input type="number" inputmode="numeric" id="nmVotes" min="0" value="${esc(d.votes === "" ? d.voters.length : d.votes)}" style="width:5em"><span class="hint">${esc(verdict)}</span></div>
+    <input type="text" id="nmX" value="${esc(d.x)}" placeholder="What was said in the defence or accusation (optional)">
+    <div class="row"><button class="btn primary" id="nmSave"${d.by && d.on ? "" : " disabled"}>Save</button><button class="btn" id="nmCancel">Cancel</button></div>`;
+  const re = () => renderNom();
+  box.querySelectorAll("[data-nby]").forEach(b => b.onclick = () => { d.by = b.dataset.nby; if (d.on === d.by) d.on = ""; re(); });
+  box.querySelectorAll("[data-non]").forEach(b => b.onclick = () => { d.on = b.dataset.non; re(); });
+  box.querySelectorAll("[data-nvote]").forEach(b => b.onclick = () => { const id = b.dataset.nvote; d.voters = d.voters.includes(id) ? d.voters.filter(x => x !== id) : [...d.voters, id]; d.votes = ""; re(); });
+  $("nmVotes").oninput = e => { d.votes = e.target.value === "" ? "" : Math.max(0, +e.target.value); };
+  $("nmVotes").onchange = re;
+  $("nmX").oninput = e => d.x = e.target.value;
+  if ($("nmVirgin")) $("nmVirgin").onclick = () => { $("nmOverlay").hidden = true; const by = d.by, on = d.on; nm0 = null; openEvent("virgin", on); if (evDraft) { evDraft.b = by; renderEvent(); } };
+  $("nmCancel").onclick = () => { $("nmOverlay").hidden = true; nm0 = null; };
+  $("nmSave").onclick = () => {
+    if (!d.by || !d.on) return;
+    const spent = d.voters.filter(id => { const x = byId(id); return x && x.dead && x.ghostVote; });
+    for (const id of spent) byId(id).ghostVote = false;
+    state.noms.push({ id: uid(), t: state.t, by: d.by, on: d.on, voters: [...d.voters], votes: d.votes === "" ? d.voters.length : +d.votes, need: needed(), x: d.x, spent });
+    $("nmOverlay").hidden = true; nm0 = null; save(); render();
+  };
+}
+$("tsNom").onclick = openNom;
+function nomText(n) {
+  const by = byId(n.by), on = byId(n.on);
+  return `${timeLabel(n.t)}: ${nm(by)} nominated ${nm(on)}. ${n.votes} vote${n.votes === 1 ? "" : "s"} (${n.need} needed)${n.voters.length ? `: ${n.voters.map(id => nm(byId(id))).join(", ")}` : ""}.`;
+}
+function nomMeaning(n) {
+  const by = byId(n.by), on = byId(n.on), team = teamPlayers().filter(p => !p.dead || n.voters.includes(p.id));
+  const out = [];
+  if (onTeam(on)) out.push(`Your teammate was nominated${onTeam(by) ? " by your own team" : ` by ${nm(by)}`}.`);
+  if (onTeam(by) && !onTeam(on)) out.push(`Your team pushed ${nm(on)}.`);
+  const teamVoters = n.voters.map(byId).filter(x => x && onTeam(x));
+  if (n.voters.length && team.length > 1 && teamVoters.length === team.length) out.push("Your whole team voted together: that's how blocs get spotted.");
+  if (onTeam(on) && teamVoters.length && teamVoters.length === team.length - 1) out.push(`Every teammate voted for ${nm(on)}.`);
+  return out.join(" ");
+}
+function renderSquare() {
+  const ob = onBlock();
+  $("block").innerHTML = state.t % 2 ? "" : ob ? (ob.tie ? `<div class="tip hi"><span>Tied at ${ob.votes}: nobody is on the block.</span></div>`
+    : `<div class="tip ${onTeam(byId(ob.on)) ? "bad" : "ok"}"><span>On the block: ${btn(byId(ob.on))} with ${ob.votes} vote${ob.votes === 1 ? "" : "s"}.</span><small>${onTeam(byId(ob.on)) ? "Your teammate! Another nomination needs more than " + ob.votes + " votes to replace them." : "If nothing beats it, they're executed at the end of the day."}</small></div>`)
+    : `<div class="tip"><span>Nobody on the block yet. ${needed()} votes needed.</span></div>`;
+  const items = h => { const m = heardMeaning(h); return `<div class="tip ${m.lv}"><span>${esc(heardText(h))}${h.mode === "hearsay" ? " <small>(hearsay)</small>" : ""}</span>${m.text ? `<small>${esc(m.text)}</small>` : ""}</div>`; };
+  const rows = [
+    ...state.noms.map(n => ({ t: n.t, k: 1, html: `<div class="tip ${onTeam(byId(n.on)) ? "bad" : ""}"><span><span class="label">Nomination</span> ${esc(nomText(n))}</span>${nomMeaning(n) ? `<small>${esc(nomMeaning(n))}</small>` : ""}${n.x ? `<small>${esc(n.x)}</small>` : ""}<div class="row"><button class="btn sm danger" data-unnom="${n.id}">Remove</button></div></div>` })),
+    ...state.talks.filter(t => t.square).map(t => { const p = byId(t.with), hs = state.heard.filter(h => h.talk === t.id); return { t: t.t, k: 0, html: `<div class="tip"><span><span class="label">${timeLabel(t.t)} · said in public</span> ${p ? btn(p) : "someone"}${t.claims.length ? ` · ${t.claimType === "hard" ? "hard" : "soft"} claim: <b>${esc(t.claims.join(", "))}</b>` : ""}</span>${t.note ? `<small>${esc(t.note)}</small>` : ""}${hs.map(items).join("")}<div class="row"><button class="btn sm danger" data-untalk="${t.id}">Remove</button></div></div>` }; })
+  ].sort((a, b) => b.t - a.t || b.k - a.k);
+  $("square").innerHTML = rows.map(r => r.html).join("") || '<p class="empty">Nothing yet. Add public claims and info as they come up, and each nomination with its votes.</p>';
+  document.querySelectorAll("[data-unnom]").forEach(b => b.onclick = () => { const n = state.noms.find(x => x.id === b.dataset.unnom); if (n) for (const id of n.spent || []) { const x = byId(id); if (x) x.ghostVote = true; } state.noms = state.noms.filter(x => x !== n); save(); render(); });
+  document.querySelectorAll("#square [data-untalk]").forEach(b => b.onclick = () => { const id = b.dataset.untalk; state.talks = state.talks.filter(t => t.id !== id); state.heard = state.heard.filter(h => h.talk !== id); save(); render(); });
+}
 
 /* ---------- Likely characters ---------- */
 function likelyRole(p) {
@@ -1595,7 +1676,8 @@ function startPhase() {
   if (isNight()) phase = { kind: "dawn", step: "deaths", deaths: [], notes: [] };
   else {
     const already = P().find(p => p.dead && executed(p) && p.deathAt === state.t);
-    phase = { kind: "dusk", step: "exec", exec: already ? already.id : "", already: !!already, notes: [], picks: [], x: "" };
+    const ob = onBlock();
+    phase = { kind: "dusk", step: "exec", exec: already ? already.id : ob && !ob.tie ? ob.on : "", already: !!already, notes: [], picks: [], x: "" };
   }
   $("phOverlay").hidden = false; renderPhase();
 }
@@ -1683,13 +1765,13 @@ function renderPhase() {
       const isDemon = teamOf(r) === "demon";
       let body;
       if (!state.myRole) body = `<p class="hint">Choose your character under Your team on the Table tab to get your night question.</p>`;
-      else if (!q || (n1 && isDemon && r !== "pukka") || (n1 && ["pit-hag", "assassin"].includes(r))) body = `<p class="hint">${n1 && isDemon ? "Demons don't kill on the first night." : `The ${esc(state.myRole)} makes no choice tonight.`} Use the night to prepare tomorrow's story on My story.</p>
+      else if (!q || (n1 && isDemon && r !== "pukka") || (n1 && ["pit-hag", "assassin"].includes(r))) body = `<p class="hint">${n1 && isDemon ? "Demons don't kill on the first night." : `The ${esc(state.myRole)} makes no choice tonight.`} Use the night to prepare tomorrow's story on Story & night.</p>
         <input type="text" id="phX" value="${esc(ph.x)}" placeholder="Anything to note (optional)">`;
       else {
         const mode = q[3] ? "poison" : "kill";
         const sugg = (r === "devil's advocate" ? teamHeat().map(h => h.p.id) : threats(mode).map(t => t.p.id)).slice(0, 3);
         body = `<p><b>${esc(q[0])}</b></p>
-          <p class="hint">Amber rings are the top suggestions from the Tonight tab.${q[1] > 1 ? ` Pick up to ${q[1]}.` : ""}</p>
+          <p class="hint">Amber rings are the top suggestions from Story & night.${q[1] > 1 ? ` Pick up to ${q[1]}.` : ""}</p>
           ${chips(ph.picks, true, { sugg, sortSugg: true, self: q[2] ? "yourself: star-pass" : "" })}
           <input type="text" id="phX" value="${esc(ph.x)}" placeholder="Note (optional)">`;
       }
