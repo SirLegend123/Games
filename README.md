@@ -33,6 +33,7 @@ On a phone, open the site in Safari or Chrome and use **Add to Home Screen** to 
 
 A secret companion for when you're on the evil team. Open `evil.html` in any web browser.
 
+- How to use: a welcome page, laid out like the other two apps' pages, explains setting up your team, building your story, the day, the night and the recap. It opens with the app, and **How to use** in the top bar brings it back
 - Claims: tap role buttons, Soft for every role a player offered, Hard for the one they commit to. Roles someone else has claimed get an amber ring. When a good player soft-claims a Demon bluff, or a role that a dead good player had hard-claimed, that role is left off their list. For your team, the Demon bluffs appear as quick buttons in each evil player's panel and on the Team tab
 - A player who dies nominating the Virgin (from End day or their panel) confirms that Virgin automatically, shown with ✓ Virgin on the circle
 - Virgin nominations and Slayer shots: record who nominated or shot whom and what happened. Deaths (an execution by the Virgin counts as the day's execution), used abilities and what the town now believes are updated, with an Undo
@@ -56,6 +57,7 @@ A secret companion for when you're on the evil team. Open `evil.html` in any web
 
 A tracker for the *Blood on the Clocktower* Storyteller. Open `storyteller.html` in any web browser.
 
+- How to use: a welcome page explains setup, running each night and day, and the reveal. It opens with the app, and **How to use** in the top bar brings it back
 - Setup: paste everyone's names in one go, then pick each player's character from a dropdown once the tokens are handed out (characters already given out are greyed out). Good or evil fills in by itself. Also the Drunk's or Lunatic's fake character, Demon bluffs and the Fortune Teller's red herring. Checks the Townsfolk / Outsider / Minion / Demon counts for the player count (including the Baron)
 - Grimoire: the seating circle with characters, deaths, ghost votes and reminder tokens (Poisoned, Protected, Mad…), which come and go on their own
 - Nights: a wake-order list of who's in play. Log what each player chose and learned, mark false info and why, and log Demon kills (with saves and Imp star-passes)

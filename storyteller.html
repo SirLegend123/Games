@@ -250,6 +250,25 @@ details summary { list-style-position: inside; }
 .foot { font-size: .8rem; color: var(--muted); text-align: center; }
 .foot a { color: inherit; }
 
+/* Welcome / how to use */
+.welcome { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: var(--bg); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.welcome-inner { max-width: 880px; margin: 0 auto; padding-inline: 16px; padding-block: 36px 48px; display: grid; gap: 28px; }
+.welcome-head { display: grid; gap: 10px; text-align: center; justify-items: center; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.welcome-kicker { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); font-weight: 700; }
+.welcome-head h1 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: clamp(2.2rem, 7vw, 3.6rem); line-height: 1; text-wrap: balance; }
+.welcome-lede { margin: 0; max-width: 34rem; font-size: 1.05rem; }
+.welcome-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.w-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; counter-reset: step; }
+@media (max-width: 700px) { .w-steps { grid-template-columns: minmax(0, 1fr); } }
+.w-steps > li { counter-increment: step; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px 16px 58px; position: relative; display: grid; gap: 8px; align-content: start; }
+.w-steps > li::before { content: counter(step); position: absolute; left: 16px; top: 14px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--brass); color: #1a1408; font-weight: 800; }
+.w-steps h2 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.3rem; }
+.w-steps p, .w-steps ul { margin: 0; font-size: .94rem; }
+.w-steps ul { padding-left: 1.1em; display: grid; gap: 4px; }
+.w-note { margin: 0; font-size: .84rem; color: var(--muted); text-align: center; max-width: 40rem; justify-self: center; }
+#helpBtn .sm { display: none; }
+@media (max-width: 600px) { #helpBtn .sm { display: inline; } #helpBtn .lg { display: none; } }
+
 @media print {
   .bar, .review-tools, .foot, .no-print { display: none !important; }
   body { background: #fff; color: #000; }
@@ -261,9 +280,10 @@ details summary { list-style-position: inside; }
 <body>
 <div class="wrap">
   <header class="bar">
-    <a class="btn" href="index.html" title="Choose another app" aria-label="All apps" style="text-decoration:none">&#8962;</a>
+    <a class="btn" href="index.html" title="Choose another app" aria-label="All apps" style="text-decoration:none;color:inherit">&#8962;</a>
     <h1 class="brand">Storyteller's<span class="brand-x"> Grimoire</span></h1>
     <span class="sync" id="sync">Saved on this device</span>
+    <button class="btn" id="helpBtn" aria-label="How to use"><span class="lg">How to use</span><span class="sm">Help</span></button>
     <button class="btn primary" data-act="new-game">+ New game</button>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab" role="tab" data-tab="setup">Setup</button>
@@ -275,6 +295,70 @@ details summary { list-style-position: inside; }
   <main id="view"></main>
   <p class="foot"><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool.</p>
 </div>
+<section class="welcome" id="welcome" hidden aria-labelledby="welcomeTitle">
+  <div class="welcome-inner">
+    <header class="welcome-head">
+      <p class="welcome-kicker">For the Storyteller in Blood on the Clocktower</p>
+      <h1 id="welcomeTitle">Storyteller's Grimoire</h1>
+      <p class="welcome-lede">Keep the whole Grimoire on one screen: who is what, every night action, every nomination and death. When the game ends, it writes a script for you to read out at the reveal.</p>
+      <div class="welcome-actions">
+        <button class="btn primary" id="wStart">+ Start a new game</button>
+        <button class="btn" id="wContinue" hidden>Continue my game</button>
+        <button class="btn" id="wExample">Look around the example game</button>
+        <a class="btn" href="index.html" style="text-decoration:none;color:inherit">&#8962; All apps</a>
+      </div>
+    </header>
+
+    <ol class="w-steps">
+      <li>
+        <h2>Set up the game</h2>
+        <p>Tap <b>New game</b> and choose the script on the <b>Setup</b> tab.</p>
+        <ul>
+          <li>Type or paste everyone's names in seat order, going clockwise.</li>
+          <li>Once the tokens are handed out, pick each player's character. Good or evil fills in by itself, and characters already given out are greyed out.</li>
+          <li>For a Drunk or Lunatic, pick who they think they are.</li>
+          <li>Choose the three Demon bluffs and, if there's a Fortune Teller, their red herring.</li>
+          <li>The coloured counts check you have the right number of Townsfolk, Outsiders, Minions and Demons. Amber means they don't match.</li>
+        </ul>
+        <p>Tap <b>Start Night 1</b> when you're ready.</p>
+      </li>
+      <li>
+        <h2>Run the night</h2>
+        <p>The <b>Grimoire</b> tab shows the seating circle, with each player's character and reminder tokens such as Poisoned or Protected.</p>
+        <ul>
+          <li><b>Wake order</b> lists everyone who wakes tonight, in order. Tap <b>Log</b> next to each one to record who they chose and what you showed them.</li>
+          <li>If you gave someone false information, tick <b>This was false information</b> and say why.</li>
+          <li>Log the Demon's kill, and whether the target died or survived.</li>
+        </ul>
+        <p>Tap <b>Dawn</b> in the middle of the circle when the night is over.</p>
+      </li>
+      <li>
+        <h2>Run the day</h2>
+        <ul>
+          <li>Add each <b>Nomination</b> with its vote count. The app shows who's on the block and how many votes are needed.</li>
+          <li>Tap <b>Execute</b> at the end of the day, or <b>No execution today</b>.</li>
+          <li>Log Slayer shots, other deaths, character changes and notes as they happen.</li>
+          <li>Tap a player on the circle to see their game so far, mark their ghost vote, or log something for them.</li>
+        </ul>
+        <p>Tap <b>Dusk</b> to move to the next night. The arrows either side of the night or day let you look back and fix earlier events.</p>
+      </li>
+      <li>
+        <h2>Reveal the Grimoire</h2>
+        <p>When someone wins, tap <b>End game</b> and say who won and how.</p>
+        <ul>
+          <li><b>Reveal script</b> on the <b>Review</b> tab tells the game as a story for you to read aloud. Each player is revealed at the moment they died, and the winner comes last.</li>
+          <li><b>Full summary</b> shows who was what, every lie you told and why, starred moments and the final Grimoire.</li>
+          <li>Use <b>Large text</b> to read from across the table, or <b>Copy as text</b> to share it.</li>
+          <li>Tap ★ on any event in the <b>Log</b> to call it out in the review.</li>
+        </ul>
+        <p>Finished games are kept under <b>Past games</b> on the Setup tab when you start a new one.</p>
+      </li>
+    </ol>
+
+    <p class="w-note">Everything saves automatically on this device. Keep the screen away from the players: it shows every character. <i>Blood on the Clocktower</i> belongs to The Pandemonium Institute; this is an unofficial fan tool.</p>
+    <div class="welcome-actions"><button class="btn primary" id="wStart2">+ Start a new game</button><button class="btn" id="wClose">Close</button></div>
+  </div>
+</section>
 <div id="modal"></div>
 <datalist id="roleList"></datalist>
 <datalist id="saveList"><option value="protected by the Monk"><option value="the Soldier can't die to the Demon"><option value="protected by the Innkeeper"><option value="the Tea Lady protected them"><option value="the Sailor can't die"><option value="the Mayor bounced the kill"><option value="the Demon was poisoned"><option value="Storyteller's choice"></datalist>
@@ -1498,8 +1582,27 @@ async function newGame() {
   setTab("setup");
 }
 
+/* ---------- Welcome page ---------- */
+// The welcome page is the first screen every time the app opens
+function openWelcome() {
+  const live = !G.example && G.players.length > 0;
+  $("wContinue").hidden = !live;
+  if (live) $("wContinue").textContent = G.end ? "View my finished game" : G.started ? `Continue my game (${phaseName(G.maxPhase)}, ${plural(G.players.length, "player")})` : "Continue setting up my game";
+  $("wExample").hidden = !G.example;
+  $("welcome").hidden = false; $("welcome").scrollTop = 0;
+  (live ? $("wContinue") : $("wStart")).focus();
+}
+function closeWelcome() { $("welcome").hidden = true; }
+$("helpBtn").onclick = openWelcome;
+$("wContinue").onclick = closeWelcome;
+$("wExample").onclick = () => { closeWelcome(); setTab("grim"); };
+$("wClose").onclick = closeWelcome;
+$("wStart").onclick = $("wStart2").onclick = () => { closeWelcome(); newGame(); };
+document.addEventListener("keydown", ev => { if (ev.key === "Escape" && !$("welcome").hidden && !$("modal").innerHTML) closeWelcome(); });
+
 lastJson = snapshotJson();
 render();
+openWelcome();
 connectAccount();
 </script>
 </body>
