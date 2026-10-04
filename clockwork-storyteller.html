@@ -135,6 +135,15 @@ button.tok:hover { transform: translate(-50%, -50%) scale(1.07); }
 .tok.dead { filter: grayscale(1) brightness(.68); }
 .tok.block { border-color: var(--evil); box-shadow: 0 0 0 3px var(--evil); }
 .tok .mark { position: absolute; top: -6%; right: -10%; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 99px; padding: 1px 5px; font-size: max(10px, calc(var(--fs) * .8)); white-space: nowrap; }
+.tok-sub { font-weight: 700; font-size: var(--sfs); color: color-mix(in srgb, var(--parch-ink) 72%, transparent); white-space: nowrap; }
+.tok:has(.tok-sub) { align-content: center; gap: 1px; }
+.tok.flipped { animation: none; border-width: 4px; }
+.tok.flipped.good { border-color: var(--good); } .tok.flipped.evil { border-color: var(--evil); }
+.tok.flipped.minion, .tok.flipped.demon { background: color-mix(in srgb, var(--evil) 22%, var(--parch)); }
+.tok.flipped.dead { filter: none; opacity: .72; }
+.tok.picked { box-shadow: 0 0 0 4px var(--brass), 0 3px 10px rgba(0,0,0,.35); }
+.reveal-detail { display: grid; gap: 8px; }
+.reveal-detail h3 { font-size: .9rem; color: var(--fg); }
 .table-mid { position: absolute; inset: 27%; display: grid; place-content: center; text-align: center; gap: 2px; }
 .mid-big { font-family: var(--font-display); color: var(--brass); font-size: 11cqw; line-height: 1; }
 .mid-sm { color: var(--muted); font-weight: 700; font-size: max(11px, 3.6cqw); }
@@ -197,7 +206,7 @@ const SPY_GOOD = 0.5;       // the Spy registers as good
 const RECLUSE_EVIL = 0.4;   // the Recluse registers as evil
 const MAYOR_BOUNCE = 0.5;   // a Demon kill on the Mayor goes to someone else
 // Every private turn lasts at least this long, so nobody can tell who has an ability by how quickly they finish
-let TURN_WAIT = 10;
+let TURN_WAIT = 5;
 
 /* ---------- State ---------- */
 let G = load();
@@ -614,7 +623,7 @@ function howView() {
     </ul>
     <h3>Each night</h3>
     <ul class="plain">
-      <li><b>Night turns:</b> pass the phone round. Each player taps their own name, checks nobody else can see, and makes their choice. Players with nothing to do still tap a player, so nobody watching can tell who has an ability. Every turn lasts at least 10 seconds for the same reason: the names and Done unlock after a short countdown.</li>
+      <li><b>Night turns:</b> pass the phone round. Each player taps their own name, checks nobody else can see, and makes their choice. Players with nothing to do still tap a player, so nobody watching can tell who has an ability. Every turn lasts at least 5 seconds for the same reason: the names and Done unlock after a short countdown.</li>
       <li>Once everyone has had a turn, the app resolves the night in the real wake order: Poisoner, Monk, Imp, then the information characters.</li>
       <li><b>Morning news:</b> pass the phone round again. Each player privately reads what they learned. A Ravenkeeper killed in the night chooses a player here.</li>
       <li>Then the app announces who died, and the day begins.</li>
@@ -661,9 +670,10 @@ function tableHtml(seat, mid) {
   const toks = G.players.map((q, i) => {
     const a = 2 * Math.PI * i / N - Math.PI / 2, s = seat(q), tag = s.button ? 'button' : 'div';
     // Shrink long names so each word fits on one line inside the token
-    const longest = Math.max(3, ...q.name.split(/\s+/).map(w => w.length));
-    const nfs = Math.min(d * 0.25, d * 1.45 / longest).toFixed(2);
-    return `<${tag} class="tok ${s.cls || ''}" style="left:${(50 + 39 * Math.cos(a)).toFixed(2)}%;top:${(50 + 39 * Math.sin(a)).toFixed(2)}%;--nfs:${nfs}cqw" ${s.attrs || ''}><span class="tok-nm">${esc(q.name)}</span>${s.mark ? `<span class="mark">${s.mark}</span>` : ''}</${tag}>`;
+    const text = s.text || q.name, longest = Math.max(3, ...text.split(/\s+/).map(w => w.length));
+    const nfs = (s.text ? Math.min(d * 0.19, d * 1.05 / longest) : Math.min(d * 0.24, d * 1.4 / longest)).toFixed(2);
+    const sfs = s.sub ? Math.min(d * 0.16, d * 1.25 / Math.max(4, s.sub.length)).toFixed(2) : 0;
+    return `<${tag} class="tok ${s.cls || ''}" style="left:${(50 + 39 * Math.cos(a)).toFixed(2)}%;top:${(50 + 39 * Math.sin(a)).toFixed(2)}%;--nfs:${nfs}cqw;--sfs:${sfs}cqw" ${s.attrs || ''}><span class="tok-nm">${esc(text)}</span>${s.sub ? `<span class="tok-sub">${esc(s.sub)}</span>` : ''}${s.mark ? `<span class="mark">${s.mark}</span>` : ''}</${tag}>`;
   }).join('');
   return `<div class="table" style="--d:${d.toFixed(2)}cqw;--fs:${(d * 0.2).toFixed(2)}cqw">${toks}<div class="table-mid">${mid}</div></div>`;
 }
@@ -813,6 +823,30 @@ function dayView() {
       ${earlier.length ? `<h3>Earlier</h3><div class="log">${earlier.map(e => `<div><span class="muted">${e.when}:</span> ${e.text}</div>`).join('')}</div>` : ''}</section>`;
 }
 
+function revealHtml() {
+  const shown = G.revealed || [], all = shown.length === G.players.length;
+  const table = tableHtml(q => {
+    const open = shown.includes(q.id), team = isGood(q) ? 'good' : 'evil';
+    return {
+      button: true, attrs: `data-act="flip" data-id="${q.id}" aria-label="${esc(q.name)}${open ? ': ' + esc(q.role) : ': reveal'}"`,
+      cls: open ? `flipped ${team} ${ROLES[q.role].type}${q.alive ? '' : ' dead'}${U.revealSel === q.id ? ' picked' : ''}` : (q.alive ? '' : 'dead'),
+      text: open ? q.role : '', sub: open ? q.name : '', mark: q.alive ? '' : '☠',
+    };
+  }, all ? `<div class="mid-big">${G.winner.team === 'good' ? 'Good' : 'Evil'}</div><div class="mid-sm">wins</div>`
+        : `<div class="mid-big">${shown.length}/${G.players.length}</div><div class="mid-sm">tap a seat to reveal</div>`);
+  const p = U.revealSel != null && shown.includes(U.revealSel) ? P(U.revealSel) : null;
+  const notes = p ? [
+    p.alive ? 'Survived' : 'Died',
+    p.role === 'Drunk' ? `Thought they were the ${esc(p.fake)}` : '',
+    p.was ? `Started as the ${esc(p.was)}` : '',
+    p.id === G.redHerring ? "The Fortune Teller's red herring" : '',
+    p.master != null ? `Last master: ${nm(p.master)}` : '',
+  ].filter(Boolean) : [];
+  return `${table}
+    <div class="row" style="justify-content:center">${all ? '<button class="btn" data-act="flip-none">Hide everyone</button>' : '<button class="btn primary" data-act="flip-all">Reveal everyone</button>'}</div>
+    ${p ? `<div class="reveal-detail"><h3>${nm(p.id)}</h3>${roleCard(p.role)}<p class="hint">${notes.join(' · ')}</p></div>` : ''}
+    <p class="hint">Demon bluffs: ${G.bluffs.map(esc).join(', ')}</p>`;
+}
 function overView() {
   const w = G.winner;
   let last = '', logHtml = '';
@@ -822,7 +856,7 @@ function overView() {
       <p class="win-reason">${w.reason}</p>
       <div class="row" style="justify-content:center"><button class="btn primary" data-act="setup-same">New game, same players</button><button class="btn" data-act="setup">New game</button></div>
     </section>
-    <section class="card"><h2>The Grimoire</h2>${grimoireHtml()}</section>
+    <section class="card"><h2>The Grimoire</h2>${revealHtml()}</section>
     <section class="card"><h2>Storyteller's log</h2><div class="log">${logHtml}</div></section>`;
 }
 
@@ -919,6 +953,14 @@ document.addEventListener('click', e => {
     case 'cancel': U.day = null; U.sel = []; return go();
     case 'end': U.day = { mode: 'end' }; return go();
     case 'end-yes': endDay(); return go();
+    case 'flip': {
+      const shown = G.revealed = G.revealed || [];
+      if (!shown.includes(id)) shown.push(id);
+      U.revealSel = id;
+      break;
+    }
+    case 'flip-all': G.revealed = G.players.map(q => q.id); U.revealSel = null; break;
+    case 'flip-none': G.revealed = []; U.revealSel = null; break;
     case 'timer': { const min = +b.dataset.min; U.timerEnd = min ? Date.now() + min * 60000 : null; break; }
   }
   render();
