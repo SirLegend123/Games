@@ -177,6 +177,15 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
 .meter i { display: block; height: 100%; border-radius: 4px; }
 .lvl { font-weight: 800; }
 .lvl.low { color: var(--ok); } .lvl.medium { color: var(--warn); } .lvl.high, .lvl.critical { color: var(--evil); }
+@media (max-width: 400px) { .wide { display: none; } .bar { gap: 6px; } .brand { font-size: .95rem; } .bar .btn { padding: 5px 8px; font-size: .82rem; } .phase-pill { padding: 4px 8px; font-size: .78rem; } }
+.phase-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 99px; font-weight: 800; font-size: .88rem; border: 1px solid var(--line); background: var(--surface-2); white-space: nowrap; }
+.phase-pill.night { color: #c9c2ff; border-color: #5a5296; background: #221d3d; }
+.phase-pill.day { color: #f3d27a; border-color: #8a6d23; background: #2e2614; }
+:root[data-theme="light"] .phase-pill.night { color: #3f3790; background: #e7e4fb; border-color: #b9b2ec; }
+:root[data-theme="light"] .phase-pill.day { color: #6d5410; background: #fbf0d3; border-color: #e3c983; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .phase-pill.night { color: #3f3790; background: #e7e4fb; border-color: #b9b2ec; } :root:not([data-theme="dark"]) .phase-pill.day { color: #6d5410; background: #fbf0d3; border-color: #e3c983; } }
+.phase-note { padding: 8px 12px; border-radius: 10px; border: 1px dashed var(--line); color: var(--muted); font-size: .88rem; }
+button:disabled { opacity: .45; cursor: not-allowed; }
 .cover { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: grid; place-items: center; text-align: center; color: var(--muted); user-select: none; }
 .cover .moon { font-family: var(--font-display); font-size: 2.4rem; color: var(--muted); }
 
@@ -220,8 +229,9 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
 <div class="wrap" id="app" hidden>
   <header class="bar">
     <h1 class="brand">Evil Grimoire</h1>
+    <span class="phase-pill" id="phasePill"></span>
     <button class="btn" id="hideBtn" title="Cover the screen">Hide</button>
-    <button class="btn primary" id="newBtn">+ New game</button>
+    <button class="btn primary" id="newBtn" aria-label="New game">+ New<span class="wide"> game</span></button>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab" role="tab" data-tab="table">Table &amp; team <span class="badge" id="bTeam"></span></button>
       <button class="tab" role="tab" data-tab="story">Story &amp; night <span class="badge" id="bStory"></span></button>
@@ -246,7 +256,7 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
             <button class="btn primary phase-btn" id="phaseBtn"></button>
           </div>
         </div>
-        <div class="hub-actions"><span class="label" style="align-self:center">Record</span><button class="btn sm" data-event="virgin">Virgin nomination</button><button class="btn sm" data-event="slayer">Slayer shot</button></div>
+        <div class="hub-actions"><span class="label" style="align-self:center">Record</span><button class="btn sm" data-dayonly data-event="virgin">Virgin nomination</button><button class="btn sm" data-dayonly data-event="slayer">Slayer shot</button></div>
         <div class="legend">
           <span><i style="border-color:var(--evil);background:#3a1820"></i>Your team</span>
           <span><i style="border-color:var(--warn);border-style:dashed"></i>Top threats</span>
@@ -278,6 +288,7 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
   </div>
 
   <div class="tabview" data-view="story" hidden>
+    <p class="phase-note" id="storyNote" hidden></p>
     <div class="grid2">
       <section class="col">
         <div class="card"><div class="head"><h2 id="nightTitle">Tonight</h2><span class="foot" id="nightFoot"></span></div><div id="targets" class="col"></div></div>
@@ -294,15 +305,16 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
   </div>
 
   <div class="tabview" data-view="day" hidden>
+    <p class="phase-note" id="dayNote" hidden></p>
     <div class="grid2">
       <section class="col">
         <div class="card"><h2>Where the game stands</h2><div id="endgame" class="col"></div></div>
         <div class="card"><h2>Votes</h2><div id="votes" class="col"></div></div>
-        <div class="card"><div class="head"><h2>Virgin and Slayer</h2><div class="row"><button class="btn sm" data-event="virgin">+ Virgin nomination</button><button class="btn sm" data-event="slayer">+ Slayer shot</button></div></div><div id="events" class="col"></div></div>
+        <div class="card"><div class="head"><h2>Virgin and Slayer</h2><div class="row"><button class="btn sm" data-dayonly data-event="virgin">+ Virgin nomination</button><button class="btn sm" data-dayonly data-event="slayer">+ Slayer shot</button></div></div><div id="events" class="col"></div></div>
       </section>
       <section class="col">
-        <div class="card"><div class="head"><h2>Town square</h2><div class="row"><button class="btn sm primary" id="tsSay">+ Public statement</button><button class="btn sm primary" id="tsNom">+ Nomination</button></div></div><span class="hint">What's said in the open during discussion, and each nomination and vote.</span><div id="block" class="col"></div><div id="square" class="col"></div></div>
-        <div class="card"><div class="head"><h2>Conversations</h2><button class="btn sm primary" id="hdAdd">+ I spoke to someone</button></div><span class="hint">Log each chat: their claims, who they suspect, and any info, their own or hearsay. The table updates as you save.</span><div id="heard" class="col"></div></div>
+        <div class="card"><div class="head"><h2>Town square</h2><div class="row"><button data-dayonly class="btn sm primary" id="tsSay">+ Public statement</button><button data-dayonly class="btn sm primary" id="tsNom">+ Nomination</button></div></div><span class="hint">What's said in the open during discussion, and each nomination and vote.</span><div id="block" class="col"></div><div id="square" class="col"></div></div>
+        <div class="card"><div class="head"><h2>Conversations</h2><button data-dayonly class="btn sm primary" id="hdAdd">+ I spoke to someone</button></div><span class="hint">Log each chat: their claims, who they suspect, and any info, their own or hearsay. The table updates as you save.</span><div id="heard" class="col"></div></div>
         <div class="card"><div class="head"><h2>Who to push for execution</h2><span class="foot">Good players the town might believe are evil</span></div><div id="push" class="col"></div></div>
         <div class="card"><h2>Careful</h2><div id="careful" class="col"></div></div>
         <div class="card"><div class="head"><h2>Everyone's likely character</h2><span class="foot">From claims, what you know and what's not in play</span></div><div id="likely" class="col"></div></div>
@@ -882,11 +894,23 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => setTab(t.datase
 function render() {
   if (!state) { $("app").hidden = true; $("welcome").hidden = false; $("wContinue").hidden = true; return; }
   $("app").hidden = false; $("welcome").hidden = true;
-  renderTable(); renderPanel(); renderTeam(); renderStory(); renderNight(); renderDay(); renderOver();
+  renderTable(); renderPanel(); renderTeam(); renderStory(); renderNight(); renderDay(); renderOver(); renderPhaseUi();
   $("notes").value = state.notes;
   wireOpen();
   document.querySelectorAll("[data-event]").forEach(b => b.onclick = () => openEvent(b.dataset.event, b.dataset.a));
   document.querySelectorAll("[data-talk]").forEach(b => b.onclick = () => openHeard(b.dataset.talk));
+}
+// Make the current phase obvious, and offer only that phase's actions
+function renderPhaseUi() {
+  const night = isNight(), over = !!state.over;
+  $("phasePill").className = "phase-pill " + (night ? "night" : "day");
+  $("phasePill").textContent = (night ? "☾ " : "☀ ") + timeLabel(state.t);
+  document.body.classList.toggle("is-night", night);
+  document.querySelectorAll("[data-dayonly]").forEach(b => { b.disabled = night && !over; b.title = b.disabled ? "Daytime only: it's night" : ""; });
+  $("dayNote").hidden = !night || over;
+  $("dayNote").innerHTML = `☾ It's ${timeLabel(state.t)}. Nominations, conversations and Virgin or Slayer records open when the day starts. Tap <b>Night → day</b> on the Table tab when the night is over.`;
+  $("storyNote").hidden = night || over;
+  $("storyNote").innerHTML = `☀ It's ${timeLabel(state.t)}. Plan tonight's targets and your made-up info here; your night action is logged at night.`;
 }
 function open(id) { state.selected = id; save(); setTab("table"); render(); $("panel").scrollIntoView({ behavior: "smooth", block: "start" }); }
 function wireOpen() { document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => open(b.dataset.open)); }
@@ -970,10 +994,10 @@ function renderPanel() {
     <div class="field"><label class="label" for="pReal">Real character, if you know (Spy, Pit-Hag, a slip)</label>
       <select id="pReal"><option value="">Unknown</option>${roleList("any").map(r => `<option${r === p.real ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></div>`}
     ${(() => { if (onTeam(p) || p.dead) return ""; const t = threats().find(x => x.p === p); return t && t.why.length ? `<div class="tip ${t.score >= 5 ? "bad" : t.score >= 3 ? "hi" : ""}"><span>Threat score ${t.score}</span><small>${esc(t.why.join(" · "))}</small></div>` : ""; })()}
-    ${p.claims.some(c => lc(c) === "virgin") && !p.virginUsed ? `<button class="btn sm" data-event="virgin" data-a="${p.id}">Record a nomination of ${esc(nm(p))} (Virgin)</button>` : ""}
-    ${p.claims.some(c => lc(c) === "slayer") && !p.shotUsed ? `<button class="btn sm" data-event="slayer" data-a="${p.id}">Record ${esc(nm(p))}'s Slayer shot</button>` : ""}
+    ${p.claims.some(c => lc(c) === "virgin") && !p.virginUsed ? `<button class="btn sm" data-dayonly data-event="virgin" data-a="${p.id}">Record a nomination of ${esc(nm(p))} (Virgin)</button>` : ""}
+    ${p.claims.some(c => lc(c) === "slayer") && !p.shotUsed ? `<button class="btn sm" data-dayonly data-event="slayer" data-a="${p.id}">Record ${esc(nm(p))}'s Slayer shot</button>` : ""}
     ${(() => { const ev = state.events.filter(e => e.a === p.id || e.b === p.id); return ev.length ? ev.map(e => `<div class="tip"><span>${esc(eventText(e))}</span></div>`).join("") : ""; })()}
-    ${p.me ? "" : `<button class="btn sm" data-talk="${p.id}">I spoke to ${esc(nm(p))}: log claims and info</button>`}
+    ${p.me ? "" : `<button class="btn sm" data-dayonly data-talk="${p.id}">I spoke to ${esc(nm(p))}: log claims and info</button>`}
     <div class="field"><label class="label" for="pNotes">Notes</label><textarea id="pNotes" placeholder="What they said, how they voted…">${esc(p.notes)}</textarea></div>
     <div class="row"><button class="btn sm" id="pClose">Close</button><button class="btn sm" id="addP">+ Add player</button><button class="btn sm danger" id="pRemove">Remove player</button></div>`;
   const upd = f => () => { f(); save(); render(); };
@@ -1166,7 +1190,8 @@ function renderNight() {
   $("aP1").onchange = e => actDraft.p[0] = e.target.value;
   if ($("aP2")) $("aP2").onchange = e => actDraft.p[1] = e.target.value;
   $("aX").oninput = e => actDraft.x = e.target.value;
-  $("aSave").onclick = () => { if (!actDraft.p.some(Boolean) && !actDraft.x) return; state.acts.push({ id: uid(), night: nightNo(), p: actDraft.p.filter(Boolean), x: actDraft.x, role: state.myRole }); actDraft = { p: [], x: "" }; save(); render(); };
+  if (!isNight()) { $("aSave").disabled = true; $("aSave").title = "Night actions are logged at night"; $("aSave").insertAdjacentHTML("afterend", `<span class="hint">Night actions are logged at night.</span>`); }
+  $("aSave").onclick = () => { if (!isNight()) return; if (!actDraft.p.some(Boolean) && !actDraft.x) return; const me = meP(), q = NIGHT_Q[r]; state.acts.push({ id: uid(), night: nightNo(), p: actDraft.p.filter(Boolean), x: actDraft.x, role: state.myRole, kill: /killing/i.test(q ? q[0] : ""), starpass: !!(me && r === "imp" && actDraft.p.includes(me.id)) }); actDraft = { p: [], x: "" }; save(); render(); };
   const acts = [...state.acts].sort((a, b) => b.night - a.night);
   $("actLog").innerHTML = acts.map(a => `<div class="tip"><span><span class="label">Night ${a.night}</span> ${a.p.map(id => byId(id)).filter(Boolean).map(btn).join(", ")}${a.x ? ` · ${esc(a.x)}` : ""}</span><div class="row"><button class="btn sm danger" data-unact="${a.id}">Remove</button></div></div>`).join("");
   document.querySelectorAll("[data-unact]").forEach(b => b.onclick = () => { state.acts = state.acts.filter(a => a.id !== b.dataset.unact); save(); render(); });
@@ -1671,9 +1696,16 @@ const NIGHT_Q = {
   "assassin": ["Are you using your one kill tonight? Choose nobody to save it.", 1], "pit-hag": ["Who are you changing, and into what?", 1]
 };
 let phase = null;
+// Your night action is asked at dawn unless it's already logged (or your character has nothing to choose tonight)
+function needsNightAction() {
+  const r = lc(state.myRole), q = NIGHT_Q[r], n1 = nightNo() === 1, me = meP();
+  if (!state.myRole || !q || !me || me.dead) return false;
+  if (n1 && ((teamOf(r) === "demon" && r !== "pukka") || ["pit-hag", "assassin"].includes(r))) return false;
+  return !state.acts.some(a => a.night === nightNo());
+}
 function startPhase() {
   if (state.over) return;
-  if (isNight()) phase = { kind: "dawn", step: "deaths", deaths: [], notes: [] };
+  if (isNight()) { const ask = needsNightAction(); phase = { kind: "dawn", step: ask ? "action" : "deaths", asked: ask, deaths: [], notes: [], picks: [], x: "" }; }
   else {
     const already = P().find(p => p.dead && executed(p) && p.deathAt === state.t);
     const ob = onBlock();
@@ -1722,7 +1754,7 @@ function renderPhase() {
 
   if (ph.kind === "dusk") {
     if (ph.step === "exec") {
-      box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)} · 1 of 3</span><h2 id="phTitle">Who was executed today?</h2>
+      box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)} · 1 of 2</span><h2 id="phTitle">Who was executed today?</h2>
         ${ph.already ? `<p class="hint">${esc(nm(byId(ph.exec)))} was already executed today (the Virgin). That counts as the day's execution.</p>` : chips(ph.exec, false)}
         ${ph.already ? "" : `<div class="row"><button class="choice" data-pick="" aria-pressed="${ph.exec === "none"}">Nobody was executed</button></div>`}
         ${!ph.already && ph.exec && ph.exec !== "none" ? `<div class="field"><span class="label">How</span><div class="row"><button class="choice" data-how="vote" aria-pressed="${!ph.virgin}">By vote</button><button class="choice" data-how="virgin" aria-pressed="${!!ph.virgin}">Died nominating the Virgin</button></div>
@@ -1755,17 +1787,29 @@ function renderPhase() {
       return;
     }
     if (ph.step === "outcome") {
-      box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)} · 2 of 3</span><h2 id="phTitle">What happened</h2>${outcomeHtml(true)}`;
-      wireOutcome(() => { state.t++; draft = null; ph.step = "night"; save(); renderPhase(); });
+      box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)} · 2 of 2</span><h2 id="phTitle">What happened</h2>${outcomeHtml(true)}`;
+      wireOutcome(() => { state.t++; draft = null; ph.step = "nightfall"; save(); renderPhase(); });
       return;
     }
-    if (ph.step === "night") {
+    if (ph.step === "nightfall") {
+      box.innerHTML = `<span class="step-k">${timeLabel(state.t)} begins</span><h2 id="phTitle">☾ It's night</h2>
+        <p>Daytime actions (nominations, conversations, Virgin and Slayer) are closed until dawn.</p>
+        <p class="hint">Plan on <b>Story &amp; night</b>: tonight's targets and tomorrow's made-up info. When the night is over, tap <b>Night → day</b>: your night action is asked first, then who actually died.</p>
+        <div class="row"><button class="btn primary" id="phGoStory">Go to Story &amp; night</button><button class="btn" id="phClose">Stay here</button></div>`;
+      $("phGoStory").onclick = () => { close(); setTab("story"); };
+      $("phClose").onclick = close;
+      return;
+    }
+  }
+
+  if (ph.kind === "dawn") {
+    if (ph.step === "action") {
       const r = lc(state.myRole), q = NIGHT_Q[r], n1 = nightNo() === 1;
       const me = meP();
       const isDemon = teamOf(r) === "demon";
       let body;
       if (!state.myRole) body = `<p class="hint">Choose your character under Your team on the Table tab to get your night question.</p>`;
-      else if (!q || (n1 && isDemon && r !== "pukka") || (n1 && ["pit-hag", "assassin"].includes(r))) body = `<p class="hint">${n1 && isDemon ? "Demons don't kill on the first night." : `The ${esc(state.myRole)} makes no choice tonight.`} Use the night to prepare tomorrow's story on Story & night.</p>
+      else if (!q || (n1 && isDemon && r !== "pukka") || (n1 && ["pit-hag", "assassin"].includes(r))) body = `<p class="hint">${n1 && isDemon ? "Demons don't kill on the first night." : `The ${esc(state.myRole)} makes no choice tonight.`} </p>
         <input type="text" id="phX" value="${esc(ph.x)}" placeholder="Anything to note (optional)">`;
       else {
         const mode = q[3] ? "poison" : "kill";
@@ -1775,7 +1819,7 @@ function renderPhase() {
           ${chips(ph.picks, true, { sugg, sortSugg: true, self: q[2] ? "yourself: star-pass" : "" })}
           <input type="text" id="phX" value="${esc(ph.x)}" placeholder="Note (optional)">`;
       }
-      box.innerHTML = `<span class="step-k">${timeLabel(state.t)} · 3 of 3</span><h2 id="phTitle">Your night action</h2>${body}
+      box.innerHTML = `<span class="step-k">${timeLabel(state.t)} · 1 of 2</span><h2 id="phTitle">Your night action</h2><p class="hint">Log what you chose tonight before the day starts.</p>${body}
         <div class="row"><button class="btn primary" id="phDone">Done</button><button class="btn" id="phSkip">Skip</button></div>`;
       box.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {
         const id = b.dataset.pick, max = q ? q[1] : 1;
@@ -1783,22 +1827,19 @@ function renderPhase() {
         renderPhase();
       });
       if ($("phX")) $("phX").oninput = e => ph.x = e.target.value;
-      $("phSkip").onclick = close;
+      $("phSkip").onclick = () => { ph.step = "deaths"; renderPhase(); };
       $("phDone").onclick = () => {
         // Nobody is killed here: who actually died is asked at dawn, since a Soldier, Monk or Mayor bounce can stop a kill
         const starpass = !!(me && r === "imp" && ph.picks.includes(me.id));
         if (ph.picks.length || ph.x) state.acts.push({ id: uid(), night: nightNo(), p: [...ph.picks], x: ph.x, role: state.myRole, kill: /killing/i.test(q ? q[0] : ""), starpass });
-        close();
+        ph.step = "deaths"; save(); renderPhase();
       };
       return;
     }
-  }
-
-  if (ph.kind === "dawn") {
     if (ph.step === "deaths") {
       const acts = state.acts.filter(a => a.night === nightNo()), mine = acts.flatMap(a => a.p);
       const kills = acts.filter(a => a.kill).flatMap(a => a.p).map(byId).filter(Boolean), sp = acts.some(a => a.starpass);
-      box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)}</span><h2 id="phTitle">Who actually died in the night?</h2>
+      box.innerHTML = `<span class="step-k">Dawn · ${ph.asked ? "2 of 2" : "who died"}</span><h2 id="phTitle">Who actually died in the night?</h2>
         <p class="hint">Tap only the players the Storyteller announced as dead.${kills.length ? ` You chose ${sp ? "to star-pass" : kills.map(nm).join(" and ")}, but a Soldier, a Monk or other protection, a Mayor bounce, or a drunk or poisoned Demon can stop a kill.` : mine.length ? " Amber rings are your choices tonight." : ""}</p>
         ${chips(ph.deaths, true, { sugg: mine })}
         <div class="row"><button class="choice" id="phNobody" aria-pressed="${ph.nobody ? "true" : "false"}">Nobody died</button></div>

@@ -10,7 +10,7 @@ A player's notebook for *Blood on the Clocktower*. Open `index.html` in any web 
 - Heard info: log info when you don't know whose it is yet ("the Investigator saw a Baron"). It links to the player once they hard-claim that role
 - Mark players who died nominating the Virgin or to a Slayer shot: the Virgin or Slayer is automatically marked proven good
 - Evil team: ranks Demon candidates with reasons, rates which Minions (and Demon type) are likely in play, and gives a best guess at the evil team
-- End day → night: a guided night phase that records the execution, asks whether the game ended, takes your night info, and records who died
+- Day and night: the header always shows ☀ Day N or ☾ Night N. End day → night asks who was executed and whether the game ended, then night begins. Night → day asks your night action first (if you haven't logged it), then who actually died: a kill or star-pass is never assumed, since a Soldier, Monk, Mayor bounce or poisoning can stop it. Daytime actions (nominations, conversations, Virgin and Slayer) are locked at night, and night actions are locked during the day
 - Mark the evil character you suspect each player of being
 - Slayer shot: record who shot whom, see the best Demon candidates first, and get conclusions from a hit or a miss
 - Test a hunch: "What if they're evil?" or "the Demon?" checks a gut feeling against everything logged
