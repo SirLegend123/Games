@@ -204,14 +204,25 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .cover { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: grid; place-items: center; text-align: center; color: var(--muted); user-select: none; }
 .cover .moon { font-family: var(--font-display); font-size: 2.4rem; color: var(--muted); }
 
-/* Welcome */
-.welcome { max-width: 760px; margin: 0 auto; padding: 32px 16px 48px; display: grid; gap: 18px; }
-.welcome h1 { font-family: var(--font-display); font-weight: 400; color: var(--accent); font-size: clamp(2rem, 7vw, 3rem); margin: 0; line-height: 1; }
-.welcome .kicker { margin: 0; color: var(--muted); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
-.welcome ol { margin: 0; padding-left: 1.2em; display: grid; gap: 10px; }
-.welcome li b { color: var(--fg); }
-.welcome p, .welcome li { color: var(--fg); }
-.welcome .small { font-size: .84rem; color: var(--muted); }
+/* Welcome / how to use: same layout as the notebook and Storyteller's Grimoire */
+.welcome { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: var(--bg); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.welcome-inner { max-width: 880px; margin: 0 auto; padding-inline: 16px; padding-block: 36px 48px; display: grid; gap: 28px; }
+.welcome-head { display: grid; gap: 10px; text-align: center; justify-items: center; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.welcome-kicker { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); font-weight: 700; }
+.welcome-head h1 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--accent); font-size: clamp(2.2rem, 7vw, 3.6rem); line-height: 1; text-wrap: balance; }
+.welcome-lede { margin: 0; max-width: 34rem; font-size: 1.05rem; }
+.welcome-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.w-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; counter-reset: step; }
+@media (max-width: 700px) { .w-steps { grid-template-columns: minmax(0, 1fr); } }
+.w-steps > li { counter-increment: step; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px 16px 58px; position: relative; display: grid; gap: 8px; align-content: start; }
+.w-steps > li::before { content: counter(step); position: absolute; left: 16px; top: 14px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-weight: 800; }
+.w-steps h2 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--accent); font-size: 1.3rem; }
+.w-steps p, .w-steps ul { margin: 0; font-size: .94rem; }
+.w-steps ul { padding-left: 1.1em; display: grid; gap: 4px; }
+.w-note { margin: 0; font-size: .84rem; color: var(--muted); text-align: center; max-width: 40rem; justify-self: center; }
+.w-note a { color: inherit; }
+#helpBtn .sm { display: none; }
+@media (max-width: 600px) { #helpBtn .sm { display: inline; } #helpBtn .lg { display: none; } }
 .table { container-type: inline-size; }
 @container (max-width: 520px) {
   .hub { gap: 4px; width: 50%; }
@@ -226,19 +237,64 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 <body>
 
 <section class="welcome" id="welcome" hidden aria-labelledby="wTitle">
-  <p class="kicker">A secret grimoire for the evil team in Blood on the Clocktower</p>
-  <h1 id="wTitle">Evil Grimoire</h1>
-  <p>You've woken up evil. This keeps your team, your bluffs and your lies straight, and helps you pick who to kill, who to poison and who to push to the block.</p>
-  <div class="row"><button class="btn primary" id="wStart">+ Start a new game</button><button class="btn" id="wContinue" hidden>Continue my game</button></div>
-  <ol>
-    <li><b>Set up.</b> Enter the players in seat order, then under <b>Your team</b> on the Table tab pick your character, tap your seat, mark your teammates and choose the Demon bluffs.</li>
-    <li><b>Pick a bluff.</b> On <b>Story &amp; night</b>, choose the good character you'll claim. Each night, the app suggests made-up info for that character (safe, covering a teammate, or framing a threat) and keeps a log of everything you've said so your story stays straight.</li>
-    <li><b>Track the town.</b> Tap a player and tap the roles they claim: <b>Soft</b> for every role they offered, <b>Hard</b> for the one they commit to. Note who they suspect and whether the town trusts them, and mark deaths as they happen. Record each <b>Virgin</b> nomination and <b>Slayer shot</b> from the middle of the circle.</li>
-    <li><b>End day → night</b> in the middle of the circle asks who was executed, whether the game ended, and your night action. <b>Night → day</b> asks who died. If your Demon dies, a Scarlet Woman takes over or a star-pass is caught automatically, and the app asks whether the game is over.</li>
-    <li><b>Talk to people.</b> After each chat, tap <b>I spoke to someone</b> on the Today tab (or in their panel): their claims, who they suspect, and what they shared, their own info or hearsay. Hearsay about a character counts as a soft claim for them. The table updates when you save.</li>
-    <li><b>Story &amp; night</b> also ranks kill or poison targets for your character. <b>Today</b> covers who to push, who not to nominate, vote counts and how close you are to winning.</li>
-  </ol>
-  <p class="small">Tap <b>Hide</b> at the top whenever someone looks over your shoulder; double-tap the screen to come back. Everything stays on this device. <i>Blood on the Clocktower</i> belongs to The Pandemonium Institute; this is an unofficial fan tool. Good players: the <a href="good.html">Clocktower Notebook</a> is for you. <a href="index.html">Back to all apps</a>.</p>
+  <div class="welcome-inner">
+    <header class="welcome-head">
+      <p class="welcome-kicker">A secret grimoire for the evil team in Blood on the Clocktower</p>
+      <h1 id="wTitle">Evil Grimoire</h1>
+      <p class="welcome-lede">You've woken up evil. This keeps your team, your bluffs and your lies straight, and helps you pick who to kill, who to poison and who to push to the block.</p>
+      <div class="welcome-actions">
+        <button class="btn primary" id="wStart">+ Start a new game</button>
+        <button class="btn" id="wContinue" hidden>Continue my game</button>
+        <a class="btn" href="index.html" style="text-decoration:none;color:inherit">&#8962; All apps</a>
+      </div>
+    </header>
+
+    <ol class="w-steps">
+      <li>
+        <h2>Set up your team</h2>
+        <p>Tap <b>New game</b> and type the players' names in seat order, going clockwise.</p>
+        <p>Then, under <b>Your team</b> on the <b>Table &amp; team</b> tab:</p>
+        <ul>
+          <li>Pick your real character and tap your seat.</li>
+          <li>Tap your teammates, and their characters if you know them.</li>
+          <li>Choose the Demon bluffs: good characters that aren't in play.</li>
+        </ul>
+        <p>The app shows how many evil players there should be, so you know when your whole team is marked.</p>
+      </li>
+      <li>
+        <h2>Build your story</h2>
+        <p>On <b>Story &amp; night</b>, choose the good character you'll claim. A Demon bluff is safest: nobody can truthfully counter-claim it.</p>
+        <ul>
+          <li>Each night, tap <b>Safe</b>, <b>Cover a teammate</b> or <b>Frame a threat</b> to get made-up info for your bluff.</li>
+          <li>Save it to <b>What you've said</b> so you can repeat it word for word.</li>
+          <li><b>Story checks</b> warn you about slips, like first-night-only info on night 3.</li>
+        </ul>
+      </li>
+      <li>
+        <h2>During the day</h2>
+        <p>Tap a player on the circle to note their claims: <b>Soft</b> for every role they offered, <b>Hard</b> for the one they commit to. Mark who on your team they suspect, and whether the town trusts them.</p>
+        <ul>
+          <li>After each chat, tap <b>I spoke to someone</b> on the <b>Today</b> tab: their claims, their info, and what you told them.</li>
+          <li>Log public statements and each nomination with its votes in the <b>Town square</b>.</li>
+          <li>Record each <b>Virgin nomination</b> and <b>Slayer shot</b> from under the circle.</li>
+          <li><b>Today</b> also shows who to push for execution, who not to nominate, and your team's votes.</li>
+        </ul>
+      </li>
+      <li>
+        <h2>Night, and the end of the game</h2>
+        <ul>
+          <li><b>End day → night</b> in the middle of the circle asks who was executed and whether the game ended.</li>
+          <li>At night, <b>Story &amp; night</b> ranks who to kill, poison or protect. Tick your choice and tap <b>Confirm</b>.</li>
+          <li><b>Night → day</b> asks who actually died. A Soldier, Monk or Mayor can stop a kill, so it's never assumed.</li>
+          <li>If your Demon dies, a Scarlet Woman takeover or a star-pass is handled for you.</li>
+        </ul>
+        <p>When the game ends, the <b>Game recap</b> shows how your team did: deaths, kills that landed, slips and a timeline.</p>
+      </li>
+    </ol>
+
+    <p class="w-note">Tap <b>Hide</b> at the top whenever someone looks over your shoulder; double-tap the screen to come back. Everything stays on this device. <i>Blood on the Clocktower</i> belongs to The Pandemonium Institute; this is an unofficial fan tool. Good players: the <a href="good.html">Clocktower Notebook</a> is for you.</p>
+    <div class="welcome-actions"><button class="btn primary" id="wStart2">+ Start a new game</button><button class="btn" id="wClose" hidden>Close</button></div>
+  </div>
 </section>
 
 <div class="wrap" id="app" hidden>
@@ -246,6 +302,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
     <a class="btn" href="index.html" title="Choose another app" aria-label="All apps" style="text-decoration:none;color:inherit">&#8962;</a>
     <h1 class="brand">Evil Grimoire</h1>
     <span class="phase-pill" id="phasePill"></span>
+    <button class="btn" id="helpBtn" aria-label="How to use"><span class="lg">How to use</span><span class="sm">Help</span></button>
     <button class="btn" id="hideBtn" title="Cover the screen">Hide</button>
     <button class="btn primary" id="newBtn" aria-label="New game">+ New<span class="wide"> game</span></button>
     <nav class="tabs" role="tablist" aria-label="Sections">
@@ -908,8 +965,8 @@ function setTab(name) {
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => setTab(t.dataset.tab));
 
 function render() {
-  if (!state) { $("app").hidden = true; $("welcome").hidden = false; $("wContinue").hidden = true; return; }
-  $("app").hidden = false; $("welcome").hidden = true;
+  if (!state) { $("app").hidden = true; openWelcome(); return; }
+  $("app").hidden = false;
   renderTable(); renderPanel(); renderTeam(); renderStory(); renderNight(); renderDay(); renderOver(); renderPhaseUi();
   $("notes").value = state.notes;
   wireOpen();
@@ -2023,14 +2080,27 @@ function openNew() {
   $("ngCount").value = state ? P().length : 8;
   $("ngOverlay").hidden = false;
 }
-$("newBtn").onclick = openNew; $("wStart").onclick = openNew;
+$("newBtn").onclick = openNew; $("wStart").onclick = $("wStart2").onclick = openNew;
+
+/* ---------- Welcome page ---------- */
+// The welcome page is the first screen every time the app opens
+function openWelcome() {
+  const live = !!state;
+  $("wContinue").hidden = !live; $("wClose").hidden = !live;
+  if (live) $("wContinue").textContent = state.over ? "View my finished game" : `Continue my game (${timeLabel(state.t)}, ${P().length} players)`;
+  $("welcome").hidden = false; $("welcome").scrollTop = 0;
+}
+function closeWelcome() { $("welcome").hidden = true; }
+$("helpBtn").onclick = openWelcome;
+$("wContinue").onclick = $("wClose").onclick = closeWelcome;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && state && !$("welcome").hidden && $("ngOverlay").hidden) closeWelcome(); });
 $("ngCancel").onclick = () => $("ngOverlay").hidden = true;
 $("ngStart").onclick = () => {
   const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
   const n = names.length || Math.max(5, Math.min(20, +$("ngCount").value || 8));
   const list = names.length ? names : Array.from({ length: n }, (_, i) => `Player ${i + 1}`);
   state = blankGame(list, $("ngScript").value); draft = null;
-  save(); $("ngOverlay").hidden = true; setTab("table"); render();
+  save(); $("ngOverlay").hidden = true; closeWelcome(); setTab("table"); render();
 };
 
 $("hideBtn").onclick = () => { $("cover").hidden = false; };
@@ -2041,6 +2111,7 @@ $("cover").addEventListener("touchend", e => { const now = Date.now(); if (now -
 new ResizeObserver(() => { if (state) renderTable(); }).observe($("table"));
 setTab(currentTab);
 render();
+openWelcome();
 </script>
 </body>
 </html>

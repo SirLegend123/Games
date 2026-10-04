@@ -33,6 +33,7 @@ On a phone, open the site in Safari or Chrome and use **Add to Home Screen** to 
 
 A secret companion for when you're on the evil team. Open `evil.html` in any web browser.
 
+- How to use: a welcome page, laid out like the other two apps' pages, explains setting up your team, building your story, the day, the night and the recap. It opens with the app, and **How to use** in the top bar brings it back
 - Claims: tap role buttons, Soft for every role a player offered, Hard for the one they commit to. Roles someone else has claimed get an amber ring. When a good player soft-claims a Demon bluff, or a role that a dead good player had hard-claimed, that role is left off their list. For your team, the Demon bluffs appear as quick buttons in each evil player's panel and on the Team tab
 - A player who dies nominating the Virgin (from End day or their panel) confirms that Virgin automatically, shown with ✓ Virgin on the circle
 - Virgin nominations and Slayer shots: record who nominated or shot whom and what happened. Deaths (an execution by the Virgin counts as the day's execution), used abilities and what the town now believes are updated, with an Undo
