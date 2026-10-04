@@ -37,6 +37,8 @@ A secret companion for when you're on the evil team. Open `evil.html` in any web
 - My story: pick your bluff, then get made-up night info for it (safe, covering a teammate, or framing a threat). Everything you say is logged, with checks for slips like a first-night-only role giving info on night 3 or an Empath number that changes for no reason
 - Tonight: kill, poison, curse or protect targets ranked for your character, a night action log, and tips for every Minion and Demon on the three scripts
 - Today: who to push for execution, who not to nominate, vote counts for your team, and endgame warnings (final three, the Mayor, Scarlet Woman, Vortox, Saint)
+- End day → night: asks who was executed, whether the game ended, then your night action (with suggested targets). Night → day asks who died in the night
+- When your Demon dies, the Scarlet Woman takes over automatically with five or more alive, an Imp star-pass goes to the Scarlet Woman or the Minion you pick, and the Mastermind keeps the game going. Otherwise the app suggests the game is over. A finished game shows who won, with a button to reopen it
 - **Hide** covers the screen; double-tap to come back
 
 Like the notebook, games are saved only in the browser on your device.

@@ -161,6 +161,11 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
 /* Overlays */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; z-index: 50; padding: 16px; }
 .dialog { width: min(520px, 100%); max-height: calc(100vh - 32px); overflow: auto; }
+.phase-btn { font-size: .95rem; padding: 8px 14px; }
+.over { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--evil); background: var(--surface-2); font-weight: 700; }
+.over.good { border-color: var(--good); }
+.choice.sugg { box-shadow: inset 0 0 0 2px var(--warn); }
+.step-k { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
 .cover { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: grid; place-items: center; text-align: center; color: var(--muted); user-select: none; }
 .cover .moon { font-family: var(--font-display); font-size: 2.4rem; color: var(--muted); }
 
@@ -185,6 +190,7 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
     <li><b>Set up.</b> Enter the players in seat order, then on the <b>Team</b> tab pick your character, tap your seat, mark your teammates and choose the Demon bluffs.</li>
     <li><b>Pick a bluff.</b> On <b>My story</b>, choose the good character you'll claim. Each night, the app suggests made-up info for that character (safe, covering a teammate, or framing a threat) and keeps a log of everything you've said so your story stays straight.</li>
     <li><b>Track the town.</b> Tap a player and tap the roles they claim: <b>Soft</b> for every role they offered, <b>Hard</b> for the one they commit to. Note who they suspect and whether the town trusts them, and mark deaths as they happen. Record each <b>Virgin</b> nomination and <b>Slayer shot</b> from the middle of the circle.</li>
+    <li><b>End day → night</b> in the middle of the circle asks who was executed, whether the game ended, and your night action. <b>Night → day</b> asks who died. If your Demon dies, a Scarlet Woman takes over or a star-pass is caught automatically, and the app asks whether the game is over.</li>
     <li><b>Tonight</b> ranks kill or poison targets for your character. <b>Today</b> covers who to push, who not to nominate, vote counts and how close you are to winning.</li>
   </ol>
   <p class="small">Tap <b>Hide</b> at the top whenever someone looks over your shoulder; double-tap the screen to come back. Everything stays on this device. <i>Blood on the Clocktower</i> belongs to The Pandemonium Institute; this is an unofficial fan tool. Good players: the <a href="index.html">Clocktower Notebook</a> is for you.</p>
@@ -205,6 +211,8 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
     </nav>
   </header>
 
+  <div class="over" id="overBanner" hidden></div>
+
   <div class="tabview" data-view="table">
     <div class="main">
       <section class="col">
@@ -216,6 +224,7 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
               <button class="round" id="tFwd" aria-label="Forward in time">+</button>
             </div>
             <div class="stat" id="hubStat"></div>
+            <button class="btn primary phase-btn" id="phaseBtn"></button>
             <div class="hub-actions"><button class="btn sm" data-event="virgin">Virgin</button><button class="btn sm" data-event="slayer">Slayer shot</button></div>
           </div>
         </div>
@@ -304,6 +313,10 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
     </div>
     <div class="row"><button class="btn primary" id="ngStart">Start game</button><button class="btn" id="ngCancel">Cancel</button></div>
   </div>
+</div>
+
+<div class="overlay" id="phOverlay" hidden>
+  <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="phTitle" id="phBox"></div>
 </div>
 
 <div class="overlay" id="evOverlay" hidden>
@@ -430,7 +443,7 @@ function normalize(s) {
   s.t = Math.max(1, Number(s.t) || 1);
   s.script = ROLES[s.script] || s.script === "all" ? s.script : "tb";
   for (const k of ["bluffs", "story", "acts", "events"]) s[k] = Array.isArray(s[k]) ? s[k] : [];
-  s.notes = s.notes || ""; s.myRole = s.myRole || "";
+  s.notes = s.notes || ""; s.myRole = s.myRole || ""; s.over = s.over || null;
   return s;
 }
 let state = null;
@@ -468,7 +481,8 @@ const core = () => P().filter(p => !p.traveller);
 const alive = () => core().filter(p => !p.dead);
 const goodAlive = () => alive().filter(p => !onTeam(p));
 const teamPlayers = () => P().filter(onTeam);
-const demonP = () => teamPlayers().find(p => teamOf(roleOf(p)) === "demon");
+// The living Demon if there is one; after a star-pass or Scarlet Woman takeover the old Demon is dead
+const demonP = () => { const ds = teamPlayers().filter(p => teamOf(roleOf(p)) === "demon"); return ds.find(p => !p.dead) || ds[0]; };
 function livingNeighbours(p) {
   const ring = P().filter(x => !x.dead || x === p), i = ring.indexOf(p), n = ring.length;
   if (n < 2) return [];
@@ -738,7 +752,7 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => setTab(t.datase
 function render() {
   if (!state) { $("app").hidden = true; $("welcome").hidden = false; $("wContinue").hidden = true; return; }
   $("app").hidden = false; $("welcome").hidden = true;
-  renderTable(); renderPanel(); renderTeam(); renderStory(); renderNight(); renderDay();
+  renderTable(); renderPanel(); renderTeam(); renderStory(); renderNight(); renderDay(); renderOver();
   $("notes").value = state.notes;
   wireOpen();
   document.querySelectorAll("[data-event]").forEach(b => b.onclick = () => openEvent(b.dataset.event, b.dataset.a));
@@ -1021,7 +1035,7 @@ function renderDay() {
   const roles = team.map(p => lc(roleOf(p)));
   const eg = [];
   const mayor = goodAlive().find(p => lc(realOrClaim(p)) === "mayor");
-  if (demon && demon.dead && !roles.includes("scarlet woman")) eg.push({ lv: "bad", text: "Your Demon is dead.", sub: roles.includes("mastermind") ? "Mastermind: the game goes on one more day. If good executes a good player today, you win." : "Unless something kept the game going, good has won." });
+  if (demon && demon.dead && !state.over) eg.push({ lv: "bad", text: "Your Demon is dead.", sub: roles.includes("mastermind") ? "Mastermind: the game goes on one more day. If good executes a good player today, you win." : "Unless something kept the game going, good has won." });
   if (A <= 2) eg.push({ lv: "ok", text: "Only two players are alive. If the Demon lives, evil has won." });
   else if (A === 3) {
     eg.push({ lv: "bad", text: "Final three. Today decides the game.", sub: "If the town executes anyone but the Demon, tonight's kill wins it for you. Protect the Demon at all costs." });
@@ -1034,7 +1048,8 @@ function renderDay() {
   if (roles.includes("zombuul")) eg.push({ lv: "", text: "Zombuul: you can only kill tonight if nobody dies today." });
   const saint = goodAlive().find(p => lc(realOrClaim(p)) === "saint" && !state.bluffs.map(lc).includes("saint"));
   if (saint) eg.push({ lv: "ok", text: `${nm(saint)} claims Saint. If it's true and they're executed, evil wins.` });
-  $("endgame").innerHTML = eg.map(tip).join("");
+  $("endgame").innerHTML = eg.map(tip).join("") + (state.over ? "" : `<div class="row"><span class="label">Game over?</span><button class="btn sm" data-win="evil">Evil won</button><button class="btn sm" data-win="good">Good won</button></div>`);
+  document.querySelectorAll("[data-win]").forEach(b => b.onclick = () => endGame(b.dataset.win, "Recorded on the Today tab."));
 
   const need = Math.ceil(all / 2);
   const teamVotes = team.filter(p => !p.dead).length, ghosts = team.filter(p => p.dead && p.ghostVote).length;
@@ -1099,7 +1114,10 @@ function renderEvent() {
   $("evBox").querySelectorAll("[data-evb]").forEach(b => b.onclick = () => { d.b = b.dataset.evb; renderEvent(); });
   $("evBox").querySelectorAll("[data-evr]").forEach(b => b.onclick = () => { d.result = b.dataset.evr; renderEvent(); });
   $("evCancel").onclick = () => { $("evOverlay").hidden = true; evDraft = null; };
-  $("evSave").onclick = () => { if (!ready) return; applyEvent({ id: uid(), ...d }); $("evOverlay").hidden = true; evDraft = null; save(); render(); };
+  $("evSave").onclick = () => { if (!ready) return; const target = byId(d.b), wasDemon = d.result === "kill" && onTeam(target) && teamOf(roleOf(target)) === "demon" && !target.dead, before = alive().length;
+    applyEvent({ id: uid(), ...d }); $("evOverlay").hidden = true; evDraft = null;
+    if (wasDemon) { const o = demonDeath(target, "slayer", before); save(); render(); openOutcome("Slayer shot", o); return; }
+    save(); render(); };
 }
 function applyEvent(e) {
   const a = byId(e.a), b = byId(e.b);
@@ -1127,6 +1145,211 @@ function renderEvents() {
     : '<p class="empty">Nothing recorded yet. Record each Virgin nomination and Slayer shot as it happens: deaths, used abilities and what the town now believes are all updated.</p>';
   document.querySelectorAll("[data-unev]").forEach(b => b.onclick = () => { undoEvent(b.dataset.unev); save(); render(); });
 }
+
+/* ---------- Day and night phases ---------- */
+// What happens when your team's Demon dies: Scarlet Woman takeover, Imp star-pass, Mastermind, or good wins
+function becomeDemon(x, role) {
+  x.formerRole = roleOf(x);
+  if (x.me) state.myRole = role; else x.role = role;
+}
+function demonDeath(p, how, aliveBefore) {
+  const role = roleOf(p), notes = [];
+  const living = teamPlayers().filter(x => !x.dead && x !== p);
+  const sw = living.find(x => lc(roleOf(x)) === "scarlet woman");
+  const minions = living.filter(x => teamOf(roleOf(x)) === "minion" || (x.team && !x.role));
+  if (how === "starpass") {
+    if (sw) { becomeDemon(sw, role); notes.push({ lv: "ok", text: `${nm(sw)} (Scarlet Woman) catches the star-pass and becomes the ${role}.` }); return { notes }; }
+    if (minions.length === 1) { becomeDemon(minions[0], role); notes.push({ lv: "ok", text: `${nm(minions[0])} becomes the ${role}.` }); return { notes }; }
+    if (minions.length) return { notes, pick: minions, role };
+    notes.push({ lv: "bad", text: "No Minion is alive to catch the star-pass." });
+    return { notes, suggest: "good" };
+  }
+  if (sw && aliveBefore >= 5) { becomeDemon(sw, role); notes.push({ lv: "ok", text: `${nm(sw)} (Scarlet Woman) becomes the ${role}. There were ${aliveBefore} alive, so the game goes on.` }); return { notes }; }
+  if (sw) notes.push({ lv: "hi", text: `Only ${aliveBefore} were alive, so the Scarlet Woman can't take over.` });
+  if (how === "night" && lc(role) === "imp" && minions.length) {
+    notes.push({ lv: "", text: `${nm(p)} died at night. If they star-passed, a Minion is the new Imp.` });
+    return { notes, pick: minions, role, optional: true };
+  }
+  const mm = living.find(x => lc(roleOf(x)) === "mastermind");
+  if (mm && how !== "night") { notes.push({ lv: "hi", text: `Mastermind: the game goes on for one more day. If good executes a good player tomorrow, evil wins. Otherwise good wins.` }); return { notes }; }
+  notes.push({ lv: "bad", text: `Your Demon, ${nm(p)}, is dead, and nobody can take over.` });
+  return { notes, suggest: "good" };
+}
+function endGame(winner, why) { state.over = { winner, t: state.t, why: why || "" }; $("phOverlay").hidden = true; phase = null; save(); render(); }
+function renderOver() {
+  const o = state.over, el = $("overBanner");
+  $("phaseBtn").textContent = isNight() ? "Night → day" : "End day → night";
+  $("phaseBtn").hidden = !!o;
+  el.hidden = !o; if (!o) return;
+  el.className = "over" + (o.winner === "good" ? " good" : "");
+  el.innerHTML = `<span>Game over on ${timeLabel(o.t)}: <span class="${o.winner === "evil" ? "t-evil" : ""}">${o.winner === "evil" ? "Evil won" : "Good won"}</span>.${o.why ? ` <small class="hint">${esc(o.why)}</small>` : ""}</span><span class="row"><button class="btn sm" id="overUndo">Reopen the game</button><button class="btn sm primary" id="overNew">+ New game</button></span>`;
+  $("overUndo").onclick = () => { state.over = null; save(); render(); };
+  $("overNew").onclick = openNew;
+}
+
+// Night actions asked at the start of each night
+const NIGHT_Q = {
+  "imp": ["Who are you killing tonight?", 1, true], "zombuul": ["Who are you killing tonight?", 1], "shabaloth": ["Who are you killing tonight?", 2],
+  "po": ["Who are you killing tonight? Choose nobody to kill three tomorrow.", 2], "fang gu": ["Who are you killing tonight?", 1], "vigormortis": ["Who are you killing tonight?", 1],
+  "no dashii": ["Who are you killing tonight?", 1], "vortox": ["Who are you killing tonight?", 1], "pukka": ["Who are you poisoning tonight? Last night's choice dies.", 1, false, true],
+  "poisoner": ["Who are you poisoning tonight?", 1, false, true], "witch": ["Who are you cursing tonight?", 1, false, true], "cerenovus": ["Who are you making mad, and about what?", 1, false, true],
+  "devil's advocate": ["Who are you protecting from execution tomorrow?", 1, false, true], "godfather": ["Who are you killing tonight? Only if an Outsider died today.", 1],
+  "assassin": ["Are you using your one kill tonight? Choose nobody to save it.", 1], "pit-hag": ["Who are you changing, and into what?", 1]
+};
+let phase = null;
+function startPhase() {
+  if (state.over) return;
+  if (isNight()) phase = { kind: "dawn", step: "deaths", deaths: [], notes: [] };
+  else {
+    const already = P().find(p => p.dead && executed(p) && p.deathAt === state.t);
+    phase = { kind: "dusk", step: "exec", exec: already ? already.id : "", already: !!already, notes: [], picks: [], x: "" };
+  }
+  $("phOverlay").hidden = false; renderPhase();
+}
+function openOutcome(title, o) { phase = { kind: "outcome", title, step: "outcome", notes: o.notes || [], pick: o.pick, role: o.role, optional: o.optional, suggest: o.suggest }; $("phOverlay").hidden = false; renderPhase(); }
+function evilWinCheck(notes) {
+  const d = demonP(), A = alive().length;
+  if (d && !d.dead && A <= 2) { notes.push({ lv: "ok", text: `Only ${A} players are alive and your Demon lives.` }); return "evil"; }
+  return "";
+}
+function renderPhase() {
+  const ph = phase, box = $("phBox");
+  const chips = (sel, multi, opts = {}) => {
+    const list = P().filter(p => !p.dead || (opts.inclDead && p.dead));
+    const sugg = opts.sugg || [];
+    const ordered = [...list].sort((a, b) => (sugg.indexOf(a.id) + 1 || 99) - (sugg.indexOf(b.id) + 1 || 99));
+    return `<div class="choice-list">${(opts.sortSugg ? ordered : list).map(p => `<button class="choice${onTeam(p) ? " red" : ""}${sugg.includes(p.id) ? " sugg" : ""}" data-pick="${p.id}" aria-pressed="${multi ? sel.includes(p.id) : sel === p.id}">${esc(nm(p))}${p.me && opts.self ? ` <small>(${opts.self})</small>` : ""}${p.claims.length ? ` <small>· ${esc(p.claims.join("/"))}</small>` : ""}</button>`).join("")}</div>`;
+  };
+  const notesHtml = () => ph.notes.map(tip).join("");
+  const outcomeHtml = () => `${notesHtml()}
+    ${ph.pick ? `<div class="field"><span class="label">${ph.optional ? "Did they star-pass? Who is the new " : "Who catches it and becomes the "}${esc(ph.role)}?</span><div class="choice-list">${ph.pick.map(p => `<button class="choice red" data-newdemon="${p.id}">${esc(nm(p))}</button>`).join("")}${ph.optional ? `<button class="choice" data-newdemon="">No star-pass</button>` : `<button class="choice" data-newdemon="">Nobody</button>`}</div></div>` : `
+    <div class="field"><span class="label">Did the game end?</span><div class="row">
+      <button class="btn${ph.suggest ? "" : " primary"}" data-end="">No, it goes on</button>
+      <button class="btn${ph.suggest === "good" ? " primary" : ""}" data-end="good">Good won${ph.suggest === "good" ? " (likely)" : ""}</button>
+      <button class="btn${ph.suggest === "evil" ? " primary" : ""}" data-end="evil">Evil won${ph.suggest === "evil" ? " (likely)" : ""}</button></div></div>`}`;
+  const wireOutcome = after => {
+    box.querySelectorAll("[data-newdemon]").forEach(b => b.onclick = () => {
+      const x = byId(b.dataset.newdemon);
+      if (x) { becomeDemon(x, ph.role); ph.notes.push({ lv: "ok", text: `${nm(x)} is now the ${ph.role}.` }); ph.suggest = ""; }
+      else if (!ph.optional) ph.suggest = "good";
+      else { const d = teamPlayers().find(p => p.dead && teamOf(roleOf(p)) === "demon" && p.deathAt === state.t); if (d && !teamPlayers().some(p => !p.dead && teamOf(roleOf(p)) === "demon")) { ph.notes.push({ lv: "bad", text: "Then your Demon is dead with nobody to take over." }); ph.suggest = "good"; } }
+      ph.pick = null; save(); renderPhase();
+    });
+    box.querySelectorAll("[data-end]").forEach(b => b.onclick = () => { if (b.dataset.end) endGame(b.dataset.end, ph.notes.map(n => n.text).join(" ")); else after(); });
+  };
+  const close = () => { $("phOverlay").hidden = true; phase = null; save(); render(); };
+
+  if (ph.kind === "outcome") {
+    box.innerHTML = `<h2 id="phTitle">${esc(ph.title)}</h2>${outcomeHtml()}`;
+    wireOutcome(close); return;
+  }
+
+  if (ph.kind === "dusk") {
+    if (ph.step === "exec") {
+      box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)} · 1 of 3</span><h2 id="phTitle">Who was executed today?</h2>
+        ${ph.already ? `<p class="hint">${esc(nm(byId(ph.exec)))} was already executed today (the Virgin). That counts as the day's execution.</p>` : chips(ph.exec, false)}
+        ${ph.already ? "" : `<div class="row"><button class="choice" data-pick="" aria-pressed="${ph.exec === "none"}">Nobody was executed</button></div>`}
+        <div class="row"><button class="btn primary" id="phNext"${ph.exec ? "" : " disabled"}>Next</button><button class="btn" id="phCancel">Cancel</button></div>`;
+      box.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { ph.exec = b.dataset.pick || "none"; renderPhase(); });
+      $("phCancel").onclick = () => { $("phOverlay").hidden = true; phase = null; };
+      $("phNext").onclick = () => {
+        const x = byId(ph.exec), before = alive().length + (ph.already && x && !x.traveller ? 1 : 0);
+        if (x && !ph.already) { x.dead = true; x.deathBy = "exec"; x.deathAt = state.t; x.ghostVote = true; ph.undo = x.id; }
+        if (x) {
+          if (onTeam(x) && teamOf(roleOf(x)) === "demon") { const o = demonDeath(x, "exec", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.suggest = o.suggest; }
+          else if (lc(realOrClaim(x)) === "saint" && !onTeam(x)) { ph.notes.push({ lv: "ok", text: `${nm(x)} claimed Saint. If they really were the Saint, evil wins.` }); ph.suggest = state.bluffs.map(lc).includes("saint") ? "" : "evil"; }
+          else if (onTeam(x)) ph.notes.push({ lv: "hi", text: `Your teammate ${nm(x)} was executed. The Demon survives.` });
+          else ph.notes.push({ lv: "ok", text: `${nm(x)} was executed: one fewer good player.` });
+          const mm = state.events && teamPlayers().find(p => !p.dead && lc(roleOf(p)) === "mastermind");
+          if (mm && demonP() && demonP().dead && !onTeam(x) && demonP().deathAt < state.t) { ph.notes.push({ lv: "ok", text: "Mastermind: good executed a good player on the extra day. Evil wins." }); ph.suggest = "evil"; }
+        } else {
+          ph.notes.push({ lv: "", text: "No execution today." });
+          if (teamPlayers().some(p => !p.dead && lc(roleOf(p)) === "vortox")) { ph.notes.push({ lv: "ok", text: "Vortox: no execution means evil wins." }); ph.suggest = "evil"; }
+          const mayor = goodAlive().find(p => lc(realOrClaim(p)) === "mayor");
+          if (mayor && alive().length === 3) { ph.notes.push({ lv: "bad", text: `Three alive, no execution, and ${nm(mayor)} claims Mayor. If they're the real Mayor, good wins.` }); ph.suggest = "good"; }
+        }
+        ph.suggest = ph.suggest || evilWinCheck(ph.notes);
+        ph.step = "outcome"; save(); renderPhase();
+      };
+      return;
+    }
+    if (ph.step === "outcome") {
+      box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)} · 2 of 3</span><h2 id="phTitle">What happened</h2>${outcomeHtml()}`;
+      wireOutcome(() => { state.t++; draft = null; ph.step = "night"; save(); renderPhase(); });
+      return;
+    }
+    if (ph.step === "night") {
+      const r = lc(state.myRole), q = NIGHT_Q[r], n1 = nightNo() === 1;
+      const me = meP();
+      const isDemon = teamOf(r) === "demon";
+      let body;
+      if (!state.myRole) body = `<p class="hint">Choose your character on the Team tab to get your night question.</p>`;
+      else if (!q || (n1 && isDemon && r !== "pukka") || (n1 && ["pit-hag", "assassin"].includes(r))) body = `<p class="hint">${n1 && isDemon ? "Demons don't kill on the first night." : `The ${esc(state.myRole)} makes no choice tonight.`} Use the night to prepare tomorrow's story on My story.</p>
+        <input type="text" id="phX" value="${esc(ph.x)}" placeholder="Anything to note (optional)">`;
+      else {
+        const mode = q[3] ? "poison" : "kill";
+        const sugg = (r === "devil's advocate" ? teamHeat().map(h => h.p.id) : threats(mode).map(t => t.p.id)).slice(0, 3);
+        body = `<p><b>${esc(q[0])}</b></p>
+          <p class="hint">Amber rings are the top suggestions from the Tonight tab.${q[1] > 1 ? ` Pick up to ${q[1]}.` : ""}</p>
+          ${chips(ph.picks, true, { sugg, sortSugg: true, self: q[2] ? "yourself: star-pass" : "" })}
+          <input type="text" id="phX" value="${esc(ph.x)}" placeholder="Note (optional)">`;
+      }
+      box.innerHTML = `<span class="step-k">${timeLabel(state.t)} · 3 of 3</span><h2 id="phTitle">Your night action</h2>${body}
+        <div class="row"><button class="btn primary" id="phDone">Done</button><button class="btn" id="phSkip">Skip</button></div>`;
+      box.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {
+        const id = b.dataset.pick, max = q ? q[1] : 1;
+        ph.picks = ph.picks.includes(id) ? ph.picks.filter(x => x !== id) : [...ph.picks, id].slice(-max);
+        renderPhase();
+      });
+      if ($("phX")) $("phX").oninput = e => ph.x = e.target.value;
+      $("phSkip").onclick = close;
+      $("phDone").onclick = () => {
+        if (ph.picks.length || ph.x) state.acts.push({ id: uid(), night: nightNo(), p: [...ph.picks], x: ph.x, role: state.myRole });
+        if (me && r === "imp" && ph.picks.includes(me.id)) {
+          const before = alive().length;
+          me.dead = true; me.deathBy = "night"; me.deathAt = state.t;
+          const o = demonDeath(me, "starpass", before);
+          save(); render(); openOutcome("Star-pass", o); return;
+        }
+        close();
+      };
+      return;
+    }
+  }
+
+  if (ph.kind === "dawn") {
+    if (ph.step === "deaths") {
+      const mine = state.acts.filter(a => a.night === nightNo()).flatMap(a => a.p);
+      box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)}</span><h2 id="phTitle">Who died in the night?</h2>
+        <p class="hint">Tap everyone who died. ${mine.length ? "Amber rings are your team's choices tonight." : ""}</p>
+        ${chips(ph.deaths, true, { sugg: mine })}
+        <div class="row"><button class="choice" id="phNobody" aria-pressed="${ph.nobody ? "true" : "false"}">Nobody died</button></div>
+        <div class="row"><button class="btn primary" id="phNext"${ph.deaths.length || ph.nobody ? "" : " disabled"}>Next</button><button class="btn" id="phCancel">Cancel</button></div>`;
+      box.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { const id = b.dataset.pick; ph.deaths = ph.deaths.includes(id) ? ph.deaths.filter(x => x !== id) : [...ph.deaths, id]; ph.nobody = false; renderPhase(); });
+      $("phNobody").onclick = () => { ph.nobody = !ph.nobody; if (ph.nobody) ph.deaths = []; renderPhase(); };
+      $("phCancel").onclick = () => { $("phOverlay").hidden = true; phase = null; };
+      $("phNext").onclick = () => {
+        const before = alive().length;
+        let demonDied = null;
+        for (const id of ph.deaths) {
+          const x = byId(id); x.dead = true; x.deathBy = "night"; x.deathAt = state.t; x.ghostVote = true;
+          if (onTeam(x) && teamOf(roleOf(x)) === "demon") demonDied = x;
+        }
+        ph.notes.push({ lv: "", text: ph.deaths.length ? `${ph.deaths.map(id => nm(byId(id))).join(", ")} died in the night.` : "Nobody died in the night." });
+        if (demonDied) { const o = demonDeath(demonDied, "night", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.optional = o.optional; ph.suggest = o.suggest; }
+        ph.suggest = ph.suggest || evilWinCheck(ph.notes);
+        ph.step = "outcome"; save(); renderPhase();
+      };
+      return;
+    }
+    if (ph.step === "outcome") {
+      box.innerHTML = `<span class="step-k">Dawn</span><h2 id="phTitle">What happened</h2>${outcomeHtml()}`;
+      wireOutcome(() => { state.t++; draft = null; close(); });
+      return;
+    }
+  }
+}
+$("phaseBtn").onclick = startPhase;
 
 /* ---------- Controls ---------- */
 $("tFwd").onclick = () => { state.t++; draft = null; save(); render(); };
