@@ -262,7 +262,7 @@ function newGame(names) {
     v: 1, n: 1, time: 'night', stage: 'pass', created: Date.now(),
     players: names.map((name, i) => ({ id: i, name, role: dealt[i], alive: true, ghost: true, used: false, master: null })),
     log: [], town: [], info: {}, inbox: {}, poison: null, bluffs: [], redHerring: null,
-    lastExecuted: null, winner: null, pass: null, announce: null, dayS: null, dawnInfo: {}, diedTonight: [], rkPending: null, rkDone: false,
+    lastExecuted: null, winner: null, pass: null, announce: null, dayS: null, dawnInfo: {}, diedTonight: [], rkLearned: {},
   };
   G.players.forEach(p => { G.info[p.id] = []; G.inbox[p.id] = []; });
   const drunk = G.players.find(p => p.role === 'Drunk');
@@ -363,7 +363,7 @@ function killAtNight(t) {
   if (!t.alive) return;
   die(t, 'night');
   G.diedTonight.push(t.id);
-  if (believed(t) === 'Ravenkeeper') G.rkPending = t.id;
+  if (believed(t) === 'Ravenkeeper') log(`The Ravenkeeper (${nm(t.id)}) died at night and will choose a player in the morning.`);
 }
 function starPass(imp) {
   imp.alive = false;
@@ -393,7 +393,7 @@ function die(p, cause) {
 function resolveNight() {
   const c = G.pass.choices, n = G.n, awake = id => G.pass.order.includes(id);
   const holder = role => G.players.find(p => p.role === role && awake(p.id));
-  G.diedTonight = []; G.dawnInfo = {}; G.rkPending = null; G.rkDone = false;
+  G.diedTonight = []; G.dawnInfo = {}; G.rkLearned = {};
   const say = (p, line) => (G.dawnInfo[p.id] = G.dawnInfo[p.id] || []).push(line);
 
   // Poisoner: the old poison ends at dusk
@@ -466,6 +466,8 @@ function resolveNight() {
   checkTwoLeft();
   if (G.winner) dawnAnnounce(); else startPass('dawn');
 }
+// A Ravenkeeper (or a Drunk who thinks they are one) killed tonight who hasn't chosen yet
+const ravenkeeperWaiting = p => G.pass && G.pass.kind === 'dawn' && believed(p) === 'Ravenkeeper' && G.diedTonight.includes(p.id) && !(G.rkLearned && G.rkLearned[p.id]);
 function ravenkeeperLearns(p, tid) {
   const q = P(tid), l = !sober(p) && chance(LIE);
   const r = l ? falseCharacter(q) : reg(q).role;
@@ -473,7 +475,7 @@ function ravenkeeperLearns(p, tid) {
   (G.dawnInfo[p.id] = G.dawnInfo[p.id] || []).push(text);
   tell(p.id, [text]);
   noteInfo(p, text, l);
-  G.rkDone = true;
+  (G.rkLearned = G.rkLearned || {})[p.id] = true;
 }
 
 function dawnAnnounce() {
@@ -701,7 +703,7 @@ function nightTurn(p) {
 }
 function dawnTurn(p) {
   let h = inboxHtml(p) + reminder(p), need = null;
-  if (G.rkPending === p.id && !G.rkDone) {
+  if (ravenkeeperWaiting(p)) {
     h += `<div class="msg">You were killed tonight. As the Ravenkeeper, you may learn one player's character.</div>`;
     need = { k: 1, ids: G.players.map(q => q.id), prompt: 'Choose a player: you learn their character.', btn: 'Learn their character' };
   }
@@ -876,7 +878,7 @@ document.addEventListener('click', e => {
       break;
     case 'done': {
       const p = P(U.turn.id);
-      if (G.pass.kind === 'dawn' && G.rkPending === p.id && !G.rkDone) { ravenkeeperLearns(p, U.sel[0]); U.sel = []; break; }
+      if (ravenkeeperWaiting(p)) { ravenkeeperLearns(p, U.sel[0]); U.sel = []; break; }
       finishTurn(p.id, U.sel.length ? U.sel.slice() : null);
       return go();
     }
