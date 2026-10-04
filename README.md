@@ -41,7 +41,7 @@ A secret companion for when you're on the evil team. Open `evil.html` in any web
 - Conversations: on the Today tab (or from a player's panel), log each chat: their soft or hard claim, who on your team they suspect, and what they shared, either their own info or hearsay ("I heard a Chef got a 0"). Hearsay about a character with no known source counts as an extra soft claim for the speaker. Saving updates the table. Info pointing at your team is flagged and makes its source a bigger threat
 - Everyone's likely character: on the Today tab, each player's most likely role, with contested claims, likely Drunks and roles already taken by someone else
 - Today: who to push for execution, who not to nominate, vote counts for your team, and endgame warnings (final three, the Mayor, Scarlet Woman, Vortox, Saint)
-- End day → night: asks who was executed, whether the game ended, then your night action (with suggested targets). Night → day asks who died in the night; whether the game ended is only asked at the end of the day
+- End day → night: asks who was executed, whether the game ended, then your night action (with suggested targets). Night → day asks who actually died: a night kill or star-pass is never assumed, since a Soldier, Monk, Mayor bounce or poisoning can stop it, and a survivor or bounce is explained; whether the game ended is only asked at the end of the day
 - When your Demon dies, the Scarlet Woman takes over automatically with five or more alive, an Imp star-pass goes to the Scarlet Woman or the Minion you pick, and the Mastermind keeps the game going. Otherwise the app suggests the game is over. A finished game shows who won, with a button to reopen it
 - **Hide** covers the screen; double-tap to come back
 

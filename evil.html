@@ -178,6 +178,15 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
 .welcome li b { color: var(--fg); }
 .welcome p, .welcome li { color: var(--fg); }
 .welcome .small { font-size: .84rem; color: var(--muted); }
+.table { container-type: inline-size; }
+@container (max-width: 520px) {
+  .hub { gap: 4px; width: 50%; }
+  .time { gap: 4px; }
+  .time-label { font-size: 1.05rem; min-width: 4.3em; }
+  .round { width: 24px; height: 24px; font-size: .8rem; padding: 0; }
+  .stat { font-size: .7rem; line-height: 1.3; }
+  .phase-btn { font-size: .78rem; padding: 4px 9px; }
+}
 </style>
 </head>
 <body>
@@ -226,9 +235,9 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
             </div>
             <div class="stat" id="hubStat"></div>
             <button class="btn primary phase-btn" id="phaseBtn"></button>
-            <div class="hub-actions"><button class="btn sm" data-event="virgin">Virgin</button><button class="btn sm" data-event="slayer">Slayer shot</button></div>
           </div>
         </div>
+        <div class="hub-actions"><span class="label" style="align-self:center">Record</span><button class="btn sm" data-event="virgin">Virgin nomination</button><button class="btn sm" data-event="slayer">Slayer shot</button></div>
         <div class="legend">
           <span><i style="border-color:var(--evil);background:#3a1820"></i>Your team</span>
           <span><i style="border-color:var(--warn);border-style:dashed"></i>Top threats</span>
@@ -1539,13 +1548,9 @@ function renderPhase() {
       if ($("phX")) $("phX").oninput = e => ph.x = e.target.value;
       $("phSkip").onclick = close;
       $("phDone").onclick = () => {
-        if (ph.picks.length || ph.x) state.acts.push({ id: uid(), night: nightNo(), p: [...ph.picks], x: ph.x, role: state.myRole });
-        if (me && r === "imp" && ph.picks.includes(me.id)) {
-          const before = alive().length;
-          me.dead = true; me.deathBy = "night"; me.deathAt = state.t;
-          const o = demonDeath(me, "starpass", before);
-          save(); render(); openOutcome("Star-pass", o, false); return;
-        }
+        // Nobody is killed here: who actually died is asked at dawn, since a Soldier, Monk or Mayor bounce can stop a kill
+        const starpass = !!(me && r === "imp" && ph.picks.includes(me.id));
+        if (ph.picks.length || ph.x) state.acts.push({ id: uid(), night: nightNo(), p: [...ph.picks], x: ph.x, role: state.myRole, kill: /killing/i.test(q ? q[0] : ""), starpass });
         close();
       };
       return;
@@ -1554,9 +1559,10 @@ function renderPhase() {
 
   if (ph.kind === "dawn") {
     if (ph.step === "deaths") {
-      const mine = state.acts.filter(a => a.night === nightNo()).flatMap(a => a.p);
-      box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)}</span><h2 id="phTitle">Who died in the night?</h2>
-        <p class="hint">Tap everyone who died. ${mine.length ? "Amber rings are your team's choices tonight." : ""}</p>
+      const acts = state.acts.filter(a => a.night === nightNo()), mine = acts.flatMap(a => a.p);
+      const kills = acts.filter(a => a.kill).flatMap(a => a.p).map(byId).filter(Boolean), sp = acts.some(a => a.starpass);
+      box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)}</span><h2 id="phTitle">Who actually died in the night?</h2>
+        <p class="hint">Tap only the players the Storyteller announced as dead.${kills.length ? ` You chose ${sp ? "to star-pass" : kills.map(nm).join(" and ")}, but a Soldier, a Monk or other protection, a Mayor bounce, or a drunk or poisoned Demon can stop a kill.` : mine.length ? " Amber rings are your choices tonight." : ""}</p>
         ${chips(ph.deaths, true, { sugg: mine })}
         <div class="row"><button class="choice" id="phNobody" aria-pressed="${ph.nobody ? "true" : "false"}">Nobody died</button></div>
         <div class="row"><button class="btn primary" id="phNext"${ph.deaths.length || ph.nobody ? "" : " disabled"}>Next</button><button class="btn" id="phCancel">Cancel</button></div>`;
@@ -1566,12 +1572,24 @@ function renderPhase() {
       $("phNext").onclick = () => {
         const before = alive().length;
         let demonDied = null;
+        const acts = state.acts.filter(a => a.night === nightNo()), kills = acts.filter(a => a.kill && !a.starpass).flatMap(a => a.p).map(byId).filter(Boolean);
+        const me = meP(), sp = acts.some(a => a.starpass);
         for (const id of ph.deaths) {
           const x = byId(id); x.dead = true; x.deathBy = "night"; x.deathAt = state.t; x.ghostVote = true;
           if (onTeam(x) && teamOf(roleOf(x)) === "demon") demonDied = x;
         }
         ph.notes.push({ lv: "", text: ph.deaths.length ? `${ph.deaths.map(id => nm(byId(id))).join(", ")} died in the night.` : "Nobody died in the night." });
-        if (demonDied) { const o = demonDeath(demonDied, "night", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.optional = o.optional; ph.suggest = o.suggest; }
+        const others = ph.deaths.map(byId).filter(x => !kills.includes(x) && !(sp && x === me));
+        for (const k of kills) {
+          if (ph.deaths.includes(k.id)) continue;
+          const c = lc(realOrClaim(k));
+          if (c === "mayor" && others.length) ph.notes.push({ lv: "hi", text: `${nm(k)} survived and ${others.map(nm).join(", ")} died instead: a Mayor bounce. ${nm(k)} is probably the real Mayor.` });
+          else if (c === "soldier") ph.notes.push({ lv: "hi", text: `${nm(k)} survived your kill: probably the real Soldier.` });
+          else ph.notes.push({ lv: "hi", text: `${nm(k)} survived your kill.`, sub: c === "mayor" ? "A Mayor can survive with nobody dying instead." : "Protected (Monk, Innkeeper, Tea Lady…), a Soldier or Fool, or your Demon was drunk or poisoned." });
+        }
+        if (sp && me && !ph.deaths.includes(me.id)) ph.notes.push({ lv: "hi", text: "You chose to star-pass, but you didn't die. You're still the Demon." });
+        if (sp && me && ph.deaths.includes(me.id)) { const o = demonDeath(me, "starpass", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.optional = false; ph.suggest = o.suggest; }
+        else if (demonDied) { const o = demonDeath(demonDied, "night", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.optional = o.optional; ph.suggest = o.suggest; }
         evilWinCheck(ph.notes);
         ph.step = "outcome"; save(); renderPhase();
       };
@@ -1588,7 +1606,8 @@ function renderPhase() {
 $("phaseBtn").onclick = startPhase;
 
 /* ---------- Controls ---------- */
-$("tFwd").onclick = () => { state.t++; draft = null; save(); render(); };
+// Moving forward runs the day/night questions, so deaths are always asked rather than assumed
+$("tFwd").onclick = () => { if (state.over) { state.t++; draft = null; save(); render(); } else startPhase(); };
 $("tBack").onclick = () => { if (state.t > 1) { state.t--; draft = null; save(); render(); } };
 $("notes").oninput = e => { state.notes = e.target.value; save(); };
 
