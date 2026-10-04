@@ -30,8 +30,9 @@ On a phone, open the site in Safari or Chrome and use **Add to Home Screen** to 
 A secret companion for when you're on the evil team. Open `evil.html` in any web browser.
 
 - Claims: tap role buttons, Soft for every role a player offered, Hard for the one they commit to. Roles someone else has claimed get an amber ring. When a good player soft-claims a Demon bluff, that role is left off their list, since it's not in play. For your team, the Demon bluffs appear as quick buttons in each evil player's panel and on the Team tab
+- A player who dies nominating the Virgin (from End day or their panel) confirms that Virgin automatically, shown with ✓ Virgin on the circle
 - Virgin nominations and Slayer shots: record who nominated or shot whom and what happened. Deaths (an execution by the Virgin counts as the day's execution), used abilities and what the town now believes are updated, with an Undo
-- Game size: how many evil players (Minions and Demon), Townsfolk and Outsiders there are for the player count, adjusted for a Baron, Fang Gu or Vigormortis, and how many teammates you've marked. Shown under Your team and in the middle of the circle
+- Game size: how many evil players (Minions and Demon), Townsfolk and Outsiders there are for the player count, adjusted for a Baron, Fang Gu or Vigormortis, and how many teammates you've marked. Shown under Your team, and in the middle of the circle as T · O · M · D
 - Table & team: the circle, the player panel and your team on one tab: your real character, your seat, your teammates and their characters, and the Demon bluffs
 - Cover checks: rival claims on your team's bluffs, two teammates on one claim, players claiming a role that's not in play, the Outsider count with a Baron, and the Virgin
 - How suspicious your team looks, from who suspects whom and double claims

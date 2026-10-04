@@ -149,6 +149,7 @@ textarea { resize: vertical; min-height: 80px; width: 100%; }
 .vote { position: absolute; top: 14%; right: 14%; width: 9px; height: 9px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1px #000; z-index: 3; }
 .nameplate { max-width: calc(var(--tok, 70px) * 1.35); font-size: max(11px, calc(var(--tok, 70px) * .17)); font-weight: 700; line-height: 1.15; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .seat.dead .nameplate { color: var(--muted); text-decoration: line-through; }
+.flag.ok { color: var(--good); }
 .flag { font-size: max(10px, calc(var(--tok, 70px) * .14)); font-weight: 800; color: var(--warn); line-height: 1; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; color: var(--muted); justify-content: center; }
 .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid; vertical-align: -2px; margin-right: 4px; }
@@ -807,7 +808,7 @@ function renderTable() {
         ${p.dead && p.ghostVote ? '<span class="vote" title="Ghost vote available"></span>' : ""}
       </span>
       <span class="nameplate">${esc(nm(p))}</span>
-      ${!onTeam(p) && p.real ? `<span class="flag">really ${esc(p.real)}</span>` : topThreats.has(p.id) ? '<span class="flag">threat</span>' : ""}`;
+      ${virginConfirmed(p) ? '<span class="flag ok">✓ Virgin</span>' : !onTeam(p) && p.real ? `<span class="flag">really ${esc(p.real)}</span>` : topThreats.has(p.id) ? '<span class="flag">threat</span>' : ""}`;
     b.setAttribute("aria-label", `${nm(p)}${claim ? ", claims " + claim : ""}${p.dead ? ", dead" : ""}`);
     b.onclick = () => { state.selected = p.id; save(); render(); };
     tb.appendChild(b);
@@ -815,7 +816,7 @@ function renderTable() {
   $("tLabel").textContent = timeLabel(state.t);
   const tp = teamPlayers(), votes = tp.filter(p => !p.dead || p.ghostVote).length;
   const su = setup();
-  $("hubStat").innerHTML = `<b>${alive().length}</b> of ${core().length} alive<br>${su ? `<b class="t-evil">${su.evil} evil</b> in play · ${tp.length === su.evil ? "all marked" : `<b>${tp.length}</b> marked`}<br>` : ""}Team: <b>${tp.filter(p => !p.dead).length}</b> alive · ${votes} vote${votes === 1 ? "" : "s"}`;
+  $("hubStat").innerHTML = `<b>${alive().length}</b> of ${core().length} alive<br>${su ? `<span title="Townsfolk · Outsiders · Minions · Demon">${su.tf} T · ${su.out} O · <b class="t-evil">${su.min} M · ${su.dem} D</b></span><br>` : ""}${su ? `<b class="t-evil">${su.evil} evil</b> in play · ${tp.length === su.evil ? "all marked" : `<b>${tp.length}</b> marked`}<br>` : ""}Team: <b>${tp.filter(p => !p.dead).length}</b> alive · ${votes} vote${votes === 1 ? "" : "s"}`;
 }
 
 function renderPanel() {
@@ -851,6 +852,7 @@ function renderPanel() {
     <div class="field"><span class="label">State</span><div class="row">
       <button class="choice" id="pDead" aria-pressed="${p.dead}">${p.dead ? "Dead" : "Alive"}</button>
       ${p.dead ? `<select id="pHow" aria-label="How they died">${[["night", "Died at night"], ["exec", "Executed"], ["virgin", "Executed by the Virgin"], ["slayer", "Shot by the Slayer"], ["other", "Other"]].map(([v, l]) => `<option value="${v}"${p.deathBy === v ? " selected" : ""}>${l}</option>`).join("")}</select>
+        ${p.deathBy === "virgin" && !state.events.some(e => e.type === "virgin" && e.result === "exec" && e.b === p.id) ? `<div class="field" style="flex-basis:100%"><span class="label">Which Virgin did they nominate? They'll be confirmed</span><div class="choice-list">${[...virginCandidates(p.id), ...P().filter(x => x !== p && !x.dead && !virginCandidates(p.id).includes(x))].map(x => `<button class="choice${virginCandidates(p.id).includes(x) ? " sugg" : ""}" data-pvirgin="${x.id}">${esc(nm(x))}</button>`).join("")}</div></div>` : ""}
         <button class="choice" id="pVote" aria-pressed="${p.ghostVote}">Ghost vote ${p.ghostVote ? "unused" : "used"}</button>` : ""}
       <button class="choice" id="pTrav" aria-pressed="${p.traveller}">Traveller</button>
     </div></div>
@@ -883,7 +885,8 @@ function renderPanel() {
   }));
   el.querySelectorAll("[data-ctype]").forEach(b => b.onclick = upd(() => { p.claimType = b.dataset.ctype; if (p.claimType === "hard" && p.claims.length > 1) p.claims = []; }));
   $("pDead").onclick = upd(() => { p.dead = !p.dead; p.deathAt = p.dead ? state.t : 0; p.deathBy = p.dead ? (isNight() ? "night" : "exec") : ""; p.ghostVote = true; });
-  if ($("pHow")) $("pHow").onchange = upd(() => p.deathBy = $("pHow").value);
+  if ($("pHow")) $("pHow").onchange = upd(() => { p.deathBy = $("pHow").value; if (p.deathBy === "virgin") { const c = virginCandidates(p.id); if (c.length === 1) confirmVirgin(p.id, c[0].id); } });
+  el.querySelectorAll("[data-pvirgin]").forEach(b => b.onclick = upd(() => confirmVirgin(p.id, b.dataset.pvirgin)));
   if ($("pVote")) $("pVote").onclick = upd(() => p.ghostVote = !p.ghostVote);
   $("pTrav").onclick = upd(() => p.traveller = !p.traveller);
   if ($("pTrusted")) $("pTrusted").onclick = upd(() => p.trusted = !p.trusted);
@@ -1109,6 +1112,13 @@ function renderDay() {
 }
 
 /* ---------- Virgin nominations and Slayer shots ---------- */
+const virginConfirmed = p => state.events.some(e => e.type === "virgin" && e.result === "exec" && e.a === p.id);
+const virginCandidates = excl => P().filter(p => p.id !== excl && !p.dead && !p.virginUsed && p.claims.some(c => lc(c) === "virgin"));
+// A player who died nominating the Virgin confirms that Virgin: record it as a Virgin nomination
+function confirmVirgin(nominatorId, virginId) {
+  if (!virginId || state.events.some(e => e.type === "virgin" && e.result === "exec" && e.b === nominatorId)) return;
+  applyEvent({ id: uid(), type: "virgin", a: virginId, b: nominatorId, result: "exec" });
+}
 let evDraft = null;
 function eventText(e) {
   const a = nm(byId(e.a)), b = nm(byId(e.b)), when = timeLabel(e.t);
@@ -1469,12 +1479,17 @@ function renderPhase() {
       box.innerHTML = `<span class="step-k">End of ${timeLabel(state.t)} · 1 of 3</span><h2 id="phTitle">Who was executed today?</h2>
         ${ph.already ? `<p class="hint">${esc(nm(byId(ph.exec)))} was already executed today (the Virgin). That counts as the day's execution.</p>` : chips(ph.exec, false)}
         ${ph.already ? "" : `<div class="row"><button class="choice" data-pick="" aria-pressed="${ph.exec === "none"}">Nobody was executed</button></div>`}
+        ${!ph.already && ph.exec && ph.exec !== "none" ? `<div class="field"><span class="label">How</span><div class="row"><button class="choice" data-how="vote" aria-pressed="${!ph.virgin}">By vote</button><button class="choice" data-how="virgin" aria-pressed="${!!ph.virgin}">Died nominating the Virgin</button></div>
+          ${ph.virgin ? `<span class="label">Which Virgin? They'll be confirmed</span><div class="choice-list">${[...virginCandidates(ph.exec), ...P().filter(x => x.id !== ph.exec && !x.dead && !virginCandidates(ph.exec).includes(x))].map(x => `<button class="choice${virginCandidates(ph.exec).includes(x) ? " sugg" : ""}" data-vpick="${x.id}" aria-pressed="${ph.virginId === x.id}">${esc(nm(x))}</button>`).join("")}</div>` : ""}</div>` : ""}
         <div class="row"><button class="btn primary" id="phNext"${ph.exec ? "" : " disabled"}>Next</button><button class="btn" id="phCancel">Cancel</button></div>`;
-      box.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { ph.exec = b.dataset.pick || "none"; renderPhase(); });
+      box.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { ph.exec = b.dataset.pick || "none"; if (ph.exec === "none") ph.virgin = false; renderPhase(); });
+      box.querySelectorAll("[data-how]").forEach(b => b.onclick = () => { ph.virgin = b.dataset.how === "virgin"; if (ph.virgin && !ph.virginId) { const c = virginCandidates(ph.exec); if (c.length === 1) ph.virginId = c[0].id; } renderPhase(); });
+      box.querySelectorAll("[data-vpick]").forEach(b => b.onclick = () => { ph.virginId = b.dataset.vpick; renderPhase(); });
       $("phCancel").onclick = () => { $("phOverlay").hidden = true; phase = null; };
       $("phNext").onclick = () => {
         const x = byId(ph.exec), before = alive().length + (ph.already && x && !x.traveller ? 1 : 0);
-        if (x && !ph.already) { x.dead = true; x.deathBy = "exec"; x.deathAt = state.t; x.ghostVote = true; ph.undo = x.id; }
+        if (x && !ph.already && ph.virgin && ph.virginId) { confirmVirgin(x.id, ph.virginId); ph.notes.push({ lv: "", text: `${nm(byId(ph.virginId))} is now a confirmed Virgin, and ${nm(x)} a confirmed Townsfolk.` }); }
+        else if (x && !ph.already) { x.dead = true; x.deathBy = ph.virgin ? "virgin" : "exec"; x.deathAt = state.t; x.ghostVote = true; ph.undo = x.id; }
         if (x) {
           if (onTeam(x) && teamOf(roleOf(x)) === "demon") { const o = demonDeath(x, "exec", before); ph.notes.push(...o.notes); ph.pick = o.pick; ph.role = o.role; ph.suggest = o.suggest; }
           else if (lc(realOrClaim(x)) === "saint" && !onTeam(x)) { ph.notes.push({ lv: "ok", text: `${nm(x)} claimed Saint. If they really were the Saint, evil wins.` }); ph.suggest = state.bluffs.map(lc).includes("saint") ? "" : "evil"; }
