@@ -143,6 +143,9 @@ button.tok:hover { transform: translate(-50%, -50%) scale(1.07); }
 .log { display: grid; gap: 4px; font-size: .92rem; }
 .log .when { font-weight: 800; color: var(--brass); margin-top: 8px; }
 .err { color: var(--evil); font-weight: 700; }
+.wait { text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wait b { color: var(--brass); font-size: 1.2rem; }
+.pc:disabled { opacity: .55; cursor: default; }
 </style>
 </head>
 <body>
@@ -193,6 +196,8 @@ const LIE = 0.8;            // a drunk or poisoned player gets false info
 const SPY_GOOD = 0.5;       // the Spy registers as good
 const RECLUSE_EVIL = 0.4;   // the Recluse registers as evil
 const MAYOR_BOUNCE = 0.5;   // a Demon kill on the Mayor goes to someone else
+// Every private turn lasts at least this long, so nobody can tell who has an ability by how quickly they finish
+let TURN_WAIT = 15;
 
 /* ---------- State ---------- */
 let G = load();
@@ -565,9 +570,9 @@ function endDay() {
 
 /* ---------- Views ---------- */
 const $app = document.getElementById('app');
-function picker(ids, k) {
+function picker(ids, k, locked) {
   U.need = k;
-  return `<div class="pick">${ids.map(id => { const q = P(id); return `<button class="pc ${U.sel.includes(id) ? 'on' : ''} ${q.alive ? '' : 'dead'}" data-act="sel" data-id="${id}">${esc(q.name)}${q.alive ? '' : ' ☠'}</button>`; }).join('')}</div>`;
+  return `<div class="pick">${ids.map(id => { const q = P(id); return `<button class="pc ${U.sel.includes(id) ? 'on' : ''} ${q.alive ? '' : 'dead'}" data-act="sel" data-id="${id}" ${locked ? 'disabled' : ''}>${esc(q.name)}${q.alive ? '' : ' ☠'}</button>`; }).join('')}</div>`;
 }
 function grimoireHtml() {
   const rows = G.players.map(q => {
@@ -609,7 +614,7 @@ function howView() {
     </ul>
     <h3>Each night</h3>
     <ul class="plain">
-      <li><b>Night turns:</b> pass the phone round. Each player taps their own name, checks nobody else can see, and makes their choice. Players with nothing to do still tap a player, so nobody watching can tell who has an ability.</li>
+      <li><b>Night turns:</b> pass the phone round. Each player taps their own name, checks nobody else can see, and makes their choice. Players with nothing to do still tap a player, so nobody watching can tell who has an ability. Every turn lasts at least 15 seconds for the same reason: the names and Done unlock after a short countdown.</li>
       <li>Once everyone has had a turn, the app resolves the night in the real wake order: Poisoner, Monk, Imp, then the information characters.</li>
       <li><b>Morning news:</b> pass the phone round again. Each player privately reads what they learned. A Ravenkeeper killed in the night chooses a player here.</li>
       <li>Then the app announces who died, and the day begins.</li>
@@ -712,15 +717,21 @@ function dawnTurn(p) {
   else if (!need) h += `<div class="info">Nothing for you this morning.</div>`;
   return { h, need };
 }
+// Seconds left before this private turn can be finished (0 once the wait is over)
+function turnWait() {
+  const t = U.turn;
+  return t && t.step === 'show' && t.shown ? Math.max(0, Math.ceil(TURN_WAIT - (Date.now() - t.shown) / 1000)) : 0;
+}
 function turnView() {
   const t = U.turn, p = P(t.id);
   if (t.step === 'confirm') return confirmView(p.id, 'hub');
   const { h, need } = G.pass.kind === 'night' ? nightTurn(p) : dawnTurn(p);
-  const ready = !need || U.sel.length === need.k;
+  const wait = turnWait(), ready = !wait && (!need || U.sel.length === need.k);
   return `<section class="card private">
     <h2>${nm(p.id)}</h2>
     ${h}
-    ${need ? `<h3>${G.pass.kind === 'night' ? 'Tonight' : 'Your choice'}</h3><p>${need.prompt}</p>${picker(need.ids, need.k)}` : ''}
+    ${need ? `<h3>${G.pass.kind === 'night' ? 'Tonight' : 'Your choice'}</h3><p>${need.prompt}</p>${picker(need.ids, need.k, wait)}` : ''}
+    ${wait ? `<p class="wait" aria-live="polite">Take your time. You can ${need ? 'choose' : 'finish'} in <b>${wait}</b> ${plural(wait, 'second', 'seconds')}.</p>` : ''}
     <button class="btn primary block" data-act="done" ${ready ? '' : 'disabled'}>${need && need.btn ? need.btn : 'Done. Hide this and pass the phone on'}</button>
   </section>`;
 }
@@ -869,7 +880,7 @@ document.addEventListener('click', e => {
     case 'turn': U.turn = { id, step: 'confirm' }; U.sel = []; return go();
     case 'hub': U.turn = null; break;
     case 'reveal':
-      if (U.turn) U.turn.step = 'show'; else U.day.step = 'show';
+      if (U.turn) { U.turn.step = 'show'; U.turn.shown = Date.now(); } else U.day.step = 'show';
       U.sel = []; return go();
     case 'sel':
       if (U.sel.includes(id)) U.sel = U.sel.filter(x => x !== id);
@@ -912,7 +923,11 @@ document.addEventListener('click', e => {
   }
   render();
 });
-setInterval(() => { const el = document.getElementById('timer'); if (el) el.textContent = timerText(); }, 1000);
+setInterval(() => {
+  const el = document.getElementById('timer'); if (el) el.textContent = timerText();
+  // Count down a private turn's wait, and unlock the names and Done when it ends
+  if (U.view === 'game' && G && G.stage === 'pass' && U.turn && U.turn.step === 'show' && document.querySelector('.wait')) render();
+}, 1000);
 render();
 </script>
 </body>
