@@ -53,7 +53,7 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { min-height: 100%; }
-body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.45; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 1rem; line-height: 1.45; }
 button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
@@ -120,6 +120,19 @@ table.grim tr.dead td:first-child { text-decoration: line-through; color: var(--
 .banner { border-radius: 12px; padding: 12px 14px; font-weight: 700; background: var(--surface-2); border: 1px solid var(--line); }
 .banner.evil { border-color: var(--evil); color: var(--evil); }
 .timer { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1.2rem; }
+.big-timer { text-align: center; font-family: var(--font-display); font-variant-numeric: tabular-nums; font-size: clamp(4rem, 26vw, 9rem); line-height: 1; color: var(--brass); padding: 10px 0 4px; }
+.big-timer.low { color: var(--warn); }
+.big-timer.up { color: var(--evil); font-size: clamp(3rem, 17vw, 6rem); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .big-timer.up { animation: none; } }
+.timer-row { justify-content: center; }
+.tok.next { box-shadow: 0 0 0 5px var(--brass), 0 3px 10px rgba(0,0,0,.35); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 8px 14px; font-weight: 700; min-height: 44px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--brass); color: #1a1408; }
+.setting { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.setting > span { font-weight: 700; min-width: 5.5em; }
 .win { text-align: center; font-family: var(--font-display); font-size: clamp(3.2rem, 17vw, 7rem); line-height: 1; padding: 28px 12px; border-radius: 14px; border: 2px solid currentColor; text-wrap: balance; }
 .win.good { color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--surface)); }
 .win.evil { color: var(--evil); background: color-mix(in srgb, var(--evil) 14%, var(--surface)); }
@@ -210,6 +223,26 @@ let TURN_WAIT = 5;
 
 /* ---------- State ---------- */
 let G = load();
+/* ---------- This phone's settings: text size and voice ---------- */
+const PREFS_KEY = 'clockwork-storyteller-prefs';
+let prefs = { text: 1, voice: true };
+try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREFS_KEY)) || {}); } catch (e) {}
+function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {} applyPrefs(); }
+function applyPrefs() { document.documentElement.style.fontSize = (prefs.text * 100) + '%'; }
+applyPrefs();
+const canSpeak = () => typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
+// Reads public announcements aloud. Never call this with anything private.
+function speak(text) {
+  if (!prefs.voice || !canSpeak() || !text) return;
+  const tmp = document.createElement('div'); tmp.innerHTML = text;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(tmp.textContent.replace(/\s+/g, ' ').trim());
+    u.rate = 0.95; u.lang = 'en-GB';
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
 let U = { view: G ? 'game' : 'home', turn: null, sel: [], need: 0, day: null, hands: [], menu: false, timerEnd: null, setupText: '' };
 
 function load() { try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
@@ -316,9 +349,19 @@ function startPass(kind) {
 }
 function finishTurn(id, choice) {
   G.pass.done[id] = true;
+  G.pass.last = id;
   if (choice) G.pass.choices[id] = choice;
   G.inbox[id] = [];
   U.turn = null; U.sel = [];
+}
+function nextUp() {
+  const N = G.players.length, start = G.pass.last == null ? 0 : G.pass.last + 1;
+  for (let k = 0; k < N; k++) { const id = (start + k) % N; if (G.pass.order.includes(id) && !G.pass.done[id]) return id; }
+  return null;
+}
+function sayNext(prefix) {
+  const id = nextUp();
+  speak(id == null ? `${prefix || ''} Everyone has had their turn.` : `${prefix || ''} Pass the phone to ${P(id).name}.`);
 }
 const passComplete = () => G.pass.order.every(id => G.pass.done[id]);
 
@@ -630,7 +673,7 @@ function howView() {
     </ul>
     <h3>Each day</h3>
     <ul class="plain">
-      <li>Talk as usual. Use the timer if you want one.</li>
+      <li>Talk as usual. Start the discussion timer if you want one: it shows big enough to see from across the table, and the voice warns at one minute left.</li>
       <li><b>Nominate:</b> pick who nominates whom, then tap everyone whose hand is raised. The app counts the votes, spends ghost votes and keeps track of who is on the block. The Virgin works automatically.</li>
       <li><b>Slayer shot:</b> anyone can publicly claim a shot. It only works for the real Slayer.</li>
       <li><b>My character:</b> any player can privately re-read their character and everything they've learned.</li>
@@ -645,6 +688,8 @@ function howView() {
       <li>When the Imp kills themselves, the Scarlet Woman takes over if she's alive.</li>
     </ul>
     <p>Everything is written to a Storyteller's log, which you see at the end along with the full Grimoire. A few things are left to players' honesty: the Butler's voting rule, and keeping quiet about anything they glimpse.</p>
+    <h3>Text size and voice</h3>
+    <p>In the Menu you can make all the text larger, and turn the voice on or off. The voice says whose turn it is to take the phone, and reads out deaths, executions, votes, Slayer shots and the winner. It never reads anything private.</p>
     <p class="hint">Games are saved in this browser only. Nothing is uploaded.</p>
     <div class="row"><button class="btn" data-act="home">Back</button></div>
   </section>`;
@@ -685,12 +730,12 @@ function hubView() {
   return `<section class="card">
     <h2>${k === 'night' ? `Night ${G.n}: night turns` : `Night ${G.n}: morning news`}</h2>
     <p>${intro}</p>
-    <p class="hint">Glowing seats still need a turn. Any order is fine.</p>
+    <p class="hint">Glowing seats still need a turn. The ringed seat is next round the circle, but any order is fine.</p>
     ${tableHtml(q => {
       if (!G.pass.order.includes(q.id)) return { cls: 'dead', mark: '☠' };
       if (G.pass.done[q.id]) return { cls: 'done', mark: '✓' };
-      return { button: true, attrs: `data-act="turn" data-id="${q.id}" aria-label="${esc(q.name)}: take your turn"` };
-    }, `<div class="mid-big">${done}/${total}</div><div class="mid-sm">${k === 'night' ? 'night turns' : 'read their news'}</div>`)}
+      return { button: true, cls: q.id === nextUp() ? 'next' : '', attrs: `data-act="turn" data-id="${q.id}" aria-label="${esc(q.name)}: take your turn"` };
+    }, `<div class="mid-big">${done}/${total}</div><div class="mid-sm">${k === 'night' ? 'night turns' : 'read their news'}</div>${nextUp() != null ? `<div class="mid-sm">Next: <b>${nm(nextUp())}</b></div>` : ''}`)}
     ${passComplete() ? `<button class="btn primary block" data-act="pass-done">${k === 'night' ? 'Everyone has had a turn. On to the morning' : 'Everyone has read their news. Wake the town'}</button>` : ''}
   </section>`;
 }
@@ -746,6 +791,12 @@ function turnView() {
   </section>`;
 }
 
+function speakAnnounce() {
+  const a = G.announce;
+  if (!a) return;
+  if (a.then === 'over') speak(`${G.winner.team === 'good' ? 'Good' : 'Evil'} wins! ${G.winner.reason}`);
+  else speak(`${a.title}. ${a.lines.join(' ')}`);
+}
 function announceView() {
   const a = G.announce;
   if (a.then === 'over') return `<section class="card">
@@ -761,10 +812,17 @@ function announceView() {
   </section>`;
 }
 
+const timerLeft = () => U.timerEnd ? Math.max(0, Math.round((U.timerEnd - Date.now()) / 1000)) : null;
 function timerText() {
-  if (!U.timerEnd) return '';
-  const s = Math.max(0, Math.round((U.timerEnd - Date.now()) / 1000));
-  return s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} left` : "Time's up!";
+  const s = timerLeft();
+  if (s == null) return '';
+  return s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : "Time's up!";
+}
+const timerClass = () => { const s = timerLeft(); return s === 0 ? 'big-timer up' : s != null && s <= 30 ? 'big-timer low' : 'big-timer'; };
+function timerHtml() {
+  return `${U.timerEnd ? `<div class="${timerClass()}" id="timer" role="timer">${timerText()}</div>` : ''}
+    <div class="row timer-row"><span class="label">Discussion timer</span>
+      <button class="btn sm" data-act="timer" data-min="2">2 min</button><button class="btn sm" data-act="timer" data-min="5">5 min</button>${U.timerEnd ? '<button class="btn sm" data-act="timer" data-min="add">+1 min</button><button class="btn sm" data-act="timer" data-min="0">Stop</button>' : ''}</div>`;
 }
 function dayView() {
   const d = G.dayS, m = U.day;
@@ -784,14 +842,14 @@ function dayView() {
       ? alive().filter(q => !nom || !d.nominators.includes(q.id)).map(q => q.id)
       : G.players.filter(q => q.id !== m.a || nom).filter(q => !nom || !d.nominees.includes(q.id)).map(q => q.id);
     const q = m.step === 1 ? (nom ? 'Who is nominating?' : 'Who is taking the Slayer shot?') : `Who does ${nm(m.a)} ${nom ? 'nominate' : 'shoot at'}?`;
-    return `<section class="card"><h2>${nom ? 'Nomination' : 'Slayer shot'}</h2><p>${q}</p>
+    return `${U.timerEnd ? `<section class="card">${timerHtml()}</section>` : ''}<section class="card"><h2>${nom ? 'Nomination' : 'Slayer shot'}</h2><p>${q}</p>
       ${ids.length ? picker(ids, 1) : '<p class="hint">Nobody is left who can.</p>'}
       <div class="row"><button class="btn primary" data-act="${m.mode}-next" ${U.sel.length === 1 ? '' : 'disabled'}>${m.step === 1 ? 'Next' : nom ? 'Nominate' : 'Shoot'}</button><button class="btn" data-act="cancel">Cancel</button></div></section>`;
   }
   if (m && m.mode === 'vote') {
     const voters = G.players.filter(q => q.alive || q.ghost);
     U.need = 99;
-    return `<section class="card"><h2>${nm(m.a)} nominates ${nm(m.b)}</h2>
+    return `${U.timerEnd ? `<section class="card">${timerHtml()}</section>` : ''}<section class="card"><h2>${nm(m.a)} nominates ${nm(m.b)}</h2>
       <p>Tap everyone voting to execute ${nm(m.b)}. ${votesNeeded()} votes are needed${d.highest ? `, and more than ${d.highest} to go on the block` : ''}.</p>
       <div class="pick">${voters.map(q => `<button class="pc ${U.hands.includes(q.id) ? 'on' : ''} ${q.alive ? '' : 'dead'}" data-act="hand" data-id="${q.id}">${esc(q.name)}${q.alive ? '' : ' ☠ ghost vote'}</button>`).join('')}</div>
       <p class="timer">${U.hands.length} ${plural(U.hands.length, 'vote', 'votes')}</p>
@@ -807,6 +865,7 @@ function dayView() {
   const earlier = G.town.filter(e => e.when !== label());
   return `<section class="card">
       <h2>Day ${G.n}</h2>
+      ${timerHtml()}
       <p class="hint">${alive().length} alive. ${votesNeeded()} votes needed to execute.</p>
       <div class="banner ${d.block != null ? 'evil' : ''}">${d.block != null ? `On the block: ${nm(d.block)} with ${d.highest} votes` : d.highest ? `Nobody is on the block (tied at ${d.highest})` : 'Nobody is on the block'}</div>
       <div class="row">
@@ -815,8 +874,6 @@ function dayView() {
         <button class="btn" data-act="peek">My character</button>
         <button class="btn" data-act="end">End the day</button>
       </div>
-      <div class="row"><span class="timer" id="timer">${timerText()}</span>
-        <button class="btn sm" data-act="timer" data-min="2">2 min</button><button class="btn sm" data-act="timer" data-min="5">5 min</button>${U.timerEnd ? '<button class="btn sm" data-act="timer" data-min="0">Stop</button>' : ''}</div>
     </section>
     <section class="card"><h3>Town square</h3>${seats}<p class="hint">☠ vote: dead, ghost vote not yet used. A red ring: on the block.</p></section>
     <section class="card"><h3>Today</h3>${d.events.length ? `<div class="log">${d.events.map(e => `<div>${e}</div>`).join('')}</div>` : '<p class="hint">No nominations yet.</p>'}
@@ -863,7 +920,13 @@ function overView() {
 function menuView() {
   if (U.menu === 'abandon') return `<section class="card"><p>Abandon this game? It can't be brought back.</p><div class="row">
     <button class="btn danger" data-act="abandon-yes">Abandon the game</button><button class="btn" data-act="menu">Keep playing</button></div></section>`;
-  return `<section class="card"><div class="row">
+  const sizes = [[1, 'Normal'], [1.2, 'Large'], [1.4, 'Extra large']];
+  return `<section class="card">
+    <div class="setting"><span>Text size</span><div class="seg">${sizes.map(([v, l]) => `<button data-act="text" data-v="${v}" aria-pressed="${prefs.text === v}">${l}</button>`).join('')}</div></div>
+    <div class="setting"><span>Voice</span><div class="seg"><button data-act="voice" data-v="1" aria-pressed="${prefs.voice}">On</button><button data-act="voice" data-v="0" aria-pressed="${!prefs.voice}">Off</button></div>
+      ${canSpeak() ? '<button class="btn sm" data-act="voice-test">Test</button>' : '<span class="hint">This browser can\'t speak.</span>'}</div>
+    <p class="hint">The voice says whose turn it is with the phone and reads out deaths, executions, votes, Slayer shots and the timer. It never reads anything private.</p>
+    <div class="row">
     <button class="btn" data-act="how">How it works</button>
     ${G && !G.winner ? `<button class="btn danger" data-act="abandon">Abandon this game</button>` : ''}
     <button class="btn" data-act="menu">Close</button></div></section>`;
@@ -908,8 +971,11 @@ document.addEventListener('click', e => {
     case 'resume': U.view = 'game'; break;
     case 'setup': U.view = 'setup'; U.menu = false; return go();
     case 'setup-same': U.setupText = G.players.map(p => p.name).join('\n'); U.view = 'setup'; return go();
-    case 'start': newGame(parseNames(U.setupText)); U.view = 'game'; return go();
+    case 'start': newGame(parseNames(U.setupText)); U.view = 'game'; sayNext('Night 1. Everyone, close your eyes.'); return go();
     case 'abandon': U.menu = 'abandon'; break;
+    case 'text': prefs.text = +b.dataset.v; savePrefs(); break;
+    case 'voice': prefs.voice = b.dataset.v === '1'; savePrefs(); if (prefs.voice) speak('Voice on.'); else if (canSpeak()) speechSynthesis.cancel(); break;
+    case 'voice-test': speak('This is the Clockwork Storyteller.'); break;
     case 'abandon-yes': G = null; U.view = 'home'; U.menu = false; break;
     case 'turn': U.turn = { id, step: 'confirm' }; U.sel = []; return go();
     case 'hub': U.turn = null; break;
@@ -925,16 +991,18 @@ document.addEventListener('click', e => {
       const p = P(U.turn.id);
       if (ravenkeeperWaiting(p)) { ravenkeeperLearns(p, U.sel[0]); U.sel = []; break; }
       finishTurn(p.id, U.sel.length ? U.sel.slice() : null);
+      sayNext(passComplete() ? '' : 'Thank you.');
       return go();
     }
     case 'pass-done':
       if (G.pass.kind === 'night') resolveNight(); else dawnAnnounce();
+      if (G.stage === 'pass') sayNext('Morning news.'); else speakAnnounce();
       return go();
     case 'continue': {
       const t = G.announce.then;
       G.announce = null;
       if (t === 'day') G.stage = 'day';
-      else if (t === 'night') { G.n++; G.time = 'night'; startPass('night'); }
+      else if (t === 'night') { G.n++; G.time = 'night'; startPass('night'); sayNext(`Night ${G.n}. Everyone, close your eyes.`); }
       else G.stage = 'over';
       return go();
     }
@@ -943,16 +1011,23 @@ document.addEventListener('click', e => {
       const m = U.day;
       if (m.step === 1) { m.a = U.sel[0]; m.step = 2; U.sel = []; return go(); }
       const target = U.sel[0]; U.sel = [];
+      const before = G.dayS.events.length;
       if (m.mode === 'nom') nominate(m.a, target); else slayerShot(m.a, target);
+      if (G.stage === 'announce') speakAnnounce(); else if (G.dayS.events.length > before) speak(G.dayS.events[G.dayS.events.length - 1]);
       return go();
     }
     case 'hand': U.hands = U.hands.includes(id) ? U.hands.filter(x => x !== id) : [...U.hands, id]; break;
-    case 'count': countVotes(); return go();
+    case 'count': {
+      const { b: who } = U.day, k = U.hands.length;
+      countVotes();
+      speak(`${k} ${plural(k, 'vote', 'votes')} to execute ${P(who).name}. ${G.dayS.block === who ? `${P(who).name} is on the block.` : G.dayS.block == null && G.dayS.highest === k && k >= votesNeeded() ? 'A tie. Nobody is on the block.' : 'Not enough.'}`);
+      return go();
+    }
     case 'peek': U.day = { mode: 'peek', step: 'pick' }; return go();
     case 'peek-who': U.day = { mode: 'peek', step: 'confirm', id }; return go();
     case 'cancel': U.day = null; U.sel = []; return go();
     case 'end': U.day = { mode: 'end' }; return go();
-    case 'end-yes': endDay(); return go();
+    case 'end-yes': endDay(); speakAnnounce(); return go();
     case 'flip': {
       const shown = G.revealed = G.revealed || [];
       if (!shown.includes(id)) shown.push(id);
@@ -961,12 +1036,26 @@ document.addEventListener('click', e => {
     }
     case 'flip-all': G.revealed = G.players.map(q => q.id); U.revealSel = null; break;
     case 'flip-none': G.revealed = []; U.revealSel = null; break;
-    case 'timer': { const min = +b.dataset.min; U.timerEnd = min ? Date.now() + min * 60000 : null; break; }
+    case 'timer': {
+      const v = b.dataset.min;
+      U.timerEnd = v === 'add' ? Math.max(U.timerEnd, Date.now()) + 60000 : +v ? Date.now() + +v * 60000 : null;
+      U.timerSaid = {};
+      if (+v) speak(`${v} minutes on the clock.`);
+      break;
+    }
   }
   render();
 });
 setInterval(() => {
-  const el = document.getElementById('timer'); if (el) el.textContent = timerText();
+  const el = document.getElementById('timer');
+  if (el) { el.textContent = timerText(); el.className = timerClass(); }
+  // Spoken warnings for the discussion timer
+  const left = timerLeft();
+  if (left != null && G && G.stage === 'day') {
+    U.timerSaid = U.timerSaid || {};
+    if (left === 60 && !U.timerSaid[60]) { U.timerSaid[60] = true; speak('One minute left.'); }
+    if (left === 0 && !U.timerSaid[0]) { U.timerSaid[0] = true; speak("Time's up."); }
+  }
   // Count down a private turn's wait, and unlock the names and Done when it ends
   if (U.view === 'game' && G && G.stage === 'pass' && U.turn && U.turn.step === 'show' && document.querySelector('.wait')) render();
 }, 1000);

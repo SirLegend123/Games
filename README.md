@@ -81,6 +81,10 @@ An automated Storyteller for *Trouble Brewing*, so nobody has to sit out. It's a
 - End of day: the execution, then the Saint, Scarlet Woman, Mayor, final-two and Demon-death wins are checked
 - Game over: a large Good wins or Evil wins banner as soon as the result is known, then the Grimoire as the seating circle: tap a seat to flip it and reveal that player's character (good in blue, evil in red), or reveal everyone at once. Then the Storyteller's log of every choice, including each piece of false information and why it was given
 
+- Voice: says whose turn it is to take the phone (the next seat round the circle, which is also ringed on the table), and reads out deaths, executions, votes, Slayer shots, timer warnings and the winner. It never reads anything private. Turn it off, or test it, in the Menu
+- Text size: Normal, Large or Extra large, in the Menu
+- The discussion timer shows in very large numbers, turns amber in the last 30 seconds and red at time's up, and has a +1 min button
+
 Games are saved in the browser on the device you use. Nothing is uploaded anywhere.
 
 *Blood on the Clocktower* and its character names belong to The Pandemonium Institute. This is an unofficial fan-made note-taking tool.
