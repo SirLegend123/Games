@@ -197,7 +197,7 @@ const SPY_GOOD = 0.5;       // the Spy registers as good
 const RECLUSE_EVIL = 0.4;   // the Recluse registers as evil
 const MAYOR_BOUNCE = 0.5;   // a Demon kill on the Mayor goes to someone else
 // Every private turn lasts at least this long, so nobody can tell who has an ability by how quickly they finish
-let TURN_WAIT = 15;
+let TURN_WAIT = 10;
 
 /* ---------- State ---------- */
 let G = load();
@@ -614,7 +614,7 @@ function howView() {
     </ul>
     <h3>Each night</h3>
     <ul class="plain">
-      <li><b>Night turns:</b> pass the phone round. Each player taps their own name, checks nobody else can see, and makes their choice. Players with nothing to do still tap a player, so nobody watching can tell who has an ability. Every turn lasts at least 15 seconds for the same reason: the names and Done unlock after a short countdown.</li>
+      <li><b>Night turns:</b> pass the phone round. Each player taps their own name, checks nobody else can see, and makes their choice. Players with nothing to do still tap a player, so nobody watching can tell who has an ability. Every turn lasts at least 10 seconds for the same reason: the names and Done unlock after a short countdown.</li>
       <li>Once everyone has had a turn, the app resolves the night in the real wake order: Poisoner, Monk, Imp, then the information characters.</li>
       <li><b>Morning news:</b> pass the phone round again. Each player privately reads what they learned. A Ravenkeeper killed in the night chooses a player here.</li>
       <li>Then the app announces who died, and the day begins.</li>
