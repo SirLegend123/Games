@@ -32,10 +32,10 @@ A tracker for the *Blood on the Clocktower* Storyteller. Open `storyteller.html`
 - Setup: paste everyone's names in one go, then pick each player's character from a dropdown once the tokens are handed out (characters already given out are greyed out). Good or evil fills in by itself. Also the Drunk's or Lunatic's fake character, Demon bluffs and the Fortune Teller's red herring. Checks the Townsfolk / Outsider / Minion / Demon counts for the player count (including the Baron)
 - Grimoire: the seating circle with characters, deaths, ghost votes and reminder tokens (Poisoned, Protected, Mad…), which come and go on their own
 - Nights: a wake-order list of who's in play. Log what each player chose and learned, mark false info and why, and log Demon kills (with saves and Imp star-passes)
-- Days: nominations with vote counts, who's on the block, executions, and other deaths
+- Days: nominations with vote counts, who's on the block, executions, Slayer shots (hit or miss, and why), and other deaths
 - Character changes, revivals, notes, and a star for moments worth calling out
 - Look back at any earlier night or day, and fix or add things there
-- Reveal script: when the game ends, a script to read aloud at the grimoire reveal. It goes through the good team, then the evil team (Demon last), then the game night by night, including nights with no deaths and days with no execution. Who won is only said at the very end
+- Reveal script: when the game ends, a script to read aloud at the grimoire reveal. It tells the game night by night and reveals each player at the moment they died. Until then, players are only described by character ("The Poisoner poisoned Cara"), so evil players stay hidden until their turn. Survivors come last, evil ones at the very end, then who won. Nights with no deaths and days with no execution are called out
 - Full summary: who was what, the whole game, every lie you told and why, starred moments, the final grimoire and some numbers. Copy either as text
 - Finished games are kept under Past games
 

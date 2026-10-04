@@ -186,7 +186,7 @@ details summary { list-style-position: inside; }
 
 .events { display: grid; gap: 6px; }
 .ev { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: start; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: .92rem; }
-.ev.kill, .ev.exec, .ev.death { border-left-color: var(--evil); }
+.ev.kill, .ev.exec, .ev.death, .ev.slayer { border-left-color: var(--evil); }
 .ev.ability { border-left-color: var(--good); }
 .ev.nom { border-left-color: var(--warn); }
 .ev.change, .ev.status { border-left-color: var(--traveller); }
@@ -331,6 +331,7 @@ const TYPES = {
   kill: { label: "Demon kill", when: "night" },
   nom: { label: "Nomination", when: "day" },
   exec: { label: "Execution", when: "day" },
+  slayer: { label: "Slayer shot", when: "day" },
   death: { label: "Other death", when: "both" },
   status: { label: "Reminder", when: "both" },
   change: { label: "Character change", when: "both" },
@@ -457,6 +458,7 @@ function applyEvent(S, e) {
       }
       break;
     case "exec": if (t && e.outcome !== "survived") die(t, "executed"); break;
+    case "slayer": if (t && e.outcome === "died") die(t, "shot by the Slayer"); break;
     case "death": for (const x of e.targets || []) die(x, e.cause || "died"); break;
     case "revive": for (const x of e.targets || []) if (S[x]) Object.assign(S[x], { dead: false, deathPh: null, cause: "" }); break;
     case "change": if (S[t]) Object.assign(S[t], { role: e.role || S[t].role, align: e.align || S[t].align, thinks: THINKS.includes(e.role) ? (e.thinks || "") : "" }); break;
@@ -504,6 +506,10 @@ function remindersAt(ph) {
   return out;
 }
 // Why a player's ability might not work: Drunk, Lunatic, poisoned, drunk
+// While the reveal script is being built, players not yet revealed are spoken of by character only
+let REVEALED = null;
+const hidden = id => REVEALED !== null && !REVEALED.has(id);
+
 function droisoned(pid, ph, S) {
   const s = S[pid];
   if (!s) return "";
@@ -511,7 +517,7 @@ function droisoned(pid, ph, S) {
   if (s.role === "Lunatic") return "they were really the Lunatic";
   const rem = (remindersAt(ph)[pid] || []).find(r => /poison|drunk/i.test(r.label));
   if (!rem) return "";
-  if (/poison/i.test(rem.label)) return "they were poisoned" + (rem.src && rem.srcRole ? ` by ${nameOf(rem.src)} the ${rem.srcRole}` : "");
+  if (/poison/i.test(rem.label)) return "they were poisoned" + (rem.src && rem.srcRole ? (hidden(rem.src) ? ` by the ${rem.srcRole}` : ` by ${nameOf(rem.src)} the ${rem.srcRole}`) : "");
   return "they were drunk";
 }
 
@@ -521,13 +527,17 @@ function aliveCount(S) { return Object.values(S).filter(s => !s.dead).length; }
 const B = id => `<b>${esc(nameOf(id))}</b>`;
 function roleTag(id, S) {
   const s = S[id];
-  if (!s || !s.role) return B(id);
+  if (!s || !s.role || hidden(id)) return B(id);
   if (THINKS.includes(s.role) && s.thinks) return `${B(id)} (the ${esc(s.role)}, who thought they were the ${esc(s.thinks)})`;
   return `${B(id)} (the ${esc(s.role)})`;
 }
 function subject(id, S, acting) {
   const s = S[id] || {};
   const real = s.role;
+  if (hidden(id)) {
+    if (acting && real && real !== acting) return `Someone who thought they were the ${esc(acting)}`;
+    return real || acting ? `The ${esc(acting || real)}` : "Someone";
+  }
   if (acting && real && real !== acting) return `${B(id)}, the ${esc(real)} who thought they were the ${esc(acting)},`;
   return real || acting ? `${B(id)} the ${esc(acting || real)}` : B(id);
 }
@@ -554,11 +564,14 @@ function narrate(e, S) {
       const t = T[0];
       s = subject(e.actor, S);
       if (!t) s += " chose not to kill anyone.";
-      else if (t === e.actor && e.outcome === "died") s += ` killed themselves${e.newDemon ? `, and ${roleTag(e.newDemon, S)} became the new ${esc((S[e.actor] || {}).role || "Demon")}` : ""}.`;
+      else if (t === e.actor && e.outcome === "died") s += ` killed themselves${e.newDemon ? hidden(e.newDemon) ? `, and the ${esc((S[e.actor] || {}).role || "Demon")} passed to another player` : `, and ${roleTag(e.newDemon, S)} became the new ${esc((S[e.actor] || {}).role || "Demon")}` : ""}.`;
       else if (e.outcome === "died") s += ` attacked ${objs[0]}, who died.`;
       else s += ` attacked ${objs[0]}, but they survived${e.why ? `: ${esc(e.why)}` : ""}.`;
       break;
     }
+    case "slayer":
+      s = `${hidden(e.actor) ? B(e.actor) : subject(e.actor, S)} shot at ${objs[0] || "no one"}${e.outcome === "died" ? `, and ${B(T[0])} died!` : `. Nothing happened${e.why ? `: ${esc(e.why)}` : ""}.`}`;
+      break;
     case "nom": s = `${B(e.actor)} nominated ${B(T[0])}${e.votes !== "" && e.votes != null ? ` and got ${plural(Number(e.votes), "vote")}` : ""}.`; break;
     case "exec":
       if (!T[0]) s = "No one was executed.";
@@ -568,7 +581,7 @@ function narrate(e, S) {
     case "revive": s = `${listJoin(objs)} came back to life${e.cause ? ` (${esc(e.cause)})` : ""}.`; break;
     case "change": {
       const was = S[T[0]] || {};
-      s = `${roleTag(T[0], S)} became the ${esc(e.role)}${e.align && e.align !== was.align ? ` and turned ${e.align}` : ""}${e.why ? ` (${esc(e.why)})` : ""}.`;
+      s = `${hidden(T[0]) ? (was.role ? `The ${esc(was.role)}` : "Someone") : roleTag(T[0], S)} became the ${esc(e.role)}${e.align && e.align !== was.align ? ` and turned ${e.align}` : ""}${e.why ? ` (${esc(e.why)})` : ""}.`;
       break;
     }
     case "status": s = `${listJoin(objs)} ${T.length > 1 ? "were" : "was"} marked <b>${esc(e.label)}</b>${e.why ? ` (${esc(e.why)})` : ""}.`; break;
@@ -586,15 +599,15 @@ function exampleGame() {
   g.players.find(p => p.name === "Finn").thinks = "Chef";
   Object.assign(g, { title: "Example: the Ravenswood Bluff fair", example: true, started: true, bluffs: ["Washerwoman", "Virgin", "Soldier"], redHerring: id("Dan"), phase: 3, maxPhase: 3 });
   const E = (ph, type, x) => g.events.push({ id: uid(), ph, type, targets: [], ...x });
-  E(0, "note", { text: "Ben and Eve met each other. Eve was shown Washerwoman, Virgin and Soldier as bluffs." });
+  E(0, "note", { text: "The evil team met each other, and the Demon was shown three bluffs." });
   E(0, "ability", { actor: id("Ben"), role: "Poisoner", targets: [id("Cara")] });
-  E(0, "ability", { actor: id("Cara"), role: "Empath", info: "0", falseInfo: true, why: "Cara was poisoned, so I hid Ben", star: true });
+  E(0, "ability", { actor: id("Cara"), role: "Empath", info: "0", falseInfo: true, why: "Cara was poisoned", star: true });
   E(0, "ability", { actor: id("Anna"), role: "Fortune Teller", targets: [id("Eve"), id("Finn")], info: "Yes" });
   E(0, "ability", { actor: id("Finn"), role: "Chef", info: "2", falseInfo: true, why: "they were the Drunk" });
-  E(1, "ability", { actor: id("Gus"), role: "Slayer", targets: [id("Ben")], info: "nothing happened" });
+  E(1, "slayer", { actor: id("Gus"), targets: [id("Ben")], outcome: "none", why: "Ben wasn't the Demon" });
   E(1, "nom", { actor: id("Ben"), targets: [id("Anna")], votes: 4 });
   E(1, "nom", { actor: id("Cara"), targets: [id("Ben")], votes: 3 });
-  E(1, "exec", { targets: [id("Anna")], votes: 4, outcome: "died", note: "Ben led the charge against the Fortune Teller" });
+  E(1, "exec", { targets: [id("Anna")], votes: 4, outcome: "died", note: "Ben led the charge" });
   E(2, "ability", { actor: id("Ben"), role: "Poisoner", targets: [id("Dan")] });
   E(2, "ability", { actor: id("Dan"), role: "Monk", targets: [id("Cara")] });
   E(2, "kill", { actor: id("Eve"), targets: [id("Cara")], outcome: "died" });
@@ -844,6 +857,7 @@ function renderPhaseCard(ph, S) {
       <p class="hint">${need} votes needed to put someone on the block. ${block ? `<b>${esc(nameOf(block))}</b> is on the block.` : top >= need ? "Tied, so no one is on the block." : ""}</p>
       <div class="actions">
         <button class="btn" data-act="add" data-type="nom">+ Nomination</button>
+        <button class="btn" data-act="add" data-type="slayer">Slayer shot</button>
         ${executed ? "" : block ? `<button class="btn evil" data-act="add" data-type="exec" data-target="${block}" data-votes="${top}">Execute ${esc(nameOf(block))}</button>` : ""}
         ${executed ? "" : `<button class="btn" data-act="add" data-type="exec">${block ? "Execute someone else" : "Execution"}</button><button class="btn" data-act="no-exec">No execution today</button>`}
       </div>`;
@@ -880,7 +894,7 @@ function renderPlayerCard(pid, S, R, ph) {
     <div class="actions">
       <button class="btn sm" data-act="add" data-type="ability" data-actor="${pid}">Ability / info</button>
       ${night && teamOf(s.role) === "demon" ? `<button class="btn sm" data-act="add" data-type="kill" data-actor="${pid}">Demon kill</button>` : ""}
-      ${night ? `<button class="btn sm" data-act="add" data-type="kill" data-target="${pid}">Demon attacks them</button>` : `<button class="btn sm" data-act="add" data-type="nom" data-actor="${pid}">Nominates…</button><button class="btn sm" data-act="add" data-type="exec" data-target="${pid}">Execute</button>`}
+      ${night ? `<button class="btn sm" data-act="add" data-type="kill" data-target="${pid}">Demon attacks them</button>` : `<button class="btn sm" data-act="add" data-type="nom" data-actor="${pid}">Nominates…</button><button class="btn sm" data-act="add" data-type="slayer" data-actor="${pid}">Slayer shot…</button><button class="btn sm" data-act="add" data-type="exec" data-target="${pid}">Execute</button>`}
       ${s.dead ? `<button class="btn sm" data-act="add" data-type="revive" data-target="${pid}">Revive</button>` : `<button class="btn sm" data-act="add" data-type="death" data-target="${pid}">Dies</button>`}
       <button class="btn sm" data-act="add" data-type="change" data-target="${pid}">Change character</button>
       <button class="btn sm" data-act="add" data-type="status" data-target="${pid}">Reminder</button>
@@ -976,15 +990,14 @@ function buildReview() {
 // The game told phase by phase, with quiet nights and days without an execution called out
 function storyPhases(opts = {}) {
   const star = x => opts.noStars || !x ? "" : `<span class="star">★</span> `;
-  const byPh = {};
-  replay((e, S) => (byPh[e.ph] = byPh[e.ph] || []).push({ e, S }));
   const last = G.end ? G.end.ph : G.maxPhase;
   const out = [];
+  const S = initState();
   for (let ph = 0; ph <= last; ph++) {
-    const items = byPh[ph] || [];
+    const items = G.events.filter(e => e.ph === ph).map(e => ({ e }));
     const lines = [];
     for (let i = 0; i < items.length; i++) {
-      const { e, S } = items[i];
+      const { e } = items[i];
       if (e.type === "nom") {
         // Fold runs of nominations into one sentence
         const run = [];
@@ -995,10 +1008,13 @@ function storyPhases(opts = {}) {
         lines.push(`${run.length > 1 ? "Nominations: " + listJoin(bits) : bits[0]}.${notes.length ? ` <span class="aside">${notes.join(" ")}</span>` : ""}`);
         continue;
       }
-      lines.push(star(e.star) + narrate(e, S));
+      const before = JSON.parse(JSON.stringify(S));
+      lines.push(star(e.star) + narrate(e, before));
+      applyEvent(S, e);
+      if (opts.onDeath) for (const p of G.players) if (!before[p.id].dead && S[p.id].dead) opts.onDeath(p.id, S, lines);
     }
     const evs = items.map(x => x.e);
-    const died = evs.some(e => (e.type === "kill" && e.targets[0] && e.outcome === "died") || (e.type === "death" && e.targets.length));
+    const died = evs.some(e => ((e.type === "kill" || e.type === "slayer") && e.targets[0] && e.outcome === "died") || (e.type === "death" && e.targets.length));
     if (isNight(ph)) {
       if (ph > 0 && !died) lines.push(`<b>No one died in the night.</b>${evs.some(e => e.type === "kill" && e.targets[0]) ? "" : evs.some(e => e.type === "kill") ? "" : " The Demon claimed no victim."}`);
       if (ph === 0 && !lines.length) lines.push(`<span class="aside">The first night passed quietly.</span>`);
@@ -1013,38 +1029,50 @@ function storyPhases(opts = {}) {
   return out;
 }
 
-// A script to read aloud at the grimoire reveal. The winner comes last.
+// A script to read aloud at the grimoire reveal. Players are revealed as they die, survivors last
+// (evil last of all), and the winner is only named at the very end.
 function buildScript() {
   const cue = t => `<span class="cue">(${esc(t)})</span>`;
   const parts = [];
-  const nonTrav = G.players.filter(p => teamOf(p.role) !== "traveller").length;
+  const counts = { townsfolk: 0, outsider: 0, minion: 0, demon: 0, traveller: 0 };
+  for (const p of G.players) if (counts[teamOf(p.role)] != null) counts[teamOf(p.role)]++;
+  const comp = [[counts.townsfolk, "Townsfolk", "Townsfolk"], [counts.outsider, "Outsider", "Outsiders"], [counts.minion, "Minion", "Minions"], [counts.demon, "Demon", "Demons"], [counts.traveller, "Traveller", "Travellers"]].filter(c => c[0]).map(c => `${c[0]} ${c[0] === 1 ? c[1] : c[2]}`);
   parts.push({ h: "Opening", lines: [
     "Everyone, gather round. The game is over, and it's time to open the Grimoire.",
-    `This was ${G.title ? `<b>${esc(G.title)}</b>, ` : ""}a game of ${esc(SCRIPT_NAME[G.script] || "Blood on the Clocktower")} with ${plural(G.players.length, "player")}. Before I tell you how it ended, let's find out who everyone really was.`
+    `This was ${G.title ? `<b>${esc(G.title)}</b>, ` : ""}a game of ${esc(SCRIPT_NAME[G.script] || "Blood on the Clocktower")} with ${plural(G.players.length, "player")}${comp.length ? `: ${listJoin(comp)}` : ""}.`,
+    "We'll go through the game from the beginning. I'll reveal each of you at the moment you died, and the survivors at the very end."
   ] });
 
-  const goodLines = ["Let's start with the good team."];
-  for (const p of G.players.filter(p => teamOf(p.role) === "townsfolk")) goodLines.push(`${B(p.id)} was the <b>${esc(p.role)}</b>.`);
-  for (const p of G.players.filter(p => teamOf(p.role) === "outsider")) {
-    if (THINKS.includes(p.role) && p.thinks) goodLines.push(`${B(p.id)} thought they were the <b>${esc(p.thinks)}</b>… ${cue("pause")} but they were really the <b>${esc(p.role)}</b>!`);
-    else goodLines.push(`${B(p.id)} was the <b>${esc(p.role)}</b>.`);
+  const revealed = new Set();
+  const reveal = (id, S) => {
+    revealed.add(id);
+    const p = P(id), s = S[id], start = p.role || "?";
+    let t = `${cue("pause")} ${B(id)} was… ${cue("pause")} the <b class="${teamOf(start) === "minion" || teamOf(start) === "demon" ? "evil" : ""}">${esc(start)}</b>!`;
+    if (THINKS.includes(start) && p.thinks) t += ` They thought they were the <b>${esc(p.thinks)}</b>.`;
+    if (s.role && s.role !== start) t += ` Later they became the <b>${esc(s.role)}</b>.`;
+    if ((s.align || p.align) === "evil" && !["minion", "demon"].includes(teamOf(start))) t += ` <b class="evil">They were evil.</b>`;
+    if (start === "Fortune Teller" && G.redHerring && P(G.redHerring)) t += ` Their red herring was ${B(G.redHerring)}.`;
+    const bl = G.bluffs.filter(Boolean);
+    if (teamOf(start) === "demon" && bl.length) t += ` Their bluffs were ${listJoin(bl.map(b => `the <b>${esc(b)}</b>`))}.`;
+    return t;
+  };
+
+  REVEALED = revealed;
+  let phases, finalS;
+  try {
+    phases = storyPhases({ noStars: true, onDeath: (id, S, lines) => { if (!revealed.has(id)) lines.push(reveal(id, S)); } });
+    finalS = stateAt(G.end ? G.end.ph : G.maxPhase);
+  } finally { REVEALED = null; }
+  parts.push({ h: "How it happened", intro: `Let's go back to the very first night. ${cue("pause")}`, phases });
+
+  // Survivors: good first, then evil, with the Demon last of all
+  const rank = id => { const s = finalS[id]; return s.align !== "evil" ? 0 : teamOf(s.role) === "demon" ? 2 : 1; };
+  const alive = G.players.filter(p => !revealed.has(p.id)).sort((a, b) => rank(a.id) - rank(b.id));
+  if (alive.length) {
+    const lines = [`That leaves the players still standing. ${cue("pause")}`];
+    for (const p of alive) lines.push(reveal(p.id, finalS));
+    parts.push({ h: "The survivors", lines });
   }
-  for (const p of G.players.filter(p => (teamOf(p.role) === "traveller" || teamOf(p.role) === "custom") && p.role && p.align !== "evil")) goodLines.push(`${B(p.id)} was the <b>${esc(p.role)}</b>, on the good team.`);
-  if (G.redHerring && P(G.redHerring)) goodLines.push(`And the Fortune Teller's red herring, the good player who always showed up as a Yes, was ${B(G.redHerring)}.`);
-  parts.push({ h: "The good team", lines: goodLines });
-
-  const evilLines = [`Now for the evil team. ${cue("pause")}`];
-  const minions = G.players.filter(p => teamOf(p.role) === "minion");
-  for (const p of minions) evilLines.push(`${B(p.id)} was the <b>${esc(p.role)}</b>.`);
-  for (const p of G.players.filter(p => (teamOf(p.role) === "traveller" || teamOf(p.role) === "custom") && p.role && p.align === "evil")) evilLines.push(`${B(p.id)} was the <b>${esc(p.role)}</b>, on the evil team.`);
-  const demons = G.players.filter(p => teamOf(p.role) === "demon");
-  if (demons.length) evilLines.push(`And the Demon… ${cue("long pause")} was ${listJoin(demons.map(p => `${B(p.id)}, the <b>${esc(p.role)}</b>`))}!`);
-  const bl = G.bluffs.filter(Boolean);
-  if (bl.length) evilLines.push(`On the first night I told the Demon that ${listJoin(bl.map(b => `the <b>${esc(b)}</b>`))} ${bl.length > 1 ? "were" : "was"} not in play, so ${bl.length > 1 ? "those were safe bluffs" : "that was a safe bluff"}.`);
-  if (nonTrav >= 7 && minions.length) evilLines.push(`The evil team knew each other from the very first night.`);
-  parts.push({ h: "The evil team", lines: evilLines });
-
-  parts.push({ h: "How it happened", intro: `Now let's go back to the beginning. ${cue("pause")}`, phases: storyPhases({ noStars: true }) });
 
   let lies = 0;
   G.events.forEach(e => { if (e.type === "ability" && e.falseInfo) lies++; });
@@ -1113,7 +1141,7 @@ function renderReview() {
     ${G.end ? "" : `<div class="card no-print"><h2>Has the game ended?</h2><p class="hint">End it to finish the review. You can preview it below in the meantime.</p><div class="row"><button class="btn good" data-act="end-game" data-w="good">Good won</button><button class="btn evil" data-act="end-game" data-w="evil">Evil won</button></div></div>`}
     <div class="review-tools">
       <span class="seg" role="group" aria-label="Review view"><button data-act="rv" data-v="script" aria-pressed="${script}">Reveal script</button><button data-act="rv" data-v="summary" aria-pressed="${!script}">Full summary</button></span>
-      <span class="hint">${script ? "Read this aloud. The winner is only named at the very end." : "Everything at a glance, for you."}</span>
+      <span class="hint">${script ? "Read this aloud. Players are revealed as they die, and the winner comes last." : "Everything at a glance, for you."}</span>
       <button class="toggle" data-act="big" aria-pressed="${ui.big}">Large text</button>
       <button class="btn sm" data-act="copy">Copy as text</button>
       ${G.end ? `<button class="btn sm" data-act="reopen">Reopen game</button>` : ""}
@@ -1136,6 +1164,7 @@ let F = null;
 function openEditor(init) {
   const e = init.eid ? G.events.find(x => x.id === init.eid) : null;
   F = e ? JSON.parse(JSON.stringify(e)) : { id: null, ph: G.phase, type: init.type || "ability", actor: init.actor || "", targets: init.target ? [init.target] : [], role: init.role || "", info: "", falseInfo: false, why: "", note: "", star: false, votes: init.votes ?? "", outcome: "died", newDemon: "", cause: "", label: "", dur: "next", align: "", thinks: "", text: "" };
+  if (!e && F.type === "slayer") F.outcome = "none";
   if (!e) {
     const S = stateAt(F.ph);
     if (F.type === "ability" && F.actor && !F.role) F.role = S[F.actor].thinks || S[F.actor].role;
@@ -1170,7 +1199,7 @@ function renderEditor() {
       + field("They chose (optional)", picks("targets", true, S))
       + field("What they learned or what happened (optional)", txt("info", "e.g. 1, Yes, “Ben or Cara is the Poisoner”"))
       + `<label class="check"><input type="checkbox" data-fc="falseInfo" ${F.falseInfo ? "checked" : ""}> This was false information</label>`
-      + (F.falseInfo ? field("Why (read out in the review)", txt("why", dr || "e.g. they were poisoned, the Recluse registered as evil")) : "");
+      + (F.falseInfo ? field("Why (read out in the review, so avoid naming evil players)", txt("why", dr || "e.g. they were poisoned, the Recluse registered as evil")) : "");
   } else if (t === "kill") {
     const tgt = F.targets[0];
     body = field("Demon", picks("actor", false, S))
@@ -1186,6 +1215,10 @@ function renderEditor() {
       + (F.targets[0] ? field("Votes", `<input type="number" min="0" data-ff="votes" value="${esc(F.votes)}" style="width:7rem">`)
         + field("Outcome", `<span class="seg"><button data-act="fset" data-k="outcome" data-v="died" aria-pressed="${F.outcome !== "survived"}">Died</button><button data-act="fset" data-k="outcome" data-v="survived" aria-pressed="${F.outcome === "survived"}">Didn't die</button></span>`)
         + (F.outcome === "survived" ? field("Why", txt("why", "e.g. the Fool, Devil's Advocate, Zombuul")) : "") : "");
+  } else if (t === "slayer") {
+    body = field("Who shot", picks("actor", false, S)) + field("At whom", picks("targets", false, S))
+      + field("What happened", `<span class="seg"><button data-act="fset" data-k="outcome" data-v="none" aria-pressed="${F.outcome !== "died"}">Nothing happened</button><button data-act="fset" data-k="outcome" data-v="died" aria-pressed="${F.outcome === "died"}">They died</button></span>`)
+      + (F.outcome !== "died" ? field("Why (optional, read out in the review)", txt("why", "e.g. they weren't the Demon, the shooter isn't the Slayer")) : "");
   } else if (t === "death" || t === "revive") {
     body = field(t === "death" ? "Who died" : "Who came back", picks("targets", true, S)) + field("How", txt("cause", t === "death" ? "e.g. Slayer shot" : "e.g. the Professor", t === "death" ? "causeList" : ""));
   } else if (t === "change") {
@@ -1217,13 +1250,14 @@ function renderEditor() {
 
 function saveEditor() {
   const t = F.type, T = F.targets.filter(Boolean);
-  const need = { ability: F.actor ? "" : "Pick who used their ability.", kill: F.actor ? "" : "Pick the Demon.", nom: F.actor && T[0] ? "" : "Pick the nominator and the nominee.", death: T.length ? "" : "Pick who died.", revive: T.length ? "" : "Pick who came back.", change: T[0] && F.role ? "" : "Pick a player and their new character.", status: T.length && F.label ? "" : "Pick players and name the reminder.", note: F.text.trim() ? "" : "Write the note.", exec: "" }[t];
+  const need = { ability: F.actor ? "" : "Pick who used their ability.", kill: F.actor ? "" : "Pick the Demon.", nom: F.actor && T[0] ? "" : "Pick the nominator and the nominee.", slayer: F.actor && T[0] ? "" : "Pick who shot and at whom.", death: T.length ? "" : "Pick who died.", revive: T.length ? "" : "Pick who came back.", change: T[0] && F.role ? "" : "Pick a player and their new character.", status: T.length && F.label ? "" : "Pick players and name the reminder.", note: F.text.trim() ? "" : "Write the note.", exec: "" }[t];
   if (need) { F.err = need; renderEditor(); return; }
-  const keep = { ability: ["actor","role","targets","info","falseInfo","why"], kill: ["actor","targets","outcome","why","newDemon"], nom: ["actor","targets","votes"], exec: ["targets","votes","outcome","why"], death: ["targets","cause"], revive: ["targets","cause"], change: ["targets","role","align","why","thinks"], status: ["targets","label","dur","why"], note: ["text"] }[t];
+  const keep = { ability: ["actor","role","targets","info","falseInfo","why"], kill: ["actor","targets","outcome","why","newDemon"], nom: ["actor","targets","votes"], exec: ["targets","votes","outcome","why"], slayer: ["actor","targets","outcome","why"], death: ["targets","cause"], revive: ["targets","cause"], change: ["targets","role","align","why","thinks"], status: ["targets","label","dur","why"], note: ["text"] }[t];
   const ev = { id: F.id || uid(), ph: F.ph, type: t, targets: [], star: F.star, note: t === "note" ? "" : (F.note || "").trim() };
   for (const k of keep) ev[k] = k === "targets" ? T : typeof F[k] === "string" ? F[k].trim() : F[k];
   if (t === "kill" && !(T[0] && T[0] === F.actor && F.outcome === "died")) ev.newDemon = "";
   if (t === "ability" && !ev.falseInfo) ev.why = "";
+  if (t === "slayer" && ev.outcome !== "died") { ev.outcome = "none"; }
   if ((t === "nom" || t === "exec") && ev.votes !== "") ev.votes = Number(ev.votes);
   if (t === "change" && !ev.align) ev.align = defAlign(ev.role);
   if (F.id) {
@@ -1333,7 +1367,7 @@ document.addEventListener("click", ev => {
       return;
     }
     // Editor
-    case "ftype": F.type = el.dataset.v; if (F.type === "ability" && F.actor && !F.role) { const s = stateAt(F.ph)[F.actor]; F.role = s.thinks || s.role; } F.err = ""; renderEditor(); return;
+    case "ftype": F.type = el.dataset.v; if (F.type === "slayer" && F.outcome === "died") F.outcome = "none"; if (F.type === "ability" && F.actor && !F.role) { const s = stateAt(F.ph)[F.actor]; F.role = s.thinks || s.role; } F.err = ""; renderEditor(); return;
     case "fset": F[el.dataset.k] = el.dataset.v; renderEditor(); return;
     case "pick": {
       const f = el.dataset.f, id = el.dataset.id;
