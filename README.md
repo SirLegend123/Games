@@ -25,4 +25,18 @@ Games are saved in the browser on the device you use. Nothing is uploaded anywhe
 
 On a phone, open the site in Safari or Chrome and use **Add to Home Screen** to get an app icon.
 
+## Evil Grimoire
+
+A secret companion for when you're on the evil team. Open `evil.html` in any web browser.
+
+- Your team: your real character, your seat, your teammates and their characters, and the Demon bluffs
+- Cover checks: rival claims on your team's bluffs, two teammates on one claim, players claiming a role that's not in play, the Outsider count with a Baron, and the Virgin
+- How suspicious your team looks, from who suspects whom and double claims
+- My story: pick your bluff, then get made-up night info for it (safe, covering a teammate, or framing a threat). Everything you say is logged, with checks for slips like a first-night-only role giving info on night 3 or an Empath number that changes for no reason
+- Tonight: kill, poison, curse or protect targets ranked for your character, a night action log, and tips for every Minion and Demon on the three scripts
+- Today: who to push for execution, who not to nominate, vote counts for your team, and endgame warnings (final three, the Mayor, Scarlet Woman, Vortox, Saint)
+- **Hide** covers the screen; double-tap to come back
+
+Like the notebook, games are saved only in the browser on your device.
+
 *Blood on the Clocktower* and its character names belong to The Pandemonium Institute. This is an unofficial fan-made note-taking tool.
