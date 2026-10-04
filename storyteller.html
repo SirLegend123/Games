@@ -257,7 +257,7 @@ textarea { resize: vertical; min-height: 70px; }
 <div class="wrap">
   <header class="bar">
     <h1 class="brand">Storyteller's<span class="brand-x"> Grimoire</span></h1>
-    <span class="sync">Saved on this device</span>
+    <span class="sync" id="sync">Saved on this device</span>
     <button class="btn primary" data-act="new-game">+ New game</button>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab" role="tab" data-tab="setup">Setup</button>
@@ -267,7 +267,7 @@ textarea { resize: vertical; min-height: 70px; }
     </nav>
   </header>
   <main id="view"></main>
-  <p class="foot">Pair it with the <a href="index.html">Clocktower Notebook</a> for players. <i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool.</p>
+  <p class="foot"><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool.</p>
 </div>
 <div id="modal"></div>
 <datalist id="roleList"></datalist>
@@ -366,10 +366,69 @@ let G = store.game;
 let ui = { tab: "setup", sel: null, big: false };
 try { ui.tab = localStorage.getItem(LS + "-tab") || (G.started ? "grim" : "setup"); } catch (e) {}
 
-let saveT;
-function save() {
-  clearTimeout(saveT);
-  saveT = setTimeout(() => { try { localStorage.setItem(LS, JSON.stringify(store)); } catch (e) {} }, 150);
+// Saved on this device, and to the viewer's account when the page runs on claude.ai
+let saveT, lastJson = "", acct = null, acctBusy = false, acctAgain = false;
+const snapshotJson = () => JSON.stringify(store.game) + "|" + store.archive.map(g => g.id).join(",");
+function save() { clearTimeout(saveT); saveT = setTimeout(flush, 400); }
+function flush() {
+  const j = snapshotJson();
+  if (j === lastJson) return;
+  lastJson = j;
+  store.savedAt = Date.now();
+  try { localStorage.setItem(LS, JSON.stringify(store)); } catch (e) {}
+  pushAccount();
+}
+addEventListener("pagehide", () => { clearTimeout(saveT); flush(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) { clearTimeout(saveT); flush(); } });
+function setSync(t) { const el = $("sync"); if (el) el.textContent = t; }
+async function pushAccount() {
+  if (!acct) return;
+  if (acctBusy) { acctAgain = true; return; }
+  acctBusy = true;
+  try {
+    await acct.col.doc("current").set(JSON.parse(JSON.stringify({ game: store.game, savedAt: store.savedAt || Date.now() })));
+    const want = new Set(store.archive.map(g => g.id));
+    for (const g of store.archive) if (!acct.past.has(g.id)) { await acct.col.doc("past-" + g.id).set(JSON.parse(JSON.stringify({ game: g }))); acct.past.add(g.id); }
+    for (const id of [...acct.past]) if (!want.has(id)) { await acct.col.doc("past-" + id).delete(); acct.past.delete(id); }
+    setSync("Saved to your account");
+  } catch (e) { setSync("Saved on this device only"); }
+  acctBusy = false;
+  if (acctAgain) { acctAgain = false; pushAccount(); }
+}
+async function connectAccount() {
+  const C = window.claude;
+  if (!C || !C.use) return;
+  try {
+    const [db, user] = await Promise.all([C.use("db"), C.use("user")]);
+    if (!db || !user) return;
+    const id = await user.id();
+    if (!id) return;
+    const col = db.collection("data/users/" + id);
+    const snap = await col.get();
+    const past = new Set();
+    let remote = null;
+    const archive = [];
+    for (const d of snap.docs) {
+      const body = d.data();
+      if (!body || !body.game) continue;
+      if (d.id === "current") remote = body;
+      else if (d.id.startsWith("past-")) { past.add(body.game.id); archive.push(JSON.parse(JSON.stringify(body.game))); }
+    }
+    acct = { col, past };
+    const localIds = new Set(store.archive.map(g => g.id));
+    for (const g of archive) if (!localIds.has(g.id) && g.id !== store.game.id) store.archive.push(g);
+    store.archive.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    if (remote && (remote.savedAt || 0) > (store.savedAt || 0)) {
+      if (!store.archive.some(g => g.id === store.game.id) && store.game.started && !store.game.example && store.game.id !== remote.game.id) store.archive.push(store.game);
+      store.game = G = JSON.parse(JSON.stringify(remote.game));
+      store.savedAt = remote.savedAt;
+      ui.sel = null;
+      if (!F) render();
+    }
+    lastJson = "";
+    setSync("Saved to your account");
+    flush();
+  } catch (e) { acct = null; }
 }
 
 const P = id => G.players.find(p => p.id === id);
@@ -958,11 +1017,19 @@ function renderReview() {
       <span class="hint">Read this out at the grimoire reveal.</span>
       <button class="toggle" data-act="big" aria-pressed="${ui.big}">Large text</button>
       <button class="btn sm" data-act="copy">Copy as text</button>
-      <button class="btn sm" data-act="print">Print</button>
       ${G.end ? `<button class="btn sm" data-act="reopen">Reopen game</button>` : ""}
     </div>
     <article class="scroll ${ui.big ? "big" : ""}">${reviewHtml(rv)}</article>
   </div>`;
+}
+
+/* ---------- In-page confirm ---------- */
+let asking = null;
+function ask(msg, buttons = [["Cancel", null, ""], ["OK", true, "primary"]]) {
+  return new Promise(res => {
+    asking = { res, vals: buttons.map(b => b[1]) };
+    $("modal").innerHTML = `<div class="overlay" data-act="close-bg"><div class="card dialog" role="alertdialog" aria-modal="true" aria-label="Confirm"><p style="margin:0;white-space:pre-line">${esc(msg)}</p><div class="dlg-actions">${buttons.map(([l, , c], i) => `<button class="btn ${c}" data-act="ask" data-i="${i}">${esc(l)}</button>`).join("")}</div></div></div>`;
+  });
 }
 
 /* ---------- Event editor ---------- */
@@ -978,7 +1045,7 @@ function openEditor(init) {
   F.err = "";
   renderEditor();
 }
-function closeEditor() { F = null; $("modal").innerHTML = ""; }
+function closeEditor() { F = null; $("modal").innerHTML = ""; if (asking) { const r = asking.res; asking = null; r(null); } }
 
 function picks(field, multi, S, opts = {}) {
   const sel = multi ? F[field] : [F[field]];
@@ -1083,6 +1150,7 @@ function openEnd(w) {
     <h2>End the game on ${phaseName(G.phase)}</h2>
     <div class="field"><span class="label">Who won?</span><span class="seg" id="endW"><button class="g" data-act="endw" data-v="good" aria-pressed="${w === "good"}">Good</button><button class="e" data-act="endw" data-v="evil" aria-pressed="${w === "evil"}">Evil</button></span></div>
     <label class="field"><span class="label">How</span><input type="text" id="endReason" list="endList" value="${esc(guess)}" placeholder="e.g. The Demon was executed"></label>
+    <p class="err" id="endErr" hidden>Pick who won.</p>
     <div class="dlg-actions"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="end-save">End game and show the review</button></div>
   </div></div>`;
 }
@@ -1102,14 +1170,20 @@ document.addEventListener("click", ev => {
   switch (act) {
     case "close-bg": if (ev.target === el) { closeEditor(); } return;
     case "close": closeEditor(); return;
+    case "ask": { const r = asking.res, v = asking.vals[Number(el.dataset.i)]; asking = null; $("modal").innerHTML = ""; r(v); return; }
     case "new-game": return newGame();
     case "add-player": G.players.push(mkPlayer()); break;
-    case "del-player": if (G.events.some(e => e.actor === rp.id || (e.targets || []).includes(rp.id)) && !confirm(`${nameOf(rp.id)} appears in the log. Remove them anyway?`)) return; G.players = G.players.filter(p => p !== rp); break;
+    case "del-player": {
+      const drop = () => { G.players = G.players.filter(p => p !== rp); render(); };
+      if (G.events.some(e => e.actor === rp.id || (e.targets || []).includes(rp.id))) ask(`${nameOf(rp.id)} appears in the log. Remove them anyway?`, [["Cancel", null, ""], ["Remove", true, "evil"]]).then(ok => ok && drop());
+      else drop();
+      return;
+    }
     case "up": case "down": { const i = G.players.indexOf(rp), j = act === "up" ? i - 1 : i + 1; if (j < 0 || j >= G.players.length) return; [G.players[i], G.players[j]] = [G.players[j], G.players[i]]; break; }
     case "align": rp.align = el.dataset.v; break;
     case "bulk": { const v = $("bulk").value.split(/[,\n;]+/).map(s => s.trim()).filter(Boolean); v.forEach(n => G.players.push(mkPlayer(n))); break; }
     case "shuffle-roles": {
-      if (G.started && !confirm("The game has started. Shuffle characters anyway?")) return;
+      if (G.started && !el.dataset.sure) { ask("The game has started. Shuffle characters anyway?", [["Cancel", null, ""], ["Shuffle", true, "primary"]]).then(ok => { if (ok) { el.dataset.sure = 1; el.click(); } }); return; }
       const rs = G.players.map(p => [p.role, p.thinks]);
       for (let i = rs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rs[i], rs[j]] = [rs[j], rs[i]]; }
       G.players.forEach((p, i) => { p.role = rs[i][0]; p.thinks = rs[i][1]; p.align = defAlign(p.role); });
@@ -1124,7 +1198,7 @@ document.addEventListener("click", ev => {
       store.game = G = g; ui.sel = null; ui.tab = "review";
       break;
     }
-    case "del-past": if (!confirm("Delete this game for good?")) return; store.archive = store.archive.filter(x => x.id !== el.dataset.id); break;
+    case "del-past": ask("Delete this game for good?", [["Cancel", null, ""], ["Delete", true, "evil"]]).then(ok => { if (ok) { store.archive = store.archive.filter(x => x.id !== el.dataset.id); render(); } }); return;
     case "sel": ui.sel = ui.sel === el.dataset.pid ? null : el.dataset.pid; break;
     case "goto": G.phase = Math.max(0, Math.min(G.maxPhase, Number(el.dataset.ph))); break;
     case "goto-grim": G.phase = Number(el.dataset.ph); ui.tab = "grim"; break;
@@ -1133,7 +1207,7 @@ document.addEventListener("click", ev => {
     case "no-exec": insertEvent({ id: uid(), ph: G.phase, type: "exec", targets: [], note: "" }); break;
     case "edit": return openEditor({ eid: el.dataset.eid });
     case "star": { const e = E(el.dataset.eid); e.star = !e.star; break; }
-    case "del-ev": { if (!confirm("Delete this entry?")) return; G.events = G.events.filter(x => x.id !== el.dataset.eid); break; }
+    case "del-ev": ask("Delete this entry?", [["Cancel", null, ""], ["Delete", true, "evil"]]).then(ok => { if (ok) { G.events = G.events.filter(x => x.id !== el.dataset.eid); render(); } }); return;
     case "ev-up": {
       const i = G.events.findIndex(x => x.id === el.dataset.eid);
       if (i > 0 && G.events[i - 1].ph === G.events[i].ph) [G.events[i - 1], G.events[i]] = [G.events[i], G.events[i - 1]];
@@ -1145,7 +1219,7 @@ document.addEventListener("click", ev => {
     case "endw": document.querySelectorAll("#endW button").forEach(b => b.setAttribute("aria-pressed", String(b === el))); return;
     case "end-save": {
       const w = document.querySelector('#endW [aria-pressed="true"]');
-      if (!w) { alert("Pick who won."); return; }
+      if (!w) { $("endErr").hidden = false; return; }
       G.end = { winner: w.dataset.v, reason: $("endReason").value.trim(), ph: G.phase };
       G.maxPhase = G.phase;
       closeEditor(); ui.tab = "review"; break;
@@ -1154,10 +1228,10 @@ document.addEventListener("click", ev => {
     case "big": ui.big = !ui.big; break;
     case "copy": {
       const text = reviewText(buildReview());
-      (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => { el.textContent = "Copied ✓"; setTimeout(() => (el.textContent = "Copy as text"), 1500); }, () => prompt("Copy the review:", text));
+      const fallback = () => { const r = document.createRange(); r.selectNodeContents(document.querySelector(".scroll")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); el.textContent = "Selected: copy it now"; };
+      try { (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => { el.textContent = "Copied ✓"; setTimeout(() => (el.textContent = "Copy as text"), 1500); }, fallback); } catch (e) { fallback(); }
       return;
     }
-    case "print": window.print(); return;
     // Editor
     case "ftype": F.type = el.dataset.v; if (F.type === "ability" && F.actor && !F.role) { const s = stateAt(F.ph)[F.actor]; F.role = s.thinks || s.role; } F.err = ""; renderEditor(); return;
     case "fset": F[el.dataset.k] = el.dataset.v; renderEditor(); return;
@@ -1206,8 +1280,13 @@ function setTab(t) {
   window.scrollTo({ top: 0 });
 }
 
-function newGame() {
-  const keep = G.players.length && confirm("Start a new game.\n\nOK keeps the same players and seats (characters cleared).\nCancel starts with an empty table.");
+async function newGame() {
+  let keep = false;
+  if (G.players.length) {
+    const a = await ask("Start a new game. Keep the same players and seats? Characters are cleared either way.", [["Cancel", null, ""], ["Empty table", "empty", ""], ["Keep players", "keep", "primary"]]);
+    if (!a) return;
+    keep = a === "keep";
+  }
   if (G.started && !G.example) store.archive.push(G);
   store.archive = store.archive.slice(-25);
   const players = keep ? G.players.map(p => mkPlayer(p.name)) : [];
@@ -1217,7 +1296,9 @@ function newGame() {
   setTab("setup");
 }
 
+lastJson = snapshotJson();
 render();
+connectAccount();
 </script>
 </body>
 </html>
