@@ -80,6 +80,7 @@ button { cursor: pointer; }
 .hint { font-size: .88rem; color: var(--muted); }
 .muted { color: var(--muted); }
 textarea { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 220px; resize: vertical; }
+select.inp { flex: 1 1 14em; min-width: 0; max-width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 44px; }
 ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
 
 /* Name grid for passing the phone */
@@ -225,12 +226,16 @@ let TURN_WAIT = 5;
 let G = load();
 /* ---------- This phone's settings: text size and voice ---------- */
 const PREFS_KEY = 'clockwork-storyteller-prefs';
-let prefs = { text: 1, voice: true };
+let prefs = { text: 1, voice: true, voiceURI: '', rate: 0.95 };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREFS_KEY)) || {}); } catch (e) {}
 function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {} applyPrefs(); }
 function applyPrefs() { document.documentElement.style.fontSize = (prefs.text * 100) + '%'; }
 applyPrefs();
 const canSpeak = () => typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
+// The voices this phone offers (the list can arrive a moment after the page loads)
+function voiceList() { try { return canSpeak() && speechSynthesis.getVoices ? speechSynthesis.getVoices() : []; } catch (e) { return []; } }
+try { if (canSpeak() && speechSynthesis.addEventListener) speechSynthesis.addEventListener('voiceschanged', () => { if (U.menu === true) render(); }); } catch (e) {}
+function voiceSample() { speak(`Pass the phone to ${G ? (P(nextUpSafe()) || G.players[0]).name : 'Alice'}.`); }
 // Reads public announcements aloud. Never call this with anything private.
 function speak(text) {
   if (!prefs.voice || !canSpeak() || !text) return;
@@ -238,7 +243,9 @@ function speak(text) {
   try {
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(tmp.textContent.replace(/\s+/g, ' ').trim());
-    u.rate = 0.95; u.lang = 'en-GB';
+    const v = voiceList().find(v => v.voiceURI === prefs.voiceURI);
+    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-GB';
+    u.rate = prefs.rate;
     speechSynthesis.speak(u);
   } catch (e) {}
 }
@@ -359,6 +366,7 @@ function nextUp() {
   for (let k = 0; k < N; k++) { const id = (start + k) % N; if (G.pass.order.includes(id) && !G.pass.done[id]) return id; }
   return null;
 }
+function nextUpSafe() { try { return G.stage === 'pass' ? nextUp() : null; } catch (e) { return null; } }
 function sayNext(prefix) {
   const id = nextUp();
   speak(id == null ? `${prefix || ''} Everyone has had their turn.` : `${prefix || ''} Pass the phone to ${P(id).name}.`);
@@ -917,6 +925,19 @@ function overView() {
     <section class="card"><h2>Storyteller's log</h2><div class="log">${logHtml}</div></section>`;
 }
 
+function voiceSettings() {
+  const all = voiceList(), en = all.filter(v => /^en/i.test(v.lang)), other = all.filter(v => !/^en/i.test(v.lang));
+  const opt = v => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === prefs.voiceURI ? 'selected' : ''}>${esc(v.name)} (${esc(v.lang)})</option>`;
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  const rates = [[0.8, 'Slow'], [0.95, 'Normal'], [1.15, 'Fast']];
+  return `<div class="setting"><span>Which voice</span>
+      ${all.length ? `<select id="voice-pick" class="inp" aria-label="Which voice">
+        <option value="" ${prefs.voiceURI ? '' : 'selected'}>The phone's default voice</option>
+        ${en.length ? `<optgroup label="English">${en.sort(byName).map(opt).join('')}</optgroup>` : ''}
+        ${other.length ? `<optgroup label="Other languages">${other.sort(byName).map(opt).join('')}</optgroup>` : ''}
+      </select>` : '<span class="hint">Loading the voices on this phone… If none appear, the phone\'s default voice is used.</span>'}</div>
+    <div class="setting"><span>Speed</span><div class="seg">${rates.map(([v, l]) => `<button data-act="rate" data-v="${v}" aria-pressed="${prefs.rate === v}">${l}</button>`).join('')}</div></div>`;
+}
 function menuView() {
   if (U.menu === 'abandon') return `<section class="card"><p>Abandon this game? It can't be brought back.</p><div class="row">
     <button class="btn danger" data-act="abandon-yes">Abandon the game</button><button class="btn" data-act="menu">Keep playing</button></div></section>`;
@@ -925,6 +946,7 @@ function menuView() {
     <div class="setting"><span>Text size</span><div class="seg">${sizes.map(([v, l]) => `<button data-act="text" data-v="${v}" aria-pressed="${prefs.text === v}">${l}</button>`).join('')}</div></div>
     <div class="setting"><span>Voice</span><div class="seg"><button data-act="voice" data-v="1" aria-pressed="${prefs.voice}">On</button><button data-act="voice" data-v="0" aria-pressed="${!prefs.voice}">Off</button></div>
       ${canSpeak() ? '<button class="btn sm" data-act="voice-test">Test</button>' : '<span class="hint">This browser can\'t speak.</span>'}</div>
+    ${canSpeak() && prefs.voice ? voiceSettings() : ''}
     <p class="hint">The voice says whose turn it is with the phone and reads out deaths, executions, votes, Slayer shots and the timer. It never reads anything private.</p>
     <div class="row">
     <button class="btn" data-act="how">How it works</button>
@@ -950,6 +972,9 @@ function render() {
 }
 
 /* ---------- Events ---------- */
+document.addEventListener('change', e => {
+  if (e.target.id === 'voice-pick') { prefs.voiceURI = e.target.value; savePrefs(); voiceSample(); }
+});
 document.addEventListener('input', e => {
   if (e.target.id === 'names') {
     U.setupText = e.target.value;
@@ -976,6 +1001,7 @@ document.addEventListener('click', e => {
     case 'text': prefs.text = +b.dataset.v; savePrefs(); break;
     case 'voice': prefs.voice = b.dataset.v === '1'; savePrefs(); if (prefs.voice) speak('Voice on.'); else if (canSpeak()) speechSynthesis.cancel(); break;
     case 'voice-test': speak('This is the Clockwork Storyteller.'); break;
+    case 'rate': prefs.rate = +b.dataset.v; savePrefs(); voiceSample(); break;
     case 'abandon-yes': G = null; U.view = 'home'; U.menu = false; break;
     case 'turn': U.turn = { id, step: 'confirm' }; U.sel = []; return go();
     case 'hub': U.turn = null; break;
