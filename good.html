@@ -237,7 +237,7 @@ textarea { resize: vertical; min-height: 90px; }
 .warn-hint { color: var(--evil); }
 .linkish { border: 0; background: none; padding: 0; color: var(--fg); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .sum-list { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; font-size: .88rem; }
-.sum-list .g { color: var(--good); font-weight: 700; }
+.sum-list .g, .wb-clear .g { color: var(--good); font-weight: 700; }
 .sum-list .e { color: var(--evil); font-weight: 700; }
 
 /* Evil team */
@@ -436,6 +436,16 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .ask-rank { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 4px; }
 .ask-name .why { text-decoration: none; font-weight: 600; font-size: .8rem; color: var(--warn); }
 .whos-wrap { container-type: inline-size; }
+#infoCard > #infoPick, #infoCard > #infoForm { display: none; }
+.wb-head { margin: 0 0 8px; font-size: 1rem; }
+.wb-assume { display: grid; gap: 4px; margin-bottom: 10px; }
+.wb-chip.demon, .wb-chip.evil { border-color: var(--evil); color: var(--evil); font-weight: 800; }
+.wb-chip.good { border-color: var(--good); color: var(--good); font-weight: 800; }
+.wb-table td { min-width: 0; }
+.wb-table .wb-pct { font-weight: 800; font-variant-numeric: tabular-nums; }
+.wb-table .cand-bar { margin-top: 4px; }
+.wb-clear { margin: 8px 0; font-size: .9rem; }
+.wb-world .when { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
 .tabview[data-view="table"] { display: grid; gap: 14px; }
 .whos-card { align-self: start; }
 .whos-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
@@ -494,8 +504,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     <span class="sync" id="sync">Saving on this device</span>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab" role="tab" data-tab="table">Table <span class="badge" id="bStory"></span></button>
-      <button class="tab" role="tab" data-tab="night">Night info</button>
-      <button class="tab" role="tab" data-tab="plan">Plan <span class="badge" id="bPlan"></span></button>
+      <button class="tab" role="tab" data-tab="worlds">World building <span class="badge" id="bPlan"></span></button>
     </nav>
   </header>
 
@@ -543,9 +552,29 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
   </section>
   </div>
 
-  <div class="tabview" data-view="night" hidden>
+  <div id="panelHome" hidden><aside class="card panel" id="panel"></aside></div>
+
+  <div class="tabview" data-view="worlds" hidden>
+  <section class="card worlds-card" aria-labelledby="wbTitle">
+    <div class="tips-head">
+      <h2 id="wbTitle">Possible worlds</h2>
+      <span class="tips-foot">Every way the Demon and Minions could be seated, tested against everything you've logged.</span>
+    </div>
+    <div id="worlds"></div>
+  </section>
+  <section class="card" aria-labelledby="tipsTitle">
+    <div class="tips-head">
+      <h2 id="tipsTitle">Plan for tomorrow</h2>
+      <span class="tips-foot">Suggestions from your claims, deaths and reads. They're prompts, not answers.</span>
+    </div>
+    <div class="tips-grid">
+      <div class="tips-col"><h3>Doesn't add up</h3><div id="tipIssues" class="tips-col"></div></div>
+      <div class="tips-col"><h3>Questions to ask</h3><div id="tipQs" class="tips-col"></div></div>
+      <div class="tips-col"><h3>Who to look at</h3><div id="tipNoms" class="tips-col"></div><h3>Reminders</h3><div id="tipRem" class="tips-col"></div></div>
+    </div>
+  </section>
       <div class="card info-card" id="infoCard" aria-labelledby="infoTitle">
-        <div class="tips-head"><h2 id="infoTitle">Night info</h2><span class="tips-foot">What you learned, what others say they learned, and what it could mean</span></div>
+        <div class="tips-head"><h2 id="infoTitle">The evidence: night info</h2><span class="tips-foot">What you learned, what others say they learned, and what it could mean. Add info from a player's token, or &#128227; Said in town.</span></div>
         <div class="row" id="infoPick">
           <label class="label" for="ifSrc">Whose info</label>
           <select id="ifSrc" class="btn"></select>
@@ -558,22 +587,6 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <div id="infoSum" class="tips-col"></div>
         <div id="infoRel" class="tips-col"></div>
       </div>
-  </div>
-
-  <div id="panelHome" hidden><aside class="card panel" id="panel"></aside></div>
-
-  <div class="tabview" data-view="plan" hidden>
-  <section class="card" aria-labelledby="tipsTitle">
-    <div class="tips-head">
-      <h2 id="tipsTitle">Plan for tomorrow</h2>
-      <span class="tips-foot">Suggestions from your claims, deaths and reads. They're prompts, not answers.</span>
-    </div>
-    <div class="tips-grid">
-      <div class="tips-col"><h3>Doesn't add up</h3><div id="tipIssues" class="tips-col"></div></div>
-      <div class="tips-col"><h3>Questions to ask</h3><div id="tipQs" class="tips-col"></div></div>
-      <div class="tips-col"><h3>Who to look at</h3><div id="tipNoms" class="tips-col"></div><h3>Reminders</h3><div id="tipRem" class="tips-col"></div></div>
-    </div>
-  </section>
   </div>
 
 </div>
@@ -606,8 +619,8 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <li><b>Hard claim:</b> when they firmly commit to one role, switch to Hard claim and tap it. That role is then removed from other players' options.</li>
           <li>Set <b>My read</b> (good, unsure, evil), pick the evil character you <b>suspect</b>, and write <b>notes</b>.</li>
         </ul>
-        <p>After talking to someone, tap their token, or <b>Talk</b> on their row in <b>Who's who</b>. Their panel starts with the questions to ask them, each with answer buttons where the answer is definite: their options to pick from, <b>Answer as the Fortune Teller</b> (and so on) to enter their night info under the question, or Yes / No. Answers go straight into your notebook. Below that, record their claim, then pick from <b>Which character's info?</b> to enter the night info they shared (only that form opens). On the same page, record their soft or hard claim, the night info they shared, and anything they heard: another player's claim, or info from a character ("the Investigator saw a Baron"). It all goes onto the circle and into Night info for you.</p>
-        <p>When a player shares what they learned at night, add it under <b>Night info</b> with <b>Whose info</b> set to them. If you hear info but don't know who it came from yet (say, "the Investigator saw a Baron"), set <b>Whose info</b> to <b>Someone (not sure who yet)</b>. It links to them when they hard-claim that role. Use <b>Slayer shot</b> when someone shoots.</p>
+        <p>After talking to someone, tap their token, or <b>Talk</b> on their row in <b>Who's who</b>. Their panel starts with the questions to ask them, each with answer buttons where the answer is definite: their options to pick from, <b>Answer as the Fortune Teller</b> (and so on) to enter their night info under the question, or Yes / No. Answers go straight into your notebook. Below that, record their claim, then pick from <b>Which character's info?</b> to enter the night info they shared (only that form opens). On the same page, record their soft or hard claim, the night info they shared, and anything they heard: another player's claim, or info from a character ("the Investigator saw a Baron"). It all goes onto the circle and into the evidence on World building.</p>
+        <p>Your own night info goes in your own token. If you hear info but don't know who it came from yet (say, "the Investigator saw a Baron"), add it from <b>&#128227; Said in town</b> with <b>Character info heard</b>. It links to them when they hard-claim that role. Use <b>Slayer shot</b> when someone shoots.</p>
       </li>
       <li>
         <h2>End the day</h2>
@@ -621,15 +634,16 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       </li>
       <li>
         <h2>Read the board</h2>
-        <p>Use the tabs at the top: <b>Table</b> (the circle, Who's who and the claim matrix), <b>Night info</b> and <b>Plan</b>. Badges show when something needs attention.</p>
+        <p>Use the tabs at the top: <b>Table</b> (the circle, Who's who and the claim matrix) and <b>World building</b>. Badges show when something needs attention.</p>
         <ul>
           <li><b>📣 Said in town</b> (top of Who's who): capture talk from the town square in two taps. Tap who it's about (one player, or two for a pair like an Investigator or Fortune Teller ping, meaning "one of them"), then <b>Evil ping</b>, <b>Good ping</b>, <b>Called the Demon</b> or <b>Claimed a character</b>. Each saves straight away; add which character's info it came from and who said it if you caught that. You can also add character info you heard ("the Investigator saw a Baron") and keep town notes. Pings feed suspicion and show in Who's who.</li>
-          <li><b>Who's who</b> (beside the circle): a row for every player, most suspicious first. It shows what they've shared each day, how suspicious they are and why (or that they're confirmed or probably good), whether you've spoken to them today, and a <b>Talk</b> button. In their panel, answer yes/no questions with Yes, No or Didn't answer (not answering is never held against anyone), and enter their night info with quick answers, which go straight into Night info.</li>
+          <li><b>Who's who</b> (beside the circle): a row for every player, most suspicious first. It shows what they've shared each day, how suspicious they are and why (or that they're confirmed or probably good), whether you've spoken to them today, and a <b>Talk</b> button. In their panel, answer yes/no questions with Yes, No or Didn't answer (not answering is never held against anyone), and enter their night info with quick answers, which go straight into the evidence on World building.</li>
           <li><b>The story so far:</b> a recap that opens as night falls (and can be reread during the night): your own nights and tonight's suggested choice, what adds up and what doesn't, and what each player has told you and others.</li>
-          <li><b>Plan for tomorrow:</b> what doesn't add up, questions to ask each player, and who to look at.</li>
+          <li><b>World building:</b> the app tries every way the Demon and Minions could be seated and checks each against all the info you've logged (Empath and Chef numbers, Investigator and Fortune Teller results, Undertaker and Ravenkeeper reveals, Slayer shots, double claims). It shows how many worlds still fit, each player's chance of being the Demon or evil, who is good in every world, and the most likely worlds, with what would have to be wrong (a drunk or poisoned player) for each. Tap names to assume someone is the Demon, evil or good and watch the worlds narrow.</li>
+          <li><b>Plan for tomorrow</b> (on World building): what doesn't add up, questions to ask each player, and who to look at.</li>
           <li><b>Test a hunch:</b> in a player's panel, tap "What if they're evil?" to see what supports it, what goes against it, and what follows if it's true.</li>
-          <li><b>Night info</b> grades each player's information as consistent, doubtful or unreliable.</li>
-          <li><b>Changed claims:</b> if a player gives info as one role and later claims another, or swaps a hard claim, the app flags it on the Plan tab, rings them amber and stops trusting that info. A real typo can be cleared with <b>Forget this</b> in their panel.</li>
+          <li><b>The evidence</b> (on World building) lists all night info and grades each player's information as consistent, doubtful or unreliable.</li>
+          <li><b>Changed claims:</b> if a player gives info as one role and later claims another, or swaps a hard claim, the app flags it on World building, rings them amber and stops trusting that info. A real typo can be cleared with <b>Forget this</b> in their panel.</li>
           <li><b>Game wrap-up:</b> when the game ends, enter who was evil, then everyone's real character (or skip that), to see how the evidence held up, which information was right, whose claims were true, how your reads did, and a timeline.</li>
           <li><b>Claim matrix</b> (under the circle): every claim at a glance. Amber means two players claim the same role.</li>
         </ul>
@@ -788,6 +802,7 @@ function normalize(s) {
   s.shots = Array.isArray(s.shots) ? s.shots : [];
   s.talks = Array.isArray(s.talks) ? s.talks : [];
   s.pings = Array.isArray(s.pings) ? s.pings : [];
+  s.wb = s.wb && typeof s.wb === "object" && !Array.isArray(s.wb) ? s.wb : {};
   if (s.firstNightDone === undefined) s.firstNightDone = true;
   return s;
 }
@@ -2727,6 +2742,7 @@ function render() {
   renderTips();
   renderStory();
   renderReads();
+  renderWorlds();
   updateBadges();
   updatePhaseLogged();
   if (talk) talkLoggedHtml();
@@ -3361,7 +3377,7 @@ function storyHtml(opts = {}) {
   // Your nights
   const mn = myNights(), tonight = tonightAdvice();
   const nightsHtml = `<div class="story-sec"><h3>You${mn.role ? `, the ${esc(mn.role)}` : ""}</h3>
-    ${!mn.role ? `<p class="tips-empty">Choose your character under Night info so the app can use your own nights.</p>` : ""}
+    ${!mn.role ? `<p class="tips-empty">Choose your character on your own token so the app can use your own nights.</p>` : ""}
     ${mn.out.map(x => `<div class="tip ${x.bad.length ? "bad" : ""}">${x.lines.map(esc).join(" ")}${x.bad.map(b => `<small class="no-line">${esc(b)}</small>`).join("")}</div>`).join("") || (mn.role ? `<p class="tips-empty">Nothing logged from your nights yet.</p>` : "")}
     ${tonight ? `<div class="tip tonight"><span class="label">Tonight</span>${esc(tonight.text)}${tonight.sub ? `<small>${esc(tonight.sub)}</small>` : ""}</div>` : ""}</div>`;
   // Each player
@@ -3694,6 +3710,121 @@ function renderStory() {
 $("townBtn").onclick = () => openTalk("", { town: true });
 $("talkOverlay").addEventListener("click", e => { if (e.target === $("talkOverlay") && talk && !talk.with) closeTalk(false); });
 
+/* ---------- World building: every Demon + Minion seating, tested against the evidence ---------- */
+const wbAssume = () => (state.wb = state.wb && typeof state.wb === "object" && !Array.isArray(state.wb) ? state.wb : {});
+const WB_NEXT = { "": "demon", demon: "evil", evil: "good", good: "" };
+const WB_LABEL = { demon: "Demon", evil: "Evil", good: "Good" };
+function minionSlots(n) { return n >= 13 ? 3 : n >= 10 ? 2 : 1; }
+function combos(arr, k, start = 0, cur = [], out = []) {
+  if (cur.length === k) { out.push(cur.slice()); return out; }
+  for (let i = start; i <= arr.length - (k - cur.length); i++) { cur.push(arr[i]); combos(arr, k, i + 1, cur, out); cur.pop(); }
+  return out;
+}
+function buildWorlds() {
+  const ps = state.players, P = id => ps.find(p => p.id === id);
+  const nm = id => { const p = P(id); return p ? (p.name || `Seat ${ps.indexOf(p) + 1}`) : "someone"; };
+  const me = meP(), proven = provenGood(), assume = wbAssume();
+  const seated = ps.filter(p => !p.traveller);
+  const k = minionSlots(seated.length);
+  const pool = seated.filter(p => !p.me && !proven.has(p.id) && assume[p.id] !== "good").map(p => p.id);
+  const demons = pool.filter(id => (state.over || !P(id).dead) && (!Object.values(assume).includes("demon") || assume[id] === "demon"));
+  // The evidence, as tests a world passes or fails. Each test belongs to a source who could be drunk, poisoned or lying.
+  const tests = [];
+  const add = (src, label, fn) => tests.push({ src, label, fn });
+  const meId = me ? me.id : "";
+  for (const e of state.myInfo) {
+    const src = e.src && P(e.src) ? e.src : e.src ? null : meId;
+    if (src === null) continue;
+    const role = String(e.role).toLowerCase(), t = teamOf(e.r && e.r[0]);
+    const pp = (e.p || []).filter(P), [a, b] = pp;
+    const lbl = `${e.role} (night ${e.night})`;
+    if (e.zero) continue;
+    if (role === "washerwoman" && pp.length === 2) add(src, lbl, W => !W.evil.has(a) || !W.evil.has(b));
+    else if (role === "librarian" && pp.length === 2) add(src, lbl, W => !W.evil.has(a) || !W.evil.has(b));
+    else if (role === "investigator" && pp.length === 2) add(src, lbl, W => W.minions.has(a) || W.minions.has(b));
+    else if (role === "sage" && pp.length === 2) add(src, lbl, W => W.demon === a || W.demon === b);
+    else if (role === "empath" && pp.length && e.n != null) add(src, lbl, W => pp.filter(id => W.evil.has(id)).length === e.n);
+    else if (role === "chef" && e.n != null) add(src, lbl, W => { let c = 0; for (let i = 0; i < ps.length; i++) if (W.evil.has(ps[i].id) && W.evil.has(ps[(i + 1) % ps.length].id)) c++; return c === e.n; });
+    else if (role === "clockmaker" && e.n != null) add(src, lbl, W => { const di = ps.findIndex(p => p.id === W.demon); let best = 99; ps.forEach((p, i) => { if (W.minions.has(p.id)) { const d = Math.abs(i - di); best = Math.min(best, d, ps.length - d); } }); return best === e.n; });
+    else if (role === "seamstress" && pp.length === 2 && e.yn != null) add(src, lbl, W => (W.evil.has(a) === W.evil.has(b)) === (e.yn === 0));
+    else if (["undertaker", "ravenkeeper", "grandmother"].includes(role) && a && e.r && e.r[0]) {
+      if (t === "demon") add(src, lbl, W => W.demon === a || (P(a).dead && W.evil.has(a)));
+      else if (t === "minion") add(src, lbl, W => W.minions.has(a) || (W.evil.has(a) && P(a).dead));
+      else if (t === "townsfolk" || t === "outsider") add(src, lbl, W => !W.evil.has(a));
+    }
+  }
+  // Fortune Teller results from one source: some red herring (a good player, or none) must explain every yes and no
+  const ftSrcs = [...new Set(state.myInfo.filter(e => String(e.role).toLowerCase() === "fortune teller" && e.yn != null && (e.p || []).filter(P).length === 2).map(e => e.src || ""))];
+  for (const s0 of ftSrcs) {
+    const src = s0 ? (P(s0) ? s0 : null) : meId;
+    if (src === null) continue;
+    const ft = state.myInfo.filter(e => (e.src || "") === s0 && String(e.role).toLowerCase() === "fortune teller" && e.yn != null && e.p.filter(P).length === 2);
+    tests.push({ src, label: "Fortune Teller results", fn: W => [null, ...seated.map(p => p.id).filter(id => !W.evil.has(id))].some(h => ft.every(e => { const hit = e.p.includes(W.demon) || (h && e.p.includes(h)); return e.yn === 0 ? hit : !hit; })) });
+  }
+  // A real Slayer's shot that did nothing means the target isn't the Demon
+  for (const shot of (state.shots || []).filter(x => !x.hit && P(x.shooter) && P(x.target))) {
+    const sh = P(shot.shooter);
+    if (!sh.claims.some(c => c.toLowerCase() === "slayer") || shotsBy(sh.id)[0] !== shot) continue;
+    add(sh.id, `Slayer shot (day ${shot.day})`, W => W.demon !== shot.target);
+  }
+  // An executed Saint who didn't lose the game for good wasn't the real Saint
+  for (const p of seated.filter(x => x.dead && x.deathBy === "exec" && isHard(x) && x.claims[0].toLowerCase() === "saint" && !state.over)) tests.push({ src: p.id, msg: `${nm(p.id)} would be the Drunk: executed as the Saint and the game went on.`, fn: () => false });
+  // Two good players can't both be a Townsfolk unless one is the Drunk
+  const byRole = {};
+  for (const p of seated) if (isHard(p) && teamOf(p.claims[0]) === "townsfolk") (byRole[p.claims[0].toLowerCase()] = byRole[p.claims[0].toLowerCase()] || []).push(p);
+  const clashes = Object.values(byRole).filter(l => l.length > 1);
+
+  const worlds = [];
+  const mustEvil = Object.keys(assume).filter(id => (assume[id] === "evil" || assume[id] === "demon") && P(id));
+  for (const d of demons) {
+    for (const ms of combos(pool.filter(id => id !== d), Math.min(k, pool.length - 1))) {
+      const W = { demon: d, minions: new Set(ms) };
+      W.evil = new Set([d, ...ms]);
+      if (mustEvil.some(id => !W.evil.has(id))) continue;
+      const bad = new Map();
+      for (const t of tests) if (!W.evil.has(t.src) && !t.fn(W)) (bad.get(t.src) || bad.set(t.src, []).get(t.src)).push(t);
+      let drunk = 0; const drunkWhy = [];
+      for (const l of clashes) { const good = l.filter(p => !W.evil.has(p.id)); if (good.length > 1) { drunk += good.length - 1; drunkWhy.push(`${good.map(p => nm(p.id)).join(" or ")} would be the Drunk (both claim ${good[0].claims[0]}).`); } }
+      W.breaks = bad.size + drunk;
+      W.why = [...[...bad].map(([src, ts]) => { const m = ts.find(t => t.msg); if (m) return m.msg; const ls = [...new Set(ts.map(t => t.label))].join(", "); return src === meId ? `Your ${ls} would be wrong (you'd be drunk or poisoned).` : `${nm(src)}'s ${ls} would be wrong (drunk or poisoned).`; }), ...drunkWhy];
+      worlds.push(W);
+    }
+  }
+  const best = worlds.length ? Math.min(...worlds.map(w => w.breaks)) : 0;
+  const kept = worlds.filter(w => w.breaks <= best + 1);
+  const weight = w => Math.pow(0.15, w.breaks - best);
+  const total = kept.reduce((s, w) => s + weight(w), 0) || 1;
+  const odds = new Map();
+  for (const w of kept) for (const id of w.evil) { const o = odds.get(id) || odds.set(id, { demon: 0, evil: 0 }).get(id); o.evil += weight(w) / total; if (id === w.demon) o.demon += weight(w) / total; }
+  kept.sort((x, y) => x.breaks - y.breaks || [...y.evil].reduce((s, id) => s + (odds.get(id)?.evil || 0), 0) - [...x.evil].reduce((s, id) => s + (odds.get(id)?.evil || 0), 0));
+  return { worlds: kept, all: worlds.length, best, odds, k, tests: tests.length + clashes.length, pool };
+}
+function renderWorlds() {
+  const box = $("worlds");
+  if (!box || currentTab !== "worlds") return;
+  const ps = state.players, P = id => ps.find(p => p.id === id);
+  const nm = id => { const p = P(id); return esc(p ? (p.name || `Seat ${ps.indexOf(p) + 1}`) : "someone"); };
+  const assume = wbAssume(), wb = buildWorlds();
+  const fit = wb.worlds.filter(w => w.breaks === wb.best);
+  const pct = x => `${Math.round(x * 100)}%`;
+  const chips = ps.filter(p => !p.traveller && !p.me).map(p => `<button class="choice wb-chip ${assume[p.id] || ""}" data-wb="${p.id}" aria-label="${nm(p.id)}: ${WB_LABEL[assume[p.id]] || "no assumption"}">${nm(p.id)}${assume[p.id] ? ` · ${WB_LABEL[assume[p.id]]}` : ""}</button>`).join("");
+  const head = !wb.all ? `<p class="tips-empty">No world fits your assumptions. Tap a name below to change or clear them.</p>`
+    : wb.best === 0 ? `<p class="wb-head"><b>${fit.length}</b> world${fit.length === 1 ? "" : "s"} fit${fit.length === 1 ? "s" : ""} everything you've logged${wb.tests ? "" : " (nothing to test yet, so every seating is open)"}.</p>`
+    : `<p class="wb-head">No world fits everything. The best ${fit.length === 1 ? "one needs" : `${fit.length} need`} <b>${wb.best}</b> piece${wb.best === 1 ? "" : "s"} of info to be wrong.</p>`;
+  const rows = [...wb.odds].filter(([id]) => P(id)).sort((x, y) => y[1].evil - x[1].evil || y[1].demon - x[1].demon);
+  const clear = ps.filter(p => !p.traveller && !p.me && !wb.odds.has(p.id));
+  const table = rows.length ? `<table class="whos-table wb-table"><thead><tr><th>Player</th><th>Is the Demon</th><th>Is evil</th></tr></thead><tbody>${rows.map(([id, o]) => `<tr><td><button class="linkish" data-open="${id}">${nm(id)}</button>${P(id).claims.length ? `<small>${esc(P(id).claims.join(" / "))}</small>` : ""}</td><td><span class="wb-pct">${pct(o.demon)}</span><span class="cand-bar"><i style="width:${pct(o.demon)}"></i></span></td><td><span class="wb-pct">${pct(o.evil)}</span><span class="cand-bar"><i style="width:${pct(o.evil)}"></i></span></td></tr>`).join("")}</tbody></table>` : "";
+  const list = wb.worlds.slice(0, 8).map((w, i) => `<div class="tip wb-world ${w.breaks ? "hi" : ""}"><span class="when">World ${i + 1} · ${w.breaks === 0 ? "fits everything" : `needs ${w.breaks} thing${w.breaks === 1 ? "" : "s"} to be wrong`}</span><b>Demon: ${nm(w.demon)}${w.minions.size ? ` · Minion${w.minions.size > 1 ? "s" : ""}: ${[...w.minions].map(nm).join(", ")}` : ""}</b>${w.why.map(x => `<small>${esc(x)}</small>`).join("")}</div>`).join("");
+  box.innerHTML = `${head}
+    <div class="wb-assume"><span class="label">Assume (tap to cycle Demon → Evil → Good → none)</span><div class="choice-list">${chips}</div></div>
+    ${table}
+    ${clear.length && wb.all ? `<p class="wb-clear"><span class="g">Good in every world here:</span> ${clear.map(p => nm(p.id)).join(", ")}</p>` : ""}
+    ${list ? `<h3 class="label" style="margin:10px 0 4px">Most likely worlds${wb.worlds.length > 8 ? ` (8 of ${wb.worlds.length})` : ""}</h3><div class="tips-col">${list}</div>` : ""}
+    <span class="tips-foot">Counts ${wb.k} Minion${wb.k === 1 ? "" : "s"} and one living Demon; you and proven-good players are good. Worlds needing one more piece of wrong info than the best count for much less. The Spy and Recluse can register falsely and the Demon can pass to a Minion, so treat this as a guide.</span>`;
+  box.querySelectorAll("[data-wb]").forEach(b => b.onclick = () => { const id = b.dataset.wb, a = wbAssume(); const nx = WB_NEXT[a[id] || ""]; if (nx === "demon") for (const x of Object.keys(a)) if (a[x] === "demon") a[x] = "evil"; if (nx) a[id] = nx; else delete a[id]; save(); renderWorlds(); });
+  box.querySelectorAll("[data-open]").forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+}
+
 /* ---------- Tabs ---------- */
 const TAB_KEY = "clocktower-notebook-tab";
 let currentTab = "table";
@@ -3705,6 +3836,7 @@ function showTab(name) {
   document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === name));
   try { localStorage.setItem(TAB_KEY, name); } catch (e) {}
   if (name === "table") sizeTokens();
+  if (name === "worlds") renderWorlds();
   window.scrollTo({ top: 0 });
 }
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => showTab(t.dataset.tab));
@@ -3735,7 +3867,7 @@ $("ngStart").onclick = () => {
   const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
   const count = names.length || Math.max(5, Math.min(20, parseInt($("ngCount").value, 10) || 8));
   const players = Array.from({ length: count }, (_, i) => mkPlayer(names[i] || `Player ${i + 1}`));
-  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], heard: [], talks: [], pings: [], softDefault: true, over: null, shots: [], firstNightDone: false, updatedAt: 0 };
+  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], heard: [], talks: [], pings: [], wb: {}, softDefault: true, over: null, shots: [], firstNightDone: false, updatedAt: 0 };
   confirmRemove = false;
   $("overlay").hidden = true; $("ngNames").value = "";
   save(); render();
