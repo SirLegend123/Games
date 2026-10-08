@@ -435,6 +435,29 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .read-row .who, .ask-name .why { font-weight: 800; background: none; border: 0; padding: 0; text-align: left; color: var(--fg); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; justify-self: start; }
 .ask-rank { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 4px; }
 .ask-name .why { text-decoration: none; font-weight: 600; font-size: .8rem; color: var(--warn); }
+.whos-wrap { overflow-x: auto; margin-inline: -4px; }
+.whos-table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: .86rem; }
+.whos-table th { text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 800; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.whos-table td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.whos-table tr.dead td:first-child b { text-decoration: line-through; color: var(--muted); }
+.whos-table td small { display: block; color: var(--muted); font-size: .78rem; }
+.whos-table .day { display: block; }
+.whos-table .day b { color: var(--muted); font-weight: 800; margin-right: 4px; }
+.whos-level { font-weight: 800; }
+.whos-level.sure { color: var(--claim); } .whos-level.good { color: var(--good); } .whos-level.sus { color: var(--evil); } .whos-level.none { color: var(--muted); font-weight: 600; }
+.whos-table .cand-bar { display: block; height: 6px; max-width: 140px; margin: 3px 0; }
+.whos-table .whos-level { display: block; }
+.table-col { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 640px) {
+  .whos-wrap { overflow: visible; margin: 0; }
+  .whos-table { min-width: 0; }
+  .whos-table thead { display: none; }
+  .whos-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .whos-table td { border: 0; padding: 0; }
+  .whos-table td:nth-child(2), .whos-table td:nth-child(3) { grid-column: 1 / -1; }
+  .whos-table td:nth-child(4) { grid-row: 1; grid-column: 2; }
+}
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .talk-roles { display: grid; gap: 6px; max-height: 260px; overflow: auto; padding-right: 4px; }
 .talk-rel { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .talk-rel select { min-width: 0; max-width: 100%; }
@@ -493,6 +516,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       <section class="card" aria-labelledby="readsTitle">
         <div class="tips-head"><h2 id="readsTitle">Who's who</h2><span class="tips-foot">Tap a name to open their panel</span></div>
         <div id="readsView" class="reads-grid"></div>
+        <div id="whosTable" class="whos-wrap"></div>
       </section>
     </section>
     <section class="card story-card" aria-labelledby="storyTitle">
@@ -3415,6 +3439,30 @@ function suspicionRank() {
   }
   return [...rows.values()].sort((a, b) => b.score - a.score);
 }
+// A short form of a night-info entry, for the Who's who table
+function shortInfo(e) {
+  const t = infoOf(e.role) || {}, ps = e.p.map(id => pName(pById(id)));
+  let what = e.zero ? "no Outsiders"
+    : e.r.length && ps.length ? `${orList(ps)} ${ps.length > 1 ? "→ one is" : "is"} the ${e.r.join(" or ")}`
+    : t.yn && e.yn != null ? `${ps.length ? orList(ps) + ": " : ""}${t.yn[e.yn]}`
+    : e.n != null ? `${ps.length && t.neighbours ? orList(ps) + ": " : ""}${e.n}`
+    : ps.length ? `chose ${orList(ps)}` : e.note || "";
+  return `Night ${e.night} ${e.role}: ${what}`;
+}
+// Everything a player has shared, grouped by the day you heard it
+function sharedByDay(p) {
+  const days = new Map(), add = (d, text) => (days.get(d) || days.set(d, []).get(d)).push(text);
+  for (const t of talks().filter(t => t.with === p.id)) {
+    if (t.claim) add(t.day, `${t.claim.type === "hard" ? "Claimed" : "Offered"} ${orList(t.claim.roles)}`);
+    for (const r of t.relayed) add(t.day, `Says ${pName(pById(r.about))} claimed ${r.role}`);
+  }
+  for (const e of state.myInfo.filter(e => e.src === p.id)) add(e.told?.day || e.night, shortInfo(e) + (isSecondHand(e) ? ` (via ${pName(pById(e.told.by))})` : ""));
+  for (const [d, byP] of Object.entries(state.answers || {})) for (const [q, v] of Object.entries(byP[p.id] || {})) {
+    if (q.startsWith("info:")) add(+d, `Didn't share their night ${q.split(":")[2]} info`);
+    else add(+d, `${q.length > 60 ? q.slice(0, 57) + "…" : q} ${ANSWER_LABEL[v] || v}`);
+  }
+  return [...days].sort((a, b) => a[0] - b[0]);
+}
 function renderReads() {
   const { sure, likely } = goodSummary(), sus = suspicionRank().slice(0, 6);
   const who = p => `<button class="who" data-open="${p.id}">${esc(pName(p))}</button>`;
@@ -3430,6 +3478,32 @@ function renderReads() {
       ${sus.length ? sus.map((r, i) => `<div class="read-row suspect-row"><span class="rank">${i + 1}</span>${who(r.p)}${r.p.dead ? " <small>dead</small>" : ""}<span class="cand-bar"><i style="width:${Math.round(100 * r.score / max)}%"></i></span><small>${esc(r.why.slice(0, 3).join(" · "))}</small></div>`).join("") : `<p class="tips-empty">No one stands out yet. Log claims and info, or mark your evil reads.</p>`}
     </div>`;
   $("readsView").querySelectorAll("[data-open]").forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+  renderWhosTable(sure, likely);
+}
+// One row per player: what they've shared each day, how suspicious they are and why, and a button to talk to them
+function renderWhosTable(sure, likely) {
+  const rank = suspicionRank(), max = Math.max(1, ...rank.map(r => r.score));
+  const level = p => {
+    if (sure.has(p.id)) return { order: 3, html: `<span class="whos-level sure">✓ Confirmed good</span><small>${esc(sure.get(p.id).join(" · "))}</small>` };
+    const i = rank.findIndex(r => r.p.id === p.id);
+    if (i >= 0) { const r = rank[i]; return { order: 0, score: r.score, html: `<span class="whos-level sus">Suspicious · #${i + 1}</span><span class="cand-bar"><i style="width:${Math.round(100 * r.score / max)}%"></i></span><small>${esc(r.why.slice(0, 2).join(" · "))}</small>` }; }
+    if (likely.has(p.id)) return { order: 2, html: `<span class="whos-level good">Probably good</span><small>${esc([...new Set(likely.get(p.id))].join(" · "))}</small>` };
+    return { order: 1, html: `<span class="whos-level none">No read yet</span>` };
+  };
+  const ps = state.players.filter(p => !p.me);
+  const rows = ps.map(p => ({ p, lv: level(p) })).sort((a, b) => a.lv.order - b.lv.order || (b.lv.score || 0) - (a.lv.score || 0) || ps.indexOf(a.p) - ps.indexOf(b.p));
+  $("whosTable").innerHTML = ps.length ? `<table class="whos-table">
+    <thead><tr><th scope="col">Player</th><th scope="col">Shared, by day</th><th scope="col">Suspicion</th><th scope="col"><span class="sr-only">Talk</span></th></tr></thead>
+    <tbody>${rows.map(({ p, lv }) => {
+      const shared = sharedByDay(p);
+      return `<tr class="${p.dead ? "dead" : ""}">
+        <td><b>${esc(pName(p))}</b><small>${p.claims.length ? `${isHard(p) ? "" : "options: "}${esc(orList(p.claims))}` : "no claim yet"}${p.dead ? " · dead" : ""}</small></td>
+        <td>${shared.length ? shared.map(([d, items]) => `<span class="day"><b>D${d}</b>${esc(items.join("; "))}</span>`).join("") : `<small>Nothing yet</small>`}</td>
+        <td>${lv.html}</td>
+        <td><button class="btn sm primary" data-open="${p.id}">Talk</button></td>
+      </tr>`;
+    }).join("")}</tbody></table>` : "";
+  $("whosTable").querySelectorAll("[data-open]").forEach(b => b.onclick = () => openPlayer(b.dataset.open));
 }
 
 /* ---------- Today's checklist: who to speak to and what to ask ---------- */
@@ -3608,7 +3682,7 @@ function checklistHtml(asks, sus) {
     const suspect = sus.some(c => c.p.id === p.id);
     return `<div class="ask-row${sp ? " done" : ""}${hi(p.id) && !sp ? " hi" : ""}">
       <button class="ask-tick" data-asktick="${p.id}" aria-pressed="${sp}" aria-label="${sp ? "Spoken to" : "Mark as spoken to"}: ${esc(pName(p))}" ${auto ? "disabled title=\"You logged a conversation with them today\"" : ""}>✓</button>
-      <button class="ask-name" data-open="${p.id}"><b>${sp ? "" : `<span class="ask-rank">${i + 1}.</span>`}${esc(pName(p))}</b>${!sp && why ? `<span class="why">${esc(why)}</span>` : ""}${p.dead ? " <small>(dead)</small>" : ""}${suspect ? ` <span class="pill likely">Suspect</span>` : ""}<small>${esc(claim)} · ${n} question${n === 1 ? "" : "s"}</small></button>
+      <button class="ask-name" data-open="${p.id}"><b>${sp ? "" : `<span class="ask-rank">${i + 1}.</span>`}${esc(pName(p))}</b>${!sp && why && why !== "No claim yet" ? `<span class="why">${esc(why)}</span>` : ""}${p.dead ? " <small>(dead)</small>" : ""}${suspect ? ` <span class="pill likely">Suspect</span>` : ""}<small>${esc(claim)} · ${n} question${n === 1 ? "" : "s"}</small></button>
     </div>`;
   };
   return `<div class="story-sec"><h3>Who to speak to today · ${done} of ${ps.length} done</h3>
