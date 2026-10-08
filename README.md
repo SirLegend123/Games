@@ -2,7 +2,7 @@
 
 ## Clocktower Companion
 
-Open `index.html` in any web browser for a cover page that lets you pick one of three *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, or the **Storyteller's Grimoire**. Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
+Open `index.html` in any web browser for a cover page that lets you pick one of four *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, the **Storyteller's Grimoire**, or the **Clockwork Storyteller**, which runs a game of Trouble Brewing by itself when nobody wants to be Storyteller. Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
 
 ## Clocktower Notebook
 
@@ -67,5 +67,24 @@ A tracker for the *Blood on the Clocktower* Storyteller. Open `storyteller.html`
 - Reveal script: when the game ends, a script to read aloud at the grimoire reveal. It tells the game as a story, night by night, in the Storyteller's voice and reveals each player at the moment they died. Until then, night actions name characters rather than players ("The Poisoner poisoned the Empath, and the Empath received 0 that night"), so no one is given away before their turn. A Drunk is treated as the character they thought they were until their own reveal Survivors come last, evil ones at the very end, then who won. Nights with no deaths and days with no execution are called out
 - Full summary: who was what, the whole game, every lie you told and why, starred moments, the final grimoire and some numbers. Copy either as text
 - Finished games are kept under Past games
+
+## Clockwork Storyteller
+
+An automated Storyteller for *Trouble Brewing*, so nobody has to sit out. Pick it from the Clocktower Companion cover page, or open `clockwork-storyteller.html` directly, on one phone, and pass it round the table.
+
+- Setup: type 5 to 15 names in seating order. Characters are dealt at random with the standard counts (including the Baron), along with the Drunk's fake character, three Demon bluffs and the Fortune Teller's red herring. With 7 or more players, the evil team learns each other and the Imp learns the bluffs
+- Night turns: each player taps their own seat on the table (a circle of name tokens in seating order), checks nobody else can see, and makes their choice (Poisoner, Monk, Imp, Fortune Teller, Butler). Players with nothing to do tap a player too, and every turn (night or morning) lasts at least 5 seconds before the names and Done unlock, so nobody watching can tell who has an ability
+- The night is resolved in the real wake order: poison, Monk protection, the Imp's kill (Soldier, Mayor bounce, star-pass to a Minion), then information worked out after the deaths
+- Morning news: a second pass round, where each player privately reads what they learned. Washerwoman, Librarian, Investigator, Chef, Empath, Fortune Teller, Undertaker and the Spy's view of the Grimoire are all covered, and a Ravenkeeper killed in the night chooses here. Then the town hears who died
+- Storyteller choices: drunk and poisoned players usually get false information, the Spy and the Recluse sometimes register as the other team, and a kill on the Mayor sometimes bounces
+- Day: the town square as the same table, showing who is dead, unused ghost votes and who is on the block. Nominations with vote counting, ghost votes, who's on the block and ties, and the Virgin working automatically. Slayer shots (only the real Slayer's work), a discussion timer, and **My character**, where any player can privately re-read their character and everything they've learned
+- End of day: the execution, then the Saint, Scarlet Woman, Mayor, final-two and Demon-death wins are checked
+- Game over: a large Good wins or Evil wins banner as soon as the result is known, then the Grimoire as the seating circle: tap a seat to flip it and reveal that player's character (good in blue, evil in red), or reveal everyone at once. Then the Storyteller's log of every choice, including each piece of false information and why it was given
+
+- Voice: says whose turn it is to take the phone (the next seat round the circle, which is also ringed on the table), and reads out deaths, executions, votes, Slayer shots, timer warnings and the winner. It never reads anything private. In the Menu you can turn it off, test it, pick any of the voices on your phone and set its speed
+- Text size: Normal, Large or Extra large, in the Menu
+- The discussion timer shows in very large numbers, turns amber in the last 30 seconds and red at time's up, and has a +1 min button
+
+Games are saved in the browser on the device you use. Nothing is uploaded anywhere.
 
 *Blood on the Clocktower* and its character names belong to The Pandemonium Institute. This is an unofficial fan-made note-taking tool.
