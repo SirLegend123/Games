@@ -379,7 +379,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .story-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 @media (max-width: 860px) { .story-grid { grid-template-columns: minmax(0, 1fr); } }
 .pcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 10px; }
-.pcard { display: grid; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: .9rem; min-width: 0; }
+.pcard { display: grid; align-content: start; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: .9rem; min-width: 0; }
 .pcard.hi { border-left-color: var(--warn); }
 .pcard.bad { border-left-color: var(--evil); }
 .pcard.fine { border-left-color: var(--claim); }
@@ -394,7 +394,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .ask-list { display: grid; gap: 6px; }
 .ask-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); border-left: 3px solid var(--line); }
 .ask-row.hi { border-left-color: var(--warn); }
-.ask-row.done { opacity: .6; }
+.ask-row.done:not(.open) { opacity: .6; }
 .ask-row.done .ask-name b { text-decoration: line-through; }
 .ask-tick { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); color: transparent; font-weight: 800; font-size: 1rem; }
 .ask-tick[aria-pressed="true"] { background: var(--claim); border-color: var(--claim); color: #fff; }
@@ -407,6 +407,12 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .ask-body ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
 .ask-body small { color: var(--muted); }
 .ask-hi { font-weight: 700; }
+.ask-body li { display: grid; gap: 5px; }
+.seg.yn { justify-self: start; font-weight: 400; }
+.seg.yn button { padding: 6px 14px; min-height: 36px; }
+.talk-sec { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.talk-sec > h3 { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: var(--brass); font-weight: 800; }
+.talk-sec textarea { min-height: 70px; }
 .talk-roles { display: grid; gap: 6px; max-height: 260px; overflow: auto; padding-right: 4px; }
 .talk-rel { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .talk-rel select { min-width: 0; max-width: 100%; }
@@ -578,7 +584,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <li><b>Hard claim:</b> when they firmly commit to one role, switch to Hard claim and tap it. That role is then removed from other players' options.</li>
           <li>Set <b>My read</b> (good, unsure, evil), pick the evil character you <b>suspect</b>, and write <b>notes</b>.</li>
         </ul>
-        <p>After talking to someone, tap <b>+ Log a conversation</b> (in their panel or on the <b>Story</b> tab). Record their soft or hard claim, the night info they shared, and anything they heard: another player's claim, or info from a character ("the Investigator saw a Baron"). It all goes onto the circle and into Night info for you.</p>
+        <p>After talking to someone, tap <b>+ Log a conversation</b> (in their panel or on the <b>Story</b> tab). On one page, record their soft or hard claim, the night info they shared, and anything they heard: another player's claim, or info from a character ("the Investigator saw a Baron"). It all goes onto the circle and into Night info for you.</p>
         <p>When a player shares what they learned at night, add it under <b>Night info</b> with <b>Whose info</b> set to them. If you hear info but don't know who it came from yet (say, "the Investigator saw a Baron"), set <b>Whose info</b> to <b>Someone (not sure who yet)</b>. It links to them when they hard-claim that role. Use <b>Slayer shot</b> when someone shoots.</p>
       </li>
       <li>
@@ -595,7 +601,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <h2>Read the board</h2>
         <p>Use the tabs at the top: <b>Table</b> (the circle, player panel and night info), <b>Story</b>, <b>Plan</b>, <b>Evil team</b>, <b>Claims</b> and <b>Notes</b>. Badges show when something needs attention.</p>
         <ul>
-          <li><b>Story tab:</b> a daily checklist of who to speak to and what to ask each player. Tap a name to see the questions, then log what they said or tick them off. A recap of the day opens as night falls (you can reread it during the night). It sums up your own nights (and suggests tonight's choice for your character), what each player has told you and others, what adds up and what doesn't, and what to find out tomorrow.</li>
+          <li><b>Story tab:</b> a daily checklist of who to speak to and what to ask each player. Tap a name to see the questions, answer yes/no questions with Yes, No or Didn't answer (not answering is never held against anyone), then log what they said or tick them off. A recap of the day opens as night falls (you can reread it during the night). It sums up your own nights (and suggests tonight's choice for your character), what each player has told you and others, what adds up and what doesn't, and what to find out tomorrow.</li>
           <li><b>Plan for tomorrow:</b> what doesn't add up, questions to ask each player, and who to look at.</li>
           <li><b>Evil team:</b> the most likely Demon and why, plus which Minions are likely in play.</li>
           <li><b>Test a hunch:</b> in a player's panel, tap "What if they're evil?" to see what supports it, what goes against it, and what follows if it's true.</li>
@@ -2025,7 +2031,7 @@ function renderInfo() {
       const entry = { id: uid(), src: d.src, night: d.night, role: d.role, p: d.zero ? [] : d.p.filter(Boolean), r: d.zero ? [] : d.r.filter(Boolean), n: t?.n ? d.n : null, yn: t?.yn ? d.yn : null, note: d.note.trim(), zero: !!d.zero };
       if (!t && !entry.note) { $("ifNote").focus(); return; }
       if (entry.p.length === 2 && entry.p[0] === entry.p[1]) { $("ifAdd").textContent = "Pick two different players"; return; }
-      if (talk && talk.with && (talk.step === "info" || talk.step === "heard")) { entry.told = { by: talk.with, day: state.day }; talk.ids.push(entry.id); }
+      if (talk && talk.with) { entry.told = { by: talk.with, day: state.day }; talk.ids.push(entry.id); }
       if (anon) { heardList().push({ ...entry, heardDay: state.day }); infoDraft = newDraft(ANON, d.role); save(); render(); return; }
       state.myInfo.push(entry);
       state.myInfo.sort((x, y) => x.night - y.night || (x.src ? 1 : 0) - (y.src ? 1 : 0));
@@ -2982,9 +2988,11 @@ const pName = p => p ? (p.name || `Seat ${state.players.indexOf(p) + 1}`) : "som
 let talk = null;
 
 function openTalk(withId) {
-  talk = { step: withId ? "claim" : "who", with: withId || "", ctype: "", roles: [], relayed: [], ids: [], note: "", rel: { about: "", role: "", type: "soft" } };
+  talk = { with: withId || "", ctype: "", roles: [], relayed: [], ids: [], note: "", rel: { about: "", role: "", type: "soft" } };
+  infoDraft = null;
   $("talkOverlay").hidden = false;
   renderTalk();
+  $("talkBox").scrollTop = 0;
 }
 // Put the night-info form back in its card
 function restoreTalkSlot() {
@@ -3000,6 +3008,7 @@ function applyTalkClaim() {
 function closeTalk(keep) {
   restoreTalkSlot();
   if (keep && talk && talk.with) {
+    applyTalkClaim();
     const t = talk, claim = t.ctype && t.roles.length ? { type: t.ctype, roles: t.ctype === "hard" ? [t.roles[0]] : [...t.roles] } : null;
     if (claim || t.relayed.length || t.ids.length || t.note.trim()) talks().push({ id: uid(), day: state.day, with: t.with, claim, relayed: t.relayed.map(r => ({ ...r })), ids: [...t.ids], note: t.note.trim() });
     save();
@@ -3016,22 +3025,31 @@ function talkLoggedHtml() {
     return `<div class="tip">Night ${e.night} · ${whose}: ${esc(readEntry({ ...e, src: e.src === ANON ? "" : e.src }).means || e.note || "")}</div>`;
   }).join("") : "";
 }
+// One page: who, their claim, night info (theirs or passed on), claims they heard, and notes
 function renderTalk() {
   if (!talk) return;
+  const box = $("talkBox"), top = box.scrollTop;
   restoreTalkSlot();
-  const box = $("talkBox"), p = pById(talk.with), name = esc(pName(p));
-  const head = `<span class="step">Day ${state.day} · ${p ? `Talking to ${name}` : "Log a conversation"}</span>`;
-  const roles = scriptRoles();
-  if (talk.step === "who") {
-    const others = state.players.filter(x => !x.me).sort((a, b) => (a.dead ? 1 : 0) - (b.dead ? 1 : 0));
+  const p = pById(talk.with), name = esc(pName(p)), roles = scriptRoles();
+  const people = state.players.filter(x => !x.me).sort((a, b) => (a.dead ? 1 : 0) - (b.dead ? 1 : 0));
+  const sec = (title, body) => `<section class="talk-sec"><h3>${title}</h3>${body}</section>`;
+  const head = `<span class="step">Day ${state.day} · Log a conversation</span>`;
+  if (!p) {
     box.innerHTML = `${head}<h2 id="talkTitle">Who did you talk to?</h2>
-      <div class="choice-list">${others.map(x => `<button class="choice" data-twith="${x.id}" aria-pressed="${talk.with === x.id}">${esc(pName(x))}${x.dead ? " (dead)" : ""}</button>`).join("")}</div>
-      <div class="phase-actions"><button class="btn" data-tcancel>Cancel</button><button class="btn primary" data-tnext ${talk.with ? "" : "disabled"}>Next</button></div>`;
-    box.querySelectorAll("[data-twith]").forEach(b => b.onclick = () => { talk.with = b.dataset.twith; renderTalk(); });
-    box.querySelector("[data-tnext]").onclick = () => { talk.step = "claim"; renderTalk(); };
-  } else if (talk.step === "claim") {
-    const has = r => talk.roles.some(x => lc(x) === lc(r));
-    box.innerHTML = `${head}<h2 id="talkTitle">What did ${name} say they are?</h2>
+      <div class="choice-list">${people.map(x => `<button class="choice" data-twith="${x.id}">${esc(pName(x))}${x.dead ? " (dead)" : ""}</button>`).join("")}</div>
+      <div class="phase-actions"><button class="btn" data-tcancel>Cancel</button></div>`;
+    box.querySelectorAll("[data-twith]").forEach(b => b.onclick = () => { talk.with = b.dataset.twith; infoDraft = null; renderTalk(); box.scrollTop = 0; });
+    box.querySelector("[data-tcancel]").onclick = () => closeTalk(false);
+    return;
+  }
+  const has = r => talk.roles.some(x => lc(x) === lc(r));
+  const others = people.filter(x => x.id !== talk.with);
+  const roleOpts = `<option value="">Character</option>` + TEAMS.filter(t => roles[t].length).map(t => `<optgroup label="${TEAM_LABEL[t]}">${roles[t].map(r => `<option${r === talk.rel.role ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>`).join("");
+  const started = talk.ctype || talk.relayed.length || talk.ids.length || talk.note.trim();
+  box.innerHTML = `${head}
+    <h2 id="talkTitle">Conversation with ${name}</h2>
+    ${started ? "" : `<p class="hint">Not ${name}? <button class="linkish" data-twho>Choose someone else</button></p>`}
+    ${sec(`What did ${name} say they are?`, `
       ${p.claims.length ? `<p class="hint">On your circle: ${p.claimType === "hard" ? "hard claim" : "soft claim"} ${esc(p.claims.join(", "))}. <button class="linkish" data-tsame>Same as that</button></p>` : ""}
       <span class="seg" role="group" aria-label="Claim type">
         <button class="u" data-tct="" aria-pressed="${!talk.ctype}">Didn't say</button>
@@ -3039,73 +3057,51 @@ function renderTalk() {
         <button class="u" data-tct="hard" aria-pressed="${talk.ctype === "hard"}">Hard claim</button>
       </span>
       ${talk.ctype ? `<div class="claims">${talk.roles.length ? talk.roles.map((c, i) => `<span class="chip ${teamOf(c)}">${esc(c)}<button data-trm="${i}" aria-label="Remove ${esc(c)}">×</button></span>`).join("") : `<span class="empty">${talk.ctype === "soft" ? "Tap every character they offered." : "Tap the one character they claimed."}</span>`}</div>
-      <div class="talk-roles">${TEAMS.filter(t => roles[t].length).map(t => `<div class="pick-group"><span class="label"><i style="background:var(--${t})"></i>${TEAM_LABEL[t]}</span><div class="pick-list">${roles[t].map(r => `<button class="pick" data-trole="${esc(r)}" aria-pressed="${has(r)}">${esc(r)}</button>`).join("")}</div></div>`).join("")}</div>` : ""}
-      <p class="hint">This updates their claim on your circle. The app keeps what they told you on each day, so a change of story shows up later.</p>
-      <div class="phase-actions"><button class="btn" data-tback>Back</button><button class="btn primary" data-tnext>Next: their night info</button></div>`;
-    if (box.querySelector("[data-tsame]")) box.querySelector("[data-tsame]").onclick = () => { talk.ctype = p.claimType === "hard" ? "hard" : "soft"; talk.roles = [...p.claims]; renderTalk(); };
-    box.querySelectorAll("[data-tct]").forEach(b => b.onclick = () => { talk.ctype = b.dataset.tct; if (talk.ctype === "hard") talk.roles = talk.roles.slice(0, 1); if (!talk.ctype) talk.roles = []; renderTalk(); });
-    box.querySelectorAll("[data-trole]").forEach(b => b.onclick = () => {
-      const r = b.dataset.trole;
-      if (talk.ctype === "hard") talk.roles = has(r) ? [] : [r];
-      else talk.roles = has(r) ? talk.roles.filter(x => lc(x) !== lc(r)) : [...talk.roles, r];
-      renderTalk();
-    });
-    box.querySelectorAll("[data-trm]").forEach(b => b.onclick = () => { talk.roles.splice(+b.dataset.trm, 1); renderTalk(); });
-    box.querySelector("[data-tback]").onclick = () => { talk.step = "who"; renderTalk(); };
-    box.querySelector("[data-tnext]").onclick = () => { applyTalkClaim(); talk.step = "info"; infoDraft = null; renderTalk(); };
-  } else if (talk.step === "info" || talk.step === "heard") {
-    const own = talk.step === "info";
-    const others = state.players.filter(x => !x.me && x.id !== talk.with);
-    const roleOpts = `<option value="">Character</option>` + TEAMS.filter(t => roles[t].length).map(t => `<optgroup label="${TEAM_LABEL[t]}">${roles[t].map(r => `<option${r === talk.rel.role ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>`).join("");
-    box.innerHTML = `${head}<h2 id="talkTitle">${own ? `Did ${name} tell you what they learned at night?` : `Did ${name} pass on anything they heard?`}</h2>
-      ${own ? `<p>Log each night they told you about, then tap Next. Skip this if they didn't share any.</p>`
-        : `<div class="tip"><span class="label">A claim someone else made to ${name}</span>
-          <div class="talk-rel">
-            <select class="btn" id="trAbout" aria-label="Who made the claim"><option value="">Who</option>${others.map(x => `<option value="${x.id}"${x.id === talk.rel.about ? " selected" : ""}>${esc(pName(x))}</option>`).join("")}</select>
-            <span>said they're the</span>
-            <select class="btn" id="trRole" aria-label="Which character">${roleOpts}</select>
-            <span class="seg" role="group" aria-label="Soft or hard"><button class="u" data-trt="soft" aria-pressed="${talk.rel.type === "soft"}">One of their options</button><button class="u" data-trt="hard" aria-pressed="${talk.rel.type === "hard"}">Hard claim</button></span>
-            <button class="btn sm primary" id="trAdd">Add</button>
-          </div>
-          ${talk.relayed.length ? `<ul>${talk.relayed.map((r, i) => `<li>${esc(pName(pById(r.about)))} told ${name} they're ${r.type === "hard" ? "the" : "possibly the"} ${esc(r.role)} <button class="linkish" data-trdel="${i}">Remove</button></li>`).join("")}</ul>` : ""}
-        </div>
-        <p><b>Night info ${name} passed on.</b> Under <b>Whose info</b>, pick the player it belongs to, or <b>Someone (not sure who yet)</b> for things like "the Investigator saw a Baron".</p>`}
+      <div class="talk-roles">${TEAMS.filter(t => roles[t].length).map(t => `<div class="pick-group"><span class="label"><i style="background:var(--${t})"></i>${TEAM_LABEL[t]}</span><div class="pick-list">${roles[t].map(r => `<button class="pick" data-trole="${esc(r)}" aria-pressed="${has(r)}">${esc(r)}</button>`).join("")}</div></div>`).join("")}</div>` : ""}`)}
+    ${sec("Night info they told you", `
+      <p class="hint">Their own nights go under their name. To pass on someone else's info, change <b>Whose info</b> to that player, or to <b>Someone (not sure who yet)</b> for things like "the Investigator saw a Baron". Each entry saves as soon as you add it.</p>
       <div id="talkSlot" class="tips-col"></div>
-      <div id="talkLogged" class="tips-col"></div>
-      <div class="phase-actions"><button class="btn" data-tback>Back</button><button class="btn primary" data-tnext>${own ? "Next: what they heard" : "Next"}</button></div>`;
-    $("talkSlot").appendChild($("infoPick"));
-    $("talkSlot").appendChild($("infoForm"));
-    if (!infoDraft) infoDraft = own ? newDraft(talk.with, roleFor(talk.with)) : newDraft(ANON, "");
-    renderInfo(); talkLoggedHtml();
-    if (!own) {
-      $("trAbout").onchange = e => { talk.rel.about = e.target.value; };
-      $("trRole").onchange = e => { talk.rel.role = e.target.value; };
-      box.querySelectorAll("[data-trt]").forEach(b => b.onclick = () => { talk.rel.type = b.dataset.trt; renderTalk(); });
-      $("trAdd").onclick = () => {
-        if (!talk.rel.about || !talk.rel.role) { $("trAdd").textContent = "Pick who and which character"; return; }
-        talk.relayed.push({ about: talk.rel.about, role: talk.rel.role, type: talk.rel.type });
-        talk.rel = { about: "", role: "", type: "soft" }; renderTalk();
-      };
-      box.querySelectorAll("[data-trdel]").forEach(b => b.onclick = () => { talk.relayed.splice(+b.dataset.trdel, 1); renderTalk(); });
-    }
-    box.querySelector("[data-tback]").onclick = () => { talk.step = own ? "claim" : "info"; infoDraft = null; renderTalk(); };
-    box.querySelector("[data-tnext]").onclick = () => { talk.step = own ? "heard" : "done"; infoDraft = null; renderTalk(); };
-  } else if (talk.step === "done") {
-    const lines = [
-      talk.ctype && talk.roles.length ? `${talk.ctype === "hard" ? "Hard-claimed" : "Offered"} ${esc(orList(talk.roles))}` : "Didn't give a claim",
-      ...[...state.myInfo, ...heardList()].filter(e => talk.ids.includes(e.id)).map(e => `Night ${e.night} info from ${e.src === ANON ? "someone's" : esc(pName(pById(e.src))) + "'s"} ${esc(e.role)}`),
-      ...talk.relayed.map(r => `Says ${esc(pName(pById(r.about)))} claimed ${esc(r.role)}${r.type === "hard" ? "" : " (as an option)"}`)
-    ];
-    box.innerHTML = `${head}<h2 id="talkTitle">Conversation with ${name}</h2>
-      <ul class="sum-list">${lines.map(l => `<li>${l}</li>`).join("")}</ul>
-      <label class="label" for="tNote">Anything else (optional)</label>
-      <textarea id="tNote" placeholder="Who they suspect, how they came across...">${esc(talk.note)}</textarea>
-      <div class="phase-actions"><button class="btn" data-tback>Back</button><button class="btn primary" data-tsave>Save conversation</button></div>`;
-    $("tNote").oninput = e => { talk.note = e.target.value; };
-    box.querySelector("[data-tback]").onclick = () => { talk.step = "heard"; renderTalk(); };
-    box.querySelector("[data-tsave]").onclick = () => closeTalk(true);
-  }
-  box.querySelectorAll("[data-tcancel]").forEach(b => b.onclick = () => closeTalk(false));
+      <div id="talkLogged" class="tips-col"></div>`)}
+    ${sec(`A claim someone else made to ${name}`, `
+      <div class="talk-rel">
+        <select class="btn" id="trAbout" aria-label="Who made the claim"><option value="">Who</option>${others.map(x => `<option value="${x.id}"${x.id === talk.rel.about ? " selected" : ""}>${esc(pName(x))}</option>`).join("")}</select>
+        <span>said they're the</span>
+        <select class="btn" id="trRole" aria-label="Which character">${roleOpts}</select>
+        <span class="seg" role="group" aria-label="Soft or hard"><button class="u" data-trt="soft" aria-pressed="${talk.rel.type === "soft"}">One of their options</button><button class="u" data-trt="hard" aria-pressed="${talk.rel.type === "hard"}">Hard claim</button></span>
+        <button class="btn sm primary" id="trAdd">Add</button>
+      </div>
+      ${talk.relayed.length ? `<ul class="sum-list">${talk.relayed.map((r, i) => `<li>${esc(pName(pById(r.about)))} told ${name} they're ${r.type === "hard" ? "the" : "possibly the"} ${esc(r.role)} <button class="linkish" data-trdel="${i}">Remove</button></li>`).join("")}</ul>` : ""}`)}
+    ${sec("Anything else (optional)", `<textarea id="tNote" aria-label="Notes on this conversation" placeholder="Who they suspect, how they came across...">${esc(talk.note)}</textarea>`)}
+    <div class="phase-actions"><button class="btn" data-tcancel>Cancel</button><button class="btn primary" data-tsave>Save conversation</button></div>`;
+  $("talkSlot").appendChild($("infoPick"));
+  $("talkSlot").appendChild($("infoForm"));
+  if (!infoDraft) infoDraft = newDraft(talk.with, talk.roles.find(r => infoOf(r)) || roleFor(talk.with));
+  renderInfo(); talkLoggedHtml();
+  // Until something is logged, the night-info form follows the character they claim
+  const followClaim = () => { if (!talk.ids.length && infoDraft && infoDraft.src === talk.with) infoDraft = null; };
+  if (box.querySelector("[data-twho]")) box.querySelector("[data-twho]").onclick = () => { talk.with = ""; infoDraft = null; renderTalk(); };
+  if (box.querySelector("[data-tsame]")) box.querySelector("[data-tsame]").onclick = () => { talk.ctype = p.claimType === "hard" ? "hard" : "soft"; talk.roles = [...p.claims]; followClaim(); renderTalk(); };
+  box.querySelectorAll("[data-tct]").forEach(b => b.onclick = () => { talk.ctype = b.dataset.tct; if (talk.ctype === "hard") talk.roles = talk.roles.slice(0, 1); if (!talk.ctype) talk.roles = []; followClaim(); renderTalk(); });
+  box.querySelectorAll("[data-trole]").forEach(b => b.onclick = () => {
+    const r = b.dataset.trole;
+    if (talk.ctype === "hard") talk.roles = has(r) ? [] : [r];
+    else talk.roles = has(r) ? talk.roles.filter(x => lc(x) !== lc(r)) : [...talk.roles, r];
+    followClaim(); renderTalk();
+  });
+  box.querySelectorAll("[data-trm]").forEach(b => b.onclick = () => { talk.roles.splice(+b.dataset.trm, 1); followClaim(); renderTalk(); });
+  $("trAbout").onchange = e => { talk.rel.about = e.target.value; };
+  $("trRole").onchange = e => { talk.rel.role = e.target.value; };
+  box.querySelectorAll("[data-trt]").forEach(b => b.onclick = () => { talk.rel.type = b.dataset.trt; renderTalk(); });
+  $("trAdd").onclick = () => {
+    if (!talk.rel.about || !talk.rel.role) { $("trAdd").textContent = "Pick who and which character"; return; }
+    talk.relayed.push({ about: talk.rel.about, role: talk.rel.role, type: talk.rel.type });
+    talk.rel = { about: "", role: "", type: "soft" }; renderTalk();
+  };
+  box.querySelectorAll("[data-trdel]").forEach(b => b.onclick = () => { talk.relayed.splice(+b.dataset.trdel, 1); renderTalk(); });
+  $("tNote").oninput = e => { talk.note = e.target.value; };
+  box.querySelector("[data-tcancel]").onclick = () => closeTalk(false);
+  box.querySelector("[data-tsave]").onclick = () => closeTalk(true);
+  box.scrollTop = top;
 }
 
 /* ---------- The story so far ---------- */
@@ -3253,6 +3249,7 @@ function storyHtml(opts = {}) {
       <div class="pc-head">${who(p)}<small>${p.dead ? "dead · " : ""}${s.lastDay ? `last spoke day ${s.lastDay}` : "not spoken to yet"}</small></div>
       <div>${s.told.length ? "Told you" : "Claim"}: ${claim}</div>
       ${s.heardAbout.map(g => `<small>${esc(pName(pById(g.by)))} says they claimed ${esc(orList(g.roles))} (day ${g.day})</small>`).join("")}
+      ${Object.entries(state.answers || {}).flatMap(([d, byP]) => Object.entries(byP[p.id] || {}).map(([q, v]) => `<small>Day ${d}: ${esc(q.length > 110 ? q.slice(0, 107) + "…" : q)} <b>${ANSWER_LABEL[v]}</b>${v === "none" ? " (not held against them)" : ""}</small>`)).join("")}
       ${s.info.map(e => `<small>Night ${e.night} ${esc(e.role)}: ${esc(readEntry(e).means || e.note || "")}${isSecondHand(e) ? ` <i>(via ${esc(pName(pById(e.told.by)))})</i>` : ""}</small>`).join("")}
       ${s.ok.length || s.bad.length ? `<ul>${s.ok.map(t => `<li class="yes-line">${esc(t)}</li>`).join("")}${s.bad.map(b => `<li class="no-line">${esc(b.text)}</li>`).join("")}</ul>` : ""}
     </div>`;
@@ -3294,7 +3291,23 @@ function buildAsks(stories, tips) {
 }
 
 /* ---------- Today's checklist: who to speak to and what to ask ---------- */
-let askOpen = null;
+let askOpen = null, askShown = {};
+// Break a question into separate questions, keeping any lead-in with the question it belongs to
+const isYesNo = q => { const t = q.replace(/^if [^,:]*[,:]\s*/i, ""); return /^(is|are|am|do|does|did|have|has|had|can|could|would|will|was|were|should)\b/i.test(t) && !/, or\b|or at least/i.test(t); };
+function splitQs(text) {
+  const out = []; let pre = "";
+  for (const s of text.split(/(?<=[.?!)])\s+(?=[A-Z(])/)) {
+    const t = s.trim();
+    if (t.startsWith("(") && out.length) out[out.length - 1].text += " " + t;
+    else if (/\?$/.test(t)) { out.push({ text: (pre + t).trim(), yn: isYesNo(t) }); pre = ""; }
+    else pre += t + " ";
+  }
+  if (pre.trim()) { if (out.length) out[out.length - 1].text += " " + pre.trim(); else out.push({ text: pre.trim(), yn: false }); }
+  return out;
+}
+// Answers to yes/no questions, by day, player and question. "Didn't answer" is recorded but never counts against anyone.
+const answersFor = (day, id) => ((state.answers = state.answers || {})[day] = state.answers[day] || {})[id] = state.answers[day][id] || {};
+const ANSWER_LABEL = { yes: "Yes", no: "No", none: "Didn't answer" };
 const spokenList = () => { state.spoken = state.spoken || {}; return (state.spoken[state.day] = state.spoken[state.day] || []); };
 const talkedToday = id => talks().some(t => t.with === id && t.day === state.day);
 const spokenToday = id => talkedToday(id) || spokenList().includes(id);
@@ -3304,14 +3317,17 @@ function checklistHtml(asks, sus) {
   const rows = [...ps].sort((a, b) => (spokenToday(a.id) ? 1 : 0) - (spokenToday(b.id) ? 1 : 0) || (a.dead ? 1 : 0) - (b.dead ? 1 : 0) || (hi(b.id) ? 1 : 0) - (hi(a.id) ? 1 : 0) || ps.indexOf(a) - ps.indexOf(b));
   const done = ps.filter(p => spokenToday(p.id)).length;
   const row = p => {
-    const qs = asks.get(p.id) || [], open = askOpen === p.id, sp = spokenToday(p.id), auto = talkedToday(p.id);
+    const qs = (asks.get(p.id) || []).flatMap(q => splitQs(q.text).map(x => ({ ...x, hi: q.hi }))), open = askOpen === p.id, sp = spokenToday(p.id), auto = talkedToday(p.id);
+    const ans = state.answers?.[state.day]?.[p.id] || {};
+    askShown[p.id] = qs;
     const claim = p.claims.length ? `${isHard(p) ? "" : "options: "}${orList(p.claims)}` : "no claim yet";
     const suspect = sus.some(c => c.p.id === p.id);
     return `<div class="ask-row${sp ? " done" : ""}${open ? " open" : ""}${hi(p.id) && !sp ? " hi" : ""}">
       <button class="ask-tick" data-asktick="${p.id}" aria-pressed="${sp}" aria-label="${sp ? "Spoken to" : "Mark as spoken to"}: ${esc(pName(p))}" ${auto ? "disabled title=\"You logged a conversation with them today\"" : ""}>✓</button>
       <button class="ask-name" data-askopen="${p.id}" aria-expanded="${open}"><b>${esc(pName(p))}</b>${p.dead ? " <small>(dead)</small>" : ""}${suspect ? ` <span class="pill likely">Suspect</span>` : ""}<small>${esc(claim)} · ${qs.length} question${qs.length === 1 ? "" : "s"}</small></button>
       ${open ? `<div class="ask-body">
-        <ul>${qs.map(q => `<li${q.hi ? ` class="ask-hi"` : ""}>${esc(q.text)}</li>`).join("")}</ul>
+        <ul>${qs.map((q, i) => `<li${q.hi ? ` class="ask-hi"` : ""}>${esc(q.text)}${q.yn ? `<span class="seg yn" role="group" aria-label="Their answer">${["yes", "no", "none"].map(v => `<button class="u" data-ans="${p.id}" data-ansq="${i}" data-ansv="${v}" aria-pressed="${ans[q.text] === v}">${ANSWER_LABEL[v]}</button>`).join("")}</span>` : ""}</li>`).join("")}</ul>
+        ${qs.some(q => q.yn) ? `<small>Not answering is common and isn't held against anyone.</small>` : ""}
         ${suspect ? `<small>On your suspect list: ${esc([...new Set(sus.find(c => c.p.id === p.id).why)].slice(0, 2).join(", "))}.</small>` : ""}
         <div class="row"><button class="btn sm primary" data-asktalk="${p.id}">Log what they said</button>${auto ? "" : `<button class="btn sm" data-asktick="${p.id}">${sp ? "Not spoken to yet" : "Spoke to them, nothing new"}</button>`}</div>
       </div>` : ""}
@@ -3338,13 +3354,21 @@ function renderStory() {
     if (!l.includes(id) && askOpen === id) askOpen = null;
     save(); renderStory();
   });
+  $("storyView").querySelectorAll("[data-ans]").forEach(b => b.onclick = () => {
+    const id = b.dataset.ans, q = askShown[id]?.[+b.dataset.ansq];
+    if (!q) return;
+    const a = answersFor(state.day, id), v = b.dataset.ansv;
+    if (a[q.text] === v) delete a[q.text]; else a[q.text] = v;
+    if (!spokenList().includes(id)) state.spoken[state.day] = [...spokenList(), id];
+    save(); renderStory();
+  });
   $("storyView").querySelectorAll("[data-asktalk]").forEach(b => b.onclick = () => openTalk(b.dataset.asktalk));
   $("storyView").querySelectorAll("[data-tdel]").forEach(b => b.onclick = () => { state.talks = talks().filter(t => t.id !== b.dataset.tdel); save(); render(); });
   $("bStory").textContent = bad || "";
   $("bStory").classList.toggle("red", bad > 0);
 }
 $("talkBtn").onclick = () => openTalk("");
-$("talkOverlay").addEventListener("click", e => { if (e.target === $("talkOverlay") && talk && talk.step === "who") closeTalk(false); });
+$("talkOverlay").addEventListener("click", e => { if (e.target === $("talkOverlay") && talk && !talk.with) closeTalk(false); });
 
 /* ---------- Tabs ---------- */
 const TAB_KEY = "clocktower-notebook-tab";
