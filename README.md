@@ -2,7 +2,7 @@
 
 ## Clocktower Companion
 
-Open `index.html` in any web browser for a cover page that lets you pick one of four *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, the **Storyteller's Grimoire**, or the **Clockwork Storyteller**, which runs a game of Trouble Brewing by itself when nobody wants to be Storyteller. Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
+Open `index.html` in any web browser for a cover page that lets you pick one of five *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, the **Storyteller's Grimoire**, the **Clockwork Storyteller**, which runs a game of Trouble Brewing by itself when nobody wants to be Storyteller, or **Solo Practice**, where you play Trouble Brewing on your own against bots. Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
 
 ## Clocktower Notebook
 
@@ -91,6 +91,22 @@ An automated Storyteller for *Trouble Brewing*, so nobody has to sit out. Pick i
 - Voice: says whose turn it is to take the phone (the next seat round the circle, which is also ringed on the table), and reads out deaths, executions, votes, Slayer shots, timer warnings and the winner. It never reads anything private. In the Menu you can turn it off, test it, pick any of the voices on your phone and set its speed
 - Text size: Normal, Large or Extra large, in the Menu
 - The discussion timer shows in very large numbers, turns amber in the last 30 seconds and red at time's up, and has a +1 min button
+
+Games are saved in the browser on the device you use. Nothing is uploaded anywhere.
+
+## Solo Practice
+
+Play *Trouble Brewing* on your own. Pick it from the Clocktower Companion cover page, or open `solo.html` directly. You take one seat, bots fill the rest, and the app is the Storyteller.
+
+- Setup: your name, 5 to 15 players, and whether you want to be good, evil or dealt at random. Characters, the Drunk, Demon bluffs and the red herring are dealt as in the Clockwork Storyteller. With 7 or more players the evil team (bots and you) knows each other and the bluffs
+- Nights: make your own choice (Poisoner, Monk, Imp, Fortune Teller, Butler, or the Ravenkeeper when killed); the bots choose too, and the night is resolved in the real wake order with the same Storyteller rules as the Clockwork Storyteller (drunk and poisoned info, Spy and Recluse registering, Mayor bounces, star-passes, the Scarlet Woman)
+- Town talk: each morning the bots claim characters (some wait a day), share their info and say who they suspect and why. Tap any seat to ask that player what they are, what they've learned, who they suspect or who they trust, or to say you suspect or trust them. A bot you accuse defends itself
+- Say in town: claim a character, share what you really learned with one tap, or make up info (Washerwoman, Librarian, Investigator, Chef, Empath, Fortune Teller, Undertaker, Ravenkeeper, Monk) to bluff
+- Nominations: nominate from a player's seat, or let the town nominate. Each nomination shows the nominator's reason and the nominee's defence; voting goes clockwise from the nominee, so you see the hands before yours. Ghost votes, the Butler, the Virgin, Slayer shots (yours and the bots'), the Saint and the Mayor all work
+- How the bots think: every bot weighs every possible Demon and Minion team against everything said in public (Empath and Chef numbers, Investigator, Washerwoman and Librarian pings, Fortune Teller results, Undertaker and Ravenkeeper reveals, double claims, changed claims, night deaths, Virgin and Slayer results), plus its own info. Info only counts against a team if its source is good in that team, and good info can still be wrong if its source is drunk or poisoned. Each bot has its own hunches, so they disagree. Good bots tell the truth; evil bots bluff (using the Demon's bluffs when they know them), make up info that frames a good player, protect their team in votes, and take over the vote once they have the numbers. The Imp goes after info characters and its accusers; the Poisoner targets info characters
+- Claims and info: a table of every player's claim (and whether it changed), how they died, and everything they've shared
+- Coach (in the Menu, off by default): each player's chance of being the Demon from what you know; if you're evil and know your team, how suspicious the town finds each player instead
+- Game over: You win or You lose, the Grimoire to reveal seat by seat, everything said in town, and the Storyteller's log, including every bot's bluff and each piece of made-up info
 
 Games are saved in the browser on the device you use. Nothing is uploaded anywhere.
 

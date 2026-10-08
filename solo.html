@@ -1,0 +1,1674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Solo">
+<title>Solo Practice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+/* Solo practice against bots. Dark-first, same palette as the Clocktower Companion apps. */
+:root {
+  --bg: #15121b; --surface: #211c29; --surface-2: #2b2534; --line: #3b3346;
+  --fg: #ece6f2; --muted: #a69cb3; --brass: #d4ab55;
+  --parch: #efe4c9; --parch-ink: #2a2118;
+  --good: #4c8ce4; --evil: #d8435a;
+  --townsfolk: #3e7fd6; --outsider: #3aa0b5; --minion: #d4485e; --demon: #9e1f33;
+  --ok: #3aa35c; --warn: #e3a53c;
+  --felt-1: #2c2436; --felt-2: #1b1622;
+  --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+    --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+    --good: #2463c2; --evil: #be2a42;
+    --townsfolk: #2463c2; --outsider: #1f8296; --minion: #c0344b; --demon: #8a1428; --ok: #2a9150; --warn: #b7791f;
+    --felt-1: #ffffff; --felt-2: #e2dbe9;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+  --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+  --good: #2463c2; --evil: #be2a42;
+  --townsfolk: #2463c2; --outsider: #1f8296; --minion: #c0344b; --demon: #8a1428; --ok: #2a9150; --warn: #b7791f;
+  --felt-1: #ffffff; --felt-2: #e2dbe9;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #15121b; --surface: #211c29; --surface-2: #2b2534; --line: #3b3346;
+  --fg: #ece6f2; --muted: #a69cb3; --brass: #d4ab55;
+  --good: #4c8ce4; --evil: #d8435a;
+  --townsfolk: #3e7fd6; --outsider: #3aa0b5; --minion: #d4485e; --demon: #9e1f33; --ok: #3aa35c; --warn: #e3a53c;
+  --felt-1: #2c2436; --felt-2: #1b1622;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 1rem; line-height: 1.45; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+.wrap { max-width: 720px; margin: 0 auto; padding: 0 16px 48px; display: grid; gap: 14px; }
+.bar { display: flex; align-items: center; gap: 10px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; margin-inline: -16px; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.brand { font-family: var(--font-display); font-weight: 400; font-size: 1.45rem; color: var(--brass); margin: 0; line-height: 1; margin-right: auto; }
+.phase { font-weight: 800; font-size: .9rem; color: var(--muted); white-space: nowrap; }
+@media (max-width: 420px) { .brand { font-size: 1.15rem; } }
+
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 16px; font-weight: 700; min-height: 44px; }
+.btn:hover { border-color: var(--brass); }
+.btn.primary { background: var(--brass); color: #1a1408; border-color: var(--brass); }
+.btn.sm { padding: 5px 11px; min-height: 34px; font-size: .88rem; }
+.btn.danger { color: var(--evil); }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .45; cursor: default; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.card h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.45rem; color: var(--brass); }
+.card h3 { margin: 0; font-size: .74rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+.card p { margin: 0; }
+.hint { font-size: .88rem; color: var(--muted); }
+.muted { color: var(--muted); }
+textarea { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 220px; resize: vertical; }
+select.inp { flex: 1 1 14em; min-width: 0; max-width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 44px; }
+ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+
+/* Name grid for passing the phone */
+.names { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.name-btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 12px; padding: 14px 10px; font-weight: 800; font-size: 1.05rem; min-height: 56px; overflow-wrap: anywhere; }
+.name-btn:hover:not(:disabled) { border-color: var(--brass); }
+.name-btn:disabled { opacity: .45; cursor: default; font-weight: 600; }
+
+/* Player picker */
+.pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.pc { border: 2px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 10px 8px; font-weight: 700; min-height: 48px; overflow-wrap: anywhere; }
+.pc.on { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 22%, var(--surface-2)); }
+.pc.dead { color: var(--muted); }
+
+/* Private screens */
+.private { border-color: var(--brass); }
+.big-name { font-family: var(--font-display); font-size: 2.2rem; color: var(--brass); text-align: center; line-height: 1.1; overflow-wrap: anywhere; }
+.role-card { background: var(--parch); color: var(--parch-ink); border-radius: 12px; padding: 14px 16px; display: grid; gap: 4px; border-left: 6px solid var(--townsfolk); }
+.role-card.outsider { border-left-color: var(--outsider); } .role-card.minion { border-left-color: var(--minion); } .role-card.demon { border-left-color: var(--demon); }
+.role-name { font-family: var(--font-display); font-size: 1.7rem; line-height: 1.1; }
+.role-team { font-weight: 800; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; }
+.role-card.townsfolk .role-team, .role-card.outsider .role-team { color: #1f5bb0; }
+.role-card.minion .role-team, .role-card.demon .role-team { color: #a3203a; }
+.info { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.info b { color: var(--brass); }
+.msg { background: color-mix(in srgb, var(--evil) 16%, var(--surface-2)); border: 1px solid var(--evil); border-radius: 10px; padding: 10px 12px; }
+.hist { display: grid; gap: 8px; }
+.hist-when { font-size: .74rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+
+/* Grimoire table (Spy and end of game) */
+table.grim { width: 100%; border-collapse: collapse; font-size: .92rem; }
+table.grim td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.grim tr.dead td:first-child { text-decoration: line-through; color: var(--muted); }
+.tag { display: inline-block; font-size: .72rem; font-weight: 800; border-radius: 99px; padding: 1px 8px; margin: 1px 2px 1px 0; background: var(--surface-2); border: 1px solid var(--line); white-space: nowrap; }
+.tag.evil { color: var(--evil); border-color: var(--evil); } .tag.good { color: var(--good); border-color: var(--good); }
+
+/* Town square */
+.banner { border-radius: 12px; padding: 12px 14px; font-weight: 700; background: var(--surface-2); border: 1px solid var(--line); }
+.banner.evil { border-color: var(--evil); color: var(--evil); }
+.timer { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1.2rem; }
+.big-timer { text-align: center; font-family: var(--font-display); font-variant-numeric: tabular-nums; font-size: clamp(4rem, 26vw, 9rem); line-height: 1; color: var(--brass); padding: 10px 0 4px; }
+.big-timer.low { color: var(--warn); }
+.big-timer.up { color: var(--evil); font-size: clamp(3rem, 17vw, 6rem); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .big-timer.up { animation: none; } }
+.timer-row { justify-content: center; }
+.tok.next { box-shadow: 0 0 0 5px var(--brass), 0 3px 10px rgba(0,0,0,.35); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 8px 14px; font-weight: 700; min-height: 44px; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--brass); color: #1a1408; }
+.setting { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.setting > span { font-weight: 700; min-width: 5.5em; }
+.win { text-align: center; font-family: var(--font-display); font-size: clamp(3.2rem, 17vw, 7rem); line-height: 1; padding: 28px 12px; border-radius: 14px; border: 2px solid currentColor; text-wrap: balance; }
+.win.good { color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--surface)); }
+.win.evil { color: var(--evil); background: color-mix(in srgb, var(--evil) 14%, var(--surface)); }
+.win-reason { text-align: center; font-size: 1.2rem; text-wrap: balance; }
+
+/* The table: seats in a circle, clockwise from the top */
+.table { position: relative; width: 100%; max-width: 560px; margin: 4px auto; aspect-ratio: 1; container-type: inline-size; border-radius: 50%; background: radial-gradient(circle at 50% 45%, var(--felt-1) 0%, var(--felt-2) 72%); border: 1px solid var(--line); }
+.tok { position: absolute; width: var(--d); height: var(--d); transform: translate(-50%, -50%); border-radius: 50%; display: grid; place-items: center; padding: 4%; background: var(--parch); color: var(--parch-ink); border: 3px solid var(--line); box-shadow: 0 3px 10px rgba(0,0,0,.35); font: 800 var(--fs)/1.05 var(--font-body); text-align: center; }
+.tok-nm { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--nfs); }
+button.tok { cursor: pointer; border-color: var(--brass); animation: glow 1.8s ease-in-out infinite; }
+button.tok:hover { transform: translate(-50%, -50%) scale(1.07); }
+.tok.done { opacity: .5; }
+.tok.dead { filter: grayscale(1) brightness(.68); }
+.tok.block { border-color: var(--evil); box-shadow: 0 0 0 3px var(--evil); }
+.tok .mark { position: absolute; top: -6%; right: -10%; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 99px; padding: 1px 5px; font-size: max(10px, calc(var(--fs) * .8)); white-space: nowrap; }
+.tok-sub { font-weight: 700; font-size: var(--sfs); color: color-mix(in srgb, var(--parch-ink) 72%, transparent); white-space: nowrap; }
+.tok:has(.tok-sub) { align-content: center; gap: 1px; }
+.tok.flipped { animation: none; border-width: 4px; }
+.tok.flipped.good { border-color: var(--good); } .tok.flipped.evil { border-color: var(--evil); }
+.tok.flipped.minion, .tok.flipped.demon { background: color-mix(in srgb, var(--evil) 22%, var(--parch)); }
+.tok.flipped.dead { filter: none; opacity: .72; }
+.tok.picked { box-shadow: 0 0 0 4px var(--brass), 0 3px 10px rgba(0,0,0,.35); }
+.reveal-detail { display: grid; gap: 8px; }
+.reveal-detail h3 { font-size: .9rem; color: var(--fg); }
+.table-mid { position: absolute; inset: 27%; display: grid; place-content: center; text-align: center; gap: 2px; }
+.mid-big { font-family: var(--font-display); color: var(--brass); font-size: 11cqw; line-height: 1; }
+.mid-sm { color: var(--muted); font-weight: 700; font-size: max(11px, 3.6cqw); }
+@keyframes glow { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--brass) 40%, transparent), 0 3px 10px rgba(0,0,0,.35); } }
+@media (prefers-reduced-motion: reduce) { button.tok { animation: none; } }
+.log { display: grid; gap: 4px; font-size: .92rem; }
+.log .when { font-weight: 800; color: var(--brass); margin-top: 8px; }
+.err { color: var(--evil); font-weight: 700; }
+.wait { text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+.wait b { color: var(--brass); font-size: 1.2rem; }
+.pc:disabled { opacity: .55; cursor: default; }
+
+/* Solo practice: the town talk, votes and your notebook */
+.feed { display: grid; gap: 6px; }
+.say { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.say .who { font-weight: 800; color: var(--brass); margin-right: 4px; }
+.say.me { border-color: var(--good); background: color-mix(in srgb, var(--good) 10%, var(--surface-2)); }
+.say.me .who { color: var(--good); }
+.say.sys { background: transparent; border-style: dashed; color: var(--muted); }
+.say.sys b { color: var(--fg); }
+.say.dead .who::after { content: " ☠"; }
+details > summary { cursor: pointer; font-weight: 700; color: var(--muted); }
+details[open] > summary { margin-bottom: 8px; }
+.votes { display: flex; flex-wrap: wrap; gap: 6px; }
+.vote-chip { border: 1px solid var(--line); border-radius: 99px; padding: 2px 10px; font-weight: 700; font-size: .88rem; background: var(--surface-2); }
+.vote-chip.yes { border-color: var(--evil); color: var(--evil); }
+.vote-chip.no { color: var(--muted); }
+.vote-chip.wait { border-style: dashed; color: var(--muted); }
+table.notes { width: 100%; border-collapse: collapse; font-size: .9rem; }
+table.notes th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 4px; border-bottom: 1px solid var(--line); }
+table.notes td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.notes tr.dead td:first-child { text-decoration: line-through; color: var(--muted); }
+table.notes tr.sel td { background: color-mix(in srgb, var(--brass) 12%, transparent); }
+table.notes .facts { display: grid; gap: 2px; color: var(--muted); font-size: .85rem; }
+.pct { font-variant-numeric: tabular-nums; font-weight: 800; }
+.form { display: grid; gap: 10px; }
+.form label { display: grid; gap: 4px; font-weight: 700; font-size: .9rem; }
+.inp { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 44px; max-width: 100%; }
+input.inp { width: 100%; }
+.panel { border-color: var(--brass); }
+.panel-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.panel-head h2 { margin-right: auto; }
+.share-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.share-row .info { flex: 1; }
+.result { font-size: 1.1rem; font-weight: 700; }
+/* Seats you can tap to talk to: quieter than the glowing turn tokens */
+button.tok.seat { animation: none; border-color: var(--line); }
+button.tok.seat.picked { border-color: var(--brass); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="btn sm home-link" href="index.html" title="Choose another app" aria-label="All apps" style="text-decoration:none;color:inherit;display:inline-grid;place-items:center">&#8962;</a>
+    <h1 class="brand">Solo Practice</h1>
+    <span class="phase" id="phase"></span>
+    <button class="btn sm" data-act="menu">Menu</button>
+  </header>
+  <main id="app" class="wrap" style="padding:0;width:100%"></main>
+</div>
+<script>
+'use strict';
+const KEY = 'clocktower-solo-v1';
+
+/* ---------- Trouble Brewing ---------- */
+const ROLES = {
+  'Washerwoman': { type: 'townsfolk', text: 'You start knowing that 1 of 2 players is a particular Townsfolk.' },
+  'Librarian': { type: 'townsfolk', text: 'You start knowing that 1 of 2 players is a particular Outsider (or that zero are in play).' },
+  'Investigator': { type: 'townsfolk', text: 'You start knowing that 1 of 2 players is a particular Minion.' },
+  'Chef': { type: 'townsfolk', text: 'You start knowing how many pairs of evil players are sitting next to each other.' },
+  'Empath': { type: 'townsfolk', text: 'Each night, you learn how many of your 2 alive neighbours are evil.' },
+  'Fortune Teller': { type: 'townsfolk', text: 'Each night, choose 2 players: you learn if either is the Demon. There is a good player that registers as the Demon to you.' },
+  'Undertaker': { type: 'townsfolk', text: 'Each night except the first, you learn which character died by execution today.' },
+  'Monk': { type: 'townsfolk', text: 'Each night except the first, choose a player (not yourself): they are safe from the Demon tonight.' },
+  'Ravenkeeper': { type: 'townsfolk', text: 'If you die at night, you are woken to choose a player: you learn their character.' },
+  'Virgin': { type: 'townsfolk', text: 'The 1st time you are nominated, if the nominator is a Townsfolk, they are executed immediately.' },
+  'Slayer': { type: 'townsfolk', text: 'Once per game, during the day, publicly choose a player: if they are the Demon, they die.' },
+  'Soldier': { type: 'townsfolk', text: 'You are safe from the Demon.' },
+  'Mayor': { type: 'townsfolk', text: 'If only 3 players live and no execution occurs, your team wins. If you die at night, another player might die instead.' },
+  'Butler': { type: 'outsider', text: 'Each night, choose a player (not yourself): tomorrow, you may only vote if they are voting too.' },
+  'Drunk': { type: 'outsider', text: 'You do not know you are the Drunk. You think you are a Townsfolk character, but you are not.' },
+  'Recluse': { type: 'outsider', text: 'You might register as evil and as a Minion or Demon, even if dead.' },
+  'Saint': { type: 'outsider', text: 'If you die by execution, your team loses.' },
+  'Poisoner': { type: 'minion', text: 'Each night, choose a player: they are poisoned tonight and tomorrow day.' },
+  'Spy': { type: 'minion', text: 'Each night, you see the Grimoire. You might register as good and as a Townsfolk or Outsider, even if dead.' },
+  'Scarlet Woman': { type: 'minion', text: 'If there are 5 or more players alive and the Demon dies, you become the Demon.' },
+  'Baron': { type: 'minion', text: 'There are extra Outsiders in play. [+2 Outsiders]' },
+  'Imp': { type: 'demon', text: 'Each night except the first, choose a player: they die. If you kill yourself this way, a Minion becomes the Imp.' },
+};
+const TF = Object.keys(ROLES).filter(r => ROLES[r].type === 'townsfolk');
+const OS = Object.keys(ROLES).filter(r => ROLES[r].type === 'outsider');
+const MN = Object.keys(ROLES).filter(r => ROLES[r].type === 'minion');
+const CLAIMABLE = [...TF, ...OS.filter(r => r !== 'Drunk')];
+const INFO_ROLES = ['Washerwoman', 'Librarian', 'Investigator', 'Chef', 'Empath', 'Fortune Teller', 'Undertaker', 'Ravenkeeper', 'Monk'];
+// Townsfolk, Outsiders, Minions, Demons
+const COUNTS = { 5: [3,0,1,1], 6: [3,1,1,1], 7: [5,0,1,1], 8: [5,1,1,1], 9: [5,2,1,1], 10: [7,0,2,1], 11: [7,1,2,1], 12: [7,2,2,1], 13: [9,0,3,1], 14: [9,1,3,1], 15: [9,2,3,1] };
+// How often the Storyteller's choices go a particular way
+const LIE = 0.8;            // a drunk or poisoned player gets false info
+const SPY_GOOD = 0.5;       // the Spy registers as good
+const RECLUSE_EVIL = 0.4;   // the Recluse registers as evil
+const MAYOR_BOUNCE = 0.5;   // a Demon kill on the Mayor goes to someone else
+const NAMES = ['Ada', 'Ben', 'Cleo', 'Dev', 'Esme', 'Finn', 'Gus', 'Hana', 'Ivo', 'Juno', 'Kit', 'Lena', 'Milo', 'Nia', 'Oscar', 'Pip', 'Quinn', 'Rosa', 'Sol', 'Tess', 'Uma', 'Vic', 'Wren', 'Yara', 'Zed'];
+
+/* ---------- State ---------- */
+let G = load();
+const PREFS_KEY = 'clocktower-solo-prefs';
+let prefs = { text: 1, coach: false, n: 8, team: 'random', name: '' };
+try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREFS_KEY)) || {}); } catch (e) {}
+function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {} applyPrefs(); }
+function applyPrefs() { document.documentElement.style.fontSize = (prefs.text * 100) + '%'; }
+applyPrefs();
+
+let U = { view: G ? 'game' : 'home', sel: [], need: 0, menu: false, panel: null, confirmEnd: false, form: null, bc: null };
+
+function load() { try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+function save() { try { if (G) localStorage.setItem(KEY, JSON.stringify(G)); else localStorage.removeItem(KEY); } catch (e) {} }
+
+const rnd = n => Math.floor(Math.random() * n);
+const pick = a => a[rnd(a.length)];
+const chance = p => Math.random() < p;
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const P = id => G.players.find(p => p.id === id);
+const me = () => P(G.me);
+const nm = id => id === G.me ? 'you' : esc(P(id).name);
+const Nm = id => id === G.me ? 'You' : esc(P(id).name);
+const alive = () => G.players.filter(p => p.alive);
+const bots = () => G.players.filter(p => p.id !== G.me);
+const believed = p => p.role === 'Drunk' ? p.fake : p.role;
+const isGood = p => ROLES[p.role].type === 'townsfolk' || ROLES[p.role].type === 'outsider';
+const inPlay = r => G.players.some(p => p.role === r);
+const poisonerAlive = () => G.players.some(p => p.alive && p.role === 'Poisoner');
+const poisoned = p => G.poison === p.id && poisonerAlive();
+const sober = p => p.role !== 'Drunk' && !poisoned(p);
+const why = p => p.role === 'Drunk' ? 'they are the Drunk' : 'they are poisoned';
+const label = () => (G.time === 'night' ? 'Night ' : 'Day ') + G.n;
+const plural = (n, one, many) => n === 1 ? one : many;
+const list = names => names.length < 2 ? names.join('') : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+const claimOf = id => P(id).claim || null;
+const bump = () => { G.ver++; };
+
+function log(text) { G.log.push({ when: label(), text }); }
+function tell(id, lines) { G.info[id].push({ when: label(), lines }); }
+function message(id, html) { G.inbox[id].push(html); tell(id, [html]); }
+function win(team, reason) { if (!G.winner) { G.winner = { team, reason }; log(`${team === 'good' ? 'Good' : 'Evil'} wins: ${reason}`); } }
+function checkTwoLeft() {
+  if (!G.winner && alive().length <= 2 && alive().some(p => p.role === 'Imp')) win('evil', 'Only two players are left alive, and one of them is the Demon.');
+  if (!G.winner && !alive().some(isGood) && alive().some(p => p.role === 'Imp')) win('evil', 'Every good player is dead.');
+}
+// Something everyone hears: a player speaking in town, or the Storyteller (who = null)
+function say(who, text) { G.feed.push({ when: label(), who, text }); bump(); }
+function sys(text) { say(null, text); }
+
+function teamWord(r) {
+  return { townsfolk: 'Townsfolk · good', outsider: 'Outsider · good', minion: 'Minion · evil', demon: 'Demon · evil' }[ROLES[r].type];
+}
+function roleCard(r) {
+  return `<div class="role-card ${ROLES[r].type}"><div class="role-team">${teamWord(r)}</div><div class="role-name">${esc(r)}</div><div>${esc(ROLES[r].text)}</div></div>`;
+}
+function bluffLine() { return `Three good characters not in play, safe to bluff as: <b>${G.bluffs.map(esc).join(', ')}</b>.`; }
+function breakdown(n) {
+  const [t, o, m] = COUNTS[n];
+  return `${t} Townsfolk, ${o} ${plural(o, 'Outsider', 'Outsiders')}, ${m} ${plural(m, 'Minion', 'Minions')} and the Imp (a Baron swaps 2 Townsfolk for 2 Outsiders).`;
+}
+
+/* ---------- Setup ---------- */
+function newGame(opts) {
+  const n = opts.n;
+  let [t, o, m] = COUNTS[n];
+  const minions = shuffle(MN).slice(0, m);
+  if (minions.includes('Baron')) { t -= 2; o += 2; }
+  const dealt = shuffle(['Imp', ...minions, ...shuffle(OS).slice(0, o), ...shuffle(TF).slice(0, t)]);
+  const evilRole = r => ['minion', 'demon'].includes(ROLES[r].type);
+  const seat = opts.team === 'random' ? rnd(n) : pick(dealt.map((r, i) => i).filter(i => evilRole(dealt[i]) === (opts.team === 'evil')));
+  const myName = (opts.name || '').trim() || 'You';
+  const names = shuffle(NAMES.filter(x => x.toLowerCase() !== myName.toLowerCase())).slice(0, n - 1);
+  names.splice(seat, 0, myName);
+  G = {
+    v: 1, ver: 0, n: 1, time: 'night', stage: 'night', me: seat, opts,
+    players: names.map((name, i) => ({ id: i, name, role: dealt[i], alive: true, ghost: true, used: false, master: null, claim: null, claimHist: [], deadFrom: null })),
+    log: [], info: {}, inbox: {}, facts: {}, poison: null, bluffs: [], redHerring: null,
+    lastExecuted: null, winner: null, announce: null, dayS: null, dawnInfo: {}, diedTonight: [], rkWait: false,
+    feed: [], pub: [], deaths: [], virgins: [], nominatedEver: [], shots: [], opinions: [], execs: {}, vote: null, lastVote: null,
+  };
+  G.players.forEach(p => { G.info[p.id] = []; G.inbox[p.id] = []; G.facts[p.id] = []; });
+  const drunk = G.players.find(p => p.role === 'Drunk');
+  if (drunk) drunk.fake = pick(TF.filter(r => !inPlay(r)));
+  G.bluffs = shuffle([...TF, ...OS].filter(r => r !== 'Drunk' && !inPlay(r) && !(drunk && drunk.fake === r))).slice(0, 3);
+  G.redHerring = pick(G.players.filter(isGood)).id;
+
+  log(`Setup for ${n} players: ` + G.players.map(p => `${esc(p.name)}${p.id === G.me ? ' (you)' : ''} is the ${p.role === 'Drunk' ? `Drunk (thinks they're the ${p.fake})` : p.role}`).join('; ') + '.');
+  log(`Demon bluffs: ${G.bluffs.join(', ')}. The Fortune Teller's red herring is ${esc(P(G.redHerring).name)}.`);
+
+  const imp = G.players.find(p => p.role === 'Imp');
+  const minionPs = G.players.filter(p => MN.includes(p.role));
+  G.players.forEach(p => {
+    const lines = [roleCard(believed(p))];
+    if (n >= 7) {
+      if (MN.includes(p.role)) {
+        lines.push(`The Demon is <b>${Nm(imp.id)}</b>.`);
+        const mates = minionPs.filter(q => q.id !== p.id);
+        if (mates.length) lines.push(`Your fellow ${plural(mates.length, 'Minion is', 'Minions are')} <b>${list(mates.map(q => Nm(q.id)))}</b>.`);
+      }
+      if (p.role === 'Imp') {
+        lines.push(`Your ${plural(minionPs.length, 'Minion is', 'Minions are')} <b>${list(minionPs.map(q => Nm(q.id)))}</b>.`);
+        lines.push(bluffLine());
+      }
+    } else if (!isGood(p)) lines.push('With fewer than 7 players, the evil team does not learn who each other are.');
+    tell(p.id, lines);
+  });
+
+  // Each bot's personality, and the evil team's plans
+  bots().forEach(p => { p.bot = { open: 0.4 + Math.random() * 0.55, bias: null, bluff: null, frame: null, fakes: [], fakeN: 0, sharedN: 0, shot: false, refused: 0 }; });
+  const evilBots = bots().filter(p => !isGood(p)).sort((a, b) => (b.role === 'Imp') - (a.role === 'Imp'));
+  let bi = 0;
+  evilBots.forEach(p => { if (knowsBluffs(p) && bi < G.bluffs.length) p.bot.bluff = G.bluffs[bi++]; });
+  evilBots.forEach(p => log(`${esc(p.name)} (${p.role}) plans to say they are the ${p.bot.bluff || 'something not yet claimed'}.`));
+
+  G.duskAlive = alive().map(p => p.id);
+}
+// The Demon learns the bluffs with 7 or more players and shares them with the Minions; the Spy sees them in the Grimoire
+const knowsBluffs = p => !isGood(p) && (G.players.length >= 7 || p.role === 'Spy');
+// The evil players this player knows about (just themselves if they are good, or evil in a small game)
+function knownTeam(p) {
+  if (isGood(p)) return [];
+  if (G.players.length >= 7 || p.role === 'Spy') return G.players.filter(q => !isGood(q)).map(q => q.id);
+  return [p.id];
+}
+
+/* ---------- How players register to abilities ---------- */
+function reg(q, want) {
+  if (q.role === 'Spy' && sober(q) && chance(SPY_GOOD)) {
+    const type = want === 'outsider' ? 'outsider' : (want === 'townsfolk' || chance(0.8)) ? 'townsfolk' : 'outsider';
+    const pool = (type === 'townsfolk' ? TF : OS).filter(r => r !== 'Drunk');
+    const free = pool.filter(r => !inPlay(r));
+    return { good: true, type, role: pick(free.length ? free : pool), spoof: true };
+  }
+  if (q.role === 'Recluse' && sober(q) && chance(RECLUSE_EVIL)) {
+    const type = want === 'minion' || want === 'demon' ? want : chance(0.3) ? 'demon' : 'minion';
+    return { good: false, type, role: type === 'demon' ? 'Imp' : pick(MN), spoof: true };
+  }
+  return { good: isGood(q), type: ROLES[q.role].type, role: q.role };
+}
+const others = p => G.players.filter(q => q.id !== p.id);
+function aliveNeighbours(p) {
+  const N = G.players.length, out = [];
+  for (const dir of [-1, 1]) {
+    for (let k = 1; k < N; k++) {
+      const q = G.players[((p.id + dir * k) % N + N) % N];
+      if (q.alive && q.id !== p.id) { if (!out.includes(q)) out.push(q); break; }
+    }
+  }
+  return out;
+}
+function noteInfo(p, text, lied, extra) {
+  const br = believed(p);
+  const tag = lied ? ` <i>(false: ${why(p)})</i>` : !sober(p) ? ` <i>(true, though ${why(p)})</i>` : '';
+  log(`${esc(br)} ${esc(p.name)} learned: ${text}${tag}${extra ? ' ' + extra : ''}`);
+}
+function onePairInfo(p, kind) {
+  const pool = kind === 'townsfolk' ? TF : kind === 'outsider' ? OS : MN;
+  const role = { townsfolk: 'Washerwoman', outsider: 'Librarian', minion: 'Investigator' }[kind];
+  let lie = !sober(p) && chance(LIE);
+  if (!lie) {
+    const hit = shuffle(others(p)).map(q => ({ q, r: reg(q, kind) })).find(x => x.r.type === kind);
+    if (hit) {
+      const other = pick(others(p).filter(q => q.id !== hit.q.id));
+      const pair = shuffle([hit.q, other]);
+      return { text: `One of <b>${Nm(pair[0].id)}</b> and <b>${Nm(pair[1].id)}</b> is the <b>${esc(hit.r.role)}</b>.`, lie: false, extra: hit.r.spoof ? `(${esc(hit.q.name)} is really the ${hit.q.role})` : '', f: { k: 'pair', role, a: pair[0].id, b: pair[1].id, char: hit.r.role } };
+    }
+    if (kind === 'outsider' && sober(p)) return { text: 'There are <b>no Outsiders</b> in play.', lie: false, f: { k: 'noOut', role } };
+    lie = true;
+  }
+  const pair = shuffle(others(p)).slice(0, 2), char = pick(pool.filter(r => r !== believed(p)));
+  return { text: `One of <b>${Nm(pair[0].id)}</b> and <b>${Nm(pair[1].id)}</b> is the <b>${esc(char)}</b>.`, lie: true, f: { k: 'pair', role, a: pair[0].id, b: pair[1].id, char } };
+}
+function falseCharacter(q) { return isGood(q) ? pick([...MN, 'Imp']) : pick(TF); }
+
+/* ---------- Deaths ---------- */
+function killAtNight(t) {
+  if (!t.alive) return;
+  die(t, 'night');
+  G.diedTonight.push(t.id);
+}
+function starPass(imp) {
+  die(imp, 'night', true);
+  G.diedTonight.push(imp.id);
+  const minions = alive().filter(q => MN.includes(q.role));
+  if (!minions.length) { log(`The Imp (${esc(imp.name)}) killed themselves with no Minion left to take over.`); win('good', `The Demon (${esc(imp.name)}) died.`); return; }
+  const heir = minions.find(q => q.role === 'Scarlet Woman') || pick(minions);
+  log(`The Imp (${esc(imp.name)}) killed themselves; the ${heir.role} (${esc(heir.name)}) became the Imp.`);
+  heir.was = heir.role; heir.role = 'Imp';
+  message(heir.id, `The Imp (${Nm(imp.id)}) killed themselves to pass on their power. <b>You are now the Imp.</b> From tomorrow night, you choose who dies. ${bluffLine()}`);
+}
+function die(p, cause, quiet) {
+  if (!p.alive) return;
+  const before = alive().length;
+  p.alive = false;
+  p.deadFrom = cause === 'night' ? G.n : G.n + 1;  // the first night they no longer wake
+  G.deaths.push({ id: p.id, how: cause, n: G.n, claim: p.claim });
+  bump();
+  if (cause === 'execution' && p.role === 'Saint' && sober(p)) win('evil', `The Saint (${esc(p.name)}) was executed.`);
+  if (p.role === 'Imp' && !quiet) {
+    const sw = G.players.find(q => q.alive && q.role === 'Scarlet Woman' && sober(q));
+    if (sw && before >= 5) {
+      sw.was = 'Scarlet Woman'; sw.role = 'Imp';
+      log(`The Imp (${esc(p.name)}) died, so the Scarlet Woman (${esc(sw.name)}) became the Imp.`);
+      message(sw.id, `The Demon (${Nm(p.id)}) has died. As the Scarlet Woman, <b>you are now the Imp</b>. Each night, you choose who dies. ${bluffLine()}`);
+    } else win('good', `The Demon (${esc(p.name)}) died.`);
+  }
+}
+
+/* ---------- Night ---------- */
+function resolveNight(c) {
+  const n = G.n, awake = id => G.duskAlive.includes(id);
+  const holder = role => G.players.find(p => p.role === role && awake(p.id));
+  G.diedTonight = []; G.dawnInfo = {}; G.rkWait = false;
+  const learn = (p, text, f) => {
+    (G.dawnInfo[p.id] = G.dawnInfo[p.id] || []).push(text);
+    if (f) { f.n = n; f.src = f.src || believed(p); G.facts[p.id].push(f); }
+  };
+
+  // Poisoner: the old poison ends at dusk
+  G.poison = null;
+  const pz = holder('Poisoner');
+  if (pz && c[pz.id]) { G.poison = c[pz.id][0]; log(`The Poisoner (${esc(pz.name)}) poisoned ${esc(P(G.poison).name)}.`); }
+
+  // Monk
+  let protect = null;
+  if (n >= 2) G.players.filter(p => awake(p.id) && believed(p) === 'Monk' && c[p.id]).forEach(p => {
+    const t = c[p.id][0];
+    G.facts[p.id].push({ k: 'monk', who: t, n, src: 'Monk' });
+    if (sober(p)) { protect = t; log(`The Monk (${esc(p.name)}) protected ${esc(P(t).name)}.`); }
+    else log(`The Monk (${esc(p.name)}) chose ${esc(P(t).name)}, but ${why(p)}, so nobody is protected.`);
+  });
+
+  // Imp
+  const imp = holder('Imp');
+  if (imp && n >= 2 && c[imp.id]) {
+    const t = P(c[imp.id][0]);
+    if (poisoned(imp)) log(`The Imp (${esc(imp.name)}) chose ${esc(t.name)}, but is poisoned, so nobody dies.`);
+    else if (t.id === imp.id) starPass(imp);
+    else if (!t.alive) log(`The Imp chose ${esc(t.name)}, who is already dead.`);
+    else if (t.id === protect) log(`The Imp chose ${esc(t.name)}, but the Monk protected them.`);
+    else if (t.role === 'Soldier' && sober(t)) log(`The Imp chose ${esc(t.name)}, but the Soldier is safe from the Demon.`);
+    else if (t.role === 'Mayor' && sober(t) && chance(MAYOR_BOUNCE)) {
+      const opts = alive().filter(q => q.id !== t.id && q.id !== imp.id && isGood(q) && q.id !== protect && !(q.role === 'Soldier' && sober(q)));
+      if (opts.length) { const b = pick(opts); log(`The Imp chose the Mayor (${esc(t.name)}); the kill bounced to ${esc(b.name)}.`); killAtNight(b); }
+      else { log(`The Imp killed the Mayor (${esc(t.name)}).`); killAtNight(t); }
+    } else { log(`The Imp (${esc(imp.name)}) killed ${esc(t.name)}.`); killAtNight(t); }
+  }
+
+  // Information, after the kills (as in the real wake order)
+  G.players.filter(p => awake(p.id) && p.alive).forEach(p => {
+    const br = believed(p), lie = () => !sober(p) && chance(LIE);
+    if (n === 1 && (br === 'Washerwoman' || br === 'Librarian' || br === 'Investigator')) {
+      const r = onePairInfo(p, { Washerwoman: 'townsfolk', Librarian: 'outsider', Investigator: 'minion' }[br]);
+      learn(p, r.text, r.f); noteInfo(p, r.text, r.lie, r.extra);
+    }
+    if (n === 1 && br === 'Chef') {
+      const evil = G.players.map(q => !reg(q).good), N = evil.length;
+      let k = 0; for (let i = 0; i < N; i++) if (evil[i] && evil[(i + 1) % N]) k++;
+      const l = lie(); if (l) k = pick([0, 1, 2].filter(x => x !== k));
+      const text = `There ${k === 1 ? 'is <b>1</b> pair' : `are <b>${k}</b> pairs`} of evil players sitting next to each other.`;
+      learn(p, text, { k: 'chef', num: k }); noteInfo(p, text, l);
+    }
+    if (br === 'Empath') {
+      const nb = aliveNeighbours(p);
+      let k = nb.filter(q => !reg(q).good).length;
+      const l = lie(); if (l) k = pick([0, 1, 2].filter(x => x !== k && x <= nb.length));
+      const text = `<b>${k}</b> of your alive neighbours (${list(nb.map(q => Nm(q.id)))}) ${k === 1 ? 'is' : 'are'} evil.`;
+      learn(p, text, { k: 'empath', num: k, nb: nb.map(q => q.id) }); noteInfo(p, text, l);
+    }
+    if (br === 'Fortune Teller' && c[p.id]) {
+      const pair = c[p.id].map(P);
+      let yes = pair.some(q => q.id === G.redHerring || reg(q, 'demon').type === 'demon');
+      const l = lie(); if (l) yes = !yes;
+      const names = pair.map(q => Nm(q.id));
+      const text = yes ? `<b>Yes</b>: one of ${names[0]} and ${names[1]} is the Demon.` : `<b>No</b>: neither ${names[0]} nor ${names[1]} is the Demon.`;
+      learn(p, text, { k: 'ft', a: pair[0].id, b: pair[1].id, yes }); noteInfo(p, text, l);
+    }
+    if (br === 'Undertaker' && n >= 2 && G.lastExecuted != null) {
+      const q = P(G.lastExecuted), l = lie();
+      const r = l ? falseCharacter(q) : reg(q).role;
+      const text = `The player executed today, ${Nm(q.id)}, was the <b>${esc(r)}</b>.`;
+      learn(p, text, { k: 'see', who: q.id, char: r }); noteInfo(p, text, l);
+    }
+    if (p.role === 'Butler' && c[p.id]) { p.master = c[p.id][0]; log(`The Butler (${esc(p.name)}) chose ${esc(P(p.master).name)} as their master.`); }
+    if (p.role === 'Spy') learn(p, `You see the Grimoire:${grimoireHtml()}`);
+  });
+  Object.keys(G.dawnInfo).forEach(id => tell(+id, G.dawnInfo[id]));
+
+  // A Ravenkeeper killed tonight chooses a player
+  G.diedTonight.map(P).filter(p => believed(p) === 'Ravenkeeper').forEach(p => {
+    if (p.id === G.me) G.rkWait = true;
+    else ravenkeeperLearns(p, rkTarget(p));
+  });
+  checkTwoLeft();
+}
+function ravenkeeperLearns(p, tid) {
+  const q = P(tid), l = !sober(p) && chance(LIE);
+  const r = l ? falseCharacter(q) : reg(q).role;
+  const text = `${Nm(q.id)} ${q.id === G.me ? 'are' : 'is'} the <b>${esc(r)}</b>.`;
+  (G.dawnInfo[p.id] = G.dawnInfo[p.id] || []).push(text);
+  tell(p.id, [text]);
+  G.facts[p.id].push({ k: 'see', who: q.id, char: r, n: G.n, src: 'Ravenkeeper' });
+  noteInfo(p, text, l);
+}
+
+/* ---------- Day ---------- */
+const votesNeeded = () => Math.ceil(alive().length / 2);
+function dayEvent(text) { G.dayS.events.push(text); sys(text); }
+function toDusk(lines) {
+  checkTwoLeft();
+  G.announce = { title: G.winner ? 'The game is over' : `Dusk of day ${G.n}`, lines };
+  G.stage = 'dusk';
+  G.vote = null;
+}
+function execute(q) {
+  G.lastExecuted = q.id;
+  G.execs[G.n] = q.id;
+  const line = q.alive ? `${Nm(q.id)} ${q.id === G.me ? 'are' : 'is'} executed and ${q.id === G.me ? 'die' : 'dies'}.` : `${Nm(q.id)} ${q.id === G.me ? 'are' : 'is'} executed, but ${q.id === G.me ? 'were' : 'was'} already dead.`;
+  sys(line); log(line);
+  die(q, 'execution');
+  return line;
+}
+function slayerShot(a, b) {
+  const s = P(a), t = P(b);
+  let hit = false;
+  if (s.role === 'Slayer' && !s.used) {
+    s.used = true;
+    const r = reg(t, 'demon');
+    hit = sober(s) && t.alive && r.type === 'demon';
+    log(`The Slayer (${esc(s.name)}) shot ${esc(t.name)}: ${hit ? 'hit' + (r.spoof ? ' (the Recluse registered as the Demon)' : '') : sober(s) ? 'miss' : 'nothing, as ' + why(s)}.`);
+  } else log(`${esc(s.name)} claimed a Slayer shot at ${esc(t.name)}, but ${s.role === 'Drunk' ? 'is the Drunk' : s.role === 'Slayer' ? 'had already used it' : 'is not the Slayer'}.`);
+  G.shots.push({ by: a, t: b, hit, n: G.n });
+  if (hit) {
+    dayEvent(`${Nm(a)} shot at ${nm(b)}. ${Nm(b)} ${b === G.me ? 'die' : 'dies'}!`);
+    die(t, 'slayer');
+    checkTwoLeft();
+    if (G.winner) toDusk([`${Nm(a)} shot at ${nm(b)}, and ${nm(b)} ${b === G.me ? 'die' : 'dies'}!`]);
+  } else dayEvent(`${Nm(a)} shot at ${nm(b)}. Nothing happens.`);
+}
+// Returns false if a Virgin ended the day on the spot
+function nominate(a, b, reason) {
+  const d = G.dayS, nomr = P(a), nomd = P(b);
+  d.nominators.push(a); d.nominees.push(b);
+  const first = !G.nominatedEver.includes(b), from = G.feed.length;
+  G.nominatedEver.push(b);
+  dayEvent(`${Nm(a)} ${a === G.me ? 'nominate' : 'nominates'} ${nm(b)}.`);
+  if (reason) say(a, reason);
+  if (nomd.role === 'Virgin' && nomd.alive && !nomd.used) {
+    nomd.used = true;
+    const r = reg(nomr, 'townsfolk');
+    if (sober(nomd) && r.type === 'townsfolk') {
+      log(`The Virgin (${esc(nomd.name)}) was nominated by a Townsfolk (${esc(nomr.name)}${r.spoof ? ', the Spy registering as one' : ''}).`);
+      G.virgins.push({ v: b, by: a, fired: true });
+      toDusk([`${Nm(a)} nominated ${nm(b)}… and ${nm(a)} ${a === G.me ? 'are' : 'is'} executed immediately! ${Nm(b)} must be the Virgin.`, execute(nomr)]);
+      return false;
+    }
+    log(`The Virgin (${esc(nomd.name)}) was nominated by ${esc(nomr.name)}; nothing happened${sober(nomd) ? '' : ' (the Virgin ' + why(nomd) + ')'}.`);
+  }
+  if (first && nomd.claim === 'Virgin') G.virgins.push({ v: b, by: a, fired: false });
+  if (b !== G.me) defend(nomd, a);
+  startVote(a, b, from);
+  return true;
+}
+const canVote = q => q.alive || q.ghost;
+function startVote(a, b, from) {
+  const N = G.players.length, order = [];
+  for (let k = 1; k <= N; k++) { const q = G.players[(b + k) % N]; if (canVote(q)) order.push(q.id); }
+  const intent = {};
+  order.forEach(id => { if (id !== G.me) intent[id] = botVote(P(id), a, b); });
+  // A Butler bot only votes if their master (another bot) does
+  order.forEach(id => { const q = P(id); if (id !== G.me && q.role === 'Butler' && q.master != null && q.master !== G.me && intent[id] && !intent[q.master]) intent[id] = false; });
+  G.vote = { a, b, order, intent, from, mine: order.includes(G.me) ? null : false };
+  if (G.vote.mine === false) finishVote();
+}
+function finishVote() {
+  const v = G.vote, d = G.dayS, need = votesNeeded(), m = me();
+  let hands = v.order.filter(id => id === G.me ? v.mine : v.intent[id]), note = '';
+  if (v.mine && m.role === 'Butler' && m.master != null && !hands.includes(m.master)) {
+    hands = hands.filter(id => id !== G.me);
+    note = ` Your master, ${nm(m.master)}, didn't vote, so as the Butler your vote didn't count.`;
+  }
+  hands = hands.filter(id => { const q = P(id); return !(id !== G.me && q.role === 'Butler' && q.master === G.me && !v.mine); });
+  hands.forEach(id => { const q = P(id); if (!q.alive) q.ghost = false; });
+  const k = hands.length;
+  let res;
+  if (k >= need && k > d.highest) { d.block = v.b; d.highest = k; res = `${Nm(v.b)} ${v.b === G.me ? 'are' : 'is'} on the block.`; }
+  else if (k >= need && k === d.highest) { d.block = null; res = 'That ties the highest vote, so nobody is on the block.'; }
+  else if (k < need) res = `Not enough votes (${need} needed).`;
+  else res = `Not enough to beat ${d.highest}.`;
+  dayEvent(`${k} ${plural(k, 'vote', 'votes')} to execute ${nm(v.b)}${k ? ' (' + list(hands.map(Nm)) + ')' : ''}. ${res}`);
+  G.lastVote = { a: v.a, b: v.b, order: v.order, hands, res: res + note };
+  G.vote = null;
+}
+function endDay() {
+  const d = G.dayS, lines = [];
+  G.dry = d.block != null ? 0 : (G.dry || 0) + 1;
+  G.dryAt3 = d.block == null && alive().length === 3;
+  if (d.block != null) lines.push(execute(P(d.block)));
+  else {
+    lines.push('Nobody is executed today.'); sys('Nobody was executed.');
+    const mayor = G.players.find(q => q.alive && q.role === 'Mayor' && sober(q));
+    if (alive().length === 3 && mayor) win('good', 'Only three players were alive, nobody was executed, and the Mayor was alive.');
+  }
+  toDusk(lines);
+}
+function startNight() {
+  G.n++; G.time = 'night'; G.stage = 'night';
+  G.duskAlive = alive().map(p => p.id);
+  G.lastVote = null; G.dayS = null;
+}
+function endNight(mine) {
+  const c = {};
+  G.duskAlive.forEach(id => {
+    if (id === G.me) { if (mine && mine.length) c[id] = mine; return; }
+    const ch = botNight(P(id));
+    if (ch) c[id] = ch;
+  });
+  G.inbox[G.me] = [];
+  resolveNight(c);
+  G.stage = 'dawn';
+}
+function startDay() {
+  G.time = 'day'; G.stage = 'day';
+  G.dayS = { nominators: [], nominees: [], block: null, highest: 0, events: [], botNoms: 0, quiet: false };
+  sys(G.diedTonight.length ? G.diedTonight.map(id => `${Nm(id)} died in the night.`).join(' ') : `Day ${G.n} begins. Nobody died in the night.`);
+  G.lastExecuted = null;
+  morningTalk();
+}
+
+/* ---------- What each player has learned, as data ---------- */
+// f.k: pair (Washerwoman, Librarian, Investigator), noOut, chef, empath, ft, see (Undertaker, Ravenkeeper), monk
+function factText(f, mine) {
+  const N = id => `<b>${id === G.me && !mine ? 'you' : id === G.me ? 'me' : esc(P(id).name)}</b>`;
+  const pre = `Night ${f.n}: `;
+  switch (f.k) {
+    case 'pair': return pre + `one of ${N(f.a)} and ${N(f.b)} is the <b>${esc(f.char)}</b>.`;
+    case 'noOut': return pre + 'there are <b>no Outsiders</b> in play.';
+    case 'chef': return pre + `<b>${f.num}</b> ${f.num === 1 ? 'pair' : 'pairs'} of evil players sit next to each other.`;
+    case 'empath': return pre + `<b>${f.num}</b> of my alive neighbours (${f.nb.map(N).join(' and ')}) ${f.num === 1 ? 'is' : 'are'} evil.`;
+    case 'ft': return pre + `I chose ${N(f.a)} and ${N(f.b)}: ${f.yes ? '<b>yes</b>, one of them is the Demon' : '<b>no</b>, neither is the Demon'}.`;
+    case 'see': return pre + (f.src === 'Undertaker' ? `${N(f.who)}, executed that day, was the <b>${esc(f.char)}</b>.` : `${N(f.who)} is the <b>${esc(f.char)}</b>.`);
+    case 'monk': return pre + `I protected ${N(f.who)}.`;
+  }
+  return '';
+}
+const fkey = f => JSON.stringify([f.k, f.n, f.a, f.b, f.num, f.who, f.char, f.yes]);
+
+/* ---------- The bots' reasoning: every possible evil team, weighed against what's been said ---------- */
+// A small chance that a good player's info is wrong because they are drunk or poisoned
+const FLOOR = 0.08;
+// How well a world (ev[x] = 1 if x is evil, d = the Demon) fits one piece of info, from 0 to 1
+function factFn(f) {
+  switch (f.k) {
+    case 'pair':
+      if (f.role === 'Investigator') return (ev, d) => {
+        if ((ev[f.a] && f.a !== d) || (ev[f.b] && f.b !== d)) return 1;
+        return [f.a, f.b].some(y => !ev[y] && claimOf(y) === 'Recluse') ? 0.6 : 0;
+      };
+      return (ev, d) => {
+        let best = 0;
+        for (const y of [f.a, f.b]) {
+          const c = claimOf(y);
+          if (!ev[y]) best = Math.max(best, c == null || c === f.char || (f.char === 'Drunk' && TF.includes(c)) ? 1 : 0.15);
+          else if (y !== d && f.role === 'Washerwoman') best = Math.max(best, 0.3);  // the Spy
+        }
+        return best;
+      };
+    case 'noOut': return ev => G.players.some(q => !ev[q.id] && ['Saint', 'Recluse', 'Butler'].includes(q.claim)) ? 0.1 : 1;
+    case 'chef': return ev => {
+      const N = G.players.length; let k = 0;
+      for (let i = 0; i < N; i++) if (ev[i] && ev[(i + 1) % N]) k++;
+      return k === f.num ? 1 : 0;
+    };
+    case 'empath': return ev => f.nb.filter(x => ev[x]).length === f.num ? 1 : 0;
+    case 'ft': return (ev, d) => { const hasD = f.a === d || f.b === d; return f.yes ? (hasD ? 1 : 0.4) : (hasD ? 0 : 1); };
+    case 'see': {
+      const type = ROLES[f.char] ? ROLES[f.char].type : 'townsfolk', x = f.who;
+      if (type === 'demon') return ev => ev[x] ? 1 : claimOf(x) === 'Recluse' ? 0.6 : 0;
+      if (type === 'minion') return (ev, d) => ev[x] && x !== d ? 1 : !ev[x] && claimOf(x) === 'Recluse' ? 0.6 : 0;
+      return (ev, d) => {
+        if (ev[x]) return x !== d ? 0.3 : 0;  // only the Spy can look good
+        const c = claimOf(x);
+        return c == null || c === f.char || f.char === 'Drunk' ? 1 : 0.2;
+      };
+    }
+  }
+  return null;
+}
+// Everything said in public, as checks on a world. src: whose word it is (it only counts if they're good)
+function publicCons() {
+  const cons = [];
+  G.pub.forEach(e => { const fn = factFn(e.f); if (fn) cons.push({ src: e.by, fn }); });
+  // Two players claiming the same character: at most one of them is good
+  const by = {};
+  G.players.forEach(p => { if (p.claim) (by[p.claim] = by[p.claim] || []).push(p.id); });
+  Object.values(by).forEach(ids => { if (ids.length > 1) cons.push({ fn: ev => ids.filter(x => !ev[x]).length > 1 ? 0.03 : 1 }); });
+  // A story that changed
+  G.players.forEach(p => { if (new Set(p.claimHist).size > 1) cons.push({ fn: ev => ev[p.id] ? 1 : 0.35 }); });
+  // Killed at night: almost always good
+  G.deaths.filter(x => x.how === 'night').forEach(x => cons.push({ fn: ev => ev[x.id] ? 0.12 : 1 }));
+  // Still not saying what you are on day 2
+  if (G.n >= 2) G.players.forEach(p => { if (!p.claim) cons.push({ fn: ev => ev[p.id] ? 1 : 0.7 }); });
+  // The Virgin
+  G.virgins.forEach(v => {
+    if (v.fired) cons.push({ fn: ev => (ev[v.by] ? 0.05 : 1) * (ev[v.v] ? 0.1 : 1) });
+    else cons.push({ fn: ev => !ev[v.v] && !ev[v.by] && TF.includes(claimOf(v.by)) ? 0.15 : 1 });
+  });
+  // A Slayer shot that did nothing: the target isn't the Demon, if the shooter is the real Slayer
+  G.shots.forEach(s => { if (!s.hit && claimOf(s.by) === 'Slayer') cons.push({ src: s.by, fn: (ev, d) => d === s.t ? 0 : 1 }); });
+  // An executed "Saint" who didn't end the game was lying
+  G.deaths.filter(x => x.how === 'execution' && x.claim === 'Saint').forEach(x => cons.push({ fn: ev => ev[x.id] ? 1 : 0.1 }));
+  return cons;
+}
+function combos(pool, k, start, cur, out) {
+  if (cur.length === k) { out(cur); return; }
+  for (let i = start; i <= pool.length - (k - cur.length); i++) { cur.push(pool[i]); combos(pool, k, i + 1, cur, out); cur.pop(); }
+}
+function exactBelief() {
+  const N = G.players.length, pd = new Array(N).fill(0), pe = new Array(N).fill(0);
+  G.players.forEach(q => { if (!isGood(q)) pe[q.id] = 1; if (q.role === 'Imp' && q.alive) pd[q.id] = 1; });
+  return { pd, pe, exact: true };
+}
+// key: a player id (their own view) or 'town' (only what's public)
+function computeBelief(key, pcons) {
+  const N = G.players.length, m = COUNTS[N][2];
+  let cons = pcons;
+  const fix = {};
+  if (key !== 'town') {
+    const p = P(key);
+    if (!isGood(p) && knownTeam(p).length > 1) return exactBelief();
+    if (isGood(p)) fix.good = p.id; else if (p.role === 'Imp') fix.demon = p.id; else fix.minion = p.id;
+    // Their own info that they haven't shared yet (a good player trusts their own info, unless drunk or poisoned)
+    if (isGood(p) || p.id === G.me) {
+      const shared = new Set(G.pub.filter(e => e.by === p.id).map(e => fkey(e.f)));
+      const own = G.facts[p.id].filter(f => !shared.has(fkey(f))).map(f => ({ src: p.id, fn: factFn(f) })).filter(c => c.fn);
+      if (own.length) cons = cons.concat(own);
+    }
+  }
+  const al = alive().map(p => p.id);
+  const pd = new Array(N).fill(0), pe = new Array(N).fill(0), ev = new Uint8Array(N);
+  let tot = 0;
+  for (const d of fix.demon != null ? [fix.demon] : al) {
+    if (d === fix.good || d === fix.minion) continue;
+    const pool = [];
+    for (let i = 0; i < N; i++) if (i !== d && i !== fix.good) pool.push(i);
+    combos(pool, Math.min(m, pool.length), 0, [], mins => {
+      if (fix.minion != null && !mins.includes(fix.minion)) return;
+      ev.fill(0); ev[d] = 1; for (const x of mins) ev[x] = 1;
+      let w = 1;
+      for (const c of cons) {
+        let v;
+        if (c.src != null) { if (ev[c.src]) continue; v = Math.max(c.fn(ev, d), FLOOR); }
+        else v = c.fn(ev, d);
+        w *= v;
+        if (w < 1e-12) return;
+      }
+      tot += w; pd[d] += w;
+      for (let i = 0; i < N; i++) if (ev[i]) pe[i] += w;
+    });
+  }
+  if (tot > 0) for (let i = 0; i < N; i++) { pd[i] /= tot; pe[i] /= tot; }
+  return { pd, pe, exact: false };
+}
+function belief(key) {
+  if (!U.bc || U.bc.ver !== G.ver || U.bc.game !== G.created) U.bc = { ver: G.ver, game: G.created, m: {}, pc: publicCons() };
+  return U.bc.m[key] || (U.bc.m[key] = computeBelief(key, U.bc.pc));
+}
+// How likely to be evil, weighted towards the Demon (executing a Minion helps, but less)
+const susOf = (B, x) => B.pd[x] + 0.35 * (B.pe[x] - B.pd[x]);
+// Each bot has its own hunches, which change a little each day
+function bias(p, x) {
+  if (!p.bot.bias || p.bot.bias.day !== G.n) { p.bot.bias = { day: G.n, v: G.players.map(() => (Math.random() - 0.5) * 0.5) }; }
+  return p.bot.bias.v[x];
+}
+// How suspicious x looks to p, compared with an average player (1 = average)
+function ratio(p, x) {
+  const B = belief(p.id), cands = alive().filter(q => q.id !== p.id);
+  const base = cands.reduce((s, q) => s + susOf(B, q.id), 0) / Math.max(1, cands.length) || 1e-9;
+  return susOf(B, x) * (1 + bias(p, x)) / base;
+}
+// How suspicious x looks to the town as a whole
+function townRatio(x) {
+  const B = belief('town'), al = alive();
+  const base = al.reduce((s, q) => s + susOf(B, q.id), 0) / Math.max(1, al.length) || 1e-9;
+  return susOf(B, x) / base;
+}
+function topBy(cands, score) { let best = null, bs = -Infinity; cands.forEach(q => { const s = score(q); if (s > bs) { bs = s; best = q; } }); return best; }
+
+/* ---------- Bots talking ---------- */
+const HIDDEN = ['Soldier', 'Ravenkeeper', 'Monk', 'Virgin', 'Slayer', 'Mayor'];
+function setClaim(p, role) {
+  if (p.claim === role) return;
+  p.claim = role; p.claimHist.push(role); bump();
+  // Someone else already says they're this character
+  const rival = G.players.find(q => q.id !== p.id && q.claim === role);
+  if (rival && rival.id !== G.me) say(rival.id, pick([`Wait, <b>I'm</b> the ${esc(role)}. One of us is lying, and it isn't me.`, `That's my character! ${Nm(p.id)} ${p.id === G.me ? 'are' : 'is'} lying.`, `No, I'm the ${esc(role)}.`]));
+}
+// The character an evil bot says it is, avoiding one somebody else has already claimed
+function validBluff(p) {
+  const taken = new Set(G.players.filter(q => q.id !== p.id && q.claim).map(q => q.claim));
+  if (p.bot.bluff && !taken.has(p.bot.bluff)) return p.bot.bluff;
+  let pool = knowsBluffs(p) ? G.bluffs.filter(r => !taken.has(r)) : [];
+  if (!pool.length) pool = TF.filter(r => !taken.has(r));
+  return pick(pool.length ? pool : TF);
+}
+// Info a bot will share: its real info if good (false if it's drunk or poisoned), made-up info if evil
+const shareable = p => isGood(p) ? G.facts[p.id].filter(f => f.src === believed(p)) : p.bot.fakes;
+function botClaim(p) {
+  const role = isGood(p) ? believed(p) : (p.bot.bluff = validBluff(p));
+  if (!isGood(p) && !p.claim) log(`${esc(p.name)} (${p.role}) claims to be the ${role}.`);
+  setClaim(p, role);
+  if (!isGood(p)) ensureFakes(p);
+  const fs = shareable(p);
+  say(p.id, pick([`I'm the <b>${esc(role)}</b>.`, `I'll say it: I'm the <b>${esc(role)}</b>.`, `I'm the <b>${esc(role)}</b>${fs.length ? '. Here\'s what I know' : ''}.`]));
+  shareNew(p);
+}
+function shareNew(p) {
+  const fs = shareable(p), fresh = fs.slice(p.bot.sharedN);
+  p.bot.sharedN = fs.length;
+  fresh.forEach(f => { G.pub.push({ by: p.id, f, day: G.n }); say(p.id, factText(f, true)); });
+}
+// Why a player looks suspicious, from what's been said in public
+function reasonFor(x) {
+  const q = P(x), c = q.claim, you = x === G.me;
+  const they = you ? 'you' : 'they', them = you ? 'you' : 'them', their = you ? 'your' : 'their';
+  if (c) { const dup = G.players.find(o => o.id !== x && o.claim === c); if (dup) return `${Nm(dup.id)} also ${dup.id === G.me ? 'claim' : 'claims'} to be the ${esc(c)}`; }
+  for (let i = G.pub.length - 1; i >= 0; i--) {
+    const { by, f } = G.pub[i];
+    if (by === x) continue;
+    const who = Nm(by);
+    if (f.k === 'pair' && f.role === 'Investigator' && (f.a === x || f.b === x)) return `the Investigator, ${who}, saw ${them} as maybe the ${esc(f.char)}`;
+    if (f.k === 'ft' && f.yes && (f.a === x || f.b === x)) return `the Fortune Teller, ${who}, got a yes on ${them}`;
+    if (f.k === 'empath' && f.num > 0 && f.nb.includes(x)) return `the Empath, ${who}, sits next to ${them} and got a ${f.num}`;
+    if (f.k === 'see' && f.who === x && ROLES[f.char] && ['minion', 'demon'].includes(ROLES[f.char].type)) return `${who} saw ${them} as the ${esc(f.char)}`;
+  }
+  if (new Set(q.claimHist).size > 1) return `${their} story changed`;
+  if (!c) return `${they} still haven't said what ${they} are`;
+  if (G.pub.some(e => e.by === x) && belief('town').pe[x] > 0.5) return `${their} own info doesn't fit with everyone else's`;
+  return pick([`the way the info falls points at ${them}`, `${their} story doesn't sit right with me`, `${they} keep pushing suspicion onto good players`, "it's a gut feeling, but a strong one"]);
+}
+function trustReason(x) {
+  const q = P(x);
+  if (G.pub.some(e => e.by === x)) return pick(['their info fits with everyone else\'s', 'their info has checked out so far', 'nothing they\'ve told us clashes with anyone']);
+  return pick(['they\'ve been straight with us', 'their story hangs together', 'nobody has a word against them']);
+}
+// Who a bot points at: its top suspect if good, someone to frame if evil
+function suspectOf(p) {
+  const cands = alive().filter(q => q.id !== p.id);
+  if (!cands.length) return null;
+  if (!isGood(p)) return frameTarget(p);
+  const q = topBy(cands, q => ratio(p, q.id));
+  return q && ratio(p, q.id) > 1.15 ? q.id : null;
+}
+function trusteeOf(p) {
+  const team = knownTeam(p);
+  const cands = alive().filter(q => q.id !== p.id && (isGood(p) || !team.includes(q.id) || chance(0.3)));
+  if (!cands.length) return null;
+  if (!isGood(p)) return pick(cands.filter(q => q.id !== p.bot.frame) .length ? cands.filter(q => q.id !== p.bot.frame) : cands).id;
+  return topBy(cands, q => -ratio(p, q.id)).id;
+}
+function accuse(p, x, lead) {
+  G.opinions.push({ by: p.id, x, day: G.n });
+  const line = pick([`I think <b>${nm(x)}</b> could be evil`, `My eye is on <b>${nm(x)}</b>`, `<b>${Nm(x)}</b> ${x === G.me ? 'worry' : 'worries'} me`, `I don't trust <b>${nm(x)}</b>`]);
+  say(p.id, `${lead || ''}${line}: ${reasonFor(x)}.`);
+}
+function opinion(p, asked) {
+  const x = suspectOf(p);
+  if (x == null) { if (asked || chance(0.4)) say(p.id, pick(["I don't have a strong read on anyone yet.", 'Too early to say. I want to hear more claims.', "Nobody stands out to me yet."])); return; }
+  accuse(p, x);
+}
+// The morning conversation: claims, new info, then who people suspect
+function morningTalk() {
+  const start = rnd(G.players.length);
+  const order = G.players.map((q, i) => G.players[(start + i) % G.players.length]).filter(q => q.id !== G.me);
+  order.forEach(p => { if (!isGood(p) && p.claim) ensureFakes(p); });
+  order.forEach(p => {
+    if (!p.claim) {
+      let open = p.bot.open * (HIDDEN.includes(isGood(p) ? believed(p) : 'x') ? 0.5 : 1);
+      if (believed(p) === 'Saint' && isGood(p)) open = 1;
+      if (G.n >= 2 || chance(open) || (!p.alive && chance(0.6))) botClaim(p);
+    } else shareNew(p);
+  });
+  if (G.n >= 2 && !me().claim) { const asker = pick(order.filter(q => q.alive)); if (asker) say(asker.id, pick([`${esc(me().name)}, you still haven't told us your character.`, `What about you, ${esc(me().name)}? What are you?`])); }
+  order.forEach(p => { if (chance(p.alive ? 0.55 : 0.2)) opinion(p); });
+  botShots();
+}
+// Answers to your questions in town
+function ask(p, q) {
+  const m = me();
+  if (q === 'role') {
+    say(G.me, `${esc(p.name)}, what's your character?`);
+    if (p.claim) { say(p.id, `I'm the <b>${esc(p.claim)}</b>${p.alive ? '' : ', as I said'}.`); return; }
+    const willing = G.n >= 2 || p.bot.refused === G.n || chance(isGood(p) ? 0.7 : 0.9);
+    if (willing) botClaim(p);
+    else { p.bot.refused = G.n; say(p.id, pick(["I'd rather not say just yet. Ask me again later.", "I'm keeping that quiet for now. I'll tell you before the votes.", "Not yet. I don't want the Demon to know."])); }
+  } else if (q === 'info') {
+    say(G.me, `${esc(p.name)}, what have you learned?`);
+    if (!p.claim) { say(p.id, 'Let me tell you what I am first.'); ask(p, 'role'); return; }
+    const fs = shareable(p);
+    if (!fs.length) { say(p.id, INFO_ROLES.includes(p.claim) ? "Nothing yet." : `As the ${esc(p.claim)}, I don't get any information.`); return; }
+    fs.slice(0, p.bot.sharedN).forEach(f => say(p.id, factText(f, true)));
+    shareNew(p);
+  } else if (q === 'sus') {
+    say(G.me, `${esc(p.name)}, who do you suspect?`);
+    opinion(p, true);
+  } else if (q === 'trust') {
+    say(G.me, `${esc(p.name)}, who do you trust?`);
+    const x = trusteeOf(p);
+    if (x == null) say(p.id, "Honestly? Nobody.");
+    else say(p.id, x === G.me ? `You, ${esc(m.name)}. ${pick(['Your story hangs together.', "You've been straight with us."])}` : `I believe <b>${nm(x)}</b>: ${trustReason(x)}.`);
+  }
+}
+// What a nominated or accused bot says for itself
+function defend(p, by) {
+  if (!p.claim) { botClaim(p); return; }
+  const lines = p.claim === 'Saint' ? ['Execute me and good loses. Think about it!', "Please, don't do this. You'll lose the game."] : ["You're about to execute a good player.", 'Check my story: it all adds up.', 'Kill me and you lose a Townsfolk.', "I've been honest with you all day."];
+  let text = `I'm the <b>${esc(p.claim)}</b>. ${pick(lines)}`;
+  if (!isGood(p) && by === G.me && chance(0.5)) text += ` Why is ${esc(me().name)} pushing so hard on me?`;
+  say(p.id, text);
+}
+// Real (and pretend) Slayers taking their shot
+function botShots() {
+  if (G.stage !== 'day') return;
+  bots().filter(p => p.alive && !p.bot.shot).forEach(p => {
+    if (G.stage !== 'day') return;
+    const cands = alive().filter(q => q.id !== p.id);
+    let t = null;
+    if (isGood(p) && believed(p) === 'Slayer') {
+      const B = belief(p.id), best = topBy(cands, q => B.pd[q.id] * (1 + bias(p, q.id)));
+      if (best && B.pd[best.id] >= (G.n >= 2 ? 1.5 : 2.2) / Math.max(2, cands.length)) t = best.id;
+    } else if (!isGood(p) && p.claim === 'Slayer' && G.n >= 2 && chance(0.35)) {
+      // A fake shot "clears" a teammate Demon, or points at a good player
+      const demon = G.players.find(q => q.role === 'Imp' && q.alive && q.id !== p.id && knownTeam(p).includes(q.id));
+      t = demon && chance(0.5) ? demon.id : frameTarget(p);
+    }
+    if (t == null) return;
+    p.bot.shot = true;
+    if (p.claim !== 'Slayer') setClaim(p, 'Slayer');
+    say(p.id, `I'm the Slayer, and I'm using my shot on <b>${nm(t)}</b>.`);
+    slayerShot(p.id, t);
+  });
+}
+
+/* ---------- Evil bots' lies ---------- */
+function frameTarget(p) {
+  const team = knownTeam(p);
+  let t = p.bot.frame != null ? P(p.bot.frame) : null;
+  if (!t || !t.alive || team.includes(t.id)) {
+    const c = alive().filter(q => q.id !== p.id && !team.includes(q.id));
+    if (!c.length) return null;
+    t = topBy(c, q => townRatio(q.id) + Math.random());
+    p.bot.frame = t.id;
+  }
+  return t.id;
+}
+function ensureFakes(p) {
+  const r = p.bot.bluff;
+  if (!r) return;
+  for (let n = p.bot.fakeN + 1; n <= G.n; n++) {
+    p.bot.fakeN = n;
+    if (p.deadFrom != null && p.deadFrom <= n) continue;
+    const f = fakeFact(p, r, n);
+    // Late in the game there may be nobody left to point at
+    if (f && ['a', 'b', 'who'].some(k => k in f && (f[k] == null || !P(f[k])))) continue;
+    if (f) { f.n = n; f.src = r; p.bot.fakes.push(f); log(`${esc(p.name)} (${p.role}) makes up their ${r} info: ${factText(f, true)}`); }
+  }
+}
+function fakeFact(p, r, n) {
+  const oth = G.players.filter(q => q.id !== p.id), team = knownTeam(p);
+  const T = frameTarget(p);
+  const other = (...not) => { const c = oth.filter(q => !not.includes(q.id)); return c.length ? pick(c).id : null; };
+  const claimers = types => oth.filter(q => q.claim && types.includes(q.claim));
+  switch (r) {
+    case 'Washerwoman': {
+      if (n !== 1) return null;
+      const c = claimers(TF.filter(x => x !== r));
+      if (c.length) { const y = pick(c); return { k: 'pair', role: r, ...pairOf(y.id, other(y.id)), char: y.claim }; }
+      const y = other(); return { k: 'pair', role: r, ...pairOf(y, other(y)), char: pick(TF.filter(x => x !== r)) };
+    }
+    case 'Librarian': {
+      if (n !== 1) return null;
+      const c = claimers(['Saint', 'Recluse', 'Butler']);
+      if (c.length) { const y = pick(c); return { k: 'pair', role: r, ...pairOf(y.id, other(y.id)), char: y.claim }; }
+      if (chance(0.5)) return { k: 'noOut', role: r };
+      return { k: 'pair', role: r, ...pairOf(T, other(T)), char: pick(['Saint', 'Recluse', 'Butler', 'Drunk']) };
+    }
+    case 'Investigator':
+      if (n !== 1) return null;
+      return { k: 'pair', role: r, ...pairOf(T, other(T, ...team)), char: pick(MN) };
+    case 'Chef':
+      if (n !== 1) return null;
+      return { k: 'chef', num: pick([0, 0, 1]) };
+    case 'Empath': {
+      const nb = aliveNeighbours(p).map(q => q.id);
+      const num = nb.filter(x => x === T || (!team.includes(x) && chance(0.15))).length;
+      return { k: 'empath', num: Math.min(num, nb.length), nb };
+    }
+    case 'Fortune Teller': {
+      const demon = G.players.find(q => q.role === 'Imp' && q.alive && q.id !== p.id && team.includes(q.id));
+      if (demon && chance(0.3)) return { k: 'ft', ...pairOf(demon.id, other(demon.id, ...team)), yes: false };
+      return { k: 'ft', ...pairOf(T, other(T, ...team)), yes: chance(0.45) };
+    }
+    case 'Undertaker': {
+      const x = G.execs[n - 1];
+      if (n < 2 || x == null) return null;
+      return { k: 'see', who: x, char: P(x).claim || pick(TF) };
+    }
+    case 'Monk':
+      if (n < 2) return null;
+      return { k: 'monk', who: other(...team) };
+  }
+  return null;
+}
+function pairOf(a, b) { return chance(0.5) ? { a, b } : { a: b, b: a }; }
+
+/* ---------- Bots at night ---------- */
+const ROLE_VALUE = { 'Empath': 3, 'Fortune Teller': 3, 'Undertaker': 2.5, 'Monk': 2, 'Slayer': 2.5, 'Investigator': 1.5, 'Washerwoman': 1, 'Librarian': 1, 'Chef': 1.5, 'Virgin': 1, 'Ravenkeeper': -1.5, 'Soldier': -3, 'Mayor': -1, 'Saint': 0.5, 'Recluse': 0.3, 'Butler': 0.3 };
+function botNight(p) {
+  const n = G.n, br = believed(p);
+  if (p.role === 'Poisoner') return [poisonTarget(p)];
+  if (p.role === 'Imp' && n >= 2) return [impTarget(p)];
+  if (br === 'Monk' && n >= 2 && isGood(p)) return [monkTarget(p)];
+  if (br === 'Fortune Teller' && isGood(p)) return ftPair(p);
+  if (p.role === 'Butler') return [topBy(alive().filter(q => q.id !== p.id), q => -ratio(p, q.id)).id];
+  return null;
+}
+function impTarget(p) {
+  const team = knownTeam(p);
+  const cands = alive().filter(q => q.id !== p.id && !team.includes(q.id));
+  if (!cands.length) return p.id;
+  const accused = id => G.opinions.filter(o => o.by === id && o.x === p.id).length;
+  const t = topBy(cands, q => (q.claim ? (ROLE_VALUE[q.claim] ?? 0.5) : 0.8) + 1.5 * accused(q.id) + Math.max(0, 1.2 - townRatio(q.id)) + Math.random() * 1.5);
+  return t.id;
+}
+function poisonTarget(p) {
+  const team = knownTeam(p);
+  const cands = alive().filter(q => q.id !== p.id && !team.includes(q.id));
+  if (!cands.length) return p.id;
+  return topBy(cands, q => (q.claim && INFO_ROLES.concat('Slayer').includes(q.claim) ? Math.max(1, ROLE_VALUE[q.claim]) : 0.5) + Math.random() * 1.5).id;
+}
+function monkTarget(p) {
+  const cands = alive().filter(q => q.id !== p.id);
+  return topBy(cands, q => Math.max(0.5, ROLE_VALUE[q.claim] ?? 0.5) * Math.max(0.1, 1.5 - ratio(p, q.id)) + Math.random()).id;
+}
+function ftPair(p) {
+  const cands = G.players.filter(q => q.id !== p.id && q.alive);
+  if (G.n === 1 || cands.length < 2) return shuffle(cands).slice(0, 2).map(q => q.id);
+  const B = belief(p.id);
+  const sorted = cands.slice().sort((a, b) => B.pd[b.id] * (1 + bias(p, b.id)) - B.pd[a.id] * (1 + bias(p, a.id)));
+  return [sorted[0].id, sorted[1].id];
+}
+function rkTarget(p) {
+  const cands = alive().filter(q => q.id !== p.id);
+  return cands.length ? topBy(cands, q => ratio(p, q.id)).id : p.id;
+}
+
+/* ---------- Bots voting and nominating ---------- */
+function mayorTrusted(p) {
+  const m = alive().find(q => q.claim === 'Mayor');
+  // A day with no execution at three alive that didn't win the game means the Mayor isn't real
+  if (G.dry > 0 && G.dryAt3) return false;
+  return m && (m.id === p.id ? isGood(p) : ratio(p, m.id) < 0.8);
+}
+// The evil team (as far as it knows itself) can carry a vote on its own
+function evilHasVotes() { return alive().filter(q => !isGood(q)).length >= votesNeeded(); }
+function botVote(p, a, b) {
+  if (b === p.id) return false;
+  const al = alive().length, d = G.dayS, nominee = P(b);
+  if (!isGood(p)) {
+    const team = knownTeam(p);
+    if (team.includes(b)) return false;
+    if (d.block != null && team.includes(d.block)) return true;  // knock a teammate off the block
+    if (evilHasVotes()) return true;
+    const r = townRatio(b);
+    if (!p.alive) return r > 1.8 && chance(0.5);
+    return r > 1.05 || chance(0.3);
+  }
+  const r = ratio(p, b);
+  if (al <= 3) {
+    if (mayorTrusted(p) && r < 3) return false;
+    const top = topBy(alive().filter(q => q.id !== p.id), q => ratio(p, q.id));
+    return top && top.id === b;
+  }
+  if (nominee.claim === 'Saint' && r < 2.6) return false;
+  if (d.block != null && d.block !== b && susOf(belief(p.id), b) * (1 + bias(p, b)) <= susOf(belief(p.id), d.block) * (1 + bias(p, d.block))) return false;
+  let need = (al <= 4 ? 1.1 : 1.4) - 0.15 * (G.dry || 0);
+  if (!p.alive) need += 0.8;  // save the ghost vote for something sure
+  return r >= need;
+}
+// The bot keenest to nominate someone, or null if nobody wants to
+function botNomination() {
+  const d = G.dayS, al = alive();
+  if (d.botNoms >= 4 && al.length > 3) return null;
+  let best = null;
+  al.filter(q => q.id !== G.me && !d.nominators.includes(q.id)).forEach(p => {
+    const team = knownTeam(p);
+    al.filter(x => x.id !== p.id && !d.nominees.includes(x.id)).forEach(x => {
+      let want;
+      if (isGood(p)) {
+        want = ratio(p, x.id) - (al.length <= 3 ? 0 : al.length <= 4 ? 1.2 : 1.5 - 0.2 * (G.dry || 0));
+        if (x.claim === 'Saint') want -= 1;
+        if (d.block != null && susOf(belief(p.id), x.id) <= susOf(belief(p.id), d.block)) want = -1;
+      } else {
+        if (team.includes(x.id)) return;
+        want = townRatio(x.id) - 1.4 + (d.block != null && team.includes(d.block) ? 1.5 : 0) + (x.id === p.bot.frame ? 0.3 : 0);
+        if (d.block != null && !team.includes(d.block) && townRatio(x.id) <= townRatio(d.block)) want = -1;
+        if (evilHasVotes() && team.length > 1 && (d.block == null || team.includes(d.block))) want = 2 + Math.random();
+      }
+      if (want > 0 && (!best || want > best.want)) best = { a: p.id, b: x.id, want };
+    });
+  });
+  return best;
+}
+function botNominates() {
+  const nom = botNomination();
+  if (!nom) return false;
+  G.dayS.botNoms++;
+  nominate(nom.a, nom.b, `I nominate <b>${nm(nom.b)}</b>. ${reasonFor(nom.b).replace(/^./, c => c.toUpperCase())}.`);
+  return true;
+}
+
+/* ---------- Views ---------- */
+const $app = document.getElementById('app');
+function picker(ids, k) {
+  U.need = k;
+  return `<div class="pick">${ids.map(id => { const q = P(id); return `<button class="pc ${U.sel.includes(id) ? 'on' : ''} ${q.alive ? '' : 'dead'}" data-act="sel" data-id="${id}">${esc(q.name)}${id === G.me ? ' (you)' : ''}${q.alive ? '' : ' ☠'}</button>`; }).join('')}</div>`;
+}
+function grimoireHtml() {
+  const rows = G.players.map(q => {
+    const role = q.role === 'Drunk' ? `Drunk <span class="muted">(thinks they're the ${esc(q.fake)})</span>` : esc(q.role) + (q.was ? ` <span class="muted">(was ${esc(q.was)})</span>` : '');
+    const tags = [
+      `<span class="tag ${isGood(q) ? 'good' : 'evil'}">${isGood(q) ? 'good' : 'evil'}</span>`,
+      q.alive ? '' : '<span class="tag">dead</span>',
+      poisoned(q) ? '<span class="tag evil">poisoned</span>' : '',
+      q.id === G.redHerring ? '<span class="tag">red herring</span>' : '',
+      q.master != null ? `<span class="tag">master: ${esc(P(q.master).name)}</span>` : '',
+    ].join('');
+    return `<tr class="${q.alive ? '' : 'dead'}"><td><b>${esc(q.name)}</b>${q.id === G.me ? ' (you)' : ''}</td><td>${role}<br>${tags}</td></tr>`;
+  }).join('');
+  return `<table class="grim">${rows}</table><p class="hint">Demon bluffs: ${G.bluffs.map(esc).join(', ')}</p>`;
+}
+const infoLines = lines => lines.map(l => l.startsWith('<div') ? l : `<div class="info">${l}</div>`).join('');
+
+function homeView() {
+  const live = G && !G.winner;
+  return `<section class="card">
+    <h2>Practise Trouble Brewing on your own</h2>
+    <p>You take one seat. Every other seat is a bot, and the app is the Storyteller. The bots claim characters, share their info (good bots tell the truth, evil bots lie), point fingers, nominate and vote. Your job: work out who's lying, or, if you're evil, get away with it.</p>
+    <div class="row">
+      ${live ? `<button class="btn primary" data-act="resume">Resume game (${esc(label())})</button>` : ''}
+      <button class="btn ${live ? '' : 'primary'}" data-act="setup">New game</button>
+      <button class="btn" data-act="how">How it works</button>
+      <a class="btn home-link" href="index.html" style="text-decoration:none;color:inherit;display:inline-grid;place-items:center">&#8962; All apps</a>
+    </div>
+  </section>`;
+}
+function howView() {
+  return `<section class="card">
+    <h2>How it works</h2>
+    <h3>Setting up</h3>
+    <ul class="plain">
+      <li>Choose how many players (5 to 15) and whether you want to be good, evil or dealt at random. The bots get names and the characters are dealt with the standard Trouble Brewing counts.</li>
+      <li>With 7 or more players, the evil team knows each other and the Demon's three bluffs, just as at a real table.</li>
+    </ul>
+    <h3>Each night</h3>
+    <ul class="plain">
+      <li>If your character acts at night, choose your player, then go to sleep. The bots make their choices too, and the app resolves the night in the real wake order.</li>
+      <li>At dawn you read what you learned and who died.</li>
+    </ul>
+    <h3>Each day</h3>
+    <ul class="plain">
+      <li><b>Town talk:</b> the bots claim characters, share info and say who they suspect. Tap any seat to ask that player what they are, what they've learned, who they suspect or who they trust, or to say you suspect or trust them.</li>
+      <li><b>Say in town:</b> claim a character and share your info. You can share what you really learned, or make up info (you'll need to if you're evil).</li>
+      <li><b>Nominations:</b> nominate a player from their seat, or tap <i>Let the town nominate</i> for the bots' turn. Voting goes clockwise from the nominee; you see the votes before yours, then cast your own.</li>
+      <li><b>End the day:</b> anyone still keen gets a last nomination, then the player on the block is executed.</li>
+    </ul>
+    <h3>How the bots think</h3>
+    <ul class="plain">
+      <li>Each bot considers every possible evil team and checks it against everything said in town: Empath numbers, Investigator pings, Fortune Teller results, double claims, night deaths, Virgin and Slayer results. Info only counts against a world if its source is good in that world, and a good player's info can still be wrong if they're drunk or poisoned.</li>
+      <li>Good bots tell the truth about their character, though some wait a day to say it. Evil bots pick a bluff (the Demon's bluffs if they know them), make up info that points at a good player, defend their team and vote to protect them.</li>
+      <li>Each bot has its own hunches, so they won't all agree.</li>
+    </ul>
+    <h3>Coach</h3>
+    <p>Turn on <b>Coach</b> in the Menu to see, on each seat, how likely that player is to be the Demon given everything you know. If you're evil and know your team, it shows how suspicious the town finds each player instead. Leave it off to practise working it out yourself.</p>
+    <p>At the end you see the whole Grimoire and the Storyteller's log, including every bluff and lie the bots told.</p>
+    <p class="hint">Games are saved in this browser only. Nothing is uploaded.</p>
+    <div class="row"><button class="btn" data-act="home">Back</button></div>
+  </section>`;
+}
+function setupView() {
+  const counts = Object.keys(COUNTS).map(Number);
+  return `<section class="card">
+    <h2>New solo game</h2>
+    <div class="form">
+      <label>Your name<input class="inp" id="my-name" maxlength="20" placeholder="You" value="${esc(prefs.name)}"></label>
+      <label>Players (including you)
+        <select class="inp" data-pref="n">${counts.map(n => `<option value="${n}" ${prefs.n === n ? 'selected' : ''}>${n} players</option>`).join('')}</select>
+      </label>
+      <p class="hint">${breakdown(prefs.n)}</p>
+      <div class="setting"><span>Your team</span><div class="seg">${[['random', 'Random'], ['good', 'Good'], ['evil', 'Evil']].map(([v, l]) => `<button data-act="team" data-v="${v}" aria-pressed="${prefs.team === v}">${l}</button>`).join('')}</div></div>
+    </div>
+    <div class="row">
+      <button class="btn primary" data-act="start">Deal and start night 1</button>
+      <button class="btn" data-act="home">Cancel</button>
+    </div>
+  </section>`;
+}
+
+// seat(q) returns { button, attrs, cls, mark, sub } for each player's token
+function tableHtml(seat, mid) {
+  const N = G.players.length, d = Math.min(23, 0.9 * 2 * Math.PI * 39 / N);
+  const toks = G.players.map((q, i) => {
+    const a = 2 * Math.PI * i / N - Math.PI / 2, s = seat(q), tag = s.button ? 'button' : 'div';
+    const text = s.text || q.name, longest = Math.max(3, ...text.split(/\s+/).map(w => w.length));
+    const nfs = (s.text ? Math.min(d * 0.19, d * 1.05 / longest) : Math.min(d * 0.24, d * 1.4 / longest)).toFixed(2);
+    const sfs = s.sub ? Math.min(d * 0.16, d * 1.25 / Math.max(4, s.sub.length)).toFixed(2) : 0;
+    return `<${tag} class="tok ${s.cls || ''}" style="left:${(50 + 39 * Math.cos(a)).toFixed(2)}%;top:${(50 + 39 * Math.sin(a)).toFixed(2)}%;--nfs:${nfs}cqw;--sfs:${sfs}cqw" ${s.attrs || ''}><span class="tok-nm">${esc(text)}</span>${s.sub ? `<span class="tok-sub">${esc(s.sub)}</span>` : ''}${s.mark ? `<span class="mark">${s.mark}</span>` : ''}</${tag}>`;
+  }).join('');
+  return `<div class="table" style="--d:${d.toFixed(2)}cqw;--fs:${(d * 0.2).toFixed(2)}cqw">${toks}<div class="table-mid">${mid}</div></div>`;
+}
+function myCard() {
+  const p = me();
+  const hist = G.info[p.id].map(e => {
+    const lines = e.lines.filter(l => !l.startsWith('<div class="role-card'));
+    return lines.length ? `<div><div class="hist-when">${e.when}</div>${infoLines(lines)}</div>` : '';
+  }).join('');
+  return `<section class="card"><details ${G.stage === 'day' ? '' : 'open'}><summary>You: ${esc(p.name)}, the ${esc(believed(p))}${p.alive ? '' : ' (dead)'}</summary>
+    <div class="hist">${roleCard(believed(p))}
+    ${p.role === 'Butler' && p.master != null ? `<div class="info">Your master is <b>${nm(p.master)}</b>. You may only vote if they vote too.</div>` : ''}
+    ${hist || '<p class="hint">Nothing learned yet.</p>'}</div></details></section>`;
+}
+function nightView() {
+  const p = me(), n = G.n, br = believed(p);
+  let h = infoLines(G.inbox[p.id]);
+  if (n === 1) h += infoLines(G.info[p.id][0].lines);
+  else h += `<p class="hint">You are the <b>${esc(br)}</b>. ${esc(ROLES[br].text)}</p>`;
+  const al = alive().map(q => q.id), oth = al.filter(id => id !== p.id), all = G.players.map(q => q.id);
+  let need = null;
+  if (!p.alive) h += '<div class="info">You are dead. Rest while the night passes.</div>';
+  else if (br === 'Poisoner') need = { k: 1, ids: al, prompt: 'Choose a player to poison. They are poisoned tonight and all of tomorrow.' };
+  else if (br === 'Monk' && n >= 2) need = { k: 1, ids: oth, prompt: 'Choose a player (not yourself) to protect from the Demon tonight.' };
+  else if (p.role === 'Imp' && n >= 2) need = { k: 1, ids: al, prompt: 'Choose a player to kill. If you choose yourself, you die and a Minion becomes the Imp.' };
+  else if (br === 'Fortune Teller') need = { k: 2, ids: all, prompt: 'Choose 2 players. In the morning you learn whether either of them is the Demon.' };
+  else if (br === 'Butler') need = { k: 1, ids: oth, prompt: 'Choose your master. Tomorrow, you may only vote if they are voting too.' };
+  else h += '<div class="info">You have nothing to do tonight.</div>';
+  const ready = !need || U.sel.length === need.k;
+  return `<section class="card private">
+    <h2>Night ${n}</h2>
+    ${h}
+    ${need ? `<h3>Tonight</h3><p>${need.prompt}</p>${picker(need.ids, need.k)}` : ''}
+    <button class="btn primary block" data-act="sleep" ${ready ? '' : 'disabled'}>${need ? 'Confirm and sleep' : 'Sleep'}</button>
+  </section>`;
+}
+function dawnView() {
+  const p = me();
+  if (G.rkWait) return `<section class="card private"><h2>Dawn of day ${G.n}</h2>
+    <div class="msg">You were killed in the night. As the Ravenkeeper, choose a player: you learn their character.</div>
+    ${picker(G.players.map(q => q.id).filter(id => id !== G.me), 1)}
+    <button class="btn primary block" data-act="rk" ${U.sel.length === 1 ? '' : 'disabled'}>Learn their character</button></section>`;
+  const lines = G.dawnInfo[p.id] || [];
+  const deaths = G.diedTonight.length ? G.diedTonight.map(id => `<p class="result">${Nm(id)} ${id === G.me ? 'died' : 'died'} in the night.</p>`).join('') : '<p class="result">Nobody died in the night.</p>';
+  return `<section class="card">
+    <h2>Dawn of day ${G.n}</h2>
+    ${deaths}
+    ${lines.length ? `<h3>What you learned</h3>${infoLines(lines)}` : ''}
+    <button class="btn primary block" data-act="${G.winner ? 'to-over' : 'day'}">${G.winner ? 'See the result' : `Start day ${G.n}`}</button>
+  </section>`;
+}
+function duskView() {
+  const a = G.announce;
+  return `<section class="card">
+    <h2>${a.title}</h2>
+    ${a.lines.map(l => `<p class="result">${l}</p>`).join('')}
+    <button class="btn primary block" data-act="${G.winner ? 'to-over' : 'night'}">${G.winner ? 'See the result' : 'Night falls'}</button>
+  </section>`;
+}
+function coachKey() { const p = me(); return !isGood(p) && knownTeam(p).length > 1 ? 'town' : G.me; }
+function coachPct(id) {
+  const B = belief(coachKey());
+  return coachKey() === 'town' ? Math.round(100 * B.pe[id]) : Math.round(100 * B.pd[id]);
+}
+function voteCard() {
+  const v = G.vote, m = me();
+  const myIdx = v.order.indexOf(G.me);
+  const chips = v.order.map((id, i) => {
+    if (id === G.me) return `<span class="vote-chip wait">You?</span>`;
+    if (i > myIdx) return `<span class="vote-chip wait">${esc(P(id).name)}</span>`;
+    return `<span class="vote-chip ${v.intent[id] ? 'yes' : 'no'}">${v.intent[id] ? '✋' : '–'} ${esc(P(id).name)}</span>`;
+  }).join('');
+  const yesSoFar = v.order.slice(0, myIdx).filter(id => v.intent[id]).length;
+  const butler = m.role === 'Butler' && m.master != null ? `<p class="hint">You're the Butler: you may only vote if ${nm(m.master)} votes too.</p>` : '';
+  return `<section class="card panel"><h2>${Nm(v.a)} ${v.a === G.me ? 'nominate' : 'nominates'} ${nm(v.b)}</h2>
+    ${feedHtml(G.feed.slice(v.from || 0).filter(e => e.who != null))}
+    <p>${votesNeeded()} votes needed${G.dayS.highest ? `, and more than ${G.dayS.highest} to go on the block` : ''}. Voting goes clockwise from ${nm(v.b)}.</p>
+    <div class="votes">${chips}</div>
+    <p class="timer">${yesSoFar} ${plural(yesSoFar, 'hand', 'hands')} up so far</p>
+    ${butler}${!m.alive ? '<p class="hint">You are dead: voting yes uses your one ghost vote.</p>' : ''}
+    <div class="row"><button class="btn primary" data-act="vote" data-v="1">Vote to execute</button><button class="btn" data-act="vote" data-v="0">Don't vote</button></div></section>`;
+}
+function lastVoteCard() {
+  const v = G.lastVote;
+  const chips = v.order.map(id => `<span class="vote-chip ${v.hands.includes(id) ? 'yes' : 'no'}">${v.hands.includes(id) ? '✋' : '–'} ${id === G.me ? 'You' : esc(P(id).name)}</span>`).join('');
+  return `<section class="card"><h3>Last vote: ${Nm(v.a)} on ${nm(v.b)}</h3><div class="votes">${chips}</div><p>${v.res}</p></section>`;
+}
+function panelCard(id) {
+  const q = P(id), d = G.dayS, m = me(), isMe = id === G.me;
+  const shared = G.pub.filter(e => e.by === id);
+  const hist = new Set(q.claimHist).size > 1 ? `<p class="hint">Earlier claims: ${q.claimHist.slice(0, -1).map(esc).join(', ')}</p>` : '';
+  const canNom = !G.vote && m.alive && !d.nominators.includes(G.me) && !d.nominees.includes(id);
+  const canShoot = !G.vote && m.alive && !G.myShot && !isMe;
+  const askBtns = isMe ? '' : `<h3>Ask ${esc(q.name)}</h3><div class="row">
+      <button class="btn sm" data-act="ask" data-q="role" data-id="${id}">What are you?</button>
+      <button class="btn sm" data-act="ask" data-q="info" data-id="${id}">What have you learned?</button>
+      <button class="btn sm" data-act="ask" data-q="sus" data-id="${id}">Who do you suspect?</button>
+      <button class="btn sm" data-act="ask" data-q="trust" data-id="${id}">Who do you trust?</button></div>
+    <h3>Say</h3><div class="row">
+      <button class="btn sm" data-act="say-sus" data-id="${id}">I suspect ${esc(q.name)}</button>
+      <button class="btn sm" data-act="say-trust" data-id="${id}">I trust ${esc(q.name)}</button></div>`;
+  return `<section class="card panel">
+    <div class="panel-head"><h2>${isMe ? 'You' : esc(q.name)}</h2><span class="tag">${q.alive ? 'alive' : q.ghost ? 'dead · ghost vote' : 'dead'}</span>${prefs.coach ? `<span class="tag">${coachKey() === 'town' ? 'town suspicion' : 'Demon'} ${coachPct(id)}%</span>` : ''}</div>
+    <p>${q.claim ? `${isMe ? 'You claim' : 'Claims'} to be the <b>${esc(q.claim)}</b>.` : isMe ? "You haven't claimed a character." : "Hasn't said what they are."}</p>
+    ${hist}
+    ${shared.length ? `<div class="hist">${shared.map(e => `<div class="info">${factText(e.f)}</div>`).join('')}</div>` : ''}
+    ${askBtns}
+    <div class="row">
+      ${canNom && !isMe ? `<button class="btn primary sm" data-act="nominate" data-id="${id}">Nominate ${esc(q.name)}</button>` : ''}
+      ${canNom && isMe ? `<button class="btn sm" data-act="nominate" data-id="${id}">Nominate yourself</button>` : ''}
+      ${canShoot ? `<button class="btn sm" data-act="shoot" data-id="${id}">Slayer shot at ${esc(q.name)}</button>` : ''}
+      <button class="btn sm" data-act="seat" data-id="${id}">Close</button>
+    </div>
+  </section>`;
+}
+function sayCard() {
+  const p = me(), f = U.form;
+  const facts = G.facts[p.id];
+  const shared = new Set(G.pub.filter(e => e.by === G.me).map(e => fkey(e.f)));
+  const opt = (v, l, on) => `<option value="${esc(v)}" ${on ? 'selected' : ''}>${esc(l)}</option>`;
+  const players = (key, none) => `<select class="inp" data-f="${key}">${none ? opt('', '…', f[key] === '') : ''}${G.players.map(q => opt(q.id, q.id === G.me ? `${q.name} (you)` : q.name, String(f[key]) === String(q.id))).join('')}</select>`;
+  let fields = '';
+  if (f) {
+    const r = f.role;
+    const chars = r === 'Washerwoman' ? TF : r === 'Librarian' ? ['(no Outsiders)', ...OS] : r === 'Investigator' ? MN : Object.keys(ROLES);
+    if (['Washerwoman', 'Librarian', 'Investigator'].includes(r)) fields = `<label>One of${players('a')}</label><label>and${players('b')}</label><label>is the<select class="inp" data-f="char">${chars.map(c => opt(c, c, f.char === c)).join('')}</select></label>`;
+    else if (r === 'Chef') fields = `<label>Pairs of evil players sitting together<select class="inp" data-f="num">${[0, 1, 2, 3].map(k => opt(k, k, +f.num === k)).join('')}</select></label>`;
+    else if (r === 'Empath') fields = `<label>Evil alive neighbours (${list(aliveNeighbours(p).map(q => Nm(q.id)))})<select class="inp" data-f="num">${[0, 1, 2].map(k => opt(k, k, +f.num === k)).join('')}</select></label>`;
+    else if (r === 'Fortune Teller') fields = `<label>I chose${players('a')}</label><label>and${players('b')}</label><label>The answer<select class="inp" data-f="yes">${opt('1', 'Yes, one is the Demon', f.yes === '1')}${opt('0', 'No', f.yes !== '1')}</select></label>`;
+    else if (r === 'Undertaker' || r === 'Ravenkeeper') fields = `<label>${r === 'Undertaker' ? 'The executed player' : 'The player I chose'}${players('a')}</label><label>was the<select class="inp" data-f="char">${chars.map(c => opt(c, c, f.char === c)).join('')}</select></label>`;
+    else if (r === 'Monk') fields = `<label>I protected${players('a')}</label>`;
+    fields = `<div class="form">
+      <label>Info as the<select class="inp" data-f="role">${INFO_ROLES.map(x => opt(x, x, r === x)).join('')}</select></label>
+      <label>From night<select class="inp" data-f="n">${Array.from({ length: G.n }, (_, i) => opt(i + 1, i + 1, +f.n === i + 1)).join('')}</select></label>
+      ${fields}
+      <div class="row"><button class="btn primary sm" data-act="make">Say it in town</button><button class="btn sm" data-act="make-cancel">Cancel</button></div></div>`;
+  }
+  return `<section class="card"><h3>Say in town</h3>
+    <div class="row"><select class="inp" id="claim-role" aria-label="Character to claim">${CLAIMABLE.map(r => opt(r, r, (p.claim || (isGood(p) ? believed(p) : (knowsBluffs(p) ? G.bluffs[0] : ''))) === r)).join('')}</select>
+      <button class="btn sm" data-act="claim">${p.claim ? 'Change my claim' : 'Claim this character'}</button></div>
+    ${facts.length ? `<h3>What you learned</h3>${facts.map((x, i) => `<div class="share-row"><div class="info">${factText(x, true)}</div>${shared.has(fkey(x)) ? '<span class="hint">Shared</span>' : `<button class="btn sm" data-act="share" data-i="${i}">Share</button>`}</div>`).join('')}` : ''}
+    ${f ? fields : `<button class="btn sm" data-act="make-open">${isGood(p) ? 'Share info another way (or make some up)' : 'Make up info to share'}</button>`}
+  </section>`;
+}
+function notesCard() {
+  const rows = G.players.map(q => {
+    const shared = G.pub.filter(e => e.by === q.id);
+    const death = G.deaths.find(x => x.id === q.id);
+    const how = death ? ` <span class="muted">(${death.how === 'night' ? `died night ${death.n}` : death.how === 'execution' ? `executed day ${death.n}` : `shot day ${death.n}`})</span>` : '';
+    return `<tr class="${q.alive ? '' : 'dead'} ${U.panel === q.id ? 'sel' : ''}"><td><button class="btn sm" data-act="seat" data-id="${q.id}" style="min-height:30px">${q.id === G.me ? 'You' : esc(q.name)}</button></td>
+      <td>${q.claim ? esc(q.claim) : '<span class="muted">?</span>'}${new Set(q.claimHist).size > 1 ? ' <span class="tag evil">changed</span>' : ''}${how}
+      ${shared.length ? `<div class="facts">${shared.map(e => `<span>${factText(e.f)}</span>`).join('')}</div>` : ''}</td>
+      ${prefs.coach ? `<td class="pct">${coachPct(q.id)}%</td>` : ''}</tr>`;
+  }).join('');
+  return `<section class="card"><h3>Claims and info</h3><table class="notes"><tr><th>Player</th><th>Claim and info</th>${prefs.coach ? `<th>${coachKey() === 'town' ? 'Town' : 'Demon'}</th>` : ''}</tr>${rows}</table></section>`;
+}
+function feedHtml(items) {
+  return `<div class="feed">${items.map(e => {
+    if (e.who == null) return `<div class="say sys">${e.text}</div>`;
+    const q = P(e.who);
+    return `<div class="say ${e.who === G.me ? 'me' : ''} ${q.alive ? '' : 'dead'}"><span class="who">${e.who === G.me ? 'You' : esc(q.name)}:</span>${e.text}</div>`;
+  }).join('')}</div>`;
+}
+function dayView() {
+  const d = G.dayS, m = me();
+  const seats = tableHtml(q => ({
+    button: true, attrs: `data-act="seat" data-id="${q.id}" aria-label="${esc(q.name)}"`,
+    cls: 'seat ' + (q.alive ? '' : 'dead') + (d.block === q.id ? ' block' : '') + (U.panel === q.id ? ' picked' : ''),
+    sub: (q.id === G.me ? 'you · ' : '') + (q.claim || '') + (prefs.coach ? ` ${coachPct(q.id)}%` : ''),
+    mark: q.alive ? '' : q.ghost ? '☠ vote' : '☠',
+  }), `<div class="mid-big">${alive().length}</div><div class="mid-sm">alive</div>${d.block != null ? `<div class="mid-sm" style="color:var(--evil)">${nm(d.block)} on the block</div>` : ''}`);
+  const today = G.feed.filter(e => e.when === label()), earlier = G.feed.filter(e => e.when !== label());
+  const endConfirm = U.confirmEnd ? `<div class="banner">${d.block != null ? `End the day? <b>${nm(d.block)}</b> will be executed.` : 'End the day? Nobody is on the block, so nobody will be executed.'}
+      <div class="row" style="margin-top:8px"><button class="btn primary sm" data-act="end-yes">End the day</button><button class="btn sm" data-act="end-no">Not yet</button></div></div>` : '';
+  return `${G.vote ? voteCard() : ''}
+    <section class="card">
+      <h2>Day ${G.n}</h2>
+      <p class="hint">${alive().length} alive. ${votesNeeded()} votes needed to execute. ${m.alive ? '' : "You're dead, but you can still talk" + (m.ghost ? ' and have one ghost vote.' : '.')}</p>
+      <div class="banner ${d.block != null ? 'evil' : ''}">${d.block != null ? `On the block: ${nm(d.block)} with ${d.highest} votes` : d.highest ? `Nobody is on the block (tied at ${d.highest})` : 'Nobody is on the block'}</div>
+      ${G.vote ? '' : `<div class="row">
+        <button class="btn primary" data-act="town-nom">Let the town nominate</button>
+        <button class="btn" data-act="end">End the day</button>
+      </div>${d.quiet ? '<p class="hint">Nobody else wants to nominate right now.</p>' : ''}${endConfirm}`}
+      <p class="hint">Tap a seat to talk to that player, nominate them or take a Slayer shot.</p>
+      ${seats}
+    </section>
+    ${U.panel != null ? panelCard(U.panel) : ''}
+    ${G.lastVote && !G.vote ? lastVoteCard() : ''}
+    <section class="card"><h3>Town talk: day ${G.n}</h3>${feedHtml(today)}
+      ${earlier.length ? `<details><summary>Earlier days</summary>${feedHtml(earlier)}</details>` : ''}</section>
+    ${sayCard()}
+    ${notesCard()}
+    ${myCard()}`;
+}
+
+function revealHtml() {
+  const shown = G.revealed || [], all = shown.length === G.players.length;
+  const table = tableHtml(q => {
+    const open = shown.includes(q.id), team = isGood(q) ? 'good' : 'evil';
+    return {
+      button: true, attrs: `data-act="flip" data-id="${q.id}" aria-label="${esc(q.name)}${open ? ': ' + esc(q.role) : ': reveal'}"`,
+      cls: open ? `flipped ${team} ${ROLES[q.role].type}${q.alive ? '' : ' dead'}${U.revealSel === q.id ? ' picked' : ''}` : (q.alive ? '' : 'dead'),
+      text: open ? q.role : '', sub: open ? (q.id === G.me ? 'You' : q.name) : '', mark: q.alive ? '' : '☠',
+    };
+  }, all ? `<div class="mid-big">${G.winner.team === 'good' ? 'Good' : 'Evil'}</div><div class="mid-sm">wins</div>`
+        : `<div class="mid-big">${shown.length}/${G.players.length}</div><div class="mid-sm">tap a seat to reveal</div>`);
+  const p = U.revealSel != null && shown.includes(U.revealSel) ? P(U.revealSel) : null;
+  const notes = p ? [
+    p.alive ? 'Survived' : 'Died',
+    p.role === 'Drunk' ? `Thought they were the ${esc(p.fake)}` : '',
+    p.was ? `Started as the ${esc(p.was)}` : '',
+    p.claim && p.claim !== believed(p) ? `Claimed to be the ${esc(p.claim)}` : '',
+    p.id === G.redHerring ? "The Fortune Teller's red herring" : '',
+  ].filter(Boolean) : [];
+  return `${table}
+    <div class="row" style="justify-content:center">${all ? '<button class="btn" data-act="flip-none">Hide everyone</button>' : '<button class="btn primary" data-act="flip-all">Reveal everyone</button>'}</div>
+    ${p ? `<div class="reveal-detail"><h3>${p.id === G.me ? 'You' : esc(p.name)}</h3>${roleCard(p.role)}<p class="hint">${notes.join(' · ')}</p></div>` : ''}
+    <p class="hint">Demon bluffs: ${G.bluffs.map(esc).join(', ')}</p>`;
+}
+function overView() {
+  const w = G.winner, mine = isGood(me()) ? 'good' : 'evil';
+  let last = '', logHtml = '';
+  G.log.forEach(e => { if (e.when !== last) { logHtml += `<div class="when">${e.when}</div>`; last = e.when; } logHtml += `<div>${e.text}</div>`; });
+  return `<section class="card">
+      <div class="win ${w.team}">${w.team === mine ? 'You win' : 'You lose'}</div>
+      <p class="win-reason">${w.team === 'good' ? 'Good' : 'Evil'} wins. ${w.reason}</p>
+      <p class="hint" style="text-align:center">You were the ${esc(me().role)}${me().role === 'Drunk' ? ` (you thought you were the ${esc(me().fake)})` : ''}${me().was ? `, and started as the ${esc(me().was)}` : ''}.</p>
+      <div class="row" style="justify-content:center"><button class="btn primary" data-act="start">Play again</button><button class="btn" data-act="setup">Change settings</button></div>
+    </section>
+    <section class="card"><h2>The Grimoire</h2>${revealHtml()}</section>
+    <section class="card"><details><summary>Everything said in town</summary>${feedHtml(G.feed)}</details></section>
+    <section class="card"><h2>Storyteller's log</h2><p class="hint">Every character, choice, lie and piece of false info.</p><div class="log">${logHtml}</div></section>`;
+}
+function menuView() {
+  if (U.menu === 'abandon') return `<section class="card"><p>Abandon this game? It can't be brought back.</p><div class="row">
+    <button class="btn danger" data-act="abandon-yes">Abandon the game</button><button class="btn" data-act="menu">Keep playing</button></div></section>`;
+  const sizes = [[1, 'Normal'], [1.2, 'Large'], [1.4, 'Extra large']];
+  return `<section class="card">
+    <div class="setting"><span>Text size</span><div class="seg">${sizes.map(([v, l]) => `<button data-act="text" data-v="${v}" aria-pressed="${prefs.text === v}">${l}</button>`).join('')}</div></div>
+    <div class="setting"><span>Coach</span><div class="seg"><button data-act="coach" data-v="1" aria-pressed="${prefs.coach}">On</button><button data-act="coach" data-v="0" aria-pressed="${!prefs.coach}">Off</button></div></div>
+    <p class="hint">Coach shows each player's chance of being the Demon, given what you know (or, if you're evil and know your team, how suspicious the town finds them).</p>
+    <div class="row">
+    <button class="btn" data-act="how">How it works</button>
+    ${G && !G.winner ? `<button class="btn danger" data-act="abandon">Abandon this game</button>` : ''}
+    <button class="btn" data-act="menu">Close</button></div></section>`;
+}
+
+function render() {
+  let html = '';
+  if (U.menu) html += menuView();
+  if (U.view === 'home') html += homeView();
+  else if (U.view === 'how') html += howView();
+  else if (U.view === 'setup') html += setupView();
+  else if (G) {
+    if (G.stage === 'night') html += nightView() + (G.n > 1 ? myCard() : '');
+    else if (G.stage === 'dawn') html += dawnView();
+    else if (G.stage === 'day') html += dayView();
+    else if (G.stage === 'dusk') html += duskView();
+    else html += overView();
+  } else { U.view = 'home'; html += homeView(); }
+  $app.innerHTML = html;
+  document.getElementById('phase').textContent = G && U.view === 'game' ? (G.stage === 'over' ? 'Game over' : label()) : '';
+  save();
+}
+
+/* ---------- Your actions ---------- */
+function makeForm() {
+  const p = me(), role = p.claim && INFO_ROLES.includes(p.claim) ? p.claim : INFO_ROLES.includes(believed(p)) ? believed(p) : 'Empath';
+  const oth = G.players.filter(q => q.id !== G.me);
+  return { role, n: G.n, a: oth[0].id, b: oth[1].id, char: '', num: 0, yes: '0' };
+}
+function submitForm() {
+  const f = U.form, r = f.role, a = +f.a, b = +f.b, n = +f.n;
+  let fact = null;
+  if (['Washerwoman', 'Librarian', 'Investigator'].includes(r)) {
+    const chars = r === 'Washerwoman' ? TF : r === 'Librarian' ? ['(no Outsiders)', ...OS] : MN;
+    const char = chars.includes(f.char) ? f.char : chars[0];
+    if (char === '(no Outsiders)') fact = { k: 'noOut', role: r };
+    else { if (a === b) return 'Choose two different players.'; fact = { k: 'pair', role: r, a, b, char }; }
+  } else if (r === 'Chef') fact = { k: 'chef', num: +f.num };
+  else if (r === 'Empath') fact = { k: 'empath', num: +f.num, nb: aliveNeighbours(me()).map(q => q.id) };
+  else if (r === 'Fortune Teller') { if (a === b) return 'Choose two different players.'; fact = { k: 'ft', a, b, yes: f.yes === '1' }; }
+  else if (r === 'Undertaker' || r === 'Ravenkeeper') fact = { k: 'see', who: a, char: ROLES[f.char] ? f.char : Object.keys(ROLES)[0] };
+  else if (r === 'Monk') fact = { k: 'monk', who: a };
+  fact.n = n; fact.src = r;
+  shareFact(fact);
+  U.form = null;
+  return null;
+}
+function shareFact(f) {
+  if (me().claim !== f.src) { setClaim(me(), f.src); say(G.me, `I'm the <b>${esc(f.src)}</b>.`); }
+  G.pub.push({ by: G.me, f, day: G.n });
+  say(G.me, factText(f, true));
+}
+
+/* ---------- Events ---------- */
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.pref === 'n') { prefs.n = +t.value; savePrefs(); render(); }
+  if (t.dataset.f && U.form) {
+    U.form[t.dataset.f] = t.value;
+    if (t.dataset.f === 'role') { U.form.char = ''; render(); }
+  }
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'my-name') { prefs.name = e.target.value; savePrefs(); }
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b || b.disabled) return;
+  const act = b.dataset.act, id = b.dataset.id != null ? +b.dataset.id : null;
+  const go = () => { render(); window.scrollTo(0, 0); };
+  switch (act) {
+    case 'menu': U.menu = !U.menu && U.menu !== 'abandon' ? true : false; break;
+    case 'home': U.view = 'home'; U.menu = false; break;
+    case 'how': U.view = 'how'; U.menu = false; return go();
+    case 'resume': U.view = 'game'; break;
+    case 'setup': U.view = 'setup'; U.menu = false; return go();
+    case 'team': prefs.team = b.dataset.v; savePrefs(); break;
+    case 'start':
+      newGame({ n: prefs.n, team: prefs.team, name: prefs.name });
+      G.created = Date.now();
+      U = { view: 'game', sel: [], need: 0, menu: false, panel: null, confirmEnd: false, form: null, bc: null };
+      return go();
+    case 'abandon': U.menu = 'abandon'; break;
+    case 'abandon-yes': G = null; U.view = 'home'; U.menu = false; break;
+    case 'text': prefs.text = +b.dataset.v; savePrefs(); break;
+    case 'coach': prefs.coach = b.dataset.v === '1'; savePrefs(); break;
+    case 'sel':
+      if (U.sel.includes(id)) U.sel = U.sel.filter(x => x !== id);
+      else if (U.need === 1) U.sel = [id];
+      else { U.sel.push(id); if (U.sel.length > U.need) U.sel.shift(); }
+      break;
+    case 'sleep': endNight(U.sel.slice()); U.sel = []; return go();
+    case 'rk': ravenkeeperLearns(me(), U.sel[0]); G.rkWait = false; U.sel = []; break;
+    case 'day': startDay(); U.panel = null; return go();
+    case 'night': startNight(); U.sel = []; U.panel = null; U.form = null; U.confirmEnd = false; return go();
+    case 'to-over': G.stage = 'over'; return go();
+    case 'seat': U.panel = U.panel === id ? null : id; break;
+    case 'ask': ask(P(id), b.dataset.q); break;
+    case 'say-sus': {
+      say(G.me, `I think <b>${esc(P(id).name)}</b> could be evil.`);
+      G.opinions.push({ by: G.me, x: id, day: G.n });
+      defend(P(id), G.me);
+      break;
+    }
+    case 'say-trust': say(G.me, `I trust <b>${esc(P(id).name)}</b>.`); break;
+    case 'nominate': U.confirmEnd = false; nominate(G.me, id); return go();
+    case 'shoot': {
+      G.myShot = true;
+      if (me().claim !== 'Slayer') setClaim(me(), 'Slayer');
+      say(G.me, `I'm the Slayer, and I'm shooting <b>${esc(P(id).name)}</b>.`);
+      slayerShot(G.me, id);
+      return go();
+    }
+    case 'vote': G.vote.mine = b.dataset.v === '1'; finishVote(); return go();
+    case 'town-nom':
+      U.confirmEnd = false;
+      if (botNominates()) { G.dayS.quiet = false; return go(); }
+      G.dayS.quiet = true; sys('Nobody else wants to nominate.');
+      break;
+    case 'end':
+      // Anyone still keen gets one last nomination first
+      if (botNominates()) { sys('Before the day ends…'); return go(); }
+      U.confirmEnd = true; break;
+    case 'end-no': U.confirmEnd = false; break;
+    case 'end-yes': U.confirmEnd = false; endDay(); return go();
+    case 'claim': {
+      const r = document.getElementById('claim-role').value;
+      if (me().claim === r) break;
+      setClaim(me(), r); say(G.me, `I'm the <b>${esc(r)}</b>.`);
+      break;
+    }
+    case 'share': shareFact(G.facts[G.me][+b.dataset.i]); break;
+    case 'make-open': U.form = makeForm(); break;
+    case 'make-cancel': U.form = null; break;
+    case 'make': { const err = submitForm(); if (err) alert(err); break; }
+    case 'flip': {
+      const shown = G.revealed = G.revealed || [];
+      if (!shown.includes(id)) shown.push(id);
+      U.revealSel = id;
+      break;
+    }
+    case 'flip-all': G.revealed = G.players.map(q => q.id); U.revealSel = null; break;
+    case 'flip-none': G.revealed = []; U.revealSel = null; break;
+  }
+  render();
+});
+render();
+</script>
+</body>
+</html>
