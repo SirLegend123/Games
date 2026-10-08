@@ -514,8 +514,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         </div>
       </div>
       <section class="card" aria-labelledby="readsTitle">
-        <div class="tips-head"><h2 id="readsTitle">Who's who</h2><span class="tips-foot">Tap a name to open their panel</span></div>
-        <div id="readsView" class="reads-grid"></div>
+        <div class="tips-head"><h2 id="readsTitle">Who's who</h2><span class="tips-foot">Most suspicious first. Tap Talk to see what to ask them and record what they say.</span></div>
         <div id="whosTable" class="whos-wrap"></div>
       </section>
     </section>
@@ -524,7 +523,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <h2 id="storyTitle">The story so far</h2>
         <button class="btn primary" id="talkBtn">+ Log a conversation</button>
       </div>
-      <span class="tips-foot">Tap a player's token, or a name below, to see what to ask them and record what they say. A recap of the day opens by itself as night falls.</span>
+      <span class="tips-foot">Your nights, what adds up and what doesn't, and what everyone has told you. A recap of the day opens by itself as night falls.</span>
       <div id="storyView" class="story"></div>
     </section>
   </div>
@@ -633,7 +632,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <li><b>Hard claim:</b> when they firmly commit to one role, switch to Hard claim and tap it. That role is then removed from other players' options.</li>
           <li>Set <b>My read</b> (good, unsure, evil), pick the evil character you <b>suspect</b>, and write <b>notes</b>.</li>
         </ul>
-        <p>After talking to someone, tap their token, or their name in the list beside the circle. Their panel starts with the questions to ask them, each with answer buttons where the answer is definite: their options to pick from, <b>Answer as the Fortune Teller</b> (and so on) to enter their night info under the question, or Yes / No. Answers go straight into your notebook. Below that, record their claim, then pick from <b>Which character's info?</b> to enter the night info they shared (only that form opens). On the same page, record their soft or hard claim, the night info they shared, and anything they heard: another player's claim, or info from a character ("the Investigator saw a Baron"). It all goes onto the circle and into Night info for you.</p>
+        <p>After talking to someone, tap their token, or <b>Talk</b> on their row in <b>Who's who</b>. Their panel starts with the questions to ask them, each with answer buttons where the answer is definite: their options to pick from, <b>Answer as the Fortune Teller</b> (and so on) to enter their night info under the question, or Yes / No. Answers go straight into your notebook. Below that, record their claim, then pick from <b>Which character's info?</b> to enter the night info they shared (only that form opens). On the same page, record their soft or hard claim, the night info they shared, and anything they heard: another player's claim, or info from a character ("the Investigator saw a Baron"). It all goes onto the circle and into Night info for you.</p>
         <p>When a player shares what they learned at night, add it under <b>Night info</b> with <b>Whose info</b> set to them. If you hear info but don't know who it came from yet (say, "the Investigator saw a Baron"), set <b>Whose info</b> to <b>Someone (not sure who yet)</b>. It links to them when they hard-claim that role. Use <b>Slayer shot</b> when someone shoots.</p>
       </li>
       <li>
@@ -650,7 +649,8 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <h2>Read the board</h2>
         <p>Use the tabs at the top: <b>Table</b> (the circle and the story so far), <b>Night info</b>, <b>Plan</b>, <b>Evil team</b>, <b>Claims</b> and <b>Notes</b>. Badges show when something needs attention.</p>
         <ul>
-          <li><b>The story so far</b> (beside the circle): a daily checklist of who to speak to and what to ask each player. Tap a name to see the questions, answer yes/no questions with Yes, No or Didn't answer (not answering is never held against anyone), and enter their night info with quick answers (an Empath's number, the Fortune Teller's two players and result, what the Undertaker saw), which go straight into Night info. Then log anything else they said or tick them off. A recap of the day opens as night falls (you can reread it during the night). It sums up your own nights (and suggests tonight's choice for your character), what each player has told you and others, what adds up and what doesn't, and what to find out tomorrow.</li>
+          <li><b>Who's who</b> (under the circle): a row for every player, most suspicious first. It shows what they've shared each day, how suspicious they are and why (or that they're confirmed or probably good), whether you've spoken to them today, and a <b>Talk</b> button. In their panel, answer yes/no questions with Yes, No or Didn't answer (not answering is never held against anyone), and enter their night info with quick answers, which go straight into Night info.</li>
+          <li><b>The story so far</b> (beside the circle): your own nights (and tonight's suggested choice), what adds up and what doesn't, and what each player has told you and others. A recap of the day opens as night falls, and you can reread it during the night.</li>
           <li><b>Plan for tomorrow:</b> what doesn't add up, questions to ask each player, and who to look at.</li>
           <li><b>Evil team:</b> the most likely Demon and why, plus which Minions are likely in play.</li>
           <li><b>Test a hunch:</b> in a player's panel, tap "What if they're evil?" to see what supports it, what goes against it, and what follows if it's true.</li>
@@ -3385,7 +3385,7 @@ function storyHtml(opts = {}) {
     ${!unspoken.length && !sus.length && !order.length ? `<p class="tips-empty">Nothing urgent. Keep asking for claims and night info.</p>` : ""}</div>`;
   // On the Story tab, today's checklist of who to speak to replaces "Find out tomorrow"
   if (opts.plain) return { html: stand + `<div class="story-grid">${nightsHtml}${tomorrowHtml}</div>` + checksHtml + playersHtml, bad: badAll.length };
-  return { html: checklistHtml(asks, sus) + stand + nightsHtml + checksHtml + playersHtml, bad: badAll.length };
+  return { html: stand + nightsHtml + checksHtml + playersHtml, bad: badAll.length };
 }
 
 // What to ask each player: clashes first, then the Plan tab's questions, and something for everyone else
@@ -3464,20 +3464,7 @@ function sharedByDay(p) {
   return [...days].sort((a, b) => a[0] - b[0]);
 }
 function renderReads() {
-  const { sure, likely } = goodSummary(), sus = suspicionRank().slice(0, 6);
-  const who = p => `<button class="who" data-open="${p.id}">${esc(pName(p))}</button>`;
-  const max = Math.max(1, ...sus.map(r => r.score));
-  const goodRow = (id, why, cls) => { const p = pById(id); return `<div class="read-row ${cls}"><span class="rank">${cls === "sure" ? "✓" : "?"}</span>${who(p)}${p.dead ? " <small>dead</small>" : ""}<small>${esc([...new Set(why)].join(" · "))}</small></div>`; };
-  $("readsView").innerHTML = `
-    <div class="tips-col"><h3>Confirmed good</h3>
-      ${sure.size ? [...sure].map(([id, why]) => goodRow(id, why, "sure")).join("") : `<p class="tips-empty">Nobody yet. The Virgin or a Slayer hit proves someone good.</p>`}
-      <h3>Probably good</h3>
-      ${likely.size ? [...likely].map(([id, why]) => goodRow(id, why, "good")).join("") : `<p class="tips-empty">No one stands out as good yet.</p>`}
-    </div>
-    <div class="tips-col"><h3>Most suspicious</h3>
-      ${sus.length ? sus.map((r, i) => `<div class="read-row suspect-row"><span class="rank">${i + 1}</span>${who(r.p)}${r.p.dead ? " <small>dead</small>" : ""}<span class="cand-bar"><i style="width:${Math.round(100 * r.score / max)}%"></i></span><small>${esc(r.why.slice(0, 3).join(" · "))}</small></div>`).join("") : `<p class="tips-empty">No one stands out yet. Log claims and info, or mark your evil reads.</p>`}
-    </div>`;
-  $("readsView").querySelectorAll("[data-open]").forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+  const { sure, likely } = goodSummary();
   renderWhosTable(sure, likely);
 }
 // One row per player: what they've shared each day, how suspicious they are and why, and a button to talk to them
@@ -3497,7 +3484,7 @@ function renderWhosTable(sure, likely) {
     <tbody>${rows.map(({ p, lv }) => {
       const shared = sharedByDay(p);
       return `<tr class="${p.dead ? "dead" : ""}">
-        <td><b>${esc(pName(p))}</b><small>${p.claims.length ? `${isHard(p) ? "" : "options: "}${esc(orList(p.claims))}` : "no claim yet"}${p.dead ? " · dead" : ""}</small></td>
+        <td><b>${esc(pName(p))}</b><small>${p.claims.length ? `${isHard(p) ? "" : "options: "}${esc(orList(p.claims))}` : "no claim yet"}${p.dead ? " · dead" : ""}</small>${spokenToday(p.id) ? `<small class="yes-line">✓ spoken to today</small>` : ""}</td>
         <td>${shared.length ? shared.map(([d, items]) => `<span class="day"><b>D${d}</b>${esc(items.join("; "))}</span>`).join("") : `<small>Nothing yet</small>`}</td>
         <td>${lv.html}</td>
         <td><button class="btn sm primary" data-open="${p.id}">Talk</button></td>
@@ -3630,7 +3617,6 @@ function askBodyHtml(p, asks, sus) {
     <small>Tapping an answer adds it to your notebook. Not answering is common and isn't held against anyone.</small>
   </div>`;
 }
-const askCount = (p, asks) => infoAsks(p).length + (asks.get(p.id) || []).flatMap(q => splitQs(q.text)).length;
 // Answer buttons and quick info forms, wherever they're shown. soft() redraws after a choice; hard() after data changes.
 function wireAsk(root, soft, hard) {
   root.querySelectorAll("[data-aip]").forEach(el => el.onchange = () => { infoDrafts[el.dataset.aip].p[+el.dataset.i] = el.value; });
@@ -3661,35 +3647,6 @@ function wireAsk(root, soft, hard) {
   });
 }
 
-function checklistHtml(asks, sus) {
-  const ps = state.players.filter(p => !p.me);
-  const hi = id => (asks.get(id) || []).some(q => q.hi);
-  const rank = suspicionRank(), susScore = id => rank.find(r => r.p.id === id)?.score || 0;
-  // Priority: stories that clash, then suspicion, then night info still to collect, then missing or vague claims
-  const prio = p => {
-    const qs = asks.get(p.id) || [], clash = playerStory(p).bad.length, pending = infoAsks(p).length;
-    let score = 4 * qs.filter(q => q.hi).length + 3 * clash + Math.min(susScore(p.id), 8) + 2 * pending + (!p.claims.length ? 3 : isSoft(p) ? 1 : 0);
-    const reason = clash ? "Their story doesn't add up" : rank[0]?.p.id === p.id ? "Your top suspect" : susScore(p.id) > 0 ? "On your suspect list" : qs.some(q => q.hi) ? "Important questions" : pending ? "Night info to collect" : !p.claims.length ? "No claim yet" : isSoft(p) ? "Hasn't narrowed their options" : "";
-    if (p.dead) score -= 6;
-    return { score, reason };
-  };
-  const pr = new Map(ps.map(p => [p.id, prio(p)]));
-  const rows = [...ps].sort((a, b) => (spokenToday(a.id) ? 1 : 0) - (spokenToday(b.id) ? 1 : 0) || pr.get(b.id).score - pr.get(a.id).score || ps.indexOf(a) - ps.indexOf(b));
-  const done = ps.filter(p => spokenToday(p.id)).length;
-  const row = (p, i) => {
-    const sp = spokenToday(p.id), auto = talkedToday(p.id), n = askCount(p, asks), why = pr.get(p.id).reason;
-    const claim = p.claims.length ? `${isHard(p) ? "" : "options: "}${orList(p.claims)}` : "no claim yet";
-    const suspect = sus.some(c => c.p.id === p.id);
-    return `<div class="ask-row${sp ? " done" : ""}${hi(p.id) && !sp ? " hi" : ""}">
-      <button class="ask-tick" data-asktick="${p.id}" aria-pressed="${sp}" aria-label="${sp ? "Spoken to" : "Mark as spoken to"}: ${esc(pName(p))}" ${auto ? "disabled title=\"You logged a conversation with them today\"" : ""}>✓</button>
-      <button class="ask-name" data-open="${p.id}"><b>${sp ? "" : `<span class="ask-rank">${i + 1}.</span>`}${esc(pName(p))}</b>${!sp && why && why !== "No claim yet" ? `<span class="why">${esc(why)}</span>` : ""}${p.dead ? " <small>(dead)</small>" : ""}${suspect ? ` <span class="pill likely">Suspect</span>` : ""}<small>${esc(claim)} · ${n} question${n === 1 ? "" : "s"}</small></button>
-    </div>`;
-  };
-  return `<div class="story-sec"><h3>Who to speak to today · ${done} of ${ps.length} done</h3>
-    <p class="hint" style="margin:0">In priority order: clashing stories and suspects first, then night info to collect and missing claims. Anyone you've spoken to moves to the bottom.</p>
-    <div class="ask-list">${rows.map((p, i) => row(p, i)).join("")}</div></div>`;
-}
-
 function renderStory() {
   const { html, bad } = storyHtml();
   const todays = talks().filter(t => t.day === state.day);
@@ -3699,11 +3656,6 @@ function renderStory() {
     return `<div class="tip entry"><span class="when">Day ${t.day} · ${esc(pName(p))}</span><button class="x" data-tdel="${t.id}" aria-label="Delete this conversation">×</button><small>${esc(bits.join(" · ")) || "No details"}</small></div>`;
   }).join("")}<span class="tips-foot">${todays.length} today. Deleting a conversation keeps the claims and night info it added.</span></div>` : "");
   $("storyView").querySelectorAll("[data-open]").forEach(b => b.onclick = () => openPlayer(b.dataset.open));
-  $("storyView").querySelectorAll("[data-asktick]").forEach(b => b.onclick = () => {
-    const l = spokenList(), id = b.dataset.asktick;
-    state.spoken[state.day] = l.includes(id) ? l.filter(x => x !== id) : [...l, id];
-    save(); renderStory();
-  });
   $("storyView").querySelectorAll("[data-tdel]").forEach(b => b.onclick = () => { state.talks = talks().filter(t => t.id !== b.dataset.tdel); save(); render(); });
   $("bStory").textContent = bad || "";
   $("bStory").classList.toggle("red", bad > 0);
