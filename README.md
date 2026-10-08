@@ -2,7 +2,7 @@
 
 ## Clocktower Companion
 
-Open `index.html` in any web browser for a cover page that lets you pick one of three *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, or the **Storyteller's Grimoire**. Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
+Open `index.html` in any web browser for a cover page that lets you pick one of four *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, the **Storyteller's Grimoire**, or the **Clockwork Storyteller**, which runs a game of Trouble Brewing by itself when nobody wants to be Storyteller. Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
 
 ## Clocktower Notebook
 
@@ -70,7 +70,7 @@ A tracker for the *Blood on the Clocktower* Storyteller. Open `storyteller.html`
 
 ## Clockwork Storyteller
 
-An automated Storyteller for *Trouble Brewing*, so nobody has to sit out. It's a separate app from the Clocktower Companion. Open `clockwork-storyteller.html` in any web browser on one phone and pass it round the table.
+An automated Storyteller for *Trouble Brewing*, so nobody has to sit out. Pick it from the Clocktower Companion cover page, or open `clockwork-storyteller.html` directly, on one phone, and pass it round the table.
 
 - Setup: type 5 to 15 names in seating order. Characters are dealt at random with the standard counts (including the Baron), along with the Drunk's fake character, three Demon bluffs and the Fortune Teller's red herring. With 7 or more players, the evil team learns each other and the Imp learns the bluffs
 - Night turns: each player taps their own seat on the table (a circle of name tokens in seating order), checks nobody else can see, and makes their choice (Poisoner, Monk, Imp, Fortune Teller, Butler). Players with nothing to do tap a player too, and every turn (night or morning) lasts at least 5 seconds before the names and Done unlock, so nobody watching can tell who has an ability

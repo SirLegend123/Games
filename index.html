@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
 <style>
-/* Cover page: pick which of the three tools to open. Same palette as the apps. */
+/* Cover page: pick which of the four tools to open. Same palette as the apps. */
 :root {
   --bg: #15121b;
   --surface: #211c29;
@@ -20,6 +20,7 @@
   --brass: #d4ab55;
   --good: #4c8ce4;
   --evil: #d8435a;
+  --clock: #3aa0b5;
   --felt: radial-gradient(circle at 50% 0%, #2c2436 0%, #1b1622 55%, #15121b 100%);
   --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
   --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
@@ -28,14 +29,14 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     --bg: #f1eef4; --surface: #ffffff; --line: #dcd4e3; --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
-    --good: #2463c2; --evil: #be2a42;
+    --good: #2463c2; --evil: #be2a42; --clock: #1f8296;
     --felt: radial-gradient(circle at 50% 0%, #ffffff 0%, #ebe5f0 60%, #e2dbe9 100%);
     color-scheme: light;
   }
 }
 :root[data-theme="light"] {
   --bg: #f1eef4; --surface: #ffffff; --line: #dcd4e3; --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
-  --good: #2463c2; --evil: #be2a42;
+  --good: #2463c2; --evil: #be2a42; --clock: #1f8296;
   --felt: radial-gradient(circle at 50% 0%, #ffffff 0%, #ebe5f0 60%, #e2dbe9 100%);
   color-scheme: light;
 }
@@ -45,20 +46,22 @@ html, body { min-height: 100%; }
 body { margin: 0; background: var(--bg); background-image: var(--felt); min-height: 100vh; color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.45; }
 :focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
 
-main { max-width: 980px; margin: 0 auto; padding: max(48px, env(safe-area-inset-top)) 16px 40px; }
+main { max-width: 1120px; margin: 0 auto; padding: max(48px, env(safe-area-inset-top)) 16px 40px; }
 header { text-align: center; margin-bottom: 36px; }
 .kicker { color: var(--muted); text-transform: uppercase; letter-spacing: .14em; font-size: .78rem; font-weight: 700; margin: 0 0 8px; }
 h1 { font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: clamp(2.2rem, 7vw, 3.4rem); line-height: 1; margin: 0 0 12px; }
 .lede { color: var(--muted); margin: 0 auto; max-width: 34em; }
 
-.choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-@media (max-width: 760px) { .choices { grid-template-columns: minmax(0, 1fr); } }
+.choices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 960px) { .choices { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .choices { grid-template-columns: minmax(0, 1fr); } }
 
 .choice { --accent: var(--brass); display: grid; grid-template-rows: auto auto 1fr auto; gap: 10px; padding: 22px 20px 20px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); color: inherit; text-decoration: none; transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
 .choice:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 10px 24px -14px rgba(0,0,0,.6); }
 .choice.good { --accent: var(--good); }
 .choice.evil { --accent: var(--evil); }
 .choice.st { --accent: var(--brass); }
+.choice.clock { --accent: var(--clock); }
 .icon { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-size: 1.6rem; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
 .choice h2 { font-family: var(--font-display); font-weight: 400; font-size: 1.55rem; line-height: 1.1; margin: 0; color: var(--fg); }
 .choice h2 small { display: block; font-family: var(--font-body); font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
@@ -76,7 +79,7 @@ footer p { margin: 4px 0; }
   <header>
     <p class="kicker">Blood on the Clocktower</p>
     <h1>Clocktower Companion</h1>
-    <p class="lede">Three tools for one game. Pick the one that fits your seat tonight.</p>
+    <p class="lede">Four tools for one game. Pick the one that fits your seat tonight, or let the app run the game for you.</p>
   </header>
 
   <nav class="choices" aria-label="Choose an app">
@@ -97,6 +100,12 @@ footer p { margin: 4px 0; }
       <h2><small>I'm the Storyteller</small>Storyteller's Grimoire</h2>
       <p>Run the grimoire, log every night and day, and get a reveal script to read out at the end.</p>
       <span class="go">Open grimoire <span>&rarr;</span></span>
+    </a>
+    <a class="choice clock" href="clockwork-storyteller.html">
+      <span class="icon" aria-hidden="true">&#9881;&#xFE0E;</span>
+      <h2><small>No Storyteller tonight</small>Clockwork Storyteller</h2>
+      <p>One phone passed round the table runs a whole game of Trouble Brewing: nights, private info, votes and the reveal.</p>
+      <span class="go">Start a game <span>&rarr;</span></span>
     </a>
   </nav>
 
