@@ -391,6 +391,22 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .no-line { color: var(--evil); }
 .story .who { font-weight: 800; background: none; border: 0; padding: 0; text-align: left; color: var(--fg); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .tonight { border-left-color: var(--brass) !important; }
+.ask-list { display: grid; gap: 6px; }
+.ask-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); border-left: 3px solid var(--line); }
+.ask-row.hi { border-left-color: var(--warn); }
+.ask-row.done { opacity: .6; }
+.ask-row.done .ask-name b { text-decoration: line-through; }
+.ask-tick { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); color: transparent; font-weight: 800; font-size: 1rem; }
+.ask-tick[aria-pressed="true"] { background: var(--claim); border-color: var(--claim); color: #fff; }
+.ask-tick:disabled { cursor: default; }
+.ask-name { display: grid; gap: 1px; text-align: left; background: none; border: 0; padding: 4px 0; min-width: 0; color: var(--fg); }
+.ask-name b { font-size: 1rem; }
+.ask-name small { color: var(--muted); font-size: .8rem; }
+.ask-name .pill { justify-self: start; }
+.ask-body { grid-column: 2; display: grid; gap: 6px; padding: 4px 0 2px; font-size: .9rem; }
+.ask-body ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
+.ask-body small { color: var(--muted); }
+.ask-hi { font-weight: 700; }
 .talk-roles { display: grid; gap: 6px; max-height: 260px; overflow: auto; padding-right: 4px; }
 .talk-rel { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .talk-rel select { min-width: 0; max-width: 100%; }
@@ -473,7 +489,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       <h2 id="storyTitle">The story so far</h2>
       <button class="btn primary" id="talkBtn">+ Log a conversation</button>
     </div>
-    <span class="tips-foot">Everything players have told you, checked against each other and against your own nights. It opens by itself when you end the day.</span>
+    <span class="tips-foot">Who to speak to today and what to ask them, then everything you've been told, checked against each other and your own nights. A recap of the day opens by itself as night falls.</span>
     <div id="storyView" class="story"></div>
   </section>
   </div>
@@ -579,7 +595,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <h2>Read the board</h2>
         <p>Use the tabs at the top: <b>Table</b> (the circle, player panel and night info), <b>Story</b>, <b>Plan</b>, <b>Evil team</b>, <b>Claims</b> and <b>Notes</b>. Badges show when something needs attention.</p>
         <ul>
-          <li><b>The story so far:</b> opens when you end the day, and lives on the Story tab. It sums up your own nights (and suggests tonight's choice for your character), what each player has told you and others, what adds up and what doesn't, and what to find out tomorrow.</li>
+          <li><b>Story tab:</b> a daily checklist of who to speak to and what to ask each player. Tap a name to see the questions, then log what they said or tick them off. A recap of the day opens as night falls (you can reread it during the night). It sums up your own nights (and suggests tonight's choice for your character), what each player has told you and others, what adds up and what doesn't, and what to find out tomorrow.</li>
           <li><b>Plan for tomorrow:</b> what doesn't add up, questions to ask each player, and who to look at.</li>
           <li><b>Evil team:</b> the most likely Demon and why, plus which Minions are likely in play.</li>
           <li><b>Test a hunch:</b> in a player's panel, tap "What if they're evil?" to see what supports it, what goes against it, and what follows if it's true.</li>
@@ -2887,8 +2903,8 @@ function renderPhase() {
     box.querySelector("[data-skip]").onclick = startDay;
   } else if (phase.step === "story") {
     box.innerHTML = `
-      <span class="step">End of day ${phase.storyDay}</span>
-      <h2 id="phaseTitle">The story so far</h2>
+      <span class="step">Night ${state.day} is falling</span>
+      <h2 id="phaseTitle">Recap of day ${phase.storyDay}</h2>
       <div class="story">${storyHtml({ plain: true, day: phase.storyDay }).html}</div>
       <p class="hint">This is also on the Story tab, any time.</p>
       <div class="phase-actions"><button class="btn primary" data-next>On to night ${state.day} →</button></div>`;
@@ -2903,7 +2919,7 @@ function renderPhase() {
       <div class="phase-actions" style="justify-content:flex-start">${meP() ? `<button class="btn evilwin" data-idied>I died tonight and got no info</button>` : `<span class="hint">Mark your seat with "This is me" to record your own death here.</span>`}</div>`}
       <div id="phaseSlot" class="tips-col"></div>
       <div id="phaseLogged" class="tips-col"></div>
-      <div class="phase-actions"><button class="btn primary" data-next>Morning →</button></div>`;
+      <div class="phase-actions">${phase.storyDay ? `<button class="btn" data-recap>← Day ${phase.storyDay} recap</button>` : ""}<button class="btn primary" data-next>Morning →</button></div>`;
     $("phaseSlot").appendChild($("infoPick"));
     $("phaseSlot").appendChild($("infoForm"));
     infoDraft = newDraft("", myRoleNow());
@@ -2913,6 +2929,7 @@ function renderPhase() {
       phase.step = "deaths"; renderPhase();
     };
     box.querySelector("[data-next]").onclick = toMorning;
+    if (box.querySelector("[data-recap]")) box.querySelector("[data-recap]").onclick = () => { restoreInfoForm(); phase.step = "story"; renderPhase(); };
     if (box.querySelector("[data-idied]")) box.querySelector("[data-idied]").onclick = () => { phase.deaths.add(meP().id); toMorning(); };
   } else if (phase.step === "deaths") {
     box.innerHTML = `
@@ -3252,19 +3269,57 @@ function storyHtml(opts = {}) {
     <div class="story-sec"><h3>Doesn't add up</h3>${badAll.length ? badAll.slice(0, 10).map(b => `<div class="tip bad">${esc(b.text)}${b.sub ? `<small>${esc(b.sub)}</small>` : ""}</div>`).join("") : `<p class="tips-empty">Nothing clashes yet.</p>`}</div>
     <div class="story-sec"><h3>Adds up</h3>${okAll.length ? okAll.slice(0, 10).map(o => `<div class="tip"><span>${who(o.p)}: ${esc(o.t)}</span></div>`).join("") : `<p class="tips-empty">No confirmations yet. When two people's accounts match, they show here.</p>`}</div></div>`;
   // Tomorrow
-  const asks = new Map();
-  const ask = (id, text, hi) => { const p = pById(id); if (!p || p.me) return; const l = asks.get(id) || []; if (!l.some(q => q.text === text)) l.push({ text, hi }); asks.set(id, l); };
-  for (const s of stories) for (const q of s.asks) ask(q.id || s.p.id, q.text, q.hi);
-  for (const [id, list] of tips.qs) for (const q of list) if (q.hi) ask(id, q.text, true);
-  for (const [id, list] of tips.qs) if (!asks.has(id) && list[0]) ask(id, list[0].text, false);
-  const order = [...asks.keys()].sort((a, b) => (asks.get(b).some(q => q.hi) ? 1 : 0) - (asks.get(a).some(q => q.hi) ? 1 : 0)).slice(0, 8);
-  const ev = buildEvil(), sus = ev.active.filter(c => c.score > 0 && !c.p.dead).slice(0, 2);
+  const { asks, sus } = buildAsks(stories, tips);
+  const order = [...asks.keys()].filter(id => asks.get(id).some(q => !q.filler)).sort((a, b) => (asks.get(b).some(q => q.hi) ? 1 : 0) - (asks.get(a).some(q => q.hi) ? 1 : 0)).slice(0, 8);
   const tomorrowHtml = `<div class="story-sec"><h3>Find out tomorrow</h3>
     ${unspoken.length ? `<div class="tip hi"><span>You haven't spoken to ${unspoken.map(who).join(", ")} ${day === state.day ? "today" : `on day ${day}`}.</span><small>Everyone's story is worth hearing before the vote.</small></div>` : ""}
     ${sus.length ? `<div class="tip bad"><span>Keep pressure on ${sus.map(c => who(c.p)).join(" and ")}.</span><small>${esc(sus.map(c => `${pName(c.p)}: ${[...new Set(c.why)].slice(0, 2).join(", ")}`).join(". "))}</small></div>` : ""}
     ${order.map(id => `<div class="tip ${asks.get(id).some(q => q.hi) ? "hi" : ""}">${who(pById(id))}<ul>${asks.get(id).slice(0, 3).map(q => `<li>${esc(q.text)}</li>`).join("")}</ul></div>`).join("")}
     ${!unspoken.length && !sus.length && !order.length ? `<p class="tips-empty">Nothing urgent. Keep asking for claims and night info.</p>` : ""}</div>`;
-  return { html: stand + `<div class="story-grid">${nightsHtml}${tomorrowHtml}</div>` + checksHtml + playersHtml, bad: badAll.length };
+  // On the Story tab, today's checklist of who to speak to replaces "Find out tomorrow"
+  if (opts.plain) return { html: stand + `<div class="story-grid">${nightsHtml}${tomorrowHtml}</div>` + checksHtml + playersHtml, bad: badAll.length };
+  return { html: checklistHtml(asks, sus) + stand + nightsHtml + checksHtml + playersHtml, bad: badAll.length };
+}
+
+// What to ask each player: clashes first, then the Plan tab's questions, and something for everyone else
+function buildAsks(stories, tips) {
+  const asks = new Map();
+  const ask = (id, text, hi, filler) => { const p = pById(id); if (!p || p.me) return; const l = asks.get(id) || []; if (!l.some(q => q.text === text)) l.push({ text, hi, filler }); asks.set(id, l); };
+  for (const s of stories) for (const q of s.asks) ask(q.id || s.p.id, q.text, q.hi);
+  for (const [id, list] of tips.qs) for (const q of list) if (q.hi) ask(id, q.text, true);
+  for (const [id, list] of tips.qs) for (const q of list) if (!q.hi) ask(id, q.text, false);
+  for (const p of state.players.filter(x => !x.me && !asks.has(x.id))) ask(p.id, p.dead ? "Is there anything you know that you haven't shared yet?" : "Has anything changed since yesterday? Who do you trust, and who do you suspect?", false, true);
+  const ev = buildEvil();
+  return { asks, sus: ev.active.filter(c => c.score > 0 && !c.p.dead).slice(0, 2) };
+}
+
+/* ---------- Today's checklist: who to speak to and what to ask ---------- */
+let askOpen = null;
+const spokenList = () => { state.spoken = state.spoken || {}; return (state.spoken[state.day] = state.spoken[state.day] || []); };
+const talkedToday = id => talks().some(t => t.with === id && t.day === state.day);
+const spokenToday = id => talkedToday(id) || spokenList().includes(id);
+function checklistHtml(asks, sus) {
+  const ps = state.players.filter(p => !p.me);
+  const hi = id => (asks.get(id) || []).some(q => q.hi);
+  const rows = [...ps].sort((a, b) => (spokenToday(a.id) ? 1 : 0) - (spokenToday(b.id) ? 1 : 0) || (a.dead ? 1 : 0) - (b.dead ? 1 : 0) || (hi(b.id) ? 1 : 0) - (hi(a.id) ? 1 : 0) || ps.indexOf(a) - ps.indexOf(b));
+  const done = ps.filter(p => spokenToday(p.id)).length;
+  const row = p => {
+    const qs = asks.get(p.id) || [], open = askOpen === p.id, sp = spokenToday(p.id), auto = talkedToday(p.id);
+    const claim = p.claims.length ? `${isHard(p) ? "" : "options: "}${orList(p.claims)}` : "no claim yet";
+    const suspect = sus.some(c => c.p.id === p.id);
+    return `<div class="ask-row${sp ? " done" : ""}${open ? " open" : ""}${hi(p.id) && !sp ? " hi" : ""}">
+      <button class="ask-tick" data-asktick="${p.id}" aria-pressed="${sp}" aria-label="${sp ? "Spoken to" : "Mark as spoken to"}: ${esc(pName(p))}" ${auto ? "disabled title=\"You logged a conversation with them today\"" : ""}>✓</button>
+      <button class="ask-name" data-askopen="${p.id}" aria-expanded="${open}"><b>${esc(pName(p))}</b>${p.dead ? " <small>(dead)</small>" : ""}${suspect ? ` <span class="pill likely">Suspect</span>` : ""}<small>${esc(claim)} · ${qs.length} question${qs.length === 1 ? "" : "s"}</small></button>
+      ${open ? `<div class="ask-body">
+        <ul>${qs.map(q => `<li${q.hi ? ` class="ask-hi"` : ""}>${esc(q.text)}</li>`).join("")}</ul>
+        ${suspect ? `<small>On your suspect list: ${esc([...new Set(sus.find(c => c.p.id === p.id).why)].slice(0, 2).join(", "))}.</small>` : ""}
+        <div class="row"><button class="btn sm primary" data-asktalk="${p.id}">Log what they said</button>${auto ? "" : `<button class="btn sm" data-asktick="${p.id}">${sp ? "Not spoken to yet" : "Spoke to them, nothing new"}</button>`}</div>
+      </div>` : ""}
+    </div>`;
+  };
+  return `<div class="story-sec"><h3>Who to speak to today · ${done} of ${ps.length} done</h3>
+    <p class="hint" style="margin:0">Tap a name to see what to ask them. Players with the most important questions come first, and anyone you've spoken to moves to the bottom.</p>
+    <div class="ask-list">${rows.map(row).join("")}</div></div>`;
 }
 
 function renderStory() {
@@ -3276,6 +3331,14 @@ function renderStory() {
     return `<div class="tip entry"><span class="when">Day ${t.day} · ${esc(pName(p))}</span><button class="x" data-tdel="${t.id}" aria-label="Delete this conversation">×</button><small>${esc(bits.join(" · ")) || "No details"}</small></div>`;
   }).join("")}<span class="tips-foot">${todays.length} today. Deleting a conversation keeps the claims and night info it added.</span></div>` : "");
   $("storyView").querySelectorAll("[data-open]").forEach(b => b.onclick = () => { state.selected = b.dataset.open; confirmRemove = false; save(); render(); showTab("table"); $("panel").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  $("storyView").querySelectorAll("[data-askopen]").forEach(b => b.onclick = () => { askOpen = askOpen === b.dataset.askopen ? null : b.dataset.askopen; renderStory(); });
+  $("storyView").querySelectorAll("[data-asktick]").forEach(b => b.onclick = () => {
+    const l = spokenList(), id = b.dataset.asktick;
+    state.spoken[state.day] = l.includes(id) ? l.filter(x => x !== id) : [...l, id];
+    if (!l.includes(id) && askOpen === id) askOpen = null;
+    save(); renderStory();
+  });
+  $("storyView").querySelectorAll("[data-asktalk]").forEach(b => b.onclick = () => openTalk(b.dataset.asktalk));
   $("storyView").querySelectorAll("[data-tdel]").forEach(b => b.onclick = () => { state.talks = talks().filter(t => t.id !== b.dataset.tdel); save(); render(); });
   $("bStory").textContent = bad || "";
   $("bStory").classList.toggle("red", bad > 0);
