@@ -459,6 +459,16 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
   .whos-table td:nth-child(4) { grid-row: 1; grid-column: 2; }
 }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.town-kinds .choice { font-size: 1rem; padding: 9px 16px; }
+.choice.ping-evil:not(:disabled) { border-color: var(--evil); color: var(--evil); }
+.choice.ping-good:not(:disabled) { border-color: var(--good); color: var(--good); }
+.choice:disabled { opacity: .45; cursor: default; }
+.ping-list { display: grid; gap: 6px; }
+.ping-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; padding: 7px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: .9rem; }
+.ping-row.evil { border-left-color: var(--evil); } .ping-row.good { border-left-color: var(--good); }
+.ping-row .row { grid-column: 1 / -1; gap: 6px; }
+.ping-row select { font-size: .82rem; padding: 4px 8px; min-width: 0; max-width: 100%; }
+.ping-row .x { border: 0; background: none; color: var(--muted); font-size: 1.1rem; }
 .talk-roles { display: grid; gap: 6px; max-height: 260px; overflow: auto; padding-right: 4px; }
 .talk-rel { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .talk-rel select { min-width: 0; max-width: 100%; }
@@ -514,7 +524,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     </section>
     <section class="card whos-card" aria-labelledby="readsTitle">
       <div class="tips-head"><h2 id="readsTitle">Who's who</h2><button class="btn primary" id="townBtn">📣 Said in town</button></div>
-      <span class="tips-foot">Most suspicious first. Tap <b>Talk</b> after a private chat, or <b>Said in town</b> for anything said publicly during discussion.</span>
+      <span class="tips-foot">Most suspicious first. Tap <b>Talk</b> after a private chat, or <b>Said in town</b> to note pings and claims from the discussion.</span>
       <div id="whosTable" class="whos-wrap"></div>
     </section>
 
@@ -613,7 +623,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <h2>Read the board</h2>
         <p>Use the tabs at the top: <b>Table</b> (the circle, Who's who and the claim matrix), <b>Night info</b> and <b>Plan</b>. Badges show when something needs attention.</p>
         <ul>
-          <li><b>📣 Said in town</b> (top of Who's who): record what someone said publicly during discussion: their public claim, night info they shared and claims they mentioned, plus your town notes. It shows in Who's who marked "(in town)" and is checked against what they told people privately.</li>
+          <li><b>📣 Said in town</b> (top of Who's who): capture talk from the town square in two taps. Tap who it's about, then <b>Evil ping</b>, <b>Good ping</b>, <b>Called the Demon</b> or <b>Claimed a character</b>. Each saves straight away; add which character's info it came from and who said it if you caught that. You can also add character info you heard ("the Investigator saw a Baron") and keep town notes. Pings feed suspicion and show in Who's who.</li>
           <li><b>Who's who</b> (beside the circle): a row for every player, most suspicious first. It shows what they've shared each day, how suspicious they are and why (or that they're confirmed or probably good), whether you've spoken to them today, and a <b>Talk</b> button. In their panel, answer yes/no questions with Yes, No or Didn't answer (not answering is never held against anyone), and enter their night info with quick answers, which go straight into Night info.</li>
           <li><b>The story so far:</b> a recap that opens as night falls (and can be reread during the night): your own nights and tonight's suggested choice, what adds up and what doesn't, and what each player has told you and others.</li>
           <li><b>Plan for tomorrow:</b> what doesn't add up, questions to ask each player, and who to look at.</li>
@@ -777,6 +787,7 @@ function normalize(s) {
   for (const p of s.players) if (!p.claimType) p.claimType = "soft";
   s.shots = Array.isArray(s.shots) ? s.shots : [];
   s.talks = Array.isArray(s.talks) ? s.talks : [];
+  s.pings = Array.isArray(s.pings) ? s.pings : [];
   if (s.firstNightDone === undefined) s.firstNightDone = true;
   return s;
 }
@@ -2031,6 +2042,7 @@ function renderInfo() {
       if (!t && !entry.note) { $("ifNote").focus(); return; }
       if (entry.p.length === 2 && entry.p[0] === entry.p[1]) { $("ifAdd").textContent = "Pick two different players"; return; }
       if (talk && talk.with) { if (!pById(talk.with)?.me) entry.told = { by: talk.with, day: state.day, town: talk.town || undefined }; talk.ids.push(entry.id); }
+      else if (talk && talk.town) { entry.told = { day: state.day, town: true }; talk.ids.push(entry.id); }
       if (anon) { heardList().push({ ...entry, heardDay: state.day }); infoDraft = newDraft(ANON, d.role); save(); render(); return; }
       state.myInfo.push(entry);
       state.myInfo.sort((x, y) => x.night - y.night || (x.src ? 1 : 0) - (y.src ? 1 : 0));
@@ -3021,8 +3033,78 @@ function infoShareHtml(p) {
     ${pick === "other" || pick === "passed" ? `${pick === "passed" ? `<p class="hint">Pick the player it belongs to under <b>Whose info</b>, or <b>Someone (not sure who yet)</b> for things like "the Investigator saw a Baron".</p>` : ""}<div id="talkSlot" class="tips-col"></div>` : ""}
     <div id="talkLogged" class="tips-col"></div>`;
 }
+/* ---------- Said in town: quick pings about players ---------- */
+const pings = () => (state.pings = Array.isArray(state.pings) ? state.pings : []);
+const PING_KINDS = { evil: "Evil ping", good: "Good ping", demon: "Called the Demon", claim: "Claimed" };
+const pingText = x => `${PING_KINDS[x.kind]}${x.kind === "claim" ? ` ${x.claim}` : ""}${x.from ? ` (${x.from} info)` : ""}${x.by ? `, said by ${pName(pById(x.by))}` : ""}`;
+function addPing(kind, claim) {
+  const about = talk.about, p = pById(about);
+  if (!p) return;
+  const x = { id: uid(), day: state.day, about, kind };
+  if (kind === "claim") {
+    // A public claim updates their claim and is checked against what they told people privately
+    x.claim = claim; x.talkId = uid();
+    talks().push({ id: x.talkId, day: state.day, with: about, town: true, claim: { type: "hard", roles: [claim] }, relayed: [], ids: [], note: "" });
+    p.claims = [claim]; p.claimType = "hard";
+  }
+  pings().push(x);
+  talk.about = ""; talk.claimOpen = false;
+  save(); render(); renderTalk();
+}
+function renderTown() {
+  const box = $("talkBox"), top = box.scrollTop;
+  restoreTalkSlot();
+  const sec = (title, body) => `<section class="talk-sec"><h3>${title}</h3>${body}</section>`;
+  const roles = scriptRoles(), allRoles = TEAMS.flatMap(t => roles[t]);
+  const people = state.players.filter(x => !x.me).sort((a, b) => (a.dead ? 1 : 0) - (b.dead ? 1 : 0) || state.players.indexOf(a) - state.players.indexOf(b));
+  const today = pings().filter(x => x.day === state.day);
+  const sourceOpts = sel => `<option value="">From which character's info?</option>` + allRoles.filter(r => infoOf(r)).map(r => `<option${r === sel ? " selected" : ""}>${esc(r)}</option>`).join("");
+  const byOpts = sel => `<option value="">Said by (optional)</option>` + state.players.filter(x => !x.me).map(x => `<option value="${x.id}"${x.id === sel ? " selected" : ""}>${esc(pName(x))}</option>`).join("");
+  box.innerHTML = `<span class="step">Day ${state.day} · Said in town</span>
+    <h2 id="talkTitle">What's being said in town?</h2>
+    <p class="hint">Tap who it's about, then what was said. Each one saves straight away, ready for the next.</p>
+    ${sec("About who?", `<div class="choice-list">${people.map(x => `<button class="choice" data-tabout="${x.id}" aria-pressed="${talk.about === x.id}">${esc(pName(x))}${x.dead ? " (dead)" : ""}</button>`).join("")}</div>`)}
+    ${sec("What was said?", `<div class="choice-list town-kinds">
+        <button class="choice ping-evil" data-tkind="evil" ${talk.about ? "" : "disabled"}>Evil ping</button>
+        <button class="choice ping-good" data-tkind="good" ${talk.about ? "" : "disabled"}>Good ping</button>
+        <button class="choice ping-evil" data-tkind="demon" ${talk.about ? "" : "disabled"}>Called the Demon</button>
+        <button class="choice" data-tkind="claim" aria-pressed="${!!talk.claimOpen}" ${talk.about ? "" : "disabled"}>Claimed a character…</button>
+      </div>
+      ${talk.claimOpen && talk.about ? `<div class="row"><select class="btn" id="tTownClaim" aria-label="Which character did they claim"><option value="">Which character?</option>${TEAMS.filter(t => roles[t].length).map(t => `<optgroup label="${TEAM_LABEL[t]}">${roles[t].map(r => `<option>${esc(r)}</option>`).join("")}</optgroup>`).join("")}</select></div>` : ""}
+      ${talk.about ? "" : `<p class="hint">Pick a player first.</p>`}`)}
+    ${sec(`Said today${today.length ? ` · ${today.length}` : ""}`, today.length ? `<div class="ping-list">${[...today].reverse().map(x => `<div class="ping-row ${x.kind === "good" ? "good" : x.kind === "claim" ? "" : "evil"}">
+        <span><b>${esc(pName(pById(x.about)))}</b>: ${esc(PING_KINDS[x.kind])}${x.kind === "claim" ? ` ${esc(x.claim)}` : ""}</span>
+        <button class="x" data-pdel="${x.id}" aria-label="Delete">×</button>
+        ${x.kind === "claim" ? "" : `<span class="row"><select class="btn" data-pfrom="${x.id}" aria-label="Which character's info">${sourceOpts(x.from)}</select><select class="btn" data-pby="${x.id}" aria-label="Who said it">${byOpts(x.by)}</select></span>`}
+      </div>`).join("")}</div>` : `<p class="tips-empty">Nothing yet today.</p>`)}
+    ${sec("Character info heard", talk.townInfo ? `<p class="hint">For things like "the Investigator saw a Baron between Tom and Mia". It links to whoever hard-claims that character.</p><div id="talkSlot" class="tips-col"></div><div id="talkLogged" class="tips-col"></div>`
+      : `<button class="btn sm" data-tinfo>+ Add info like "the Investigator saw a Baron"</button>`)}
+    ${sec("Town notes", `<textarea id="townNotes" aria-label="Town notes" placeholder="Nominations, votes, theories...">${esc(state.notes || "")}</textarea>`)}
+    <div class="phase-actions"><button class="btn primary" data-tcancel>Done</button></div>`;
+  if ($("talkSlot")) {
+    $("talkSlot").appendChild($("infoPick")); $("talkSlot").appendChild($("infoForm"));
+    if (!infoDraft) infoDraft = newDraft(ANON, "");
+    renderInfo(); talkLoggedHtml();
+  }
+  box.querySelectorAll("[data-tabout]").forEach(b => b.onclick = () => { talk.about = talk.about === b.dataset.tabout ? "" : b.dataset.tabout; talk.claimOpen = false; renderTown(); });
+  box.querySelectorAll("[data-tkind]").forEach(b => b.onclick = () => { if (b.dataset.tkind === "claim") { talk.claimOpen = !talk.claimOpen; renderTown(); } else addPing(b.dataset.tkind); });
+  if ($("tTownClaim")) $("tTownClaim").onchange = e => { if (e.target.value) addPing("claim", e.target.value); };
+  box.querySelectorAll("[data-pfrom]").forEach(el => el.onchange = () => { const x = pings().find(y => y.id === el.dataset.pfrom); if (x) { x.from = el.value || undefined; save(); render(); } });
+  box.querySelectorAll("[data-pby]").forEach(el => el.onchange = () => { const x = pings().find(y => y.id === el.dataset.pby); if (x) { x.by = el.value || undefined; save(); render(); } });
+  box.querySelectorAll("[data-pdel]").forEach(b => b.onclick = () => {
+    const x = pings().find(y => y.id === b.dataset.pdel);
+    state.pings = pings().filter(y => y !== x);
+    if (x?.talkId) state.talks = talks().filter(t => t.id !== x.talkId);
+    save(); render(); renderTown();
+  });
+  if (box.querySelector("[data-tinfo]")) box.querySelector("[data-tinfo]").onclick = () => { talk.townInfo = true; infoDraft = null; renderTown(); };
+  $("townNotes").oninput = e => { state.notes = e.target.value; save(); };
+  box.querySelectorAll("[data-tcancel]").forEach(b => b.onclick = () => closeTalk(false));
+  box.scrollTop = top;
+}
 function renderTalk() {
   if (!talk) return;
+  if (talk.town) return renderTown();
   const box = $("talkBox"), top = box.scrollTop;
   restoreTalkSlot();
   const p = pById(talk.with), name = esc(pName(p)), roles = scriptRoles();
@@ -3337,6 +3419,7 @@ function goodSummary() {
     if (p.me || sure.has(p.id)) continue;
     if (p.align === "good") add(likely, p.id, "Your read: good");
     if (p.dead && p.deathBy === "night") add(likely, p.id, `Killed on night ${p.deathNight || "?"}: the Demon rarely kills its own team`);
+    { const mine = pings().filter(x => x.about === p.id), g = mine.filter(x => x.kind === "good").length, e = mine.filter(x => x.kind !== "good" && x.kind !== "claim").length; if (g > e) add(likely, p.id, `${g} good ping${g > 1 ? "s" : ""} in town`); }
     if (p.dead && p.deathBy === "virgin") add(likely, p.id, `Died nominating the Virgin, so a Townsfolk${spyOnScript() ? " (or the Spy)" : ""}`);
     if (playerStory(p).ok.some(t => /heard the same story|matches what/.test(t)) && !playerStory(p).bad.length) add(likely, p.id, "Their story checks out with others");
   }
@@ -3356,6 +3439,17 @@ function suspicionRank() {
     r.score += rows.get(n.p.id).score ? n.score / 2 : n.score;
     for (const w of n.why) if (w && !r.why.includes(w)) r.why.push(w);
   }
+  // What's said in town: evil pings and Demon calls raise suspicion, good pings lower it
+  for (const p of state.players.filter(x => !x.me && !proven.has(x.id))) {
+    const mine = pings().filter(x => x.about === p.id), evil = mine.filter(x => x.kind === "evil"), demon = mine.filter(x => x.kind === "demon"), good = mine.filter(x => x.kind === "good");
+    if (!evil.length && !demon.length && !good.length) continue;
+    const r = rows.get(p.id) || rows.set(p.id, { p, score: 0, why: [] }).get(p.id);
+    r.score += 2 * evil.length + 3 * demon.length - 2 * good.length;
+    const src = list => [...new Set(list.map(x => x.from).filter(Boolean))];
+    if (demon.length) r.why.unshift(`called the Demon in town${demon.length > 1 ? ` ${demon.length} times` : ""}`);
+    if (evil.length) r.why.unshift(`${evil.length} evil ping${evil.length > 1 ? "s" : ""} in town${src(evil).length ? ` (${src(evil).join(", ")})` : ""}`);
+    if (good.length) r.why.push(`${good.length} good ping${good.length > 1 ? "s" : ""} in town`);
+  }
   for (const p of state.players.filter(x => !x.me && !proven.has(x.id))) {
     const clashes = playerStory(p).bad;
     if (!clashes.length) continue;
@@ -3363,7 +3457,7 @@ function suspicionRank() {
     r.score += 2 * clashes.length;
     r.why.unshift(...clashes.slice(0, 2).map(b => b.text));
   }
-  return [...rows.values()].sort((a, b) => b.score - a.score);
+  return [...rows.values()].filter(r => r.score > 0).sort((a, b) => b.score - a.score);
 }
 // A short form of a night-info entry, for the Who's who table
 function shortInfo(e) {
@@ -3383,6 +3477,7 @@ function sharedByDay(p) {
     if (t.claim) add(t.day, `${t.claim.type === "hard" ? "Claimed" : "Offered"} ${orList(t.claim.roles)}${where}`);
     for (const r of t.relayed) add(t.day, `Says ${pName(pById(r.about))} claimed ${r.role}${where}`);
   }
+  for (const x of pings().filter(x => x.about === p.id && x.kind !== "claim")) add(x.day, `Town: ${pingText(x).replace(/^./, c => c.toLowerCase())}`);
   for (const e of state.myInfo.filter(e => e.src === p.id)) add(e.told?.day || e.night, shortInfo(e) + (isSecondHand(e) ? ` (via ${pName(pById(e.told.by))})` : "") + (e.told?.town ? " (in town)" : ""));
   for (const [d, byP] of Object.entries(state.answers || {})) for (const [q, v] of Object.entries(byP[p.id] || {})) {
     if (q.startsWith("info:")) add(+d, `Didn't share their night ${q.split(":")[2]} info`);
@@ -3624,7 +3719,7 @@ $("ngStart").onclick = () => {
   const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
   const count = names.length || Math.max(5, Math.min(20, parseInt($("ngCount").value, 10) || 8));
   const players = Array.from({ length: count }, (_, i) => mkPlayer(names[i] || `Player ${i + 1}`));
-  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], heard: [], talks: [], softDefault: true, over: null, shots: [], firstNightDone: false, updatedAt: 0 };
+  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], heard: [], talks: [], pings: [], softDefault: true, over: null, shots: [], firstNightDone: false, updatedAt: 0 };
   confirmRemove = false;
   $("overlay").hidden = true; $("ngNames").value = "";
   save(); render();
