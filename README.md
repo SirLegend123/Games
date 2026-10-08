@@ -27,6 +27,7 @@ A player's notebook for *Blood on the Clocktower*. Open `good.html` in any web b
 - Information reliability: grades each player's night info as consistent, doubtful or unreliable
 - Changed claims: flags a player who gave info as one role then claimed another, or swapped a hard claim, and stops trusting that info
 - Game wrap-up: enter the real Demon and Minions, then everyone's real character (optional, hard claims pre-filled), to see how the evidence held up, which info was right, whose claims were true, how your reads did, and a timeline
+- Empath neighbours: the Demon kills before the Empath wakes, so if you log your Empath number before marking the night's deaths, the app moves that number to your next living neighbour when you mark a neighbour as killed that night, and notes the change in the evidence (the same applies to other players' Empath info)
 - Plan for tomorrow (on World building): flags claims that don't add up (double claims, too many Outsiders, an executed Saint), suggests questions for each player and who to look at
 - Claim matrix (under the circle): players down the side, roles along the top, claimed squares in green and double claims in amber
 - Trouble Brewing, Bad Moon Rising and Sects & Violets roles, or type in any role

@@ -898,6 +898,7 @@ function claimChanges(p) {
 const describeChange = x => x.how === "offered" ? `offered ${x.role} (${x.when})` : `${x.how} ${x.role} (${x.when})`;
 function save() {
   pruneOptions();
+  fixEmpathNeighbours();
   trackClaims();
   linkHeard();
   state.updatedAt = Date.now();
@@ -1267,6 +1268,41 @@ function livingNeighbours(pid) {
     }
   }
   return out;
+}
+// Alive when the Empath woke on night n: the Demon kills earlier in the night, executions happen by day
+function aliveAtNight(q, n) {
+  if (!q.dead) return true;
+  if (q.deathBy === "night") return (q.deathNight || 0) > n;
+  return (q.execDay || 0) >= n;
+}
+function livingNeighboursAt(pid, n) {
+  const ps = state.players, who = ps.find(p => p.id === pid);
+  if (!who) return [];
+  const i = ps.indexOf(who), out = [];
+  for (const dir of [-1, 1]) {
+    for (let k = 1; k < ps.length; k++) {
+      const q = ps[((i + dir * k) % ps.length + ps.length) % ps.length];
+      if (q === who) break;
+      if (aliveAtNight(q, n)) { out.push(q.id); break; }
+    }
+  }
+  return out;
+}
+// Empath info is often logged before the morning's deaths are marked. A neighbour killed that same night was already dead
+// when the Empath woke, so the number belongs to the next living player along: move it there.
+function fixEmpathNeighbours() {
+  const me = meP();
+  for (const e of state.myInfo || []) {
+    if (String(e.role).toLowerCase() !== "empath" || !Array.isArray(e.p) || !e.p.length) continue;
+    const src = e.src || me?.id;
+    if (!src) continue;
+    const killed = e.p.filter(id => { const q = state.players.find(x => x.id === id); return q && q.dead && q.deathBy === "night" && q.deathNight === e.night; });
+    if (!killed.length) continue;
+    const nb = livingNeighboursAt(src, e.night);
+    if (!nb.length || nb.join() === e.p.join()) continue;
+    e.moved = { killed, from: e.p.slice() };
+    e.p = nb;
+  }
 }
 function myRoleNow() {
   if (state.myRole) return state.myRole;
@@ -2080,6 +2116,7 @@ function renderInfo() {
       <button class="x" data-ifdel="${e.id}" aria-label="Delete night ${e.night} entry">×</button>
       ${means ? `<span class="means">${esc(means)}</span>` : ""}
       ${warns.map(x => `<span class="warn">${esc(x)}</span>`).join("")}
+      ${e.moved ? `<small>Neighbours updated: ${e.moved.killed.map(nmS).join(" and ")} died on night ${e.night} before the Empath woke, so this number counts ${e.p.map(nmS).join(" and ")}.</small>` : ""}
       ${e.note ? `<small>${esc(e.note)}</small>` : ""}
       ${e.heard ? `<small>Heard${e.heard.day ? ` on day ${e.heard.day}` : ""} before you knew who said it. ${e.heard.auto ? `Linked when ${nmS(src)} hard-claimed ${esc(e.role)}.` : `You linked it to ${nmS(src)}.`} <button class="linkish" data-ifunlink="${e.id}">Unlink</button></small>` : ""}
     </div>`).join("") : `<p class="tips-empty">Nothing logged yet.</p>`;
@@ -2925,7 +2962,7 @@ function renderPhase() {
       <h2 id="phaseTitle">Your night info</h2>
       ${meP()?.dead
         ? `<p>You're dead, so you won't usually wake tonight. Log info below only if your character still gets it.</p>`
-        : `<p>Log what you learned tonight. Skip this if you don't wake tonight.</p>
+        : `<p>Log what you learned tonight. Skip this if you don't wake tonight.${lc(myRoleNow()) === "empath" ? " If a neighbour was killed tonight, leave your neighbours as they are: when you mark the deaths next, your number moves to your next living neighbour, because the Demon kills before the Empath wakes." : ""}</p>
       <div class="phase-actions" style="justify-content:flex-start">${meP() ? `<button class="btn evilwin" data-idied>I died tonight and got no info</button>` : `<span class="hint">Mark your seat with "This is me" to record your own death here.</span>`}</div>`}
       <div id="phaseSlot" class="tips-col"></div>
       <div id="phaseLogged" class="tips-col"></div>
