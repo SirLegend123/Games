@@ -591,7 +591,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <li><b>Hard claim:</b> when they firmly commit to one role, switch to Hard claim and tap it. That role is then removed from other players' options.</li>
           <li>Set <b>My read</b> (good, unsure, evil), pick the evil character you <b>suspect</b>, and write <b>notes</b>.</li>
         </ul>
-        <p>After talking to someone, tap their token, or their name in the list beside the circle. Their panel starts with the questions to ask them. Below that, record their claim, then pick from <b>Which character's info?</b> to enter the night info they shared (only that form opens). On the same page, record their soft or hard claim, the night info they shared, and anything they heard: another player's claim, or info from a character ("the Investigator saw a Baron"). It all goes onto the circle and into Night info for you.</p>
+        <p>After talking to someone, tap their token, or their name in the list beside the circle. Their panel starts with the questions to ask them, each with answer buttons where the answer is definite: their options to pick from, <b>Answer as the Fortune Teller</b> (and so on) to enter their night info under the question, or Yes / No. Answers go straight into your notebook. Below that, record their claim, then pick from <b>Which character's info?</b> to enter the night info they shared (only that form opens). On the same page, record their soft or hard claim, the night info they shared, and anything they heard: another player's claim, or info from a character ("the Investigator saw a Baron"). It all goes onto the circle and into Night info for you.</p>
         <p>When a player shares what they learned at night, add it under <b>Night info</b> with <b>Whose info</b> set to them. If you hear info but don't know who it came from yet (say, "the Investigator saw a Baron"), set <b>Whose info</b> to <b>Someone (not sure who yet)</b>. It links to them when they hard-claim that role. Use <b>Slayer shot</b> when someone shoots.</p>
       </li>
       <li>
@@ -3050,7 +3050,7 @@ function infoShareHtml(p) {
         ${blocks.length ? `<optgroup label="${isHard(p) || blocks.length === 1 ? "Their claim" : "Their options"}">${blocks.map(a => opt(a.key, `${a.role} · night ${a.n}`)).join("")}</optgroup>` : ""}
         <optgroup label="Something else">${opt("other", "Another night or character of theirs")}${opt("passed", "Someone else's info (passed on)")}</optgroup>
       </select></div>
-    ${block ? infoAskHtml(p, block) : ""}
+    ${block && !talk.inlineQ ? infoAskHtml(p, block) : block ? `<p class="hint">Answering above.</p>` : ""}
     ${pick === "other" || pick === "passed" ? `${pick === "passed" ? `<p class="hint">Pick the player it belongs to under <b>Whose info</b>, or <b>Someone (not sure who yet)</b> for things like "the Investigator saw a Baron".</p>` : ""}<div id="talkSlot" class="tips-col"></div>` : ""}
     <div id="talkLogged" class="tips-col"></div>`;
 }
@@ -3126,7 +3126,18 @@ function renderTalk() {
   }
   $("panelSlot").appendChild($("panel"));
   renderPanel(); talkLoggedHtml();
-  if ($("tInfoPick")) $("tInfoPick").onchange = e => { talk.infoPick = e.target.value; infoDraft = null; renderTalk(); };
+  if ($("tInfoPick")) $("tInfoPick").onchange = e => { talk.infoPick = e.target.value; talk.inlineQ = false; infoDraft = null; renderTalk(); };
+  // Answer buttons on the questions
+  box.querySelectorAll("[data-qinfo]").forEach(b => b.onclick = () => { talk.infoPick = b.dataset.qinfo; talk.inlineQ = true; renderTalk(); });
+  box.querySelectorAll("[data-qclaim]").forEach(b => b.onclick = () => {
+    const role = b.dataset.role, q = askShown[p.id]?.[+b.dataset.qi];
+    p.claims = [role]; p.claimType = "hard";
+    talk.ctype = "hard"; talk.roles = [role]; talk.pickOpen = false; infoDraft = null;
+    if (q) answersFor(state.day, p.id)[q.text] = role;
+    if (!spokenList().includes(p.id)) state.spoken[state.day] = [...spokenList(), p.id];
+    save(); render(); renderTalk();
+  });
+  box.querySelectorAll("[data-qenter]").forEach(b => b.onclick = () => { talk.ctype = "hard"; talk.pickOpen = true; renderTalk(); box.querySelector("[data-tct]")?.scrollIntoView({ behavior: "smooth", block: "center" }); });
   $("talkMore").addEventListener("toggle", () => { talk.more = $("talkMore").open; });
   box.querySelectorAll("[data-tcancel]").forEach(b => b.onclick = () => closeTalk(false));
   if (p.me) { box.scrollTop = top; return; }
@@ -3305,7 +3316,7 @@ function storyHtml(opts = {}) {
       <div class="pc-head">${who(p)}<small>${p.dead ? "dead · " : ""}${s.lastDay ? `last spoke day ${s.lastDay}` : "not spoken to yet"}</small></div>
       <div>${s.told.length ? "Told you" : "Claim"}: ${claim}</div>
       ${s.heardAbout.map(g => `<small>${esc(pName(pById(g.by)))} says they claimed ${esc(orList(g.roles))} (day ${g.day})</small>`).join("")}
-      ${Object.entries(state.answers || {}).flatMap(([d, byP]) => Object.entries(byP[p.id] || {}).map(([q, v]) => q.startsWith("info:") ? `<small>Day ${d}: didn't share their night ${esc(q.split(":")[2])} ${esc(q.split(":")[1].replace(/\b\w/g, c => c.toUpperCase()))} info (not held against them)</small>` : `<small>Day ${d}: ${esc(q.length > 110 ? q.slice(0, 107) + "…" : q)} <b>${ANSWER_LABEL[v]}</b>${v === "none" ? " (not held against them)" : ""}</small>`)).join("")}
+      ${Object.entries(state.answers || {}).flatMap(([d, byP]) => Object.entries(byP[p.id] || {}).map(([q, v]) => q.startsWith("info:") ? `<small>Day ${d}: didn't share their night ${esc(q.split(":")[2])} ${esc(q.split(":")[1].replace(/\b\w/g, c => c.toUpperCase()))} info (not held against them)</small>` : `<small>Day ${d}: ${esc(q.length > 110 ? q.slice(0, 107) + "…" : q)} <b>${esc(ANSWER_LABEL[v] || v)}</b>${v === "none" ? " (not held against them)" : ""}</small>`)).join("")}
       ${s.info.map(e => `<small>Night ${e.night} ${esc(e.role)}: ${esc(readEntry(e).means || e.note || "")}${isSecondHand(e) ? ` <i>(via ${esc(pName(pById(e.told.by)))})</i>` : ""}</small>`).join("")}
       ${s.ok.length || s.bad.length ? `<ul>${s.ok.map(t => `<li class="yes-line">${esc(t)}</li>`).join("")}${s.bad.map(b => `<li class="no-line">${esc(b.text)}</li>`).join("")}</ul>` : ""}
     </div>`;
@@ -3427,7 +3438,7 @@ function saveInfoAsk(key) {
   if (t.yn && d.yn == null) return "Pick their result.";
   const id = uid();
   state.myInfo.push({ id, src: pid, night: +nStr, role, p: ps, r: rs, n: t.n ? d.n : null, yn: t.yn ? d.yn : null, note: "", zero: !!d.zero, told: { by: pid, day: state.day } });
-  if (talk && talk.with === pid) { talk.ids.push(id); talk.infoPick = ""; if (!talk.ctype) { talk.ctype = "hard"; talk.roles = [role]; } }
+  if (talk && talk.with === pid) { talk.ids.push(id); talk.infoPick = ""; talk.inlineQ = false; if (!talk.ctype) { talk.ctype = "hard"; talk.roles = [role]; } }
   state.myInfo.sort((x, y) => x.night - y.night || (x.src ? 1 : 0) - (y.src ? 1 : 0));
   // Giving info as a character commits them to it
   if (!isHard(p)) { p.claims = [role]; p.claimType = "hard"; }
@@ -3441,12 +3452,33 @@ function askBodyHtml(p, asks, sus) {
   const qs = (asks.get(p.id) || []).flatMap(q => splitQs(q.text).map(x => ({ ...x, hi: q.hi })));
   const ans = state.answers?.[state.day]?.[p.id] || {};
   const suspect = sus.find(c => c.p.id === p.id);
+  const blocks = infoAsks(p, talk && talk.roles.length ? talk.roles : null);
+  const options = isSoft(p) ? p.claims : [];
   askShown[p.id] = qs;
   if (!qs.length && !suspect) return "";
+  // Each question gets the answers that fit it: their options, a quick info form, Yes/No, or a way to enter a claim
+  const answerHtml = (q, i) => {
+    const none = `<button class="u" data-ans="${p.id}" data-ansq="${i}" data-ansv="none" aria-pressed="${ans[q.text] === "none"}">Didn't answer</button>`;
+    // "If you're the Chef: ..." names the character; for a hard claim, their own character's info question counts too
+    const COVERS = { undertaker: /show as when executed/i, monk: /who did you protect/i, innkeeper: /which two players did you protect/i };
+    const own = isHard(p) ? lc(p.claims[0]) : "";
+    const role = (q.text.match(/^If you're the ([^:,]+)[:,]/) || [])[1] || (own && ((ROLE_Q[own] && q.text.includes(ROLE_Q[own])) || /^What did you learn last night\?/.test(q.text) || COVERS[own]?.test(q.text)) ? p.claims[0] : "");
+    const block = role && blocks.find(x => lc(x.role) === lc(role));
+    if (block) {
+      const open = talk && talk.infoPick === block.key && talk.inlineQ;
+      return open ? infoAskHtml(p, block) : `<span class="seg yn" role="group" aria-label="Their answer"><button class="u" data-qinfo="${block.key}">Answer as the ${esc(block.role)}</button><button class="u" data-aiskip="${block.key}">Didn't answer</button></span>`;
+    }
+    if (options.length && /You gave|Which is it|narrow it down|hard-claim|So is it|Does that make you|Is that your claim/i.test(q.text))
+      return `<span class="seg yn" role="group" aria-label="Which character did they say">${options.map(r => `<button class="u" data-qclaim="${p.id}" data-qi="${i}" data-role="${esc(r)}" aria-pressed="${ans[q.text] === r}">${esc(r)}</button>`).join("")}${none}</span>`;
+    if (!p.claims.length && /haven't claimed|share your character/i.test(q.text))
+      return `<span class="seg yn" role="group" aria-label="Their answer"><button class="u" data-qenter>Enter their claim</button>${none}</span>`;
+    if (q.yn) return `<span class="seg yn" role="group" aria-label="Their answer">${["yes", "no", "none"].map(v => `<button class="u" data-ans="${p.id}" data-ansq="${i}" data-ansv="${v}" aria-pressed="${ans[q.text] === v}">${ANSWER_LABEL[v]}</button>`).join("")}</span>`;
+    return "";
+  };
   return `<div class="ask-body">
     ${suspect ? `<small class="no-line">On your suspect list: ${esc([...new Set(suspect.why)].slice(0, 2).join(", "))}.</small>` : ""}
-    ${qs.length ? `<ul>${qs.map((q, i) => `<li${q.hi ? ` class="ask-hi"` : ""}>${esc(q.text)}${q.yn ? `<span class="seg yn" role="group" aria-label="Their answer">${["yes", "no", "none"].map(v => `<button class="u" data-ans="${p.id}" data-ansq="${i}" data-ansv="${v}" aria-pressed="${ans[q.text] === v}">${ANSWER_LABEL[v]}</button>`).join("")}</span>` : ""}</li>`).join("")}</ul>` : ""}
-    ${qs.some(q => q.yn) ? `<small>Not answering is common and isn't held against anyone.</small>` : ""}
+    ${qs.length ? `<ul>${qs.map((q, i) => `<li${q.hi ? ` class="ask-hi"` : ""}>${esc(q.text)}${answerHtml(q, i)}</li>`).join("")}</ul>` : ""}
+    <small>Tapping an answer adds it to your notebook. Not answering is common and isn't held against anyone.</small>
   </div>`;
 }
 const askCount = (p, asks) => infoAsks(p).length + (asks.get(p.id) || []).flatMap(q => splitQs(q.text)).length;
