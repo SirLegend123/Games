@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
 <style>
-/* Cover page: pick which of the four tools to open. Same palette as the apps. */
+/* Cover page: pick which of the five tools to open. Same palette as the apps. */
 :root {
   --bg: #15121b;
   --surface: #211c29;
@@ -21,6 +21,7 @@
   --good: #4c8ce4;
   --evil: #d8435a;
   --clock: #3aa0b5;
+  --solo: #8a6fd1;
   --felt: radial-gradient(circle at 50% 0%, #2c2436 0%, #1b1622 55%, #15121b 100%);
   --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
   --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
@@ -29,14 +30,14 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     --bg: #f1eef4; --surface: #ffffff; --line: #dcd4e3; --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
-    --good: #2463c2; --evil: #be2a42; --clock: #1f8296;
+    --good: #2463c2; --evil: #be2a42; --clock: #1f8296; --solo: #6a4fb5;
     --felt: radial-gradient(circle at 50% 0%, #ffffff 0%, #ebe5f0 60%, #e2dbe9 100%);
     color-scheme: light;
   }
 }
 :root[data-theme="light"] {
   --bg: #f1eef4; --surface: #ffffff; --line: #dcd4e3; --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
-  --good: #2463c2; --evil: #be2a42; --clock: #1f8296;
+  --good: #2463c2; --evil: #be2a42; --clock: #1f8296; --solo: #6a4fb5;
   --felt: radial-gradient(circle at 50% 0%, #ffffff 0%, #ebe5f0 60%, #e2dbe9 100%);
   color-scheme: light;
 }
@@ -52,7 +53,8 @@ header { text-align: center; margin-bottom: 36px; }
 h1 { font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: clamp(2.2rem, 7vw, 3.4rem); line-height: 1; margin: 0 0 12px; }
 .lede { color: var(--muted); margin: 0 auto; max-width: 34em; }
 
-.choices { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.choices { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1100px) { .choices { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 960px) { .choices { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .choices { grid-template-columns: minmax(0, 1fr); } }
 
@@ -62,6 +64,7 @@ h1 { font-family: var(--font-display); font-weight: 400; color: var(--brass); fo
 .choice.evil { --accent: var(--evil); }
 .choice.st { --accent: var(--brass); }
 .choice.clock { --accent: var(--clock); }
+.choice.solo { --accent: var(--solo); }
 .icon { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-size: 1.6rem; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
 .choice h2 { font-family: var(--font-display); font-weight: 400; font-size: 1.55rem; line-height: 1.1; margin: 0; color: var(--fg); }
 .choice h2 small { display: block; font-family: var(--font-body); font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
@@ -79,7 +82,7 @@ footer p { margin: 4px 0; }
   <header>
     <p class="kicker">Blood on the Clocktower</p>
     <h1>Clocktower Companion</h1>
-    <p class="lede">Four tools for one game. Pick the one that fits your seat tonight, or let the app run the game for you.</p>
+    <p class="lede">Five tools for one game. Pick the one that fits your seat tonight, let the app run the game for you, or practise on your own against bots.</p>
   </header>
 
   <nav class="choices" aria-label="Choose an app">
@@ -106,6 +109,12 @@ footer p { margin: 4px 0; }
       <h2><small>No Storyteller tonight</small>Clockwork Storyteller</h2>
       <p>One phone passed round the table runs a whole game of Trouble Brewing: nights, private info, votes and the reveal.</p>
       <span class="go">Start a game <span>&rarr;</span></span>
+    </a>
+    <a class="choice solo" href="solo.html">
+      <span class="icon" aria-hidden="true">&#9823;&#xFE0E;</span>
+      <h2><small>Just me</small>Solo Practice</h2>
+      <p>Play Trouble Brewing alone: bots fill every other seat, claim, lie, nominate and vote, and the app is the Storyteller.</p>
+      <span class="go">Practise <span>&rarr;</span></span>
     </a>
   </nav>
 
