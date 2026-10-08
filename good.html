@@ -409,6 +409,9 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .ask-hi { font-weight: 700; }
 .ask-body li { display: grid; gap: 5px; }
 .seg.yn { justify-self: start; font-weight: 400; }
+.ask-info { display: grid; gap: 6px; padding: 8px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); }
+.ask-info .row { gap: 6px; }
+.ask-info select { min-width: 0; max-width: 100%; }
 .seg.yn button { padding: 6px 14px; min-height: 36px; }
 .talk-sec { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 .talk-sec > h3 { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: var(--brass); font-weight: 800; }
@@ -601,7 +604,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
         <h2>Read the board</h2>
         <p>Use the tabs at the top: <b>Table</b> (the circle, player panel and night info), <b>Story</b>, <b>Plan</b>, <b>Evil team</b>, <b>Claims</b> and <b>Notes</b>. Badges show when something needs attention.</p>
         <ul>
-          <li><b>Story tab:</b> a daily checklist of who to speak to and what to ask each player. Tap a name to see the questions, answer yes/no questions with Yes, No or Didn't answer (not answering is never held against anyone), then log what they said or tick them off. A recap of the day opens as night falls (you can reread it during the night). It sums up your own nights (and suggests tonight's choice for your character), what each player has told you and others, what adds up and what doesn't, and what to find out tomorrow.</li>
+          <li><b>Story tab:</b> a daily checklist of who to speak to and what to ask each player. Tap a name to see the questions, answer yes/no questions with Yes, No or Didn't answer (not answering is never held against anyone), and enter their night info with quick answers (an Empath's number, the Fortune Teller's two players and result, what the Undertaker saw), which go straight into Night info. Then log anything else they said or tick them off. A recap of the day opens as night falls (you can reread it during the night). It sums up your own nights (and suggests tonight's choice for your character), what each player has told you and others, what adds up and what doesn't, and what to find out tomorrow.</li>
           <li><b>Plan for tomorrow:</b> what doesn't add up, questions to ask each player, and who to look at.</li>
           <li><b>Evil team:</b> the most likely Demon and why, plus which Minions are likely in play.</li>
           <li><b>Test a hunch:</b> in a player's panel, tap "What if they're evil?" to see what supports it, what goes against it, and what follows if it's true.</li>
@@ -3118,6 +3121,7 @@ function playerStory(p) {
   const out = { p, ok: [], bad: [], asks: [], told: [], heardAbout: [], info: [], lastDay: 0 };
   const name = pName(p);
   for (const t of T.filter(t => t.with === p.id)) { out.lastDay = Math.max(out.lastDay, t.day); if (t.claim) out.told.push({ day: t.day, ...t.claim }); }
+  for (const [d, ids] of Object.entries(state.spoken || {})) if (ids.includes(p.id)) out.lastDay = Math.max(out.lastDay, +d);
   const ownRoles = [...new Set([...out.told.flatMap(c => c.roles), ...p.claims].map(lc))];
   const ownText = out.told.length ? orList([...new Set(out.told.flatMap(c => c.roles))]) : orList(p.claims);
   // What other players say this player claimed to them, grouped per conversation
@@ -3249,7 +3253,7 @@ function storyHtml(opts = {}) {
       <div class="pc-head">${who(p)}<small>${p.dead ? "dead · " : ""}${s.lastDay ? `last spoke day ${s.lastDay}` : "not spoken to yet"}</small></div>
       <div>${s.told.length ? "Told you" : "Claim"}: ${claim}</div>
       ${s.heardAbout.map(g => `<small>${esc(pName(pById(g.by)))} says they claimed ${esc(orList(g.roles))} (day ${g.day})</small>`).join("")}
-      ${Object.entries(state.answers || {}).flatMap(([d, byP]) => Object.entries(byP[p.id] || {}).map(([q, v]) => `<small>Day ${d}: ${esc(q.length > 110 ? q.slice(0, 107) + "…" : q)} <b>${ANSWER_LABEL[v]}</b>${v === "none" ? " (not held against them)" : ""}</small>`)).join("")}
+      ${Object.entries(state.answers || {}).flatMap(([d, byP]) => Object.entries(byP[p.id] || {}).map(([q, v]) => q.startsWith("info:") ? `<small>Day ${d}: didn't share their night ${esc(q.split(":")[2])} ${esc(q.split(":")[1].replace(/\b\w/g, c => c.toUpperCase()))} info (not held against them)</small>` : `<small>Day ${d}: ${esc(q.length > 110 ? q.slice(0, 107) + "…" : q)} <b>${ANSWER_LABEL[v]}</b>${v === "none" ? " (not held against them)" : ""}</small>`)).join("")}
       ${s.info.map(e => `<small>Night ${e.night} ${esc(e.role)}: ${esc(readEntry(e).means || e.note || "")}${isSecondHand(e) ? ` <i>(via ${esc(pName(pById(e.told.by)))})</i>` : ""}</small>`).join("")}
       ${s.ok.length || s.bad.length ? `<ul>${s.ok.map(t => `<li class="yes-line">${esc(t)}</li>`).join("")}${s.bad.map(b => `<li class="no-line">${esc(b.text)}</li>`).join("")}</ul>` : ""}
     </div>`;
@@ -3311,21 +3315,93 @@ const ANSWER_LABEL = { yes: "Yes", no: "No", none: "Didn't answer" };
 const spokenList = () => { state.spoken = state.spoken || {}; return (state.spoken[state.day] = state.spoken[state.day] || []); };
 const talkedToday = id => talks().some(t => t.with === id && t.day === state.day);
 const spokenToday = id => talkedToday(id) || spokenList().includes(id);
+/* ---------- Answering info questions straight into their night info ---------- */
+// Characters whose info can be answered in the checklist, and when they'd have something to tell
+const QUICK_INFO = ["washerwoman", "librarian", "investigator", "chef", "empath", "fortune teller", "undertaker", "ravenkeeper", "monk", "innkeeper", "butler", "chambermaid", "clockmaker", "dreamer", "mathematician", "oracle", "grandmother", "sailor", "exorcist", "snake charmer", "gambler", "seamstress", "juggler"];
+const FIRST_NIGHT_INFO = ["washerwoman", "librarian", "investigator", "chef", "clockmaker", "grandmother"];
+const FROM_NIGHT_2 = ["monk", "innkeeper", "exorcist", "oracle", "gambler", "undertaker"];
+const NUM_RANGE = { empath: [0, 2], chef: [0, 3], chambermaid: [0, 2], clockmaker: [1, 7], mathematician: [0, 5], oracle: [0, 5], juggler: [0, 5] };
+let infoDrafts = {}, infoErr = {};
+function infoAsks(p) {
+  const out = [];
+  if (p.me || p.traveller) return out;
+  const roles = (isHard(p) ? [p.claims[0]] : p.claims).filter(r => QUICK_INFO.includes(lc(r)));
+  const logged = (role, n) => state.myInfo.some(e => e.src === p.id && lc(e.role) === lc(role) && (n == null || e.night === n));
+  for (const role of roles) {
+    const k = lc(role);
+    let n = state.day, pre = [];
+    if (FIRST_NIGHT_INFO.includes(k)) { if (logged(role)) continue; n = 1; }
+    else if (k === "ravenkeeper") { if (!(p.dead && p.deathBy === "night") || logged(role)) continue; n = p.deathNight || state.day; }
+    else if (p.dead) continue;
+    else if (FROM_NIGHT_2.includes(k) && state.day < 2) continue;
+    else if (k === "juggler" && state.day !== 2) continue;
+    else if (k === "seamstress" && logged(role)) continue;
+    if (k === "undertaker") { const ex = state.players.find(x => (x.deathBy === "exec" || x.deathBy === "virgin") && x.execDay === state.day - 1); if (!ex) continue; pre = [ex.id]; }
+    if (k === "empath") pre = livingNeighbours(p.id);
+    if (logged(role, n) || state.answers?.[state.day]?.[p.id]?.[`info:${k}:${n}`] === "none") continue;
+    out.push({ role, n, pre, key: `${p.id}|${k}|${n}` });
+  }
+  return out;
+}
+function infoAskHtml(p, a) {
+  const k = lc(a.role), t = infoOf(a.role) || {}, roles = scriptRoles();
+  const d = infoDrafts[a.key] = infoDrafts[a.key] || { p: [...a.pre], r: [], n: null, yn: null, zero: false };
+  const rList = kind => kind === "any" ? TEAMS.flatMap(x => roles[x]) : kind === "good" ? [...roles.townsfolk, ...roles.outsider] : roles[kind] || [];
+  const pSel = i => `<select class="btn" data-aip="${a.key}" data-i="${i}" aria-label="Player ${i + 1}"><option value="">Pick player</option>${state.players.map((x, j) => `<option value="${x.id}"${x.id === d.p[i] ? " selected" : ""}>${j + 1}. ${esc(pName(x))}${x.dead ? " (dead)" : ""}</option>`).join("")}</select>`;
+  const rSel = i => `<select class="btn" data-air="${a.key}" data-i="${i}" aria-label="Character"><option value="">Pick character</option>${rList(t.r).map(r => `<option${r === d.r[i] ? " selected" : ""}>${esc(r)}</option>`).join("")}</select>`;
+  const [lo, hi] = NUM_RANGE[k] || [0, 5];
+  const nums = Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
+  return `<div class="ask-info">
+    <span class="label">${isHard(p) ? "" : "If they're the "}${esc(a.role)} · night ${a.n}</span>
+    ${t.zero ? `<button class="toggle" data-aizero="${a.key}" aria-pressed="${d.zero}">Saw zero Outsiders</button>` : ""}
+    ${t.p && !d.zero ? `<div class="row"><span class="hint">${esc(t.neighbours ? "Their living neighbours" : t.plabel || "Players")}</span>${Array.from({ length: t.p }, (_, i) => pSel(i)).join("")}</div>` : ""}
+    ${t.r && !d.zero ? `<div class="row"><span class="hint">${esc(t.rlabel || "Character")}</span>${Array.from({ length: t.r2 ? 2 : 1 }, (_, i) => rSel(i)).join("")}</div>` : ""}
+    ${t.n ? `<div class="row"><span class="hint">${esc(t.n)}</span><span class="seg yn" role="group" aria-label="${esc(t.n)}">${nums.map(v => `<button class="u" data-ain="${a.key}" data-v="${v}" aria-pressed="${d.n === v}">${v}</button>`).join("")}</span></div>` : ""}
+    ${t.yn ? `<span class="seg yn" role="group" aria-label="Result">${t.yn.map((l, i) => `<button class="u" data-aiyn="${a.key}" data-v="${i}" aria-pressed="${d.yn === i}">${esc(l)}</button>`).join("")}</span>` : ""}
+    ${infoErr[a.key] ? `<small class="no-line">${esc(infoErr[a.key])}</small>` : ""}
+    <div class="row"><button class="btn sm primary" data-aisave="${a.key}">Save to their night info</button><button class="btn sm" data-aiskip="${a.key}">Didn't answer</button></div>
+  </div>`;
+}
+function saveInfoAsk(key) {
+  const [pid, k, nStr] = key.split("|"), p = pById(pid), d = infoDrafts[key];
+  const role = p.claims.find(c => lc(c) === k) || k, t = infoOf(role) || {};
+  const ps = d.zero ? [] : d.p.filter(Boolean), rs = d.zero ? [] : d.r.filter(Boolean);
+  if (t.p && !d.zero && ps.length < t.p) return `Pick ${t.p === 1 ? "the player" : "both players"}.`;
+  if (ps.length === 2 && ps[0] === ps[1]) return "Pick two different players.";
+  if (t.r && !d.zero && !rs.length) return "Pick the character.";
+  if (t.n && d.n == null) return "Pick their number.";
+  if (t.yn && d.yn == null) return "Pick their result.";
+  state.myInfo.push({ id: uid(), src: pid, night: +nStr, role, p: ps, r: rs, n: t.n ? d.n : null, yn: t.yn ? d.yn : null, note: "", zero: !!d.zero, told: { by: pid, day: state.day } });
+  state.myInfo.sort((x, y) => x.night - y.night || (x.src ? 1 : 0) - (y.src ? 1 : 0));
+  // Giving info as a character commits them to it
+  if (!isHard(p)) { p.claims = [role]; p.claimType = "hard"; }
+  if (!spokenList().includes(pid)) state.spoken[state.day] = [...spokenList(), pid];
+  delete infoDrafts[key];
+  return null;
+}
+
 function checklistHtml(asks, sus) {
   const ps = state.players.filter(p => !p.me);
   const hi = id => (asks.get(id) || []).some(q => q.hi);
   const rows = [...ps].sort((a, b) => (spokenToday(a.id) ? 1 : 0) - (spokenToday(b.id) ? 1 : 0) || (a.dead ? 1 : 0) - (b.dead ? 1 : 0) || (hi(b.id) ? 1 : 0) - (hi(a.id) ? 1 : 0) || ps.indexOf(a) - ps.indexOf(b));
   const done = ps.filter(p => spokenToday(p.id)).length;
   const row = p => {
-    const qs = (asks.get(p.id) || []).flatMap(q => splitQs(q.text).map(x => ({ ...x, hi: q.hi }))), open = askOpen === p.id, sp = spokenToday(p.id), auto = talkedToday(p.id);
+    const blocks = infoAsks(p);
+    // Text questions about info that the quick answers below already cover are left out
+    const COVERS = { undertaker: /show as when executed/i, monk: /who did you protect/i, innkeeper: /which two players did you protect/i };
+    const covered = q => blocks.length && (/^What did you learn last night\?/.test(q.text) || blocks.some(a => (ROLE_Q[lc(a.role)] && q.text.includes(ROLE_Q[lc(a.role)])) || COVERS[lc(a.role)]?.test(q.text)));
+    const qs = (asks.get(p.id) || []).flatMap(q => splitQs(q.text).map(x => ({ ...x, hi: q.hi }))).filter(q => !covered(q)), open = askOpen === p.id, sp = spokenToday(p.id), auto = talkedToday(p.id);
+    const loggedToday = state.myInfo.filter(e => e.src === p.id && e.told && e.told.day === state.day);
     const ans = state.answers?.[state.day]?.[p.id] || {};
     askShown[p.id] = qs;
     const claim = p.claims.length ? `${isHard(p) ? "" : "options: "}${orList(p.claims)}` : "no claim yet";
     const suspect = sus.some(c => c.p.id === p.id);
     return `<div class="ask-row${sp ? " done" : ""}${open ? " open" : ""}${hi(p.id) && !sp ? " hi" : ""}">
       <button class="ask-tick" data-asktick="${p.id}" aria-pressed="${sp}" aria-label="${sp ? "Spoken to" : "Mark as spoken to"}: ${esc(pName(p))}" ${auto ? "disabled title=\"You logged a conversation with them today\"" : ""}>✓</button>
-      <button class="ask-name" data-askopen="${p.id}" aria-expanded="${open}"><b>${esc(pName(p))}</b>${p.dead ? " <small>(dead)</small>" : ""}${suspect ? ` <span class="pill likely">Suspect</span>` : ""}<small>${esc(claim)} · ${qs.length} question${qs.length === 1 ? "" : "s"}</small></button>
+      <button class="ask-name" data-askopen="${p.id}" aria-expanded="${open}"><b>${esc(pName(p))}</b>${p.dead ? " <small>(dead)</small>" : ""}${suspect ? ` <span class="pill likely">Suspect</span>` : ""}<small>${esc(claim)} · ${qs.length + blocks.length} question${qs.length + blocks.length === 1 ? "" : "s"}</small></button>
       ${open ? `<div class="ask-body">
+        ${blocks.map(a => infoAskHtml(p, a)).join("")}
+        ${loggedToday.map(e => `<small class="yes-line">Logged their night ${e.night} ${esc(e.role)}: ${esc(readEntry(e).means || "")}</small>`).join("")}
         <ul>${qs.map((q, i) => `<li${q.hi ? ` class="ask-hi"` : ""}>${esc(q.text)}${q.yn ? `<span class="seg yn" role="group" aria-label="Their answer">${["yes", "no", "none"].map(v => `<button class="u" data-ans="${p.id}" data-ansq="${i}" data-ansv="${v}" aria-pressed="${ans[q.text] === v}">${ANSWER_LABEL[v]}</button>`).join("")}</span>` : ""}</li>`).join("")}</ul>
         ${qs.some(q => q.yn) ? `<small>Not answering is common and isn't held against anyone.</small>` : ""}
         ${suspect ? `<small>On your suspect list: ${esc([...new Set(sus.find(c => c.p.id === p.id).why)].slice(0, 2).join(", "))}.</small>` : ""}
@@ -3360,6 +3436,25 @@ function renderStory() {
     const a = answersFor(state.day, id), v = b.dataset.ansv;
     if (a[q.text] === v) delete a[q.text]; else a[q.text] = v;
     if (!spokenList().includes(id)) state.spoken[state.day] = [...spokenList(), id];
+    save(); renderStory();
+  });
+  const sv = $("storyView");
+  sv.querySelectorAll("[data-aip]").forEach(el => el.onchange = () => { infoDrafts[el.dataset.aip].p[+el.dataset.i] = el.value; });
+  sv.querySelectorAll("[data-air]").forEach(el => el.onchange = () => { infoDrafts[el.dataset.air].r[+el.dataset.i] = el.value; });
+  sv.querySelectorAll("[data-ain]").forEach(b => b.onclick = () => { infoDrafts[b.dataset.ain].n = +b.dataset.v; renderStory(); });
+  sv.querySelectorAll("[data-aiyn]").forEach(b => b.onclick = () => { infoDrafts[b.dataset.aiyn].yn = +b.dataset.v; renderStory(); });
+  sv.querySelectorAll("[data-aizero]").forEach(b => b.onclick = () => { const d = infoDrafts[b.dataset.aizero]; d.zero = !d.zero; renderStory(); });
+  sv.querySelectorAll("[data-aisave]").forEach(b => b.onclick = () => {
+    const key = b.dataset.aisave, err = saveInfoAsk(key);
+    infoErr[key] = err;
+    if (err) { renderStory(); return; }
+    save(); render();
+  });
+  sv.querySelectorAll("[data-aiskip]").forEach(b => b.onclick = () => {
+    const [pid, k, n] = b.dataset.aiskip.split("|");
+    answersFor(state.day, pid)[`info:${k}:${n}`] = "none";
+    if (!spokenList().includes(pid)) state.spoken[state.day] = [...spokenList(), pid];
+    delete infoDrafts[b.dataset.aiskip];
     save(); renderStory();
   });
   $("storyView").querySelectorAll("[data-asktalk]").forEach(b => b.onclick = () => openTalk(b.dataset.asktalk));
