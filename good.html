@@ -237,7 +237,7 @@ textarea { resize: vertical; min-height: 90px; }
 .warn-hint { color: var(--evil); }
 .linkish { border: 0; background: none; padding: 0; color: var(--fg); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .sum-list { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; font-size: .88rem; }
-.sum-list .g { color: var(--good); font-weight: 700; }
+.sum-list .g, .wb-clear .g { color: var(--good); font-weight: 700; }
 .sum-list .e { color: var(--evil); font-weight: 700; }
 
 /* Evil team */
@@ -435,6 +435,56 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .read-row .who, .ask-name .why { font-weight: 800; background: none; border: 0; padding: 0; text-align: left; color: var(--fg); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; justify-self: start; }
 .ask-rank { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 4px; }
 .ask-name .why { text-decoration: none; font-weight: 600; font-size: .8rem; color: var(--warn); }
+.whos-wrap { container-type: inline-size; }
+#infoCard > #infoPick, #infoCard > #infoForm { display: none; }
+.wb-head { margin: 0 0 8px; font-size: 1rem; }
+.wb-assume { display: grid; gap: 4px; margin-bottom: 10px; }
+.wb-chip.demon, .wb-chip.evil { border-color: var(--evil); color: var(--evil); font-weight: 800; }
+.wb-chip.good { border-color: var(--good); color: var(--good); font-weight: 800; }
+.wb-table td { min-width: 0; }
+.wb-table .wb-pct { font-weight: 800; font-variant-numeric: tabular-nums; }
+.wb-table .cand-bar { margin-top: 4px; }
+.wb-table .wb-pct.g { color: var(--good); }
+.wb-table .cand-bar.good i { background: var(--good); }
+.wb-clear { margin: 8px 0; font-size: .9rem; }
+.wb-q { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.wb-q small { grid-column: 1; }
+.wb-q .btn { grid-column: 2; grid-row: 1 / span 2; }
+.wb-note { display: block; color: var(--good); font-size: .78rem; font-weight: 600; margin: 2px 0; }
+.wb-world .when { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+.tabview[data-view="table"] { display: grid; gap: 14px; }
+.whos-card { align-self: start; }
+.whos-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.whos-table th { text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 800; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.whos-table td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.whos-table tr.dead td:first-child b { text-decoration: line-through; color: var(--muted); }
+.whos-table td small { display: block; color: var(--muted); font-size: .78rem; }
+.whos-table .day { display: block; }
+.whos-table .day b { color: var(--muted); font-weight: 800; margin-right: 4px; }
+.whos-level { font-weight: 800; }
+.whos-level.sure { color: var(--claim); } .whos-level.good { color: var(--good); } .whos-level.sus { color: var(--evil); } .whos-level.none { color: var(--muted); font-weight: 600; }
+.whos-table .cand-bar { display: block; height: 6px; max-width: 140px; margin: 3px 0; }
+.whos-table .whos-level { display: block; }
+.table-col { grid-template-columns: minmax(0, 1fr); }
+@container (max-width: 600px) {
+  .whos-table { min-width: 0; }
+  .whos-table thead { display: none; }
+  .whos-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .whos-table td { border: 0; padding: 0; }
+  .whos-table td:nth-child(2), .whos-table td:nth-child(3) { grid-column: 1 / -1; }
+  .whos-table td:nth-child(4) { grid-row: 1; grid-column: 2; }
+}
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.town-kinds .choice { font-size: 1rem; padding: 9px 16px; }
+.choice.ping-evil:not(:disabled) { border-color: var(--evil); color: var(--evil); }
+.choice.ping-good:not(:disabled) { border-color: var(--good); color: var(--good); }
+.choice:disabled { opacity: .45; cursor: default; }
+.ping-list { display: grid; gap: 6px; }
+.ping-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; padding: 7px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: .9rem; }
+.ping-row.evil { border-left-color: var(--evil); } .ping-row.good { border-left-color: var(--good); }
+.ping-row .row { grid-column: 1 / -1; gap: 6px; }
+.ping-row select { font-size: .82rem; padding: 4px 8px; min-width: 0; max-width: 100%; }
+.ping-row .x { border: 0; background: none; color: var(--muted); font-size: 1.1rem; }
 .talk-roles { display: grid; gap: 6px; max-height: 260px; overflow: auto; padding-right: 4px; }
 .talk-rel { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .talk-rel select { min-width: 0; max-width: 100%; }
@@ -460,11 +510,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     <span class="sync" id="sync">Saving on this device</span>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab" role="tab" data-tab="table">Table <span class="badge" id="bStory"></span></button>
-      <button class="tab" role="tab" data-tab="night">Night info</button>
-      <button class="tab" role="tab" data-tab="plan">Plan <span class="badge" id="bPlan"></span></button>
-      <button class="tab" role="tab" data-tab="evil">Evil team <span class="badge" id="bEvil"></span></button>
-      <button class="tab" role="tab" data-tab="claims">Claims</button>
-      <button class="tab" role="tab" data-tab="notes">Notes</button>
+      <button class="tab" role="tab" data-tab="worlds">World building <span class="badge" id="bPlan"></span></button>
     </nav>
   </header>
 
@@ -490,74 +536,14 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <div class="comp" id="comp"></div>
         </div>
       </div>
-      <section class="card" aria-labelledby="readsTitle">
-        <div class="tips-head"><h2 id="readsTitle">Who's who</h2><span class="tips-foot">Tap a name to open their panel</span></div>
-        <div id="readsView" class="reads-grid"></div>
-      </section>
     </section>
-    <section class="card story-card" aria-labelledby="storyTitle">
-      <div class="tips-head">
-        <h2 id="storyTitle">The story so far</h2>
-        <button class="btn primary" id="talkBtn">+ Log a conversation</button>
-      </div>
-      <span class="tips-foot">Tap a player's token, or a name below, to see what to ask them and record what they say. A recap of the day opens by itself as night falls.</span>
-      <div id="storyView" class="story"></div>
+    <section class="card whos-card" aria-labelledby="readsTitle">
+      <div class="tips-head"><h2 id="readsTitle">Who's who</h2><button class="btn primary" id="townBtn">📣 Said in town</button></div>
+      <span class="tips-foot">Most suspicious first. Tap <b>Talk</b> after a private chat, or <b>Said in town</b> to note pings and claims from the discussion.</span>
+      <div id="whosTable" class="whos-wrap"></div>
     </section>
-  </div>
-  </div>
 
-  <div class="tabview" data-view="night" hidden>
-      <div class="card info-card" id="infoCard" aria-labelledby="infoTitle">
-        <div class="tips-head"><h2 id="infoTitle">Night info</h2><span class="tips-foot">What you learned, what others say they learned, and what it could mean</span></div>
-        <div class="row" id="infoPick">
-          <label class="label" for="ifSrc">Whose info</label>
-          <select id="ifSrc" class="btn"></select>
-          <label class="label" for="myRole">Character</label>
-          <select id="myRole" class="btn"></select>
-        </div>
-        <div id="infoForm" class="info-form"></div>
-        <div id="infoHeard" class="tips-col"></div>
-        <div id="infoLog" class="tips-col"></div>
-        <div id="infoSum" class="tips-col"></div>
-        <div id="infoRel" class="tips-col"></div>
-      </div>
   </div>
-
-  <div id="panelHome" hidden><aside class="card panel" id="panel"></aside></div>
-
-  <div class="tabview" data-view="plan" hidden>
-  <section class="card" aria-labelledby="tipsTitle">
-    <div class="tips-head">
-      <h2 id="tipsTitle">Plan for tomorrow</h2>
-      <span class="tips-foot">Suggestions from your claims, deaths and reads. They're prompts, not answers.</span>
-    </div>
-    <div class="tips-grid">
-      <div class="tips-col"><h3>Doesn't add up</h3><div id="tipIssues" class="tips-col"></div></div>
-      <div class="tips-col"><h3>Questions to ask</h3><div id="tipQs" class="tips-col"></div></div>
-      <div class="tips-col"><h3>Who to look at</h3><div id="tipNoms" class="tips-col"></div><h3>Reminders</h3><div id="tipRem" class="tips-col"></div></div>
-    </div>
-  </section>
-  </div>
-
-  <div class="tabview" data-view="evil" hidden>
-  <section class="card" id="evilCard" aria-labelledby="evilTitle">
-    <div class="tips-head">
-      <h2 id="evilTitle">Evil team</h2>
-      <span class="tips-foot">Built from claims, deaths, reads and night info. A best guess, not a verdict.</span>
-    </div>
-    <p class="ev-team" id="evTeam"></p>
-    <div class="ev-grid">
-      <div class="tips-col"><h3>Demon candidates</h3><div id="evDemon" class="tips-col"></div></div>
-      <div class="tips-col"><h3>Minions in play</h3><div id="evMinion" class="tips-col"></div></div>
-    </div>
-  </section>
-  </div>
-
-  <div class="tabview" data-view="claims" hidden>
-      <div class="card">
-        <h2>Who claims what</h2>
-        <div class="roster" id="roster"></div>
-      </div>
   <section class="card matrix-card" aria-labelledby="matrixTitle">
     <div class="matrix-head">
       <h2 id="matrixTitle">Claim matrix</h2>
@@ -572,13 +558,43 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
   </section>
   </div>
 
-  <div class="tabview" data-view="notes" hidden>
-      <div class="card town-notes">
-        <h2>Town notes</h2>
-        <label class="label" for="gameNotes">Nominations, votes, deaths, theories</label>
-        <textarea id="gameNotes" placeholder="Day 1: Ana nominated Ben, 4 votes..."></textarea>
+  <div id="panelHome" hidden><aside class="card panel" id="panel"></aside></div>
+
+  <div class="tabview" data-view="worlds" hidden>
+  <section class="card worlds-card" aria-labelledby="wbTitle">
+    <div class="tips-head">
+      <h2 id="wbTitle">Possible worlds</h2>
+      <span class="tips-foot">Every way the Demon and Minions could be seated, tested against everything you've logged.</span>
+    </div>
+    <div id="worlds"></div>
+  </section>
+  <section class="card" aria-labelledby="tipsTitle">
+    <div class="tips-head">
+      <h2 id="tipsTitle">Plan for tomorrow</h2>
+      <span class="tips-foot">Suggestions from your claims, deaths and reads. They're prompts, not answers.</span>
+    </div>
+    <div class="tips-grid">
+      <div class="tips-col"><h3>Doesn't add up</h3><div id="tipIssues" class="tips-col"></div></div>
+      <div class="tips-col"><h3>Questions to ask</h3><div id="tipQs" class="tips-col"></div></div>
+      <div class="tips-col"><h3>Who to look at</h3><div id="tipNoms" class="tips-col"></div><h3>Reminders</h3><div id="tipRem" class="tips-col"></div></div>
+    </div>
+  </section>
+      <div class="card info-card" id="infoCard" aria-labelledby="infoTitle">
+        <div class="tips-head"><h2 id="infoTitle">The evidence: night info</h2><span class="tips-foot">What you learned, what others say they learned, and what it could mean. Add info from a player's token, or &#128227; Said in town.</span></div>
+        <div class="row" id="infoPick">
+          <label class="label" for="ifSrc">Whose info</label>
+          <select id="ifSrc" class="btn"></select>
+          <label class="label" for="myRole">Character</label>
+          <select id="myRole" class="btn"></select>
+        </div>
+        <div id="infoForm" class="info-form"></div>
+        <div id="infoHeard" class="tips-col"></div>
+        <div id="infoLog" class="tips-col"></div>
+        <div id="infoSum" class="tips-col"></div>
+        <div id="infoRel" class="tips-col"></div>
       </div>
   </div>
+
 </div>
 
 <section class="welcome" id="welcome" hidden aria-labelledby="welcomeTitle">
@@ -609,8 +625,8 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <li><b>Hard claim:</b> when they firmly commit to one role, switch to Hard claim and tap it. That role is then removed from other players' options.</li>
           <li>Set <b>My read</b> (good, unsure, evil), pick the evil character you <b>suspect</b>, and write <b>notes</b>.</li>
         </ul>
-        <p>After talking to someone, tap their token, or their name in the list beside the circle. Their panel starts with the questions to ask them, each with answer buttons where the answer is definite: their options to pick from, <b>Answer as the Fortune Teller</b> (and so on) to enter their night info under the question, or Yes / No. Answers go straight into your notebook. Below that, record their claim, then pick from <b>Which character's info?</b> to enter the night info they shared (only that form opens). On the same page, record their soft or hard claim, the night info they shared, and anything they heard: another player's claim, or info from a character ("the Investigator saw a Baron"). It all goes onto the circle and into Night info for you.</p>
-        <p>When a player shares what they learned at night, add it under <b>Night info</b> with <b>Whose info</b> set to them. If you hear info but don't know who it came from yet (say, "the Investigator saw a Baron"), set <b>Whose info</b> to <b>Someone (not sure who yet)</b>. It links to them when they hard-claim that role. Use <b>Slayer shot</b> when someone shoots.</p>
+        <p>After talking to someone, tap their token, or <b>Talk</b> on their row in <b>Who's who</b>. Their panel starts with the questions to ask them, each with answer buttons where the answer is definite: their options to pick from, <b>Answer as the Fortune Teller</b> (and so on) to enter their night info under the question, or Yes / No. Answers go straight into your notebook. Below that, record their claim, then pick from <b>Which character's info?</b> to enter the night info they shared (only that form opens). On the same page, record their soft or hard claim, the night info they shared, and anything they heard: another player's claim, or info from a character ("the Investigator saw a Baron"). It all goes onto the circle and into the evidence on World building.</p>
+        <p>Your own night info goes in your own token. If you hear info but don't know who it came from yet (say, "the Investigator saw a Baron"), add it from <b>&#128227; Said in town</b> with <b>Character info heard</b>. It links to them when they hard-claim that role. Use <b>Slayer shot</b> when someone shoots.</p>
       </li>
       <li>
         <h2>End the day</h2>
@@ -624,16 +640,18 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       </li>
       <li>
         <h2>Read the board</h2>
-        <p>Use the tabs at the top: <b>Table</b> (the circle and the story so far), <b>Night info</b>, <b>Plan</b>, <b>Evil team</b>, <b>Claims</b> and <b>Notes</b>. Badges show when something needs attention.</p>
+        <p>Use the tabs at the top: <b>Table</b> (the circle, Who's who and the claim matrix) and <b>World building</b>. Badges show when something needs attention.</p>
         <ul>
-          <li><b>The story so far</b> (beside the circle): a daily checklist of who to speak to and what to ask each player. Tap a name to see the questions, answer yes/no questions with Yes, No or Didn't answer (not answering is never held against anyone), and enter their night info with quick answers (an Empath's number, the Fortune Teller's two players and result, what the Undertaker saw), which go straight into Night info. Then log anything else they said or tick them off. A recap of the day opens as night falls (you can reread it during the night). It sums up your own nights (and suggests tonight's choice for your character), what each player has told you and others, what adds up and what doesn't, and what to find out tomorrow.</li>
-          <li><b>Plan for tomorrow:</b> what doesn't add up, questions to ask each player, and who to look at.</li>
-          <li><b>Evil team:</b> the most likely Demon and why, plus which Minions are likely in play.</li>
+          <li><b>📣 Said in town</b> (top of Who's who): capture talk from the town square in two taps. Tap who it's about (one player, or two for a pair like an Investigator or Fortune Teller ping, meaning "one of them"), then <b>Evil ping</b>, <b>Good ping</b>, <b>Called the Demon</b> or <b>Claimed a character</b>. Each saves straight away; add which character's info it came from and who said it if you caught that. You can also add character info you heard ("the Investigator saw a Baron") and keep town notes. Pings feed suspicion and show in Who's who.</li>
+          <li><b>Who's who</b> (beside the circle): a row for every player, most suspicious first. It shows what they've shared each day, how suspicious they are and why (or that they're confirmed or probably good), whether you've spoken to them today, and a <b>Talk</b> button. In their panel, answer yes/no questions with Yes, No or Didn't answer (not answering is never held against anyone), and enter their night info with quick answers, which go straight into the evidence on World building.</li>
+          <li><b>The story so far:</b> a recap that opens as night falls (and can be reread during the night): your own nights and tonight's suggested choice, what adds up and what doesn't, and what each player has told you and others.</li>
+          <li><b>World building:</b> the app tries every way the Demon and Minions could be seated and checks each against all the info you've logged (Empath and Chef numbers, Investigator and Fortune Teller results, Undertaker and Ravenkeeper reveals, Slayer shots, double claims). It shows how many worlds still fit, each player's chance of being the Demon, evil or good, who is good in every world, and the most likely worlds, with what would have to be wrong (a drunk or poisoned player) for each. Tap names to assume someone is the Demon, evil or good and watch the worlds narrow. <b>Questions that narrow the worlds</b> lists what to ask (an Empath's or Chef's number, what the Undertaker saw), with how many worlds each answer would leave, plus tips for tonight: the Fortune Teller pair that splits the worlds best, and the Slayer's likeliest target. The same questions appear, marked, in each player's panel.</li>
+          <li><b>Plan for tomorrow</b> (on World building): what doesn't add up, questions to ask each player, and who to look at.</li>
           <li><b>Test a hunch:</b> in a player's panel, tap "What if they're evil?" to see what supports it, what goes against it, and what follows if it's true.</li>
-          <li><b>Night info</b> grades each player's information as consistent, doubtful or unreliable.</li>
-          <li><b>Changed claims:</b> if a player gives info as one role and later claims another, or swaps a hard claim, the app flags it on the Plan tab, rings them amber and stops trusting that info. A real typo can be cleared with <b>Forget this</b> in their panel.</li>
+          <li><b>The evidence</b> (on World building) lists all night info and grades each player's information as consistent, doubtful or unreliable.</li>
+          <li><b>Changed claims:</b> if a player gives info as one role and later claims another, or swaps a hard claim, the app flags it on World building, rings them amber and stops trusting that info. A real typo can be cleared with <b>Forget this</b> in their panel.</li>
           <li><b>Game wrap-up:</b> when the game ends, enter who was evil, then everyone's real character (or skip that), to see how the evidence held up, which information was right, whose claims were true, how your reads did, and a timeline.</li>
-          <li><b>Claim matrix:</b> every claim at a glance. Amber means two players claim the same role.</li>
+          <li><b>Claim matrix</b> (under the circle): every claim at a glance. Amber means two players claim the same role.</li>
         </ul>
       </li>
     </ol>
@@ -789,6 +807,8 @@ function normalize(s) {
   for (const p of s.players) if (!p.claimType) p.claimType = "soft";
   s.shots = Array.isArray(s.shots) ? s.shots : [];
   s.talks = Array.isArray(s.talks) ? s.talks : [];
+  s.pings = Array.isArray(s.pings) ? s.pings : [];
+  s.wb = s.wb && typeof s.wb === "object" && !Array.isArray(s.wb) ? s.wb : {};
   if (s.firstNightDone === undefined) s.firstNightDone = true;
   return s;
 }
@@ -878,6 +898,7 @@ function claimChanges(p) {
 const describeChange = x => x.how === "offered" ? `offered ${x.role} (${x.when})` : `${x.how} ${x.role} (${x.when})`;
 function save() {
   pruneOptions();
+  fixEmpathNeighbours();
   trackClaims();
   linkHeard();
   state.updatedAt = Date.now();
@@ -1017,19 +1038,6 @@ function renderCircle() {
     : `<span class="stat">Needs 5+ non-travellers</span>`;
 }
 
-/* ---------- Roster ---------- */
-function renderRoster() {
-  $("roster").innerHTML = state.players.map((p, i) => `
-    <button class="roster-row${p.dead ? " dead" : ""}" data-id="${p.id}">
-      <span class="n">${i + 1}</span>
-      <span class="who">${p.align ? `<span class="dot ${p.align}"></span>` : ""}${esc(p.name || "—")}${p.me ? " (me)" : ""}${provenGood().has(p.id) ? " ✓" : ""}${p.suspect && !provenGood().has(p.id) ? ` <span style="color:var(--evil);font-weight:600">(${esc(p.suspect)}?)</span>` : ""}</span>
-      <span class="what">${p.claims.length ? p.claims.map(c => `<span class="t-${teamOf(c)}" style="color:var(--${teamOf(c)});font-weight:700">${esc(c)}</span>`).join(" or ") : '<span class="empty">no claim</span>'}
-        ${p.notes.trim() ? `<small>${esc(p.notes.trim().split("\n")[0])}</small>` : ""}</span>
-    </button>`).join("");
-  $("roster").querySelectorAll(".roster-row").forEach(el => el.addEventListener("click", () => {
-    openPlayer(el.dataset.id);
-  }));
-}
 
 /* ---------- Panel ---------- */
 // Hard claim: one role, tapping another replaces it. Soft claim: tapping toggles each option.
@@ -1149,8 +1157,8 @@ function renderPanel() {
       <button class="btn sm danger solid" id="rmYes">Remove</button><button class="btn sm" id="rmNo">Keep</button></div>` : ""}
   `;
 
-  $("pName").addEventListener("input", e => { p.name = e.target.value; save(); renderCircle(); renderRoster(); renderMatrix(); renderTips(); renderEvil(); });
-  $("pNotes").addEventListener("input", e => { p.notes = e.target.value; save(); renderCircle(); renderRoster(); });
+  $("pName").addEventListener("input", e => { p.name = e.target.value; save(); renderCircle(); renderMatrix(); renderTips(); renderReads(); });
+  $("pNotes").addEventListener("input", e => { p.notes = e.target.value; save(); renderCircle(); });
   $("tDead").onclick = () => { p.dead = !p.dead; if (!p.dead) { p.ghostVote = true; p.deathBy = ""; } save(); render(); };
   if ($("tVote")) $("tVote").onclick = () => { p.ghostVote = !p.ghostVote; save(); render(); };
   $("tMe").onclick = () => { const v = !p.me; state.players.forEach(x => x.me = false); p.me = v; save(); render(); };
@@ -1169,7 +1177,7 @@ function renderPanel() {
     applyProofs(); save(); render();
   });
   if ($("pVirgin")) $("pVirgin").onchange = e => { p.virginBy = e.target.value; applyProofs(); save(); render(); };
-  if ($("pDeathNight")) $("pDeathNight").oninput = e => { p.deathNight = Math.max(1, parseInt(e.target.value, 10) || 1); save(); renderEvil(); };
+  if ($("pDeathNight")) $("pDeathNight").oninput = e => { p.deathNight = Math.max(1, parseInt(e.target.value, 10) || 1); save(); renderReads(); };
   if ($("pSlayer")) $("pSlayer").onchange = e => { p.slayerBy = e.target.value; applyProofs(); save(); render(); };
   $("panel").querySelectorAll("[data-whatif]").forEach(b => b.onclick = () => openWhatIf(p.id, b.dataset.whatif));
   $("panel").querySelectorAll("[data-align]").forEach(b => b.onclick = () => { p.align = b.dataset.align; if (p.align !== "evil") p.suspect = ""; save(); render(); });
@@ -1260,6 +1268,41 @@ function livingNeighbours(pid) {
     }
   }
   return out;
+}
+// Alive when the Empath woke on night n: the Demon kills earlier in the night, executions happen by day
+function aliveAtNight(q, n) {
+  if (!q.dead) return true;
+  if (q.deathBy === "night") return (q.deathNight || 0) > n;
+  return (q.execDay || 0) >= n;
+}
+function livingNeighboursAt(pid, n) {
+  const ps = state.players, who = ps.find(p => p.id === pid);
+  if (!who) return [];
+  const i = ps.indexOf(who), out = [];
+  for (const dir of [-1, 1]) {
+    for (let k = 1; k < ps.length; k++) {
+      const q = ps[((i + dir * k) % ps.length + ps.length) % ps.length];
+      if (q === who) break;
+      if (aliveAtNight(q, n)) { out.push(q.id); break; }
+    }
+  }
+  return out;
+}
+// Empath info is often logged before the morning's deaths are marked. A neighbour killed that same night was already dead
+// when the Empath woke, so the number belongs to the next living player along: move it there.
+function fixEmpathNeighbours() {
+  const me = meP();
+  for (const e of state.myInfo || []) {
+    if (String(e.role).toLowerCase() !== "empath" || !Array.isArray(e.p) || !e.p.length) continue;
+    const src = e.src || me?.id;
+    if (!src) continue;
+    const killed = e.p.filter(id => { const q = state.players.find(x => x.id === id); return q && q.dead && q.deathBy === "night" && q.deathNight === e.night; });
+    if (!killed.length) continue;
+    const nb = livingNeighboursAt(src, e.night);
+    if (!nb.length || nb.join() === e.p.join()) continue;
+    e.moved = { killed, from: e.p.slice() };
+    e.p = nb;
+  }
 }
 function myRoleNow() {
   if (state.myRole) return state.myRole;
@@ -2055,7 +2098,8 @@ function renderInfo() {
       const entry = { id: uid(), src: d.src, night: d.night, role: d.role, p: d.zero ? [] : d.p.filter(Boolean), r: d.zero ? [] : d.r.filter(Boolean), n: t?.n ? d.n : null, yn: t?.yn ? d.yn : null, note: d.note.trim(), zero: !!d.zero };
       if (!t && !entry.note) { $("ifNote").focus(); return; }
       if (entry.p.length === 2 && entry.p[0] === entry.p[1]) { $("ifAdd").textContent = "Pick two different players"; return; }
-      if (talk && talk.with) { if (!pById(talk.with)?.me) entry.told = { by: talk.with, day: state.day }; talk.ids.push(entry.id); }
+      if (talk && talk.with) { if (!pById(talk.with)?.me) entry.told = { by: talk.with, day: state.day, town: talk.town || undefined }; talk.ids.push(entry.id); }
+      else if (talk && talk.town) { entry.told = { day: state.day, town: true }; talk.ids.push(entry.id); }
       if (anon) { heardList().push({ ...entry, heardDay: state.day }); infoDraft = newDraft(ANON, d.role); save(); render(); return; }
       state.myInfo.push(entry);
       state.myInfo.sort((x, y) => x.night - y.night || (x.src ? 1 : 0) - (y.src ? 1 : 0));
@@ -2072,6 +2116,7 @@ function renderInfo() {
       <button class="x" data-ifdel="${e.id}" aria-label="Delete night ${e.night} entry">×</button>
       ${means ? `<span class="means">${esc(means)}</span>` : ""}
       ${warns.map(x => `<span class="warn">${esc(x)}</span>`).join("")}
+      ${e.moved ? `<small>Neighbours updated: ${e.moved.killed.map(nmS).join(" and ")} died on night ${e.night} before the Empath woke, so this number counts ${e.p.map(nmS).join(" and ")}.</small>` : ""}
       ${e.note ? `<small>${esc(e.note)}</small>` : ""}
       ${e.heard ? `<small>Heard${e.heard.day ? ` on day ${e.heard.day}` : ""} before you knew who said it. ${e.heard.auto ? `Linked when ${nmS(src)} hard-claimed ${esc(e.role)}.` : `You linked it to ${nmS(src)}.`} <button class="linkish" data-ifunlink="${e.id}">Unlink</button></small>` : ""}
     </div>`).join("") : `<p class="tips-empty">Nothing logged yet.</p>`;
@@ -2661,30 +2706,6 @@ function buildEvil() {
   return { active, ruledOut, top, minions, demons, comp, base, outs, maybeOuts, team: top ? [top, ...rest] : rest, onlyImp: demonRoles.length === 1 ? demonRoles[0] : "" };
 }
 
-function renderEvil() {
-  const ev = buildEvil();
-  const P = c => c.p;
-  const nmE = p => esc(p.name || `Seat ${state.players.indexOf(p) + 1}`);
-  const btn = p => `<button class="who" data-open="${p.id}">${nmE(p)}</button>`;
-  const max = Math.max(1, ...ev.active.map(c => c.score));
-  const cands = ev.active.filter(c => c.score > 0);
-  $("evDemon").innerHTML = `
-    ${ev.top ? `<div class="tip bad"><span class="label">Most likely Demon${ev.onlyImp ? ` (the ${esc(ev.onlyImp)})` : ""}</span>${btn(ev.top.p)}<small>${esc([...new Set(ev.top.why)].join(" · ") || "Highest suspicion so far")}</small></div>` : `<p class="tips-empty">No clear Demon candidate yet. Mark your reads and log night info to build a case.</p>`}
-    ${cands.slice(1, 6).map(c => `<div class="tip cand">${btn(c.p)}<span class="cand-bar" aria-hidden="true"><i style="width:${Math.round(100 * c.score / max)}%"></i></span><small>${esc([...new Set(c.why)].join(" · "))}</small></div>`).join("")}
-    ${ev.ruledOut.length ? `<h3>Ruled out as Demon</h3><ul class="sum-list">${ev.ruledOut.map(r => `<li>${btn(r.p)} <small>${esc(r.why)}</small></li>`).join("")}</ul>` : ""}`;
-  const row = m => `<div class="tip minion"><span class="pill ${m.level}">${{ likely: "Likely", possible: "Possible", none: "No sign", unlikely: "Unlikely" }[m.level]}</span><b>${esc(m.role)}</b><small>${esc(m.why.length ? m.why.join(" · ") : m.hint)}</small></div>`;
-  const c = ev.comp;
-  $("evMinion").innerHTML = `
-    ${c ? `<p class="ev-sum">This game has <b>${c[2]} Minion${c[2] === 1 ? "" : "s"}</b> and <b>${c[3]} Demon</b>. Outsiders: <b>${ev.outs}</b> claimed${ev.maybeOuts ? ` (+${ev.maybeOuts} in options)` : ""}, normal is <b>${ev.base}</b>.</p>` : ""}
-    ${ev.minions.map(row).join("")}
-    ${ev.demons.length ? `<h3>Which Demon?</h3>${ev.demons.map(row).join("")}` : ""}`;
-  $("evTeam").innerHTML = ev.team.length && c
-    ? `Best guess at the evil team: ${ev.team.map((t, i) => `${btn(t.p)}${i === 0 ? " (Demon)" : ""}`).join(", ")}. ${ev.team.length < c[2] + c[3] ? `That leaves ${c[2] + c[3] - ev.team.length} evil player${c[2] + c[3] - ev.team.length === 1 ? "" : "s"} unaccounted for.` : ""}`
-    : "";
-  document.querySelectorAll("#evilCard [data-open]").forEach(b => b.onclick = () => {
-    openPlayer(b.dataset.open);
-  });
-}
 
 function renderTips() {
   const { issues, qs, nomList, rem } = buildTips();
@@ -2757,16 +2778,14 @@ function render() {
   if (!sel()) state.selected = state.players[0].id;
   $("script").value = state.script;
   $("exampleBanner").hidden = !state.example;
-  if (document.activeElement !== $("gameNotes")) $("gameNotes").value = state.notes;
   renderCircle();
-  renderRoster();
   renderPanel();
   renderMatrix();
   renderInfo();
   renderTips();
-  renderEvil();
   renderStory();
   renderReads();
+  renderWorlds();
   updateBadges();
   updatePhaseLogged();
   if (talk) talkLoggedHtml();
@@ -2943,7 +2962,7 @@ function renderPhase() {
       <h2 id="phaseTitle">Your night info</h2>
       ${meP()?.dead
         ? `<p>You're dead, so you won't usually wake tonight. Log info below only if your character still gets it.</p>`
-        : `<p>Log what you learned tonight. Skip this if you don't wake tonight.</p>
+        : `<p>Log what you learned tonight. Skip this if you don't wake tonight.${lc(myRoleNow()) === "empath" ? " If a neighbour was killed tonight, leave your neighbours as they are: when you mark the deaths next, your number moves to your next living neighbour, because the Demon kills before the Empath wakes." : ""}</p>
       <div class="phase-actions" style="justify-content:flex-start">${meP() ? `<button class="btn evilwin" data-idied>I died tonight and got no info</button>` : `<span class="hint">Mark your seat with "This is me" to record your own death here.</span>`}</div>`}
       <div id="phaseSlot" class="tips-col"></div>
       <div id="phaseLogged" class="tips-col"></div>
@@ -3015,9 +3034,9 @@ function openPlayer(id) {
   state.selected = id; confirmRemove = false; save();
   openTalk(id);
 }
-function openTalk(withId) {
+function openTalk(withId, opts = {}) {
   if (withId) { state.selected = withId; confirmRemove = false; }
-  talk = { with: withId || "", ctype: "", roles: [], relayed: [], ids: [], note: "", rel: { about: "", role: "", type: "soft" }, more: !!pById(withId)?.me };
+  talk = { with: withId || "", town: !!opts.town, ctype: "", roles: [], relayed: [], ids: [], note: "", rel: { about: "", role: "", type: "soft" }, more: !!pById(withId)?.me };
   infoDraft = null;
   $("talkOverlay").hidden = false;
   renderTalk();
@@ -3041,7 +3060,7 @@ function closeTalk(keep) {
   if (keep && talk && talk.with && !pById(talk.with)?.me) {
     applyTalkClaim();
     const t = talk, claim = t.ctype && t.roles.length ? { type: t.ctype, roles: t.ctype === "hard" ? [t.roles[0]] : [...t.roles] } : null;
-    if (talkStarted()) talks().push({ id: uid(), day: state.day, with: t.with, claim, relayed: t.relayed.map(r => ({ ...r })), ids: [...t.ids], note: t.note.trim() });
+    if (talkStarted()) talks().push({ id: uid(), day: state.day, with: t.with, town: t.town || undefined, claim, relayed: t.relayed.map(r => ({ ...r })), ids: [...t.ids], note: t.note.trim() });
     save();
   }
   talk = null; infoDraft = null;
@@ -3073,8 +3092,85 @@ function infoShareHtml(p) {
     ${pick === "other" || pick === "passed" ? `${pick === "passed" ? `<p class="hint">Pick the player it belongs to under <b>Whose info</b>, or <b>Someone (not sure who yet)</b> for things like "the Investigator saw a Baron".</p>` : ""}<div id="talkSlot" class="tips-col"></div>` : ""}
     <div id="talkLogged" class="tips-col"></div>`;
 }
+/* ---------- Said in town: quick pings about players ---------- */
+const pings = () => (state.pings = Array.isArray(state.pings) ? state.pings : []);
+const PING_KINDS = { evil: "Evil ping", good: "Good ping", demon: "Called the Demon", claim: "Claimed" };
+const pingIds = x => Array.isArray(x.about) ? x.about : [x.about];
+const pingAbout = (x, id) => pingIds(x).includes(id);
+const pingWho = x => { const ns = pingIds(x).map(id => pName(pById(id))); return ns.length > 1 ? `${ns.slice(0, -1).join(", ")} & ${ns[ns.length - 1]}` : ns[0]; };
+const pingText = x => `${PING_KINDS[x.kind]}${x.kind === "claim" ? ` ${x.claim}` : ""}${x.from ? ` (${x.from} info)` : ""}${x.by ? `, said by ${pName(pById(x.by))}` : ""}`;
+function addPing(kind, claim) {
+  const ids = (talk.about || []).filter(id => pById(id));
+  if (!ids.length || (kind === "claim" && ids.length !== 1)) return;
+  const about = ids.length === 1 ? ids[0] : ids, p = pById(ids[0]);
+  const x = { id: uid(), day: state.day, about, kind };
+  if (kind === "claim") {
+    // A public claim updates their claim and is checked against what they told people privately
+    x.claim = claim; x.talkId = uid();
+    talks().push({ id: x.talkId, day: state.day, with: about, town: true, claim: { type: "hard", roles: [claim] }, relayed: [], ids: [], note: "" });
+    p.claims = [claim]; p.claimType = "hard";
+  }
+  pings().push(x);
+  talk.about = []; talk.claimOpen = false;
+  save(); render(); renderTalk();
+}
+function renderTown() {
+  const box = $("talkBox"), top = box.scrollTop;
+  restoreTalkSlot();
+  const sec = (title, body) => `<section class="talk-sec"><h3>${title}</h3>${body}</section>`;
+  const roles = scriptRoles(), allRoles = TEAMS.flatMap(t => roles[t]);
+  const people = state.players.filter(x => !x.me).sort((a, b) => (a.dead ? 1 : 0) - (b.dead ? 1 : 0) || state.players.indexOf(a) - state.players.indexOf(b));
+  const today = pings().filter(x => x.day === state.day);
+  if (!Array.isArray(talk.about)) talk.about = talk.about ? [talk.about] : [];
+  const sel = talk.about, any = sel.length > 0, pair = sel.length > 1;
+  const sourceOpts = sel => `<option value="">From which character's info?</option>` + allRoles.filter(r => infoOf(r)).map(r => `<option${r === sel ? " selected" : ""}>${esc(r)}</option>`).join("");
+  const byOpts = sel => `<option value="">Said by (optional)</option>` + state.players.filter(x => !x.me).map(x => `<option value="${x.id}"${x.id === sel ? " selected" : ""}>${esc(pName(x))}</option>`).join("");
+  box.innerHTML = `<span class="step">Day ${state.day} · Said in town</span>
+    <h2 id="talkTitle">What's being said in town?</h2>
+    <p class="hint">Tap who it's about, then what was said. Each one saves straight away, ready for the next.</p>
+    ${sec("About who?", `<div class="choice-list">${people.map(x => `<button class="choice" data-tabout="${x.id}" aria-pressed="${sel.includes(x.id)}">${esc(pName(x))}${x.dead ? " (dead)" : ""}</button>`).join("")}</div>
+      <p class="hint">Tap one player, or two for a pair, like an Investigator or Fortune Teller ping. A pair means "one of them".</p>`)}
+    ${sec("What was said?", `<div class="choice-list town-kinds">
+        <button class="choice ping-evil" data-tkind="evil" ${any ? "" : "disabled"}>${pair ? "Evil ping (one of them)" : "Evil ping"}</button>
+        <button class="choice ping-good" data-tkind="good" ${any ? "" : "disabled"}>${pair ? "Good ping (both)" : "Good ping"}</button>
+        <button class="choice ping-evil" data-tkind="demon" ${any ? "" : "disabled"}>${pair ? "One is the Demon" : "Called the Demon"}</button>
+        <button class="choice" data-tkind="claim" aria-pressed="${!!talk.claimOpen}" ${any && !pair ? "" : "disabled"}>Claimed a character…</button>
+      </div>
+      ${talk.claimOpen && any && !pair ? `<div class="row"><select class="btn" id="tTownClaim" aria-label="Which character did they claim"><option value="">Which character?</option>${TEAMS.filter(t => roles[t].length).map(t => `<optgroup label="${TEAM_LABEL[t]}">${roles[t].map(r => `<option>${esc(r)}</option>`).join("")}</optgroup>`).join("")}</select></div>` : ""}
+      ${any ? "" : `<p class="hint">Pick a player first.</p>`}`)}
+    ${sec(`Said today${today.length ? ` · ${today.length}` : ""}`, today.length ? `<div class="ping-list">${[...today].reverse().map(x => `<div class="ping-row ${x.kind === "good" ? "good" : x.kind === "claim" ? "" : "evil"}">
+        <span><b>${esc(pingWho(x))}</b>: ${esc(PING_KINDS[x.kind])}${x.kind === "claim" ? ` ${esc(x.claim)}` : ""}${pingIds(x).length > 1 ? (x.kind === "good" ? " (both)" : " (one of them)") : ""}</span>
+        <button class="x" data-pdel="${x.id}" aria-label="Delete">×</button>
+        ${x.kind === "claim" ? "" : `<span class="row"><select class="btn" data-pfrom="${x.id}" aria-label="Which character's info">${sourceOpts(x.from)}</select><select class="btn" data-pby="${x.id}" aria-label="Who said it">${byOpts(x.by)}</select></span>`}
+      </div>`).join("")}</div>` : `<p class="tips-empty">Nothing yet today.</p>`)}
+    ${sec("Character info heard", talk.townInfo ? `<p class="hint">For things like "the Investigator saw a Baron between Tom and Mia". It links to whoever hard-claims that character.</p><div id="talkSlot" class="tips-col"></div><div id="talkLogged" class="tips-col"></div>`
+      : `<button class="btn sm" data-tinfo>+ Add info like "the Investigator saw a Baron"</button>`)}
+    ${sec("Town notes", `<textarea id="townNotes" aria-label="Town notes" placeholder="Nominations, votes, theories...">${esc(state.notes || "")}</textarea>`)}
+    <div class="phase-actions"><button class="btn primary" data-tcancel>Done</button></div>`;
+  if ($("talkSlot")) {
+    $("talkSlot").appendChild($("infoPick")); $("talkSlot").appendChild($("infoForm"));
+    if (!infoDraft) infoDraft = newDraft(ANON, "");
+    renderInfo(); talkLoggedHtml();
+  }
+  box.querySelectorAll("[data-tabout]").forEach(b => b.onclick = () => { const id = b.dataset.tabout; talk.about = sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id]; talk.claimOpen = false; renderTown(); });
+  box.querySelectorAll("[data-tkind]").forEach(b => b.onclick = () => { if (b.dataset.tkind === "claim") { talk.claimOpen = !talk.claimOpen; renderTown(); } else addPing(b.dataset.tkind); });
+  if ($("tTownClaim")) $("tTownClaim").onchange = e => { if (e.target.value) addPing("claim", e.target.value); };
+  box.querySelectorAll("[data-pfrom]").forEach(el => el.onchange = () => { const x = pings().find(y => y.id === el.dataset.pfrom); if (x) { x.from = el.value || undefined; save(); render(); } });
+  box.querySelectorAll("[data-pby]").forEach(el => el.onchange = () => { const x = pings().find(y => y.id === el.dataset.pby); if (x) { x.by = el.value || undefined; save(); render(); } });
+  box.querySelectorAll("[data-pdel]").forEach(b => b.onclick = () => {
+    const x = pings().find(y => y.id === b.dataset.pdel);
+    state.pings = pings().filter(y => y !== x);
+    if (x?.talkId) state.talks = talks().filter(t => t.id !== x.talkId);
+    save(); render(); renderTown();
+  });
+  if (box.querySelector("[data-tinfo]")) box.querySelector("[data-tinfo]").onclick = () => { talk.townInfo = true; infoDraft = null; renderTown(); };
+  $("townNotes").oninput = e => { state.notes = e.target.value; save(); };
+  box.querySelectorAll("[data-tcancel]").forEach(b => b.onclick = () => closeTalk(false));
+  box.scrollTop = top;
+}
 function renderTalk() {
   if (!talk) return;
+  if (talk.town) return renderTown();
   const box = $("talkBox"), top = box.scrollTop;
   restoreTalkSlot();
   const p = pById(talk.with), name = esc(pName(p)), roles = scriptRoles();
@@ -3082,9 +3178,11 @@ function renderTalk() {
   const sec = (title, body) => `<section class="talk-sec"><h3>${title}</h3>${body}</section>`;
   const head = `<span class="step">Day ${state.day}</span>`;
   if (!p) {
-    box.innerHTML = `${head}<h2 id="talkTitle">Who did you talk to?</h2>
+    box.innerHTML = `${head}<h2 id="talkTitle">${talk.town ? "Who spoke in the town square?" : "Who did you talk to?"}</h2>
       <div class="choice-list">${people.map(x => `<button class="choice" data-twith="${x.id}">${esc(pName(x))}${x.dead ? " (dead)" : ""}</button>`).join("")}</div>
-      <div class="phase-actions"><button class="btn" data-tcancel>Cancel</button></div>`;
+      ${talk.town ? `<section class="talk-sec"><h3>Town notes</h3><p class="hint">Anything else from the discussion: nominations, votes, theories.</p><textarea id="townNotes" aria-label="Town notes" placeholder="Day 1: Ana nominated Ben, 4 votes...">${esc(state.notes || "")}</textarea></section>` : ""}
+      <div class="phase-actions"><button class="btn" data-tcancel>${talk.town ? "Done" : "Cancel"}</button></div>`;
+    if ($("townNotes")) $("townNotes").oninput = e => { state.notes = e.target.value; save(); };
     box.querySelectorAll("[data-twith]").forEach(b => b.onclick = () => { talk.with = b.dataset.twith; state.selected = talk.with; infoDraft = null; renderTalk(); box.scrollTop = 0; });
     box.querySelector("[data-tcancel]").onclick = () => closeTalk(false);
     return;
@@ -3102,13 +3200,13 @@ function renderTalk() {
     const roleOpts = `<option value="">Character</option>` + TEAMS.filter(t => roles[t].length).map(t => `<optgroup label="${TEAM_LABEL[t]}">${roles[t].map(r => `<option${r === talk.rel.role ? " selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>`).join("");
     const stories = state.players.filter(x => !x.me).map(playerStory);
     const { asks, sus } = buildAsks(stories, buildTips());
-    const asked = askBodyHtml(p, asks, sus);
+    const asked = talk.town ? "" : askBodyHtml(p, asks, sus);
     const claimNow = p.claims.length ? `${isHard(p) ? "hard claim" : "options"}: ${esc(orList(p.claims))}` : "no claim yet";
     box.innerHTML = `${head}
-      <h2 id="talkTitle">${name}</h2>
-      <p class="hint">${p.dead ? "Dead · " : ""}${claimNow} · ${spokenToday(p.id) ? "spoken to today" : "not spoken to today"}</p>
+      <h2 id="talkTitle">${talk.town ? `${name} said in town` : name}</h2>
+      <p class="hint">${p.dead ? "Dead · " : ""}${claimNow}${talk.town ? " · said publicly, in front of everyone" : ` · ${spokenToday(p.id) ? "spoken to today" : "not spoken to today"}`}</p>
       ${asked ? sec(`Questions to ask ${name}`, asked) : ""}
-      ${sec(`What did ${name} say they are?`, `
+      ${sec(talk.town ? `What did ${name} claim publicly?` : `What did ${name} say they are?`, `
         ${p.claims.length ? `<p class="hint">On your circle: ${p.claimType === "hard" ? "hard claim" : "soft claim"} ${esc(p.claims.join(", "))}. <button class="linkish" data-tsame>Same as that</button></p>` : ""}
         <span class="seg" role="group" aria-label="Claim type">
           <button class="u" data-tct="" aria-pressed="${!talk.ctype}">Didn't say</button>
@@ -3119,7 +3217,7 @@ function renderTalk() {
           ${talk.roles.length ? (talk.pickOpen ? `<button class="btn sm" data-tpick="0">Done</button>` : `<button class="linkish" data-tpick="1">Change</button>`) : ""}</div>
         ${talk.pickOpen || !talk.roles.length ? `<div class="talk-roles">${TEAMS.filter(t => roles[t].length).map(t => `<div class="pick-group"><span class="label"><i style="background:var(--${t})"></i>${TEAM_LABEL[t]}</span><div class="pick-list">${roles[t].map(r => `<button class="pick" data-trole="${esc(r)}" aria-pressed="${has(r)}">${esc(r)}</button>`).join("")}</div></div>`).join("")}</div>` : ""}` : ""}`)}
       ${sec("Night info they shared", infoShareHtml(p))}
-      ${sec(`A claim someone else made to ${name}`, `
+      ${sec(talk.town ? `Did ${name} mention anyone else's claim?` : `A claim someone else made to ${name}`, `
         <div class="talk-rel">
           <select class="btn" id="trAbout" aria-label="Who made the claim"><option value="">Who</option>${others.map(x => `<option value="${x.id}"${x.id === talk.rel.about ? " selected" : ""}>${esc(pName(x))}</option>`).join("")}</select>
           <span>said they're the</span>
@@ -3129,10 +3227,10 @@ function renderTalk() {
         </div>
         ${talk.relayed.length ? `<ul class="sum-list">${talk.relayed.map((r, i) => `<li>${esc(pName(pById(r.about)))} told ${name} they're ${r.type === "hard" ? "the" : "possibly the"} ${esc(r.role)} <button class="linkish" data-trdel="${i}">Remove</button></li>`).join("")}</ul>` : ""}`)}
       ${sec("Anything else (optional)", `<textarea id="tNote" aria-label="Notes on this conversation" placeholder="Who they suspect, how they came across...">${esc(talk.note)}</textarea>`)}
-      ${more}
+      ${talk.town ? "" : more}
       <div class="phase-actions">
         <button class="btn" data-tcancel>${talkStarted() ? "Cancel" : "Close"}</button>
-        ${!talkStarted() && !spokenToday(p.id) ? `<button class="btn" data-tnothing>Spoke to them, nothing new</button>` : ""}
+        ${!talk.town && !talkStarted() && !spokenToday(p.id) ? `<button class="btn" data-tnothing>Spoke to them, nothing new</button>` : ""}
         ${talkStarted() ? `<button class="btn primary" data-tsave>Save conversation</button>` : ""}
       </div>`;
   }
@@ -3143,8 +3241,8 @@ function renderTalk() {
     if (!infoDraft) infoDraft = p.me ? newDraft("", myRoleNow()) : talk.infoPick === "passed" ? newDraft(ANON, "") : newDraft(talk.with, talk.roles.find(r => infoOf(r)) || roleFor(talk.with));
     renderInfo();
   }
-  $("panelSlot").appendChild($("panel"));
-  renderPanel(); talkLoggedHtml();
+  if ($("panelSlot")) { $("panelSlot").appendChild($("panel")); renderPanel(); }
+  talkLoggedHtml();
   if ($("tInfoPick")) $("tInfoPick").onchange = e => { talk.infoPick = e.target.value; talk.inlineQ = false; infoDraft = null; renderTalk(); };
   // Answer buttons on the questions
   box.querySelectorAll("[data-qinfo]").forEach(b => b.onclick = () => { talk.infoPick = b.dataset.qinfo; talk.inlineQ = true; renderTalk(); });
@@ -3157,7 +3255,7 @@ function renderTalk() {
     save(); render(); renderTalk();
   });
   box.querySelectorAll("[data-qenter]").forEach(b => b.onclick = () => { talk.ctype = "hard"; talk.pickOpen = true; renderTalk(); box.querySelector("[data-tct]")?.scrollIntoView({ behavior: "smooth", block: "center" }); });
-  $("talkMore").addEventListener("toggle", () => { talk.more = $("talkMore").open; });
+  if ($("talkMore")) $("talkMore").addEventListener("toggle", () => { talk.more = $("talkMore").open; });
   box.querySelectorAll("[data-tcancel]").forEach(b => b.onclick = () => closeTalk(false));
   if (p.me) { box.scrollTop = top; return; }
   wireAsk(box, () => renderTalk(), () => { render(); renderTalk(); });
@@ -3322,7 +3420,7 @@ function storyHtml(opts = {}) {
   // Your nights
   const mn = myNights(), tonight = tonightAdvice();
   const nightsHtml = `<div class="story-sec"><h3>You${mn.role ? `, the ${esc(mn.role)}` : ""}</h3>
-    ${!mn.role ? `<p class="tips-empty">Choose your character under Night info so the app can use your own nights.</p>` : ""}
+    ${!mn.role ? `<p class="tips-empty">Choose your character on your own token so the app can use your own nights.</p>` : ""}
     ${mn.out.map(x => `<div class="tip ${x.bad.length ? "bad" : ""}">${x.lines.map(esc).join(" ")}${x.bad.map(b => `<small class="no-line">${esc(b)}</small>`).join("")}</div>`).join("") || (mn.role ? `<p class="tips-empty">Nothing logged from your nights yet.</p>` : "")}
     ${tonight ? `<div class="tip tonight"><span class="label">Tonight</span>${esc(tonight.text)}${tonight.sub ? `<small>${esc(tonight.sub)}</small>` : ""}</div>` : ""}</div>`;
   // Each player
@@ -3361,7 +3459,7 @@ function storyHtml(opts = {}) {
     ${!unspoken.length && !sus.length && !order.length ? `<p class="tips-empty">Nothing urgent. Keep asking for claims and night info.</p>` : ""}</div>`;
   // On the Story tab, today's checklist of who to speak to replaces "Find out tomorrow"
   if (opts.plain) return { html: stand + `<div class="story-grid">${nightsHtml}${tomorrowHtml}</div>` + checksHtml + playersHtml, bad: badAll.length };
-  return { html: checklistHtml(asks, sus) + stand + nightsHtml + checksHtml + playersHtml, bad: badAll.length };
+  return { html: stand + nightsHtml + checksHtml + playersHtml, bad: badAll.length };
 }
 
 // What to ask each player: clashes first, then the Plan tab's questions, and something for everyone else
@@ -3371,6 +3469,14 @@ function buildAsks(stories, tips) {
   for (const s of stories) for (const q of s.asks) ask(q.id || s.p.id, q.text, q.hi);
   for (const [id, list] of tips.qs) for (const q of list) if (q.hi) ask(id, q.text, true);
   for (const [id, list] of tips.qs) for (const q of list) if (!q.hi) ask(id, q.text, false);
+  // World building: questions whose answers rule out the most worlds, flagged and pushed up the list
+  for (const w of worldAsks()) {
+    const p = pById(w.id), list = asks.get(w.id) || [];
+    const own = w.role && isHard(p) && lc(p.claims[0]) === lc(w.role);
+    const same = w.role && list.find(q => q.text.toLowerCase().startsWith(`if you're the ${lc(w.role)}`) || (own && q.text.includes(ROLE_Q[lc(w.role)] || "\u0000")));
+    if (same) { same.hi = true; same.world = w.note; }
+    else { list.unshift({ text: w.text, hi: true, world: w.note }); asks.set(w.id, list); }
+  }
   for (const p of state.players.filter(x => !x.me && !asks.has(x.id))) ask(p.id, p.dead ? "Is there anything you know that you haven't shared yet?" : "Has anything changed since yesterday? Who do you trust, and who do you suspect?", false, true);
   const ev = buildEvil();
   return { asks, sus: ev.active.filter(c => c.score > 0 && !c.p.dead).slice(0, 2) };
@@ -3387,6 +3493,7 @@ function goodSummary() {
     if (p.me || sure.has(p.id)) continue;
     if (p.align === "good") add(likely, p.id, "Your read: good");
     if (p.dead && p.deathBy === "night") add(likely, p.id, `Killed on night ${p.deathNight || "?"}: the Demon rarely kills its own team`);
+    { const mine = pings().filter(x => pingAbout(x, p.id)), g = mine.filter(x => x.kind === "good").length, e = mine.filter(x => x.kind !== "good" && x.kind !== "claim").length; if (g > e) add(likely, p.id, `${g} good ping${g > 1 ? "s" : ""} in town`); }
     if (p.dead && p.deathBy === "virgin") add(likely, p.id, `Died nominating the Virgin, so a Townsfolk${spyOnScript() ? " (or the Spy)" : ""}`);
     if (playerStory(p).ok.some(t => /heard the same story|matches what/.test(t)) && !playerStory(p).bad.length) add(likely, p.id, "Their story checks out with others");
   }
@@ -3406,6 +3513,22 @@ function suspicionRank() {
     r.score += rows.get(n.p.id).score ? n.score / 2 : n.score;
     for (const w of n.why) if (w && !r.why.includes(w)) r.why.push(w);
   }
+  // What's said in town: evil pings and Demon calls raise suspicion, good pings lower it
+  for (const p of state.players.filter(x => !x.me && !proven.has(x.id))) {
+    const mine = pings().filter(x => pingAbout(x, p.id)), evil = mine.filter(x => x.kind === "evil"), demon = mine.filter(x => x.kind === "demon"), good = mine.filter(x => x.kind === "good");
+    if (!evil.length && !demon.length && !good.length) continue;
+    const r = rows.get(p.id) || rows.set(p.id, { p, score: 0, why: [] }).get(p.id);
+    const share = x => pingIds(x).length > 1 ? 0.5 : 1;
+    r.score += evil.reduce((t, x) => t + 2 * share(x), 0) + demon.reduce((t, x) => t + 3 * share(x), 0) - 2 * good.length;
+    const src = list => [...new Set(list.map(x => x.from).filter(Boolean))];
+    const others = list => [...new Set(list.flatMap(x => pingIds(x).filter(id => id !== p.id)).map(id => pName(pById(id))))];
+    const solo = l => l.filter(x => pingIds(x).length === 1), paired = l => l.filter(x => pingIds(x).length > 1);
+    if (solo(demon).length) r.why.unshift(`called the Demon in town${solo(demon).length > 1 ? ` ${solo(demon).length} times` : ""}`);
+    if (paired(demon).length) r.why.unshift(`one of them is the Demon, said in town (with ${others(paired(demon)).join(", ")})`);
+    if (solo(evil).length) r.why.unshift(`${solo(evil).length} evil ping${solo(evil).length > 1 ? "s" : ""} in town${src(solo(evil)).length ? ` (${src(solo(evil)).join(", ")})` : ""}`);
+    if (paired(evil).length) r.why.unshift(`evil ping shared with ${others(paired(evil)).join(", ")} in town${src(paired(evil)).length ? ` (${src(paired(evil)).join(", ")})` : ""}`);
+    if (good.length) r.why.push(`${good.length} good ping${good.length > 1 ? "s" : ""} in town`);
+  }
   for (const p of state.players.filter(x => !x.me && !proven.has(x.id))) {
     const clashes = playerStory(p).bad;
     if (!clashes.length) continue;
@@ -3413,23 +3536,66 @@ function suspicionRank() {
     r.score += 2 * clashes.length;
     r.why.unshift(...clashes.slice(0, 2).map(b => b.text));
   }
-  return [...rows.values()].sort((a, b) => b.score - a.score);
+  return [...rows.values()].filter(r => r.score > 0).sort((a, b) => b.score - a.score);
+}
+// A short form of a night-info entry, for the Who's who table
+function shortInfo(e) {
+  const t = infoOf(e.role) || {}, ps = e.p.map(id => pName(pById(id)));
+  let what = e.zero ? "no Outsiders"
+    : e.r.length && ps.length ? `${orList(ps)} ${ps.length > 1 ? "→ one is" : "is"} the ${e.r.join(" or ")}`
+    : t.yn && e.yn != null ? `${ps.length ? orList(ps) + ": " : ""}${t.yn[e.yn]}`
+    : e.n != null ? `${ps.length && t.neighbours ? orList(ps) + ": " : ""}${e.n}`
+    : ps.length ? `chose ${orList(ps)}` : e.note || "";
+  return `Night ${e.night} ${e.role}: ${what}`;
+}
+// Everything a player has shared, grouped by the day you heard it
+function sharedByDay(p) {
+  const days = new Map(), add = (d, text) => (days.get(d) || days.set(d, []).get(d)).push(text);
+  for (const t of talks().filter(t => t.with === p.id)) {
+    const where = t.town ? " (in town)" : "";
+    if (t.claim) add(t.day, `${t.claim.type === "hard" ? "Claimed" : "Offered"} ${orList(t.claim.roles)}${where}`);
+    for (const r of t.relayed) add(t.day, `Says ${pName(pById(r.about))} claimed ${r.role}${where}`);
+  }
+  for (const x of pings().filter(x => pingAbout(x, p.id) && x.kind !== "claim")) {
+    const ns = pingIds(x).map(id => pName(pById(id))), pair = ns.length > 1;
+    const what = x.kind === "demon" ? (pair ? `one of ${orList(ns)} is the Demon` : "called the Demon") : `${x.kind} ping${pair ? ` on ${x.kind === "good" ? ns.join(" and ") : orList(ns)}` : ""}`;
+    add(x.day, `Town: ${what}${x.from ? ` (${x.from} info)` : ""}${x.by ? `, said by ${pName(pById(x.by))}` : ""}`);
+  }
+  for (const e of state.myInfo.filter(e => e.src === p.id)) add(e.told?.day || e.night, shortInfo(e) + (isSecondHand(e) ? ` (via ${pName(pById(e.told.by))})` : "") + (e.told?.town ? " (in town)" : ""));
+  for (const [d, byP] of Object.entries(state.answers || {})) for (const [q, v] of Object.entries(byP[p.id] || {})) {
+    if (q.startsWith("info:")) add(+d, `Didn't share their night ${q.split(":")[2]} info`);
+    else add(+d, `${q.length > 60 ? q.slice(0, 57) + "…" : q} ${ANSWER_LABEL[v] || v}`);
+  }
+  return [...days].sort((a, b) => a[0] - b[0]);
 }
 function renderReads() {
-  const { sure, likely } = goodSummary(), sus = suspicionRank().slice(0, 6);
-  const who = p => `<button class="who" data-open="${p.id}">${esc(pName(p))}</button>`;
-  const max = Math.max(1, ...sus.map(r => r.score));
-  const goodRow = (id, why, cls) => { const p = pById(id); return `<div class="read-row ${cls}"><span class="rank">${cls === "sure" ? "✓" : "?"}</span>${who(p)}${p.dead ? " <small>dead</small>" : ""}<small>${esc([...new Set(why)].join(" · "))}</small></div>`; };
-  $("readsView").innerHTML = `
-    <div class="tips-col"><h3>Confirmed good</h3>
-      ${sure.size ? [...sure].map(([id, why]) => goodRow(id, why, "sure")).join("") : `<p class="tips-empty">Nobody yet. The Virgin or a Slayer hit proves someone good.</p>`}
-      <h3>Probably good</h3>
-      ${likely.size ? [...likely].map(([id, why]) => goodRow(id, why, "good")).join("") : `<p class="tips-empty">No one stands out as good yet.</p>`}
-    </div>
-    <div class="tips-col"><h3>Most suspicious</h3>
-      ${sus.length ? sus.map((r, i) => `<div class="read-row suspect-row"><span class="rank">${i + 1}</span>${who(r.p)}${r.p.dead ? " <small>dead</small>" : ""}<span class="cand-bar"><i style="width:${Math.round(100 * r.score / max)}%"></i></span><small>${esc(r.why.slice(0, 3).join(" · "))}</small></div>`).join("") : `<p class="tips-empty">No one stands out yet. Log claims and info, or mark your evil reads.</p>`}
-    </div>`;
-  $("readsView").querySelectorAll("[data-open]").forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+  const { sure, likely } = goodSummary();
+  renderWhosTable(sure, likely);
+}
+// One row per player: what they've shared each day, how suspicious they are and why, and a button to talk to them
+function renderWhosTable(sure, likely) {
+  const rank = suspicionRank(), max = Math.max(1, ...rank.map(r => r.score));
+  const level = p => {
+    if (sure.has(p.id)) return { order: 3, html: `<span class="whos-level sure">✓ Confirmed good</span><small>${esc(sure.get(p.id).join(" · "))}</small>` };
+    const i = rank.findIndex(r => r.p.id === p.id);
+    if (i >= 0) { const r = rank[i]; return { order: 0, score: r.score, html: `<span class="whos-level sus">Suspicious · #${i + 1}</span><span class="cand-bar"><i style="width:${Math.round(100 * r.score / max)}%"></i></span><small>${esc(r.why.slice(0, 2).join(" · "))}</small>` }; }
+    if (likely.has(p.id)) return { order: 2, html: `<span class="whos-level good">Probably good</span><small>${esc([...new Set(likely.get(p.id))].join(" · "))}</small>` };
+    return { order: 1, html: `<span class="whos-level none">No read yet</span>` };
+  };
+  const ps = state.players.filter(p => !p.me);
+  const rows = ps.map(p => ({ p, lv: level(p) })).sort((a, b) => a.lv.order - b.lv.order || (b.lv.score || 0) - (a.lv.score || 0) || ps.indexOf(a.p) - ps.indexOf(b.p));
+  $("whosTable").innerHTML = ps.length ? `<table class="whos-table">
+    <thead><tr><th scope="col">Player</th><th scope="col">Shared, by day</th><th scope="col">Suspicion</th><th scope="col"><span class="sr-only">Talk</span></th></tr></thead>
+    <tbody>${rows.map(({ p, lv }) => {
+      const shared = sharedByDay(p);
+      return `<tr class="${p.dead ? "dead" : ""}">
+        <td><b>${esc(pName(p))}</b><small>${p.claims.length ? `${isHard(p) ? "" : "options: "}${esc(orList(p.claims))}` : "no claim yet"}${p.dead ? " · dead" : ""}</small>${spokenToday(p.id) ? `<small class="yes-line">✓ spoken to today</small>` : ""}</td>
+        <td>${shared.length ? shared.map(([d, items]) => `<span class="day"><b>D${d}</b>${esc(items.join("; "))}</span>`).join("") : `<small>Nothing yet</small>`}</td>
+        <td>${lv.html}</td>
+        <td><button class="btn sm primary" data-open="${p.id}">Talk</button></td>
+      </tr>`;
+    }).join("")}</tbody></table>` : "";
+  $("whosTable").querySelectorAll("[data-open]").forEach(b => b.onclick = () => openPlayer(b.dataset.open));
 }
 
 /* ---------- Today's checklist: who to speak to and what to ask ---------- */
@@ -3452,7 +3618,7 @@ function splitQs(text) {
 const answersFor = (day, id) => ((state.answers = state.answers || {})[day] = state.answers[day] || {})[id] = state.answers[day][id] || {};
 const ANSWER_LABEL = { yes: "Yes", no: "No", none: "Didn't answer" };
 const spokenList = () => { state.spoken = state.spoken || {}; return (state.spoken[state.day] = state.spoken[state.day] || []); };
-const talkedToday = id => talks().some(t => t.with === id && t.day === state.day);
+const talkedToday = id => talks().some(t => t.with === id && t.day === state.day && !t.town);
 const spokenToday = id => talkedToday(id) || spokenList().includes(id);
 /* ---------- Answering info questions straight into their night info ---------- */
 // Characters whose info can be answered in the checklist, and when they'd have something to tell
@@ -3512,7 +3678,7 @@ function saveInfoAsk(key) {
   if (t.n && d.n == null) return "Pick their number.";
   if (t.yn && d.yn == null) return "Pick their result.";
   const id = uid();
-  state.myInfo.push({ id, src: pid, night: +nStr, role, p: ps, r: rs, n: t.n ? d.n : null, yn: t.yn ? d.yn : null, note: "", zero: !!d.zero, told: { by: pid, day: state.day } });
+  state.myInfo.push({ id, src: pid, night: +nStr, role, p: ps, r: rs, n: t.n ? d.n : null, yn: t.yn ? d.yn : null, note: "", zero: !!d.zero, told: { by: pid, day: state.day, town: (talk && talk.town) || undefined } });
   if (talk && talk.with === pid) { talk.ids.push(id); talk.infoPick = ""; talk.inlineQ = false; if (!talk.ctype) { talk.ctype = "hard"; talk.roles = [role]; } }
   state.myInfo.sort((x, y) => x.night - y.night || (x.src ? 1 : 0) - (y.src ? 1 : 0));
   // Giving info as a character commits them to it
@@ -3524,7 +3690,7 @@ function saveInfoAsk(key) {
 
 // The questions to put to one player, with Yes/No/Didn't answer where it fits
 function askBodyHtml(p, asks, sus) {
-  const qs = (asks.get(p.id) || []).flatMap(q => splitQs(q.text).map(x => ({ ...x, hi: q.hi }))).map((q, i) => ({ q, i })).sort((a, b) => (b.q.hi ? 1 : 0) - (a.q.hi ? 1 : 0) || a.i - b.i).map(x => x.q);
+  const qs = (asks.get(p.id) || []).flatMap(q => splitQs(q.text).map((x, j) => ({ ...x, hi: q.hi, world: j ? "" : q.world }))).map((q, i) => ({ q, i })).sort((a, b) => (b.q.hi ? 1 : 0) - (a.q.hi ? 1 : 0) || a.i - b.i).map(x => x.q);
   const ans = state.answers?.[state.day]?.[p.id] || {};
   const suspect = sus.find(c => c.p.id === p.id);
   const blocks = infoAsks(p, talk && talk.roles.length ? talk.roles : null);
@@ -3552,11 +3718,10 @@ function askBodyHtml(p, asks, sus) {
   };
   return `<div class="ask-body">
     ${suspect ? `<small class="no-line">On your suspect list: ${esc([...new Set(suspect.why)].slice(0, 2).join(", "))}.</small>` : ""}
-    ${qs.length ? `<ul>${qs.map((q, i) => `<li${q.hi ? ` class="ask-hi"` : ""}>${esc(q.text)}${answerHtml(q, i)}</li>`).join("")}</ul>` : ""}
+    ${qs.length ? `<ul>${qs.map((q, i) => `<li${q.hi ? ` class="ask-hi"` : ""}>${esc(q.text)}${q.world ? `<small class="wb-note">${esc(q.world)}</small>` : ""}${answerHtml(q, i)}</li>`).join("")}</ul>` : ""}
     <small>Tapping an answer adds it to your notebook. Not answering is common and isn't held against anyone.</small>
   </div>`;
 }
-const askCount = (p, asks) => infoAsks(p).length + (asks.get(p.id) || []).flatMap(q => splitQs(q.text)).length;
 // Answer buttons and quick info forms, wherever they're shown. soft() redraws after a choice; hard() after data changes.
 function wireAsk(root, soft, hard) {
   root.querySelectorAll("[data-aip]").forEach(el => el.onchange = () => { infoDrafts[el.dataset.aip].p[+el.dataset.i] = el.value; });
@@ -3587,55 +3752,187 @@ function wireAsk(root, soft, hard) {
   });
 }
 
-function checklistHtml(asks, sus) {
-  const ps = state.players.filter(p => !p.me);
-  const hi = id => (asks.get(id) || []).some(q => q.hi);
-  const rank = suspicionRank(), susScore = id => rank.find(r => r.p.id === id)?.score || 0;
-  // Priority: stories that clash, then suspicion, then night info still to collect, then missing or vague claims
-  const prio = p => {
-    const qs = asks.get(p.id) || [], clash = playerStory(p).bad.length, pending = infoAsks(p).length;
-    let score = 4 * qs.filter(q => q.hi).length + 3 * clash + Math.min(susScore(p.id), 8) + 2 * pending + (!p.claims.length ? 3 : isSoft(p) ? 1 : 0);
-    const reason = clash ? "Their story doesn't add up" : rank[0]?.p.id === p.id ? "Your top suspect" : susScore(p.id) > 0 ? "On your suspect list" : qs.some(q => q.hi) ? "Important questions" : pending ? "Night info to collect" : !p.claims.length ? "No claim yet" : isSoft(p) ? "Hasn't narrowed their options" : "";
-    if (p.dead) score -= 6;
-    return { score, reason };
-  };
-  const pr = new Map(ps.map(p => [p.id, prio(p)]));
-  const rows = [...ps].sort((a, b) => (spokenToday(a.id) ? 1 : 0) - (spokenToday(b.id) ? 1 : 0) || pr.get(b.id).score - pr.get(a.id).score || ps.indexOf(a) - ps.indexOf(b));
-  const done = ps.filter(p => spokenToday(p.id)).length;
-  const row = (p, i) => {
-    const sp = spokenToday(p.id), auto = talkedToday(p.id), n = askCount(p, asks), why = pr.get(p.id).reason;
-    const claim = p.claims.length ? `${isHard(p) ? "" : "options: "}${orList(p.claims)}` : "no claim yet";
-    const suspect = sus.some(c => c.p.id === p.id);
-    return `<div class="ask-row${sp ? " done" : ""}${hi(p.id) && !sp ? " hi" : ""}">
-      <button class="ask-tick" data-asktick="${p.id}" aria-pressed="${sp}" aria-label="${sp ? "Spoken to" : "Mark as spoken to"}: ${esc(pName(p))}" ${auto ? "disabled title=\"You logged a conversation with them today\"" : ""}>✓</button>
-      <button class="ask-name" data-open="${p.id}"><b>${sp ? "" : `<span class="ask-rank">${i + 1}.</span>`}${esc(pName(p))}</b>${!sp && why ? `<span class="why">${esc(why)}</span>` : ""}${p.dead ? " <small>(dead)</small>" : ""}${suspect ? ` <span class="pill likely">Suspect</span>` : ""}<small>${esc(claim)} · ${n} question${n === 1 ? "" : "s"}</small></button>
-    </div>`;
-  };
-  return `<div class="story-sec"><h3>Who to speak to today · ${done} of ${ps.length} done</h3>
-    <p class="hint" style="margin:0">In priority order: clashing stories and suspects first, then night info to collect and missing claims. Anyone you've spoken to moves to the bottom.</p>
-    <div class="ask-list">${rows.map((p, i) => row(p, i)).join("")}</div></div>`;
-}
-
 function renderStory() {
-  const { html, bad } = storyHtml();
-  const todays = talks().filter(t => t.day === state.day);
-  $("storyView").innerHTML = html + (talks().length ? `<div class="story-sec"><h3>Conversations you've logged</h3>${[...talks()].reverse().map(t => {
-    const p = pById(t.with);
-    const bits = [t.claim ? `${t.claim.type === "hard" ? "hard-claimed" : "offered"} ${orList(t.claim.roles)}` : "", ...t.relayed.map(r => `says ${pName(pById(r.about))} claimed ${r.role}`), t.ids.length ? `${t.ids.length} night info` : "", t.note].filter(Boolean);
-    return `<div class="tip entry"><span class="when">Day ${t.day} · ${esc(pName(p))}</span><button class="x" data-tdel="${t.id}" aria-label="Delete this conversation">×</button><small>${esc(bits.join(" · ")) || "No details"}</small></div>`;
-  }).join("")}<span class="tips-foot">${todays.length} today. Deleting a conversation keeps the claims and night info it added.</span></div>` : "");
-  $("storyView").querySelectorAll("[data-open]").forEach(b => b.onclick = () => openPlayer(b.dataset.open));
-  $("storyView").querySelectorAll("[data-asktick]").forEach(b => b.onclick = () => {
-    const l = spokenList(), id = b.dataset.asktick;
-    state.spoken[state.day] = l.includes(id) ? l.filter(x => x !== id) : [...l, id];
-    save(); renderStory();
-  });
-  $("storyView").querySelectorAll("[data-tdel]").forEach(b => b.onclick = () => { state.talks = talks().filter(t => t.id !== b.dataset.tdel); save(); render(); });
+  // The story itself shows in the nightfall recap; the Table tab's badge counts what doesn't add up
+  const { bad } = storyHtml({ plain: true });
   $("bStory").textContent = bad || "";
   $("bStory").classList.toggle("red", bad > 0);
 }
-$("talkBtn").onclick = () => openTalk("");
+$("townBtn").onclick = () => openTalk("", { town: true });
 $("talkOverlay").addEventListener("click", e => { if (e.target === $("talkOverlay") && talk && !talk.with) closeTalk(false); });
+
+/* ---------- World building: every Demon + Minion seating, tested against the evidence ---------- */
+const wbAssume = () => (state.wb = state.wb && typeof state.wb === "object" && !Array.isArray(state.wb) ? state.wb : {});
+const WB_NEXT = { "": "demon", demon: "evil", evil: "good", good: "" };
+const WB_LABEL = { demon: "Demon", evil: "Evil", good: "Good" };
+function minionSlots(n) { return n >= 13 ? 3 : n >= 10 ? 2 : 1; }
+function combos(arr, k, start = 0, cur = [], out = []) {
+  if (cur.length === k) { out.push(cur.slice()); return out; }
+  for (let i = start; i <= arr.length - (k - cur.length); i++) { cur.push(arr[i]); combos(arr, k, i + 1, cur, out); cur.pop(); }
+  return out;
+}
+function buildWorldsRaw() {
+  const ps = state.players, P = id => ps.find(p => p.id === id);
+  const nm = id => { const p = P(id); return p ? (p.name || `Seat ${ps.indexOf(p) + 1}`) : "someone"; };
+  const me = meP(), proven = provenGood(), assume = wbAssume();
+  const seated = ps.filter(p => !p.traveller);
+  const k = minionSlots(seated.length);
+  const pool = seated.filter(p => !p.me && !proven.has(p.id) && assume[p.id] !== "good").map(p => p.id);
+  const demons = pool.filter(id => (state.over || !P(id).dead) && (!Object.values(assume).includes("demon") || assume[id] === "demon"));
+  // The evidence, as tests a world passes or fails. Each test belongs to a source who could be drunk, poisoned or lying.
+  const tests = [];
+  const add = (src, label, fn) => tests.push({ src, label, fn });
+  const meId = me ? me.id : "";
+  for (const e of state.myInfo) {
+    const src = e.src && P(e.src) ? e.src : e.src ? null : meId;
+    if (src === null) continue;
+    const role = String(e.role).toLowerCase(), t = teamOf(e.r && e.r[0]);
+    const pp = (e.p || []).filter(P), [a, b] = pp;
+    const lbl = `${e.role} (night ${e.night})`;
+    if (e.zero) continue;
+    if (role === "washerwoman" && pp.length === 2) add(src, lbl, W => !W.evil.has(a) || !W.evil.has(b));
+    else if (role === "librarian" && pp.length === 2) add(src, lbl, W => !W.evil.has(a) || !W.evil.has(b));
+    else if (role === "investigator" && pp.length === 2) add(src, lbl, W => W.minions.has(a) || W.minions.has(b));
+    else if (role === "sage" && pp.length === 2) add(src, lbl, W => W.demon === a || W.demon === b);
+    else if (role === "empath" && pp.length && e.n != null) add(src, lbl, W => pp.filter(id => W.evil.has(id)).length === e.n);
+    else if (role === "chef" && e.n != null) add(src, lbl, W => { let c = 0; for (let i = 0; i < ps.length; i++) if (W.evil.has(ps[i].id) && W.evil.has(ps[(i + 1) % ps.length].id)) c++; return c === e.n; });
+    else if (role === "clockmaker" && e.n != null) add(src, lbl, W => { const di = ps.findIndex(p => p.id === W.demon); let best = 99; ps.forEach((p, i) => { if (W.minions.has(p.id)) { const d = Math.abs(i - di); best = Math.min(best, d, ps.length - d); } }); return best === e.n; });
+    else if (role === "seamstress" && pp.length === 2 && e.yn != null) add(src, lbl, W => (W.evil.has(a) === W.evil.has(b)) === (e.yn === 0));
+    else if (["undertaker", "ravenkeeper", "grandmother"].includes(role) && a && e.r && e.r[0]) {
+      if (t === "demon") add(src, lbl, W => W.demon === a || (P(a).dead && W.evil.has(a)));
+      else if (t === "minion") add(src, lbl, W => W.minions.has(a) || (W.evil.has(a) && P(a).dead));
+      else if (t === "townsfolk" || t === "outsider") add(src, lbl, W => !W.evil.has(a));
+    }
+  }
+  // Fortune Teller results from one source: some red herring (a good player, or none) must explain every yes and no
+  const ftSrcs = [...new Set(state.myInfo.filter(e => String(e.role).toLowerCase() === "fortune teller" && e.yn != null && (e.p || []).filter(P).length === 2).map(e => e.src || ""))];
+  for (const s0 of ftSrcs) {
+    const src = s0 ? (P(s0) ? s0 : null) : meId;
+    if (src === null) continue;
+    const ft = state.myInfo.filter(e => (e.src || "") === s0 && String(e.role).toLowerCase() === "fortune teller" && e.yn != null && e.p.filter(P).length === 2);
+    tests.push({ src, label: "Fortune Teller results", fn: W => [null, ...seated.map(p => p.id).filter(id => !W.evil.has(id))].some(h => ft.every(e => { const hit = e.p.includes(W.demon) || (h && e.p.includes(h)); return e.yn === 0 ? hit : !hit; })) });
+  }
+  // A real Slayer's shot that did nothing means the target isn't the Demon
+  for (const shot of (state.shots || []).filter(x => !x.hit && P(x.shooter) && P(x.target))) {
+    const sh = P(shot.shooter);
+    if (!sh.claims.some(c => c.toLowerCase() === "slayer") || shotsBy(sh.id)[0] !== shot) continue;
+    add(sh.id, `Slayer shot (day ${shot.day})`, W => W.demon !== shot.target);
+  }
+  // An executed Saint who didn't lose the game for good wasn't the real Saint
+  for (const p of seated.filter(x => x.dead && x.deathBy === "exec" && isHard(x) && x.claims[0].toLowerCase() === "saint" && !state.over)) tests.push({ src: p.id, msg: `${nm(p.id)} would be the Drunk: executed as the Saint and the game went on.`, fn: () => false });
+  // Two good players can't both be a Townsfolk unless one is the Drunk
+  const byRole = {};
+  for (const p of seated) if (isHard(p) && teamOf(p.claims[0]) === "townsfolk") (byRole[p.claims[0].toLowerCase()] = byRole[p.claims[0].toLowerCase()] || []).push(p);
+  const clashes = Object.values(byRole).filter(l => l.length > 1);
+
+  const worlds = [];
+  const mustEvil = Object.keys(assume).filter(id => (assume[id] === "evil" || assume[id] === "demon") && P(id));
+  for (const d of demons) {
+    for (const ms of combos(pool.filter(id => id !== d), Math.min(k, pool.length - 1))) {
+      const W = { demon: d, minions: new Set(ms) };
+      W.evil = new Set([d, ...ms]);
+      if (mustEvil.some(id => !W.evil.has(id))) continue;
+      const bad = new Map();
+      for (const t of tests) if (!W.evil.has(t.src) && !t.fn(W)) (bad.get(t.src) || bad.set(t.src, []).get(t.src)).push(t);
+      let drunk = 0; const drunkWhy = [];
+      for (const l of clashes) { const good = l.filter(p => !W.evil.has(p.id)); if (good.length > 1) { drunk += good.length - 1; drunkWhy.push(`${good.map(p => nm(p.id)).join(" or ")} would be the Drunk (both claim ${good[0].claims[0]}).`); } }
+      W.breaks = bad.size + drunk;
+      W.why = [...[...bad].map(([src, ts]) => { const m = ts.find(t => t.msg); if (m) return m.msg; const ls = [...new Set(ts.map(t => t.label))].join(", "); return src === meId ? `Your ${ls} would be wrong (you'd be drunk or poisoned).` : `${nm(src)}'s ${ls} would be wrong (drunk or poisoned).`; }), ...drunkWhy];
+      worlds.push(W);
+    }
+  }
+  const best = worlds.length ? Math.min(...worlds.map(w => w.breaks)) : 0;
+  const kept = worlds.filter(w => w.breaks <= best + 1);
+  const weight = w => Math.pow(0.15, w.breaks - best);
+  const total = kept.reduce((s, w) => s + weight(w), 0) || 1;
+  const odds = new Map();
+  for (const w of kept) for (const id of w.evil) { const o = odds.get(id) || odds.set(id, { demon: 0, evil: 0 }).get(id); o.evil += weight(w) / total; if (id === w.demon) o.demon += weight(w) / total; }
+  kept.sort((x, y) => x.breaks - y.breaks || [...y.evil].reduce((s, id) => s + (odds.get(id)?.evil || 0), 0) - [...x.evil].reduce((s, id) => s + (odds.get(id)?.evil || 0), 0));
+  return { worlds: kept, all: worlds.length, best, odds, k, tests: tests.length + clashes.length, pool };
+}
+// Cached: the worlds only change when the evidence does
+let wbCache = { key: "", val: null };
+function buildWorlds() {
+  const key = JSON.stringify([state.players, state.myInfo, state.shots, state.wb, state.over, state.script]);
+  if (wbCache.key !== key) wbCache = { key, val: buildWorldsRaw() };
+  return wbCache.val;
+}
+// Questions whose answer would rule out the most worlds. Each answer is worked out in every world where the player is good;
+// if they're evil they could say anything, so those worlds stay whatever they answer.
+const WB_Q = { empath: () => "what number did you get last night?", chef: () => "what was your number?", undertaker: ex => `what did ${pName(ex)} show as?` };
+function worldAsks() {
+  const wb = buildWorlds(), ps = state.players, out = [];
+  const fit = wb.worlds.filter(w => w.breaks === wb.best);
+  if (fit.length < 2) return out;
+  const nm = id => pName(pById(id));
+  const worldsWord = n => `${n} world${n === 1 ? "" : "s"}`;
+  const split = (id, f, label) => {
+    const evil = fit.filter(w => w.evil.has(id)).length, groups = new Map();
+    for (const w of fit) if (!w.evil.has(id)) { const a = f(w); groups.set(a, (groups.get(a) || 0) + 1); }
+    const good = fit.length - evil;
+    if (groups.size < 2) return null;
+    const expected = [...groups.values()].reduce((s, n) => s + (n / good) * (n + evil), 0);
+    const parts = [...groups].sort((x, y) => (typeof x[0] === "number" ? x[0] - y[0] : y[1] - x[1])).map(([a, n]) => `${label ? label(a) : a} → ${worldsWord(n + evil)}`);
+    return { gain: fit.length - expected, note: `World building: narrows ${worldsWord(fit.length)}. ${parts.join(" · ")}.${evil ? ` (${worldsWord(evil)} where they're evil ${evil === 1 ? "stays" : "stay"} either way.)` : ""}` };
+  };
+  for (const p of ps.filter(x => !x.me && !x.traveller)) {
+    for (const a of infoAsks(p)) {
+      const k = lc(a.role);
+      let f = null, label = null;
+      if (k === "empath") { const nb = livingNeighbours(p.id); f = w => nb.filter(id => w.evil.has(id)).length; }
+      else if (k === "chef") f = w => { let c = 0; for (let i = 0; i < ps.length; i++) if (w.evil.has(ps[i].id) && w.evil.has(ps[(i + 1) % ps.length].id)) c++; return c; };
+      else if (k === "undertaker" && a.pre[0]) { const ex = a.pre[0]; f = w => w.minions.has(ex) ? "a Minion" : w.demon === ex ? "the Demon" : "a good character"; }
+      if (!f) continue;
+      const s = split(p.id, f, label);
+      if (s) out.push({ id: p.id, role: a.role, text: `If you're the ${a.role}: ${WQ(k, a.pre[0])}`, ...s });
+    }
+    if (p.dead) continue;
+    // Tonight: the Fortune Teller pair that best splits the likely Demons, and the Slayer's best target
+    if (p.claims.some(c => lc(c) === "fortune teller")) {
+      const alive = ps.filter(x => !x.dead && !x.traveller && !x.me).map(x => x.id);
+      let best = null;
+      for (let i = 0; i < alive.length; i++) for (let j = i + 1; j < alive.length; j++) {
+        const a = alive[i], b = alive[j], s = split(p.id, w => (w.demon === a || w.demon === b) ? "Yes" : "No");
+        if (s && (!best || s.gain > best.gain)) best = { ...s, a, b };
+      }
+      if (best) out.push({ id: p.id, tip: true, text: `Fortune Teller tip: checking ${nm(best.a)} and ${nm(best.b)} tonight would split the worlds best.`, gain: best.gain, note: best.note });
+    }
+    if (p.claims.some(c => lc(c) === "slayer") && !hasShot(p.id)) {
+      const top = [...wb.odds].filter(([id]) => id !== p.id && pById(id) && !pById(id).dead).sort((x, y) => y[1].demon - x[1].demon)[0];
+      if (top && top[1].demon > 0) out.push({ id: p.id, tip: true, text: `Slayer tip: ${nm(top[0])} is the Demon in ${Math.round(top[1].demon * 100)}% of the worlds left.`, gain: top[1].demon * fit.length, note: "" });
+    }
+  }
+  return out.sort((x, y) => y.gain - x.gain);
+}
+function WQ(k, pre) { return (WB_Q[k] || (() => "what did you learn last night?"))(pById(pre)); }
+function renderWorlds() {
+  const box = $("worlds");
+  if (!box || currentTab !== "worlds") return;
+  const ps = state.players, P = id => ps.find(p => p.id === id);
+  const nm = id => { const p = P(id); return esc(p ? (p.name || `Seat ${ps.indexOf(p) + 1}`) : "someone"); };
+  const assume = wbAssume(), wb = buildWorlds();
+  const fit = wb.worlds.filter(w => w.breaks === wb.best);
+  const pct = x => `${Math.round(x * 100)}%`;
+  const chips = ps.filter(p => !p.traveller && !p.me).map(p => `<button class="choice wb-chip ${assume[p.id] || ""}" data-wb="${p.id}" aria-label="${nm(p.id)}: ${WB_LABEL[assume[p.id]] || "no assumption"}">${nm(p.id)}${assume[p.id] ? ` · ${WB_LABEL[assume[p.id]]}` : ""}</button>`).join("");
+  const head = !wb.all ? `<p class="tips-empty">No world fits your assumptions. Tap a name below to change or clear them.</p>`
+    : wb.best === 0 ? `<p class="wb-head"><b>${fit.length}</b> world${fit.length === 1 ? "" : "s"} fit${fit.length === 1 ? "s" : ""} everything you've logged${wb.tests ? "" : " (nothing to test yet, so every seating is open)"}.</p>`
+    : `<p class="wb-head">No world fits everything. The best ${fit.length === 1 ? "one needs" : `${fit.length} need`} <b>${wb.best}</b> piece${wb.best === 1 ? "" : "s"} of info to be wrong.</p>`;
+  const rows = (wb.all ? ps.filter(p => !p.traveller && !p.me).map(p => [p.id, wb.odds.get(p.id) || { demon: 0, evil: 0 }]) : []).sort((x, y) => y[1].evil - x[1].evil || y[1].demon - x[1].demon);
+  const clear = ps.filter(p => !p.traveller && !p.me && !wb.odds.has(p.id));
+  const table = rows.length ? `<table class="whos-table wb-table"><thead><tr><th>Player</th><th>Is the Demon</th><th>Is evil</th><th>Is good</th></tr></thead><tbody>${rows.map(([id, o]) => `<tr><td><button class="linkish" data-open="${id}">${nm(id)}</button>${P(id).claims.length ? `<small>${esc(P(id).claims.join(" / "))}</small>` : ""}</td><td><span class="wb-pct">${pct(o.demon)}</span><span class="cand-bar"><i style="width:${pct(o.demon)}"></i></span></td><td><span class="wb-pct">${pct(o.evil)}</span><span class="cand-bar"><i style="width:${pct(o.evil)}"></i></span></td><td><span class="wb-pct g">${pct(1 - o.evil)}</span><span class="cand-bar good"><i style="width:${pct(1 - o.evil)}"></i></span></td></tr>`).join("")}</tbody></table>` : "";
+  const qa = wb.best === 0 || wb.worlds.length ? worldAsks().slice(0, 6) : [];
+  const qHtml = qa.length ? `<h3 class="label" style="margin:10px 0 4px">Questions that narrow the worlds</h3><div class="tips-col">${qa.map(q => `<div class="tip wb-q"><span><b>${nm(q.id)}</b>: ${esc(q.text)}</span>${q.note ? `<small>${esc(q.note.replace(/^World building: n/, "N"))}</small>` : ""}<button class="btn" data-open="${q.id}">Talk</button></div>`).join("")}</div>` : "";
+  const list = wb.worlds.slice(0, 8).map((w, i) => `<div class="tip wb-world ${w.breaks ? "hi" : ""}"><span class="when">World ${i + 1} · ${w.breaks === 0 ? "fits everything" : `needs ${w.breaks} thing${w.breaks === 1 ? "" : "s"} to be wrong`}</span><b>Demon: ${nm(w.demon)}${w.minions.size ? ` · Minion${w.minions.size > 1 ? "s" : ""}: ${[...w.minions].map(nm).join(", ")}` : ""}</b>${w.why.map(x => `<small>${esc(x)}</small>`).join("")}</div>`).join("");
+  box.innerHTML = `${head}
+    <div class="wb-assume"><span class="label">Assume (tap to cycle Demon → Evil → Good → none)</span><div class="choice-list">${chips}</div></div>
+    ${table}
+    ${qHtml}
+    ${clear.length && wb.all ? `<p class="wb-clear"><span class="g">Good in every world here:</span> ${clear.map(p => nm(p.id)).join(", ")}</p>` : ""}
+    ${list ? `<h3 class="label" style="margin:10px 0 4px">Most likely worlds${wb.worlds.length > 8 ? ` (8 of ${wb.worlds.length})` : ""}</h3><div class="tips-col">${list}</div>` : ""}
+    <span class="tips-foot">Counts ${wb.k} Minion${wb.k === 1 ? "" : "s"} and one living Demon; you and proven-good players are good. Worlds needing one more piece of wrong info than the best count for much less. The Spy and Recluse can register falsely and the Demon can pass to a Minion, so treat this as a guide.</span>`;
+  box.querySelectorAll("[data-wb]").forEach(b => b.onclick = () => { const id = b.dataset.wb, a = wbAssume(); const nx = WB_NEXT[a[id] || ""]; if (nx === "demon") for (const x of Object.keys(a)) if (a[x] === "demon") a[x] = "evil"; if (nx) a[id] = nx; else delete a[id]; save(); renderWorlds(); });
+  box.querySelectorAll("[data-open]").forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+}
 
 /* ---------- Tabs ---------- */
 const TAB_KEY = "clocktower-notebook-tab";
@@ -3648,6 +3945,7 @@ function showTab(name) {
   document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === name));
   try { localStorage.setItem(TAB_KEY, name); } catch (e) {}
   if (name === "table") sizeTokens();
+  if (name === "worlds") renderWorlds();
   window.scrollTo({ top: 0 });
 }
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => showTab(t.dataset.tab));
@@ -3656,9 +3954,6 @@ function updateBadges() {
   const urgent = tips.issues.filter(i => i.level === "bad" || i.level === "hi").length;
   $("bPlan").textContent = urgent || "";
   $("bPlan").classList.toggle("red", tips.issues.some(i => i.level === "bad"));
-  const top = buildEvil().top;
-  $("bEvil").textContent = top ? (top.p.name || "?") : "";
-  $("bEvil").classList.toggle("red", !!top);
 }
 
 /* ---------- Global controls ---------- */
@@ -3667,10 +3962,9 @@ dl.id = "allRoles";
 dl.innerHTML = Object.keys(TEAM_OF).map(k => `<option value="${esc(Object.values(ROLES).flatMap(s => TEAMS.flatMap(t => s[t])).find(r => r.toLowerCase() === k))}">`).join("");
 document.body.appendChild(dl);
 
-$("script").onchange = e => { state.script = e.target.value; save(); renderPanel(); renderMatrix(); renderTips(); renderEvil(); };
-$("gameNotes").addEventListener("input", e => { state.notes = e.target.value; save(); });
-$("dayUp").onclick = () => { state.day++; save(); renderCircle(); renderTips(); renderEvil(); };
-$("dayDown").onclick = () => { state.day = Math.max(1, state.day - 1); save(); renderCircle(); renderTips(); renderEvil(); };
+$("script").onchange = e => { state.script = e.target.value; save(); renderPanel(); renderMatrix(); renderTips(); renderReads(); };
+$("dayUp").onclick = () => { state.day++; save(); renderCircle(); renderTips(); renderReads(); };
+$("dayDown").onclick = () => { state.day = Math.max(1, state.day - 1); save(); renderCircle(); renderTips(); renderReads(); };
 
 function openNew() { $("ngScript").value = state.script; $("overlay").hidden = false; $("ngCount").focus(); }
 $("newGameBtn").onclick = openNew;
@@ -3682,7 +3976,7 @@ $("ngStart").onclick = () => {
   const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
   const count = names.length || Math.max(5, Math.min(20, parseInt($("ngCount").value, 10) || 8));
   const players = Array.from({ length: count }, (_, i) => mkPlayer(names[i] || `Player ${i + 1}`));
-  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], heard: [], talks: [], softDefault: true, over: null, shots: [], firstNightDone: false, updatedAt: 0 };
+  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], heard: [], talks: [], pings: [], wb: {}, softDefault: true, over: null, shots: [], firstNightDone: false, updatedAt: 0 };
   confirmRemove = false;
   $("overlay").hidden = true; $("ngNames").value = "";
   save(); render();
