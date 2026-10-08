@@ -421,6 +421,20 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .talk-sec { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 .talk-sec > h3 { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: var(--brass); font-weight: 800; }
 .talk-sec textarea { min-height: 70px; }
+.reads-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 560px) { .reads-grid { grid-template-columns: minmax(0, 1fr); } }
+.reads-grid h3 { margin: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+.read-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: baseline; padding: 7px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: .88rem; }
+.read-row.good { border-left-color: var(--good); }
+.read-row.sure { border-left-color: var(--claim); }
+.read-row.suspect-row { border-left-color: var(--evil); }
+.read-row .rank { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--muted); }
+.read-row.suspect-row .rank { color: var(--evil); }
+.read-row small { grid-column: 2; color: var(--muted); font-size: .8rem; }
+.read-row .cand-bar { grid-column: 2; }
+.read-row .who, .ask-name .why { font-weight: 800; background: none; border: 0; padding: 0; text-align: left; color: var(--fg); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; justify-self: start; }
+.ask-rank { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 4px; }
+.ask-name .why { text-decoration: none; font-weight: 600; font-size: .8rem; color: var(--warn); }
 .talk-roles { display: grid; gap: 6px; max-height: 260px; overflow: auto; padding-right: 4px; }
 .talk-rel { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .talk-rel select { min-width: 0; max-width: 100%; }
@@ -476,6 +490,10 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <div class="comp" id="comp"></div>
         </div>
       </div>
+      <section class="card" aria-labelledby="readsTitle">
+        <div class="tips-head"><h2 id="readsTitle">Who's who</h2><span class="tips-foot">Tap a name to open their panel</span></div>
+        <div id="readsView" class="reads-grid"></div>
+      </section>
     </section>
     <section class="card story-card" aria-labelledby="storyTitle">
       <div class="tips-head">
@@ -2748,6 +2766,7 @@ function render() {
   renderTips();
   renderEvil();
   renderStory();
+  renderReads();
   updateBadges();
   updatePhaseLogged();
   if (talk) talkLoggedHtml();
@@ -3357,6 +3376,62 @@ function buildAsks(stories, tips) {
   return { asks, sus: ev.active.filter(c => c.score > 0 && !c.p.dead).slice(0, 2) };
 }
 
+/* ---------- Who's who: confirmed good, probably good, and the most suspicious ---------- */
+function goodSummary() {
+  const sure = new Map(), likely = new Map();
+  const add = (map, id, why) => { const p = pById(id); if (!p || p.me) return; (map.get(id) || map.set(id, []).get(id)).push(why); };
+  for (const [id, why] of provenGood()) add(sure, id, why);
+  for (const [src, r] of Object.entries(ftAnalysis())) if (r.herring) add(likely, r.herring, `${src ? pName(pById(src)) + "'s" : "Your"} Fortune Teller red herring, so good`);
+  for (const [id, sc] of infoAnalysis().mine) if (sc.neg && !sc.pos) add(likely, id, "Your own night info clears them");
+  for (const p of state.players) {
+    if (p.me || sure.has(p.id)) continue;
+    if (p.align === "good") add(likely, p.id, "Your read: good");
+    if (p.dead && p.deathBy === "night") add(likely, p.id, `Killed on night ${p.deathNight || "?"}: the Demon rarely kills its own team`);
+    if (p.dead && p.deathBy === "virgin") add(likely, p.id, `Died nominating the Virgin, so a Townsfolk${spyOnScript() ? " (or the Spy)" : ""}`);
+    if (playerStory(p).ok.some(t => /heard the same story|matches what/.test(t)) && !playerStory(p).bad.length) add(likely, p.id, "Their story checks out with others");
+  }
+  for (const id of sure.keys()) likely.delete(id);
+  // Anyone with a case against them isn't listed as probably good
+  for (const r of suspicionRank()) likely.delete(r.p.id);
+  return { sure, likely };
+}
+// Suspicion, highest first: the Evil team score plus stories that don't add up
+function suspicionRank() {
+  const ev = buildEvil(), proven = provenGood(), rows = new Map();
+  for (const c of ev.active) if (!c.p.me && !proven.has(c.p.id) && c.score > 0) rows.set(c.p.id, { p: c.p, score: c.score, why: [...new Set(c.why)] });
+  // The Plan tab's "who to look at" scoring: double claims, changed claims, unreliable info and so on
+  for (const n of buildTips().noms.values()) {
+    if (n.score <= 0 || n.p.me || proven.has(n.p.id)) continue;
+    const r = rows.get(n.p.id) || rows.set(n.p.id, { p: n.p, score: 0, why: [] }).get(n.p.id);
+    r.score += rows.get(n.p.id).score ? n.score / 2 : n.score;
+    for (const w of n.why) if (w && !r.why.includes(w)) r.why.push(w);
+  }
+  for (const p of state.players.filter(x => !x.me && !proven.has(x.id))) {
+    const clashes = playerStory(p).bad;
+    if (!clashes.length) continue;
+    const r = rows.get(p.id) || rows.set(p.id, { p, score: 0, why: [] }).get(p.id);
+    r.score += 2 * clashes.length;
+    r.why.unshift(...clashes.slice(0, 2).map(b => b.text));
+  }
+  return [...rows.values()].sort((a, b) => b.score - a.score);
+}
+function renderReads() {
+  const { sure, likely } = goodSummary(), sus = suspicionRank().slice(0, 6);
+  const who = p => `<button class="who" data-open="${p.id}">${esc(pName(p))}</button>`;
+  const max = Math.max(1, ...sus.map(r => r.score));
+  const goodRow = (id, why, cls) => { const p = pById(id); return `<div class="read-row ${cls}"><span class="rank">${cls === "sure" ? "✓" : "?"}</span>${who(p)}${p.dead ? " <small>dead</small>" : ""}<small>${esc([...new Set(why)].join(" · "))}</small></div>`; };
+  $("readsView").innerHTML = `
+    <div class="tips-col"><h3>Confirmed good</h3>
+      ${sure.size ? [...sure].map(([id, why]) => goodRow(id, why, "sure")).join("") : `<p class="tips-empty">Nobody yet. The Virgin or a Slayer hit proves someone good.</p>`}
+      <h3>Probably good</h3>
+      ${likely.size ? [...likely].map(([id, why]) => goodRow(id, why, "good")).join("") : `<p class="tips-empty">No one stands out as good yet.</p>`}
+    </div>
+    <div class="tips-col"><h3>Most suspicious</h3>
+      ${sus.length ? sus.map((r, i) => `<div class="read-row suspect-row"><span class="rank">${i + 1}</span>${who(r.p)}${r.p.dead ? " <small>dead</small>" : ""}<span class="cand-bar"><i style="width:${Math.round(100 * r.score / max)}%"></i></span><small>${esc(r.why.slice(0, 3).join(" · "))}</small></div>`).join("") : `<p class="tips-empty">No one stands out yet. Log claims and info, or mark your evil reads.</p>`}
+    </div>`;
+  $("readsView").querySelectorAll("[data-open]").forEach(b => b.onclick = () => openPlayer(b.dataset.open));
+}
+
 /* ---------- Today's checklist: who to speak to and what to ask ---------- */
 let askOpen = null, askShown = {};
 // Break a question into separate questions, keeping any lead-in with the question it belongs to
@@ -3449,7 +3524,7 @@ function saveInfoAsk(key) {
 
 // The questions to put to one player, with Yes/No/Didn't answer where it fits
 function askBodyHtml(p, asks, sus) {
-  const qs = (asks.get(p.id) || []).flatMap(q => splitQs(q.text).map(x => ({ ...x, hi: q.hi })));
+  const qs = (asks.get(p.id) || []).flatMap(q => splitQs(q.text).map(x => ({ ...x, hi: q.hi }))).map((q, i) => ({ q, i })).sort((a, b) => (b.q.hi ? 1 : 0) - (a.q.hi ? 1 : 0) || a.i - b.i).map(x => x.q);
   const ans = state.answers?.[state.day]?.[p.id] || {};
   const suspect = sus.find(c => c.p.id === p.id);
   const blocks = infoAsks(p, talk && talk.roles.length ? talk.roles : null);
@@ -3515,20 +3590,30 @@ function wireAsk(root, soft, hard) {
 function checklistHtml(asks, sus) {
   const ps = state.players.filter(p => !p.me);
   const hi = id => (asks.get(id) || []).some(q => q.hi);
-  const rows = [...ps].sort((a, b) => (spokenToday(a.id) ? 1 : 0) - (spokenToday(b.id) ? 1 : 0) || (a.dead ? 1 : 0) - (b.dead ? 1 : 0) || (hi(b.id) ? 1 : 0) - (hi(a.id) ? 1 : 0) || ps.indexOf(a) - ps.indexOf(b));
+  const rank = suspicionRank(), susScore = id => rank.find(r => r.p.id === id)?.score || 0;
+  // Priority: stories that clash, then suspicion, then night info still to collect, then missing or vague claims
+  const prio = p => {
+    const qs = asks.get(p.id) || [], clash = playerStory(p).bad.length, pending = infoAsks(p).length;
+    let score = 4 * qs.filter(q => q.hi).length + 3 * clash + Math.min(susScore(p.id), 8) + 2 * pending + (!p.claims.length ? 3 : isSoft(p) ? 1 : 0);
+    const reason = clash ? "Their story doesn't add up" : rank[0]?.p.id === p.id ? "Your top suspect" : susScore(p.id) > 0 ? "On your suspect list" : qs.some(q => q.hi) ? "Important questions" : pending ? "Night info to collect" : !p.claims.length ? "No claim yet" : isSoft(p) ? "Hasn't narrowed their options" : "";
+    if (p.dead) score -= 6;
+    return { score, reason };
+  };
+  const pr = new Map(ps.map(p => [p.id, prio(p)]));
+  const rows = [...ps].sort((a, b) => (spokenToday(a.id) ? 1 : 0) - (spokenToday(b.id) ? 1 : 0) || pr.get(b.id).score - pr.get(a.id).score || ps.indexOf(a) - ps.indexOf(b));
   const done = ps.filter(p => spokenToday(p.id)).length;
-  const row = p => {
-    const sp = spokenToday(p.id), auto = talkedToday(p.id), n = askCount(p, asks);
+  const row = (p, i) => {
+    const sp = spokenToday(p.id), auto = talkedToday(p.id), n = askCount(p, asks), why = pr.get(p.id).reason;
     const claim = p.claims.length ? `${isHard(p) ? "" : "options: "}${orList(p.claims)}` : "no claim yet";
     const suspect = sus.some(c => c.p.id === p.id);
     return `<div class="ask-row${sp ? " done" : ""}${hi(p.id) && !sp ? " hi" : ""}">
       <button class="ask-tick" data-asktick="${p.id}" aria-pressed="${sp}" aria-label="${sp ? "Spoken to" : "Mark as spoken to"}: ${esc(pName(p))}" ${auto ? "disabled title=\"You logged a conversation with them today\"" : ""}>✓</button>
-      <button class="ask-name" data-open="${p.id}"><b>${esc(pName(p))}</b>${p.dead ? " <small>(dead)</small>" : ""}${suspect ? ` <span class="pill likely">Suspect</span>` : ""}<small>${esc(claim)} · ${n} question${n === 1 ? "" : "s"}</small></button>
+      <button class="ask-name" data-open="${p.id}"><b>${sp ? "" : `<span class="ask-rank">${i + 1}.</span>`}${esc(pName(p))}</b>${!sp && why ? `<span class="why">${esc(why)}</span>` : ""}${p.dead ? " <small>(dead)</small>" : ""}${suspect ? ` <span class="pill likely">Suspect</span>` : ""}<small>${esc(claim)} · ${n} question${n === 1 ? "" : "s"}</small></button>
     </div>`;
   };
   return `<div class="story-sec"><h3>Who to speak to today · ${done} of ${ps.length} done</h3>
-    <p class="hint" style="margin:0">Most important questions first. Anyone you've spoken to moves to the bottom.</p>
-    <div class="ask-list">${rows.map(row).join("")}</div></div>`;
+    <p class="hint" style="margin:0">In priority order: clashing stories and suspects first, then night info to collect and missing claims. Anyone you've spoken to moves to the bottom.</p>
+    <div class="ask-list">${rows.map((p, i) => row(p, i)).join("")}</div></div>`;
 }
 
 function renderStory() {
