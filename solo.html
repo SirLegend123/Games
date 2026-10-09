@@ -210,6 +210,36 @@ input.inp { width: 100%; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .chips .pc { min-height: 36px; padding: 6px 10px; font-size: .88rem; }
 .seg button[aria-pressed="true"], .btn[aria-pressed="true"] { background: var(--brass); color: #1a1408; border-color: var(--brass); }
+/* Claim matrix: characters across, players down */
+.matrix-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.matrix-head h3 { margin-right: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: .8rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; font-style: normal; font-size: .7rem; font-weight: 800; }
+.matrix-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; max-width: 100%; }
+table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; }
+.matrix th, .matrix td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 0; background: var(--surface); }
+.matrix .band th { color: #fff; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; padding: 4px 6px; text-align: left; white-space: nowrap; }
+.matrix th.corner { background: var(--surface); }
+.matrix th.rname { vertical-align: bottom; padding: 8px 0 6px; }
+.matrix th.rname span { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-weight: 700; display: inline-block; padding: 3px 1px; border-radius: 4px; }
+.matrix th.rname.multi span { background: var(--warn); color: #1a1408; }
+.matrix .pcol { position: sticky; left: 0; z-index: 2; text-align: left; padding: 0 8px; white-space: nowrap; max-width: 8rem; overflow: hidden; text-overflow: ellipsis; font-weight: 700; border-right: 2px solid var(--line); }
+.matrix .pcol button { background: none; border: 0; padding: 6px 0; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.matrix tr.dead .pcol button { text-decoration: line-through; color: var(--muted); }
+.matrix tr.sel .pcol { box-shadow: inset 3px 0 0 var(--brass); }
+.matrix td.cell { width: 30px; min-width: 30px; height: 30px; text-align: center; font-weight: 800; font-size: .78rem; }
+.matrix .team-start { border-left: 2px solid var(--line); }
+.mx-hard { background: var(--ok) !important; color: #fff; }
+.mx-soft { background: color-mix(in srgb, var(--ok) 20%, var(--surface)) !important; color: var(--ok); outline: 1px dashed var(--ok); outline-offset: -4px; }
+.mx-conf { background: var(--good) !important; color: #fff; }
+.mx-was { background: var(--surface-2) !important; color: var(--muted); }
+.matrix td.cell.multi { box-shadow: inset 0 0 0 3px var(--warn); }
+.matrix tfoot td, .matrix tfoot th { font-variant-numeric: tabular-nums; text-align: center; font-size: .78rem; color: var(--muted); height: 26px; }
+.matrix tfoot td.multi { color: #1a1408; background: var(--warn); font-weight: 800; }
+.matrix tfoot td.one { color: var(--ok); font-weight: 800; }
+.toggle { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 4px 12px; font-weight: 700; font-size: .82rem; min-height: 32px; }
+.toggle[aria-pressed="true"] { background: var(--brass); color: #1a1408; border-color: var(--brass); }
 /* Seats you can tap to talk to: quieter than the glowing turn tokens */
 button.tok.seat { animation: none; border-color: var(--line); }
 button.tok.seat.picked { border-color: var(--brass); }
@@ -1398,6 +1428,7 @@ function howView() {
       <li><b>Town talk:</b> the bots claim characters, share info and say who they suspect. Tap any seat to ask that player what they are, what they've learned, who they suspect or who they trust, or to say you suspect or trust them.</li>
       <li><b>Speak up:</b> from a player's seat, accuse them (could be evil, or is the Demon) or vouch for them, and pick your reason: a specific piece of evidence, something you learned, their voting, or a hunch. Bots weigh what you say, more for a specific reason, and only as much as they trust you. A couple of them will say whether they agree.</li>
       <li><b>Talk privately:</b> from a player's seat, offer three for three (pick three characters, one of them true), tell them your character one for one, whisper your info (real or made up), or ask what they've learned and who they really suspect. Good bots open up if they trust you; evil bots always answer, with their bluff. The town sees that you talked, not what was said. Bots remember: if your public claim doesn't match what you told someone, they'll say so.</li>
+      <li><b>Claim matrix:</b> under the town talk, every player against every character. Green H is a hard claim (🤫 if it was said to you privately), light green S is a soft claim (one of a three for three), a blue star is a character the game has proven (a Virgin whose nominator was executed, a Slayer whose shot killed the Demon), × is an earlier claim, and an amber ring means two or more players hard-claim it.</li>
       <li><b>Say in town:</b> claim a character and share your info. You can share what you really learned, or make up info (you'll need to if you're evil).</li>
       <li><b>Nominations:</b> nominate a player from their seat, or tap <i>Let the town nominate</i> for the bots' turn. Voting goes clockwise from the nominee; you see the votes before yours, then cast your own.</li>
       <li><b>End the day:</b> anyone still keen gets a last nomination, then the player on the block is executed.</li>
@@ -1623,6 +1654,50 @@ function sayCard() {
     ${f ? fields : `<button class="btn sm" data-act="make-open">${isGood(p) ? 'Share info another way (or make some up)' : 'Make up info to share'}</button>`}
   </section>`;
 }
+/* ---------- Claim matrix ---------- */
+// How strongly a player has claimed a character: conf (proven by the game), hard, soft (one of three), was (an earlier claim)
+function claimState(q, r) {
+  if (r === 'Virgin' && G.virgins.some(v => v.fired && v.v === q.id)) return { k: 'conf', why: 'Proven: their nominator was executed' };
+  if (r === 'Slayer' && G.shots.some(x => x.hit && x.by === q.id)) return { k: 'conf', why: 'Proven: their shot killed the Demon' };
+  if (q.claim === r) return { k: 'hard', why: 'Said in town' };
+  // In private: what a bot told you, or what you told the bots
+  let told = q.bot ? q.bot.toldMe && q.bot.toldMe.roles : null;
+  if (q.id === G.me) {
+    const heard = bots().map(b => b.bot.heard).filter(Boolean);
+    if (heard.some(h => h.roles.length === 1 && h.roles[0] === r)) told = [r];
+    else if (heard.some(h => h.roles.includes(r))) told = [r, '', ''];
+  }
+  if (told && told.includes(r)) return told.length === 1 ? { k: 'hard', priv: true, why: 'Said privately' } : { k: 'soft', why: 'One of three, said privately' };
+  if (q.claimHist.includes(r)) return { k: 'was', why: 'An earlier claim' };
+  return null;
+}
+function matrixHtml() {
+  const only = prefs.mxAll !== true;
+  const states = G.players.map(q => CLAIMABLE.map(r => claimState(q, r)));
+  const hardCount = CLAIMABLE.map((r, j) => states.filter(row => row[j] && (row[j].k === 'hard' || row[j].k === 'conf')).length);
+  const anyAt = j => states.some(row => row[j]);
+  const groups = [['townsfolk', 'Townsfolk', TF], ['outsider', 'Outsiders', OS.filter(r => r !== 'Drunk')]].map(([team, label, roles]) => ({ team, label, roles: roles.filter(r => !only || anyAt(CLAIMABLE.indexOf(r))) })).filter(g => g.roles.length);
+  const cols = groups.flatMap(g => g.roles.map((r, i) => ({ r, j: CLAIMABLE.indexOf(r), start: i === 0 })));
+  const legend = `<div class="legend">
+      <span><i class="mx-hard">H</i>Hard claim</span><span><i class="mx-soft">S</i>Soft (one of three)</span>
+      <span><i class="mx-conf">★</i>Confirmed</span><span><i class="mx-was">×</i>Earlier claim</span>
+      <span><i style="box-shadow:inset 0 0 0 3px var(--warn)"></i>Claimed by 2+</span><span>🤫 said privately</span></div>`;
+  const head = `<div class="matrix-head"><h3>Claim matrix</h3><button class="toggle" data-act="mx-all" aria-pressed="${!only}">Show every character</button></div>${legend}`;
+  if (!cols.length) return `${head}<p class="hint">No claims yet.</p>`;
+  const mark = { hard: 'H', soft: 'S', conf: '★', was: '×' };
+  return `${head}<div class="matrix-wrap"><table class="matrix">
+    <thead>
+      <tr class="band"><th class="corner pcol"></th>${groups.map(g => `<th class="team-start" colspan="${g.roles.length}" style="background:var(--${g.team})">${g.label}</th>`).join('')}</tr>
+      <tr><th class="corner pcol">Player</th>${cols.map(c => `<th class="rname${c.start ? ' team-start' : ''}${hardCount[c.j] > 1 ? ' multi' : ''}" title="${esc(c.r)}"><span>${esc(c.r)}</span></th>`).join('')}</tr>
+    </thead>
+    <tbody>${G.players.map(q => `<tr class="${q.alive ? '' : 'dead'}${U.panel === q.id ? ' sel' : ''}">
+      <th class="pcol" scope="row"><button data-act="seat" data-id="${q.id}">${q.id === G.me ? 'You' : esc(q.name)}</button></th>
+      ${cols.map(c => { const st = states[q.id][c.j]; const multi = st && (st.k === 'hard' || st.k === 'conf') && hardCount[c.j] > 1;
+        return `<td class="cell${c.start ? ' team-start' : ''}${st ? ' mx-' + st.k : ''}${multi ? ' multi' : ''}" ${st ? `title="${esc(st.why)}" aria-label="${esc(q.id === G.me ? 'You' : q.name)}, ${esc(c.r)}: ${esc(st.why)}"` : ''}>${st ? (st.priv ? '🤫' : mark[st.k]) : ''}</td>`; }).join('')}
+    </tr>`).join('')}</tbody>
+    <tfoot><tr><th class="pcol">Hard claims</th>${cols.map(c => `<td class="${c.start ? 'team-start ' : ''}${hardCount[c.j] > 1 ? 'multi' : hardCount[c.j] ? 'one' : ''}">${hardCount[c.j] || ''}</td>`).join('')}</tr></tfoot>
+  </table></div>`;
+}
 function notesCard() {
   const rows = G.players.map(q => {
     const shared = G.pub.filter(e => e.by === q.id);
@@ -1634,7 +1709,7 @@ function notesCard() {
       ${q.bot && q.bot.toldMe ? `<div class="facts"><span>🤫 Told you: ${q.bot.toldMe.roles.length === 1 ? 'the ' + esc(q.bot.toldMe.roles[0]) : 'one of ' + list(q.bot.toldMe.roles.map(esc))}${q.claim && !q.bot.toldMe.roles.includes(q.claim) ? ' <span class="tag evil">doesn\'t match</span>' : ''}</span>${G.privFacts.filter(e => e.by === q.id && !shared.some(x => fkey(x.f) === fkey(e.f))).map(e => `<span>🤫 ${factText(e.f)}</span>`).join('')}</div>` : ''}</td>
       ${prefs.coach ? `<td class="pct">${coachPct(q.id)}%</td>` : ''}</tr>`;
   }).join('');
-  return `<section class="card"><h3>Claims and info</h3><table class="notes"><tr><th>Player</th><th>Claim and info</th>${prefs.coach ? `<th>${coachKey() === 'town' ? 'Town' : 'Demon'}</th>` : ''}</tr>${rows}</table></section>`;
+  return `<section class="card">${matrixHtml()}</section><section class="card"><h3>Claims and info</h3><table class="notes"><tr><th>Player</th><th>Claim and info</th>${prefs.coach ? `<th>${coachKey() === 'town' ? 'Town' : 'Demon'}</th>` : ''}</tr>${rows}</table></section>`;
 }
 function feedHtml(items) {
   return `<div class="feed">${items.map(e => {
@@ -1826,6 +1901,7 @@ document.addEventListener('click', e => {
     case 'to-over': G.stage = 'over'; return go();
     case 'seat': U.panel = U.panel === id ? null : id; U.sayForm = null; U.three = []; U.privOpen = null; break;
     case 'ask': ask(P(id), b.dataset.q); break;
+    case 'mx-all': prefs.mxAll = !prefs.mxAll; savePrefs(); break;
     case 'say-open': U.sayForm = U.sayForm && U.sayForm.x === id && (U.sayForm.k === 'good') === (b.dataset.k === 'good') ? null : { x: id, k: b.dataset.k, r: 0 }; break;
     case 'say-kind': U.sayForm.k = b.dataset.k; break;
     case 'say-reason': U.sayForm.r = +b.dataset.i; break;
