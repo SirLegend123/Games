@@ -13,6 +13,8 @@ Open `index.html` in any web browser for a cover page that lets you pick one of 
   - **Trouble Brewing character sheet**: every character's ability, and how many of each type for 5 to 15 players.
   - **Save game to a file** and **Load a saved game**, to keep a backup or carry on on another device.
   - **Install**: add the apps to your home screen. They then open full screen and work without signal.
+- **Simple mode** (Clocktower Notebook and Evil Grimoire, under ⚙): hides the advanced parts until you want them. In the Notebook that's World building and the script picker; in the Evil Grimoire, the analysis cards (how the team is doing, story checks, who you've told what, where the game stands, careful, everyone's likely character). Buttons get bigger too. It starts on for someone new and off for anyone already in a game
+- **Bigger buttons on phones and tablets** in the Notebook and Evil Grimoire: every button is at least finger-sized on a touch screen
 - **Tap any character's name** (underlined with dots) to see what it does.
 - **Works offline**: once opened, every app is saved on the device and opens without signal. Updates arrive next time you're online.
 - **Continue buttons** on the cover page for any game in progress, such as "Continue: Solo Practice, Day 3".
