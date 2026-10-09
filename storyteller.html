@@ -175,6 +175,17 @@ details summary { list-style-position: inside; }
 .side { display: grid; gap: 14px; min-width: 0; }
 .ph-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .ph-head h2 { margin-right: auto; font-size: 1.6rem !important; }
+.guide { border: 2px solid var(--brass); border-radius: 14px; padding: 14px; display: grid; gap: 10px; background: color-mix(in srgb, var(--brass) 8%, var(--surface)); margin-bottom: 6px; }
+.guide .step { font-size: .78rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.guide .who { font-size: 1.35rem; line-height: 1.25; }
+.guide .how { font-size: 1rem; }
+.guide .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.guide .gbar { height: 6px; border-radius: 99px; background: var(--surface-2, var(--line)); overflow: hidden; }
+.guide .gbar i { display: block; height: 100%; background: var(--brass); }
+.st-timer { text-align: center; font-family: var(--font-display); font-variant-numeric: tabular-nums; font-size: clamp(3rem, 18vw, 5.5rem); line-height: 1; color: var(--brass); padding: 6px 0 2px; }
+.st-timer.low { color: var(--warn, #e3a53c); }
+.st-timer.up { color: var(--evil); }
+.timer-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
 .wake { display: grid; gap: 0; }
 .wake-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 2px; border-top: 1px solid var(--line); }
 .wake-row:first-child { border-top: 0; }
@@ -906,6 +917,23 @@ function layoutCircle() {
 }
 window.addEventListener("resize", () => { if (ui.tab === "grim") layoutCircle(); });
 
+// What the Storyteller does when each character wakes (Trouble Brewing, plus the setup steps)
+const NIGHT_HOW = {
+  "Poisoner": "They point at a player: that player is poisoned tonight and tomorrow. Put the Poisoned reminder on them.",
+  "Spy": "Show them the Grimoire for as long as they need.",
+  "Washerwoman": "Show them a Townsfolk character token and point at two players, one of whom is that character.",
+  "Librarian": "Show them an Outsider token and point at two players, one of whom is that character. Or show zero fingers if there are no Outsiders.",
+  "Investigator": "Show them a Minion token and point at two players, one of whom is that Minion.",
+  "Chef": "Show them with your fingers how many pairs of evil players sit next to each other.",
+  "Empath": "Show them with your fingers how many of their two living neighbours are evil.",
+  "Fortune Teller": "They point at two players. Nod if either is the Demon (or their red herring); shake your head if not.",
+  "Undertaker": "Show them the character token of the player executed today.",
+  "Monk": "They point at a player (not themselves): that player is safe from the Demon tonight.",
+  "Imp": "They point at a player: that player dies. If they point at themselves, a Minion becomes the Imp: wake that Minion and show them the Imp token.",
+  "Ravenkeeper": "If they died tonight: they point at a player and you show them that player's character token.",
+  "Butler": "They point at a player (not themselves): their master. Tomorrow they may only vote if their master votes.",
+  "Scarlet Woman": "If the Demon died today with 5 or more alive: show them the Demon token. They are the Demon now.",
+};
 function wakeRows(ph, S) {
   const order = ph === 0 ? FIRST_NIGHT : OTHER_NIGHTS;
   const nonTrav = G.players.filter(p => teamOf(p.role) !== "traveller").length;
@@ -946,13 +974,51 @@ function eventList(filter) {
   return out;
 }
 
+// Step through tonight's wake order one player at a time
+const rowKey = r => r.pseudo ? r.title : r.role + ":" + r.pid;
+function guideHtml(ph, rows, done) {
+  if (!rows.length) return "";
+  const g = (G.guide = G.guide || {})[ph] = (G.guide || {})[ph] || { skip: [] };
+  const isDone = r => g.skip.includes(rowKey(r)) || (!r.pseudo && done.has(r.pid));
+  const i = rows.findIndex(r => !isDone(r)), n = rows.filter(isDone).length;
+  const bar = `<div class="gbar"><i style="width:${Math.round(100 * n / rows.length)}%"></i></div>`;
+  if (i < 0) return `<div class="guide"><div class="step">Guided night · all ${rows.length} done</div>${bar}
+    <div class="who">Everyone has woken. Tell everyone to open their eyes.</div>
+    <div class="row"><button class="btn primary" data-act="next-phase">Dawn → ${phaseName(ph + 1)}</button>${g.skip.length ? `<button class="btn sm" data-act="guide-back" data-ph="${ph}">‹ Back</button>` : ""}</div></div>`;
+  const r = rows[i];
+  const who = r.pseudo ? `<b>${esc(r.title)}</b>: ${r.pids.map(id => esc(nameOf(id))).join(", ")}` : `Wake <b>${esc(nameOf(r.pid))}</b>, the <b class="t-${teamOf(r.role)}">${esc(r.role)}</b>.`;
+  const how = r.pseudo ? esc(r.sub) : esc(NIGHT_HOW[r.role] || "Wake them and use their ability.") + (r.sub ? `<br><small class="hint">${esc(r.sub)}</small>` : "");
+  return `<div class="guide"><div class="step">Guided night · step ${i + 1} of ${rows.length}</div>${bar}
+    <div class="who">${who}</div><div class="how">${how}</div>
+    <div class="row">
+      ${r.pseudo ? "" : `<button class="btn primary" data-act="add" data-type="${teamOf(r.role) === "demon" ? "kill" : "ability"}" data-actor="${r.pid}" data-role="${esc(r.role)}">Log what happened</button>`}
+      <button class="btn ${r.pseudo ? "primary" : ""}" data-act="guide-skip" data-ph="${ph}" data-key="${esc(rowKey(r))}">${r.pseudo ? "Done" : "Nothing to log: next"}</button>
+      ${g.skip.length ? `<button class="btn sm" data-act="guide-back" data-ph="${ph}">‹ Back</button>` : ""}
+    </div></div>`;
+}
+// A discussion timer for the day, big enough to see across the table
+let stTimerEnd = null, stTimerSaid = {};
+const stLeft = () => stTimerEnd ? Math.max(0, Math.round((stTimerEnd - Date.now()) / 1000)) : null;
+const stText = () => { const t = stLeft(); return t == null ? "" : t ? `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}` : "Time's up!"; };
+const stCls = () => { const t = stLeft(); return "st-timer" + (t === 0 ? " up" : t != null && t <= 30 ? " low" : ""); };
+function timerHtml() {
+  return `<h3>Discussion timer</h3>${stTimerEnd ? `<div class="${stCls()}" id="stTimer" role="timer">${stText()}</div>` : ""}
+    <div class="timer-row"><button class="btn sm" data-act="st-timer" data-min="2">2 min</button><button class="btn sm" data-act="st-timer" data-min="5">5 min</button><button class="btn sm" data-act="st-timer" data-min="8">8 min</button>${stTimerEnd ? '<button class="btn sm" data-act="st-timer" data-min="add">+1 min</button><button class="btn sm" data-act="st-timer" data-min="0">Stop</button>' : ""}</div>`;
+}
+setInterval(() => {
+  const el = document.getElementById("stTimer");
+  if (el) { el.textContent = stText(); el.className = stCls(); }
+  const t = stLeft();
+  if (t === 60 && !stTimerSaid[60]) { stTimerSaid[60] = true; try { navigator.vibrate && navigator.vibrate(200); } catch (e) {} }
+  if (t === 0 && !stTimerSaid[0]) { stTimerSaid[0] = true; try { navigator.vibrate && navigator.vibrate([300, 120, 300]); } catch (e) {} }
+}, 1000);
 function renderPhaseCard(ph, S) {
   const evs = eventList(e => e.ph === ph);
   let body = "";
   if (isNight(ph)) {
     const rows = wakeRows(ph, S);
     const done = new Set(phaseEvents(ph).map(e => e.actor));
-    body = `<h3>Wake order</h3>
+    body = `${ph === G.maxPhase && !G.end && G.started ? guideHtml(ph, rows, done) : ''}<h3>Wake order</h3>
       <div class="wake">${rows.length ? rows.map(r => r.pseudo
         ? `<div class="wake-row pseudo"><span class="tick">•</span><span class="what"><b>${r.title}</b>: ${r.pids.map(id => esc(nameOf(id))).join(", ")}<small>${esc(r.sub)}</small></span><span></span></div>`
         : `<div class="wake-row ${done.has(r.pid) ? "done" : ""}"><span class="tick">${done.has(r.pid) ? "✓" : ""}</span><span class="what"><b class="t-${teamOf(r.role)}">${esc(r.role)}</b> · ${esc(nameOf(r.pid))}${r.sub ? `<small>${esc(r.sub)}</small>` : ""}</span><button class="btn sm" data-act="add" data-type="${teamOf(r.role) === "demon" && !S[r.pid].thinks ? "kill" : "ability"}" data-actor="${r.pid}" data-role="${esc(r.role)}">Log</button></div>`
@@ -966,7 +1032,7 @@ function renderPhaseCard(ph, S) {
     const tops = noms.filter(e => (Number(e.votes) || 0) === top);
     const block = top >= need && tops.length === 1 ? tops[0].targets[0] : null;
     const executed = phaseEvents(ph).some(e => e.type === "exec");
-    body = `<h3>Nominations</h3>
+    body = `${ph === G.maxPhase && !G.end ? timerHtml() : ""}<h3>Nominations</h3>
       <div class="noms">${noms.length ? noms.map(e => `<div class="nom-row ${e.targets[0] === block ? "block" : ""}"><span>${esc(nameOf(e.actor))} → ${esc(nameOf(e.targets[0]))}</span><span class="v">${e.votes === "" || e.votes == null ? "?" : e.votes}</span></div>`).join("") : `<p class="empty">No nominations yet.</p>`}</div>
       <p class="hint">${need} votes needed to put someone on the block. ${block ? `<b>${esc(nameOf(block))}</b> is on the block.` : top >= need ? "Tied, so no one is on the block." : ""}</p>
       <div class="actions">
@@ -1493,7 +1559,15 @@ document.addEventListener("click", ev => {
     case "sel": ui.sel = ui.sel === el.dataset.pid ? null : el.dataset.pid; break;
     case "goto": G.phase = Math.max(0, Math.min(G.maxPhase, Number(el.dataset.ph))); break;
     case "goto-grim": G.phase = Number(el.dataset.ph); ui.tab = "grim"; break;
-    case "next-phase": G.phase += 1; G.maxPhase = Math.max(G.maxPhase, G.phase); break;
+    case "next-phase": G.phase += 1; G.maxPhase = Math.max(G.maxPhase, G.phase); stTimerEnd = null; break;
+    case "guide-skip": { const g = G.guide[el.dataset.ph]; if (!g.skip.includes(el.dataset.key)) g.skip.push(el.dataset.key); break; }
+    case "guide-back": {
+      // Step back: undo the last step marked done by hand, or the last one ticked by logging
+      const ph = Number(el.dataset.ph), g = G.guide[ph];
+      if (g.skip.length) g.skip.pop();
+      break;
+    }
+    case "st-timer": { const v = el.dataset.min; stTimerEnd = v === "add" ? Math.max(stTimerEnd || Date.now(), Date.now()) + 60000 : +v ? Date.now() + +v * 60000 : null; stTimerSaid = {}; break; }
     case "add": return openEditor({ type: el.dataset.type, actor: el.dataset.actor, target: el.dataset.target, role: el.dataset.role, votes: el.dataset.votes });
     case "no-exec": insertEvent({ id: uid(), ph: G.phase, type: "exec", targets: [], note: "" }); break;
     case "edit": return openEditor({ eid: el.dataset.eid });

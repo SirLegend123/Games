@@ -232,7 +232,7 @@ let TURN_WAIT = 5;
 let G = load();
 /* ---------- This phone's settings: text size and voice ---------- */
 const PREFS_KEY = 'clockwork-storyteller-prefs';
-let prefs = { text: 1, voice: true, voiceURI: '', rate: 0.95 };
+let prefs = { text: 1, voice: true, voiceURI: '', rate: 0.95, buzz: true };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREFS_KEY)) || {}); } catch (e) {}
 function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {} applyPrefs(); }
 function applyPrefs() { document.documentElement.style.fontSize = ''; }  // text size is now in the shared ⚙ settings
@@ -373,8 +373,12 @@ function nextUp() {
   return null;
 }
 function nextUpSafe() { try { return G.stage === 'pass' ? nextUp() : null; } catch (e) { return null; } }
+// A buzz in the hand: time to pass the phone on, or your turn's choices are ready (phones that can vibrate)
+const canBuzz = () => typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+function buzz(pattern) { if (prefs.buzz !== false && canBuzz()) { try { navigator.vibrate(pattern || [120, 80, 120]); } catch (e) {} } }
 function sayNext(prefix) {
   const id = nextUp();
+  buzz(id == null ? [250] : [120, 80, 120]);
   speak(id == null ? `${prefix || ''} Everyone has had their turn.` : `${prefix || ''} Pass the phone to ${P(id).name}.`);
 }
 const passComplete = () => G.pass.order.every(id => G.pass.done[id]);
@@ -704,6 +708,7 @@ function howView() {
     </ul>
     <p>Everything is written to a Storyteller's log, which you see at the end along with the full Grimoire. A few things are left to players' honesty: the Butler's voting rule, and keeping quiet about anything they glimpse.</p>
     <h3>Text size and voice</h3>
+    <p>On phones that can vibrate, the phone buzzes when it's time to pass it on, when your turn's choices unlock, and at one minute left and time's up (turn it off in the Menu).</p>
     <p>Under ⚙ at the top you can make all the text larger, switch between light and dark, undo a mistake, keep the screen awake and save your game. In the Menu you can turn the voice on or off. The voice says whose turn it is to take the phone, and reads out deaths, executions, votes, Slayer shots and the winner. It never reads anything private.</p>
     <p class="hint">Games are saved in this browser only. Nothing is uploaded.</p>
     <div class="row"><button class="btn" data-act="home">Back</button></div>
@@ -954,6 +959,8 @@ function menuView() {
     <div class="setting"><span>Voice</span><div class="seg"><button data-act="voice" data-v="1" aria-pressed="${prefs.voice}">On</button><button data-act="voice" data-v="0" aria-pressed="${!prefs.voice}">Off</button></div>
       ${canSpeak() ? '<button class="btn sm" data-act="voice-test">Test</button>' : '<span class="hint">This browser can\'t speak.</span>'}</div>
     ${canSpeak() && prefs.voice ? voiceSettings() : ''}
+    ${canBuzz() ? `<div class="setting"><span>Buzz</span><div class="seg"><button data-act="buzz" data-v="1" aria-pressed="${prefs.buzz !== false}">On</button><button data-act="buzz" data-v="0" aria-pressed="${prefs.buzz === false}">Off</button></div></div>
+    <p class="hint">The phone buzzes when it's time to pass it on, when your turn's choices unlock, and at one minute left and time's up.</p>` : ''}
     <p class="hint">The voice says whose turn it is with the phone and reads out deaths, executions, votes, Slayer shots and the timer. It never reads anything private.</p>
     <div class="row">
     <button class="btn" data-act="how">How it works</button>
@@ -1006,6 +1013,7 @@ document.addEventListener('click', e => {
     case 'start': newGame(parseNames(U.setupText)); U.view = 'game'; sayNext('Night 1. Everyone, close your eyes.'); return go();
     case 'abandon': U.menu = 'abandon'; break;
     case 'text': prefs.text = +b.dataset.v; savePrefs(); break;
+    case 'buzz': prefs.buzz = b.dataset.v === '1'; savePrefs(); if (prefs.buzz) buzz([150]); break;
     case 'voice': prefs.voice = b.dataset.v === '1'; savePrefs(); if (prefs.voice) speak('Voice on.'); else if (canSpeak()) speechSynthesis.cancel(); break;
     case 'voice-test': speak('This is the Clockwork Storyteller.'); break;
     case 'rate': prefs.rate = +b.dataset.v; savePrefs(); voiceSample(); break;
@@ -1086,11 +1094,11 @@ setInterval(() => {
   const left = timerLeft();
   if (left != null && G && G.stage === 'day') {
     U.timerSaid = U.timerSaid || {};
-    if (left === 60 && !U.timerSaid[60]) { U.timerSaid[60] = true; speak('One minute left.'); }
-    if (left === 0 && !U.timerSaid[0]) { U.timerSaid[0] = true; speak("Time's up."); }
+    if (left === 60 && !U.timerSaid[60]) { U.timerSaid[60] = true; speak('One minute left.'); buzz([200]); }
+    if (left === 0 && !U.timerSaid[0]) { U.timerSaid[0] = true; speak("Time's up."); buzz([300, 120, 300]); }
   }
   // Count down a private turn's wait, and unlock the names and Done when it ends
-  if (U.view === 'game' && G && G.stage === 'pass' && U.turn && U.turn.step === 'show' && document.querySelector('.wait')) render();
+  if (U.view === 'game' && G && G.stage === 'pass' && U.turn && U.turn.step === 'show' && document.querySelector('.wait')) { if (turnWait() === 0) buzz([60]); render(); }
 }, 1000);
 render();
 </script>

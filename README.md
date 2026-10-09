@@ -80,6 +80,8 @@ A tracker for the *Blood on the Clocktower* Storyteller. Open `storyteller.html`
 - How to use: a welcome page explains setup, running each night and day, and the reveal. It opens with the app, and **How to use** in the top bar brings it back
 - Setup: paste everyone's names in one go, then pick each player's character from a dropdown once the tokens are handed out (characters already given out are greyed out). Good or evil fills in by itself. Also the Drunk's or Lunatic's fake character, Demon bluffs and the Fortune Teller's red herring. Checks the Townsfolk / Outsider / Minion / Demon counts for the player count (including the Baron)
 - Grimoire: the seating circle with characters, deaths, ghost votes and reminder tokens (Poisoned, Protected, Mad…), which come and go on their own
+- Guided night: at the top of the current night, a step-by-step guide walks through the wake order one player at a time ("Wake Ben, the Poisoner") with what to do for that character (Trouble Brewing). Log what happened, or tap Nothing to log to move on; Back steps back, and at the end Dawn starts the next day
+- Discussion timer on the current day: 2, 5 or 8 minutes, +1 minute and Stop, in big numbers, turning amber in the last 30 seconds; the phone buzzes at one minute left and time's up (where it can)
 - Nights: a wake-order list of who's in play. Log what each player chose and learned, mark false info and why, and log Demon kills (with saves and Imp star-passes)
 - Days: nominations with vote counts, who's on the block, executions, Slayer shots (hit or miss, and why), and other deaths
 - Character changes, revivals, notes, and a star for moments worth calling out
@@ -103,6 +105,7 @@ An automated Storyteller for *Trouble Brewing*, so nobody has to sit out. Pick i
 
 - Voice: says whose turn it is to take the phone (the next seat round the circle, which is also ringed on the table), and reads out deaths, executions, votes, Slayer shots, timer warnings and the winner. It never reads anything private. In the Menu you can turn it off, test it, pick any of the voices on your phone and set its speed
 - Text size, light or dark, undo and saving the game: under ⚙ (see In every app)
+- Buzz: on phones that can vibrate, the phone buzzes when it's time to pass it on, when a private turn's choices unlock, and at one minute left and time's up. Turn it off in the Menu
 - The discussion timer shows in very large numbers, turns amber in the last 30 seconds and red at time's up, and has a +1 min button
 
 Games are saved in the browser on the device you use. Nothing is uploaded anywhere.
