@@ -309,7 +309,7 @@ const NAMES = ['Ada', 'Ben', 'Cleo', 'Dev', 'Esme', 'Finn', 'Gus', 'Hana', 'Ivo'
 /* ---------- State ---------- */
 let G = load();
 if (G) {
-  G.whispers = G.whispers || []; G.privFacts = G.privFacts || []; G.callouts = G.callouts || []; G.team = G.team || {}; G.labels = G.labels || {};
+  G.whispers = G.whispers || []; G.privFacts = G.privFacts || []; G.callouts = G.callouts || []; G.team = G.team || {}; G.labels = G.labels || {}; G.requests = G.requests || [];
   G.players.forEach(p => { if (p.bot) { p.bot.heardFacts = p.bot.heardFacts || []; } });
 }
 const PREFS_KEY = 'clocktower-solo-prefs';
@@ -391,7 +391,7 @@ function newGame(opts) {
     log: [], info: {}, inbox: {}, facts: {}, poison: null, bluffs: [], redHerring: null,
     lastExecuted: null, winner: null, announce: null, dayS: null, dawnInfo: {}, diedTonight: [], rkWait: false,
     feed: [], pub: [], deaths: [], virgins: [], nominatedEver: [], shots: [], opinions: [], execs: {}, vote: null, lastVote: null,
-    whispers: [], privFacts: [], callouts: [], team: {}, labels: {},
+    whispers: [], privFacts: [], callouts: [], team: {}, labels: {}, requests: [],
   };
   G.players.forEach(p => { G.info[p.id] = []; G.inbox[p.id] = []; G.facts[p.id] = []; });
   const drunk = G.players.find(p => p.role === 'Drunk');
@@ -747,6 +747,7 @@ function startDay() {
   G.lastExecuted = null;
   teamApproach();
   morningTalk();
+  if (G.stage === 'day') botRequests();
 }
 
 /* ---------- What each player has learned, as data ---------- */
@@ -876,6 +877,7 @@ function computeBelief(key, pcons) {
     if (p.id === G.me) G.privFacts.forEach(e => { const fn = factFn(e.f); if (fn) cons = cons.concat([{ src: e.by, fn }]); });
     if (p.bot) {
       p.bot.heardFacts.forEach(f => { const fn = factFn(f); if (fn) cons = cons.concat([{ src: G.me, fn }]); });
+      if (p.bot.heardSus != null) cons = cons.concat([{ src: G.me, fn: ev => ev[p.bot.heardSus] ? 1 : 0.75 }]);
       // You told a good bot, privately, that you are its own character
       if (isGood(p) && p.bot.heard && p.bot.heard.roles.length === 1 && p.bot.heard.roles[0] === believed(p)) cons = cons.concat([{ fn: ev => ev[G.me] ? 1 : 0.15 }]);
     }
@@ -920,7 +922,7 @@ function bias(p, x) {
 function ratio(p, x) {
   const B = belief(p.id), cands = alive().filter(q => q.id !== p.id);
   const base = cands.reduce((s, q) => s + susOf(B, q.id), 0) / Math.max(1, cands.length) || 1e-9;
-  return susOf(B, x) * (1 + bias(p, x)) / base;
+  return susOf(B, x) * (1 + bias(p, x)) * (x === G.me && p.bot.snub === G.n ? 1.2 : 1) / base;
 }
 // How suspicious x looks to the town as a whole
 function townRatio(x) {
@@ -972,7 +974,7 @@ function botClaim(p) {
 function shareNew(p) {
   const fs = shareable(p), fresh = fs.slice(p.bot.sharedN);
   p.bot.sharedN = fs.length;
-  fresh.forEach(f => { G.pub.push({ by: p.id, f, day: G.n }); say(p.id, factText(f, true)); });
+  fresh.forEach(f => { G.pub.push({ by: p.id, f, day: G.n }); say(p.id, factText(f)); });
 }
 // Every reason, from what's been said in public, that a player looks suspicious (strongest first)
 function reasonsAgainst(x) {
@@ -1072,7 +1074,7 @@ function ask(p, q) {
     if (!p.claim) { say(p.id, 'Let me tell you what I am first.'); ask(p, 'role'); return; }
     const fs = shareable(p);
     if (!fs.length) { say(p.id, INFO_ROLES.includes(p.claim) ? "Nothing yet." : `As the ${esc(p.claim)}, I don't get any information.`); return; }
-    fs.slice(0, p.bot.sharedN).forEach(f => say(p.id, factText(f, true)));
+    fs.slice(0, p.bot.sharedN).forEach(f => say(p.id, factText(f)));
     shareNew(p);
   } else if (q === 'sus') {
     say(G.me, `${esc(p.name)}, who do you suspect?`);
@@ -1289,11 +1291,56 @@ function teamWhisper(p, kind, x) {
   bump();
 }
 
+/* ---------- Bots asking you for a private word ---------- */
+// One or two bots each day: a three for three, swapping info, who you suspect, or what you are
+function botRequests() {
+  const m = me();
+  const cands = shuffle(alive().filter(p => p.id !== G.me && !teammate(p) && !G.requests.some(r => r.by === p.id && r.day === G.n)));
+  let n = 0;
+  for (const p of cands) {
+    if (n >= (G.n === 1 ? 2 : 1 + rnd(2))) break;
+    // Good bots ask people they don't distrust; evil bots fish for information
+    if (isGood(p) && ratio(p, G.me) > 1.4) continue;
+    if (!chance(isGood(p) ? 0.5 : 0.35)) continue;
+    const told = p.bot.toldMe, info = shareable(p).length || (!isGood(p) && INFO_ROLES.includes(p.bot.bluff || ''));
+    let k;
+    if (!told && !p.claim && !m.claim) k = 'three';
+    else if (!m.claim) k = 'claim';
+    else if (info && !(told && told.roles.length === 1)) k = 'info';
+    else k = 'sus';
+    // Each bot asks you each thing once (who you suspect can come up again on a later day)
+    if (k !== 'sus' && G.requests.some(r => r.by === p.id && r.k === k)) continue;
+    if (k === 'sus' && G.requests.some(r => r.by === p.id && r.k === k && r.day >= G.n - 1)) continue;
+    const w = whisperWith(p.id, true), t = sayTo(w, p.id);
+    if (k === 'three') { const r = botThree(p); p.bot.toldMe = { roles: r, day: G.n }; t(`Fancy a three for three? I'll go first: I'm one of <b>${list(r.map(esc))}</b>. Your turn.`); if (!isGood(p)) log(`${esc(p.name)} (${p.role}) offers you three: ${r.join(', ')}.`); }
+    else if (k === 'claim') t(`You haven't said what you are. Will you tell me, just between us?`);
+    else if (k === 'info') { t("I trust you, so here's what I've got."); privateReveal(p, w); t('What about you? Anything to swap?'); }
+    else t(`Between us: who do you think the Demon is?`);
+    G.requests.push({ by: p.id, k, day: G.n, open: true });
+    n++;
+  }
+}
+const openRequests = () => G.requests.filter(r => r.open && r.day === G.n && P(r.by).alive);
+function closeRequest(id) { G.requests.forEach(r => { if (r.by === id && r.day === G.n) r.open = false; }); }
+// Answers to a bot's request
+function answerRequest(p, kind, x) {
+  const w = whisperWith(p.id), mine = sayTo(w, G.me), theirs = sayTo(w, p.id);
+  if (kind === 'no') { mine('Not now.'); theirs(pick(['Suit yourself.', "Fine. I'll remember that.", 'Okay… maybe later.'])); p.bot.snub = G.n; bump(); }
+  else if (kind === 'sus') {
+    mine(`I think it's <b>${nm(x)}</b>.`);
+    p.bot.heardSus = x;
+    bump();
+    const r = isGood(p) ? ratio(p, x) : knownTeam(p).includes(x) ? 0.5 : 1.5;
+    theirs(x === p.id ? "Me? You're wrong about that." : r > 1.1 ? `I've been wondering about <b>${nm(x)}</b> too.` : `Really? <b>${nm(x)}</b> seems fine to me. ${cap(trustReason(x))}.`);
+  } else if (kind === 'unsure') { mine("I'm not sure yet."); theirs('Fair enough. Keep me posted.'); }
+  closeRequest(p.id);
+}
+
 /* ---------- Private conversations ---------- */
 // Today's private chat with a bot (the town sees that you talked, not what was said)
-function whisperWith(id) {
+function whisperWith(id, theyAsked) {
   let w = G.whispers.find(x => x.with === id && x.day === G.n);
-  if (!w) { w = { with: id, day: G.n, lines: [] }; G.whispers.push(w); sys(`You and ${esc(P(id).name)} step aside for a private chat.`); }
+  if (!w) { w = { with: id, day: G.n, lines: [] }; G.whispers.push(w); sys(theyAsked ? `${esc(P(id).name)} asks to speak with you privately.` : `You and ${esc(P(id).name)} step aside for a private chat.`); }
   return w;
 }
 // Will a bot tell you its character? Evil bots always will (they lie); good bots if they don't distrust you
@@ -1317,12 +1364,23 @@ function privateReveal(p, w) {
   w.lines.push({ who: p.id, text: `I'm the <b>${esc(role)}</b>.` });
   shareable(p).forEach(f => {
     if (!G.privFacts.some(e => e.by === p.id && fkey(e.f) === fkey(f))) G.privFacts.push({ by: p.id, f });
-    w.lines.push({ who: p.id, text: factText(f, true) });
+    w.lines.push({ who: p.id, text: factText(f) });
   });
   bump();
 }
 function whisper(p, kind, data) {
   const w = whisperWith(p.id), mine = text => w.lines.push({ who: G.me, text }), theirs = text => w.lines.push({ who: p.id, text });
+  const req = openRequests().find(r => r.by === p.id);
+  if (req) closeRequest(p.id);
+  // They already gave you their three: they just take yours
+  if (req && req.k === 'three' && (kind === 'three' || kind === 'one')) {
+    mine(kind === 'three' ? `Here's mine: I'm one of <b>${list(data.map(esc))}</b>.` : `I'll be straight: I'm the <b>${esc(data[0])}</b>.`);
+    p.bot.heard = { roles: data, day: G.n };
+    const own = isGood(p) ? believed(p) : null;
+    theirs(own && data.includes(own) ? (data.length === 1 ? "That's my character! One of us is lying to the other." : "One of those is mine, so I know you're not that one. Thanks.") : 'Thanks. That stays between us.');
+    bump();
+    return;
+  }
   if (kind === 'three' || kind === 'one') {
     const roles = data;
     mine(kind === 'three' ? `Three for three: I'm one of <b>${list(roles.map(esc))}</b>.` : `Between us: I'm the <b>${esc(roles[0])}</b>.`);
@@ -1402,7 +1460,7 @@ function ensureFakes(p) {
     const f = fakeFact(p, r, n);
     // Late in the game there may be nobody left to point at
     if (f && ['a', 'b', 'who'].some(k => k in f && (f[k] == null || !P(f[k])))) continue;
-    if (f) { f.n = n; f.src = r; p.bot.fakes.push(f); log(`${esc(p.name)} (${p.role}) makes up their ${r} info: ${factText(f, true)}`); }
+    if (f) { f.n = n; f.src = r; p.bot.fakes.push(f); log(`${esc(p.name)} (${p.role}) makes up their ${r} info: ${factText(f)}`); }
   }
 }
 function fakeFact(p, r, n) {
@@ -1515,6 +1573,7 @@ function botVote(p, a, b) {
     if (team.includes(b)) return false;
     if (d.block != null && team.includes(d.block)) return true;  // knock a teammate off the block
     if (evilHasVotes()) return true;
+    if (d.virginTest === b) return chance(0.15);
     const r = townRatio(b);
     if (!p.alive) return r > 1.8 && chance(0.5);
     return r > 1.05 || chance(0.3);
@@ -1526,6 +1585,7 @@ function botVote(p, a, b) {
     return top && top.id === b;
   }
   if (nominee.claim === 'Saint' && r < 2.6) return false;
+  if (d.virginTest === b && r < 2.2) return false;  // a Virgin test isn't a real push to execute
   if (d.block != null && d.block !== b && susOf(belief(p.id), b) * (1 + bias(p, b)) <= susOf(belief(p.id), d.block) * (1 + bias(p, d.block))) return false;
   let need = (al <= 4 ? 1.1 : 1.4) - 0.15 * (G.dry || 0);
   if (!p.alive) need += 0.8;  // save the ghost vote for something sure
@@ -1535,6 +1595,12 @@ function botVote(p, a, b) {
 function botNomination() {
   const d = G.dayS, al = alive();
   if (d.botNoms >= 4 && al.length > 3) return null;
+  // Test a claimed Virgin: a good Townsfolk who believes them nominates them, to prove both of them
+  const virgin = al.find(x => x.claim === 'Virgin' && !G.nominatedEver.includes(x.id) && !d.nominees.includes(x.id));
+  if (virgin && al.length > 4) {
+    const tester = topBy(al.filter(p => p.id !== G.me && p.id !== virgin.id && isGood(p) && TF.includes(believed(p)) && TF.includes(p.claim) && !d.nominators.includes(p.id) && ratio(p, virgin.id) < 1.3), p => -ratio(p, virgin.id) + Math.random() * 0.3);
+    if (tester) return { a: tester.id, b: virgin.id, want: 5, test: true };
+  }
   let best = null;
   al.filter(q => q.id !== G.me && !d.nominators.includes(q.id)).forEach(p => {
     const team = knownTeam(p);
@@ -1559,6 +1625,11 @@ function botNominates() {
   const nom = botNomination();
   if (!nom) return false;
   G.dayS.botNoms++;
+  if (nom.test) {
+    G.dayS.virginTest = nom.b;
+    nominate(nom.a, nom.b, `I'm testing the Virgin. I nominate <b>${nm(nom.b)}</b>. I'm the ${esc(P(nom.a).claim)}, a Townsfolk: if I'm executed, ${nm(nom.b)} really ${nom.b === G.me ? 'are' : 'is'} the Virgin.`);
+    return true;
+  }
   nominate(nom.a, nom.b, `I nominate <b>${nm(nom.b)}</b>. ${reasonFor(nom.b).replace(/^./, c => c.toUpperCase())}.`);
   return true;
 }
@@ -1614,6 +1685,8 @@ function howView() {
     <h3>Each day</h3>
     <ul class="plain">
       <li><b>Town talk:</b> the bots claim characters, share info and say who they suspect. Tap any seat to ask that player what they are, what they've learned, who they suspect or who they trust, or to say you suspect or trust them.</li>
+      <li><b>Private requests:</b> each day a bot or two asks you for a private word (✉ on their seat): a three for three (they go first), what you are, a swap of info, or who you think the Demon is. Answer from the Private requests card at the top, or say "Not now" (they'll trust you a little less that day).</li>
+      <li><b>Virgin tests:</b> when someone claims Virgin, a good Townsfolk who believes them nominates them to test it. If the nominator is executed, both are proven. The town doesn't vote to execute on a test unless they're very suspicious.</li>
       <li><b>On trial:</b> when someone nominates you, you defend yourself before anyone decides their vote: claim your character, share your info, point at someone else, or plead. Your own nominations come with a reason, which the nominee answers.</li>
       <li><b>Labels:</b> on any player's seat, label what you think they are (any character, or just good or evil). Only you see it: it shows on their seat, in Claims and info and in the claim matrix.</li>
       <li><b>On the evil team</b> (7 or more players): your teammates (🔴 on the table) are honest with you in private. On the first morning Minions tell you, as the Demon, their real character and ask which bluff to take; a Demon tells you, as a Minion, the bluffs and which it's using; a Spy passes on what it saw in the Grimoire each day. From a teammate's seat you can ask their plan or the bluffs, tell them your real character, hand them a bluff, agree who to push, and ask the Imp to kill or the Poisoner to poison someone tonight.</li>
@@ -1997,18 +2070,41 @@ function midCounts() {
   const row = (t, o) => `<span style="color:var(--townsfolk)">${t}</span>·<span style="color:var(--outsider)">${o}</span>·<span style="color:var(--minion)">${m}</span>·<span style="color:var(--demon)">1</span>`;
   return `<div class="mid-counts" title="${t} Townsfolk, ${o} Outsiders, ${m} Minions, 1 Demon">${row(t, o)}</div><div class="mid-key">Town · Out · Min · Dem</div><div class="mid-key">Baron: ${t - 2}·${o + 2}·${m}·1</div>`;
 }
+// Bots waiting for your answer in private
+function requestsCard() {
+  const reqs = openRequests();
+  if (!reqs.length) return '';
+  const m = me(), opt = (v, l, on) => `<option value="${esc(v)}" ${on ? 'selected' : ''}>${esc(l)}</option>`;
+  const roleSel = id => `<select class="inp" id="rq-role-${id}" aria-label="Character">${CLAIMABLE.map(r => opt(r, r, (m.claim || (isGood(m) ? believed(m) : G.bluffs[0])) === r)).join('')}</select>`;
+  return `<section class="card panel"><h2>🤫 Private ${plural(reqs.length, 'request', 'requests')}</h2>${reqs.map(r => {
+    const p = P(r.by), w = G.whispers.find(x => x.with === p.id && x.day === G.n), id = p.id;
+    const asked = w ? w.lines.filter(l => l.who === id).map(l => `<div class="say"><span class="who">${esc(p.name)}:</span>${l.text}</div>`).join('') : '';
+    let answers = '';
+    if (r.k === 'three') answers = `<button class="btn primary sm" data-act="rq-three" data-id="${id}">Reply with my three…</button>
+      <div class="row">${roleSel(id)}<button class="btn sm" data-act="rq-one" data-id="${id}">Just tell them I'm this</button></div>`;
+    else if (r.k === 'claim') answers = `<div class="row">${roleSel(id)}<button class="btn primary sm" data-act="rq-one" data-id="${id}">Tell them I'm this</button></div>
+      <button class="btn sm" data-act="rq-three" data-id="${id}">Offer three for three instead…</button>`;
+    else if (r.k === 'info') answers = `${G.facts[G.me].length ? `<div class="row">${G.facts[G.me].map((f, i) => `<button class="btn primary sm" data-act="rq-fact" data-i="${i}" data-id="${id}">Share my night ${f.n} info</button>`).join('')}</div>` : ''}
+      <div class="row">${roleSel(id)}<button class="btn sm" data-act="rq-one" data-id="${id}">Tell them I'm this</button></div>
+      <p class="hint">Or make up info below (Say in town, Make up info) and choose to tell ${esc(p.name)}.</p>`;
+    else answers = `<div class="row"><select class="inp" id="rq-x-${id}" aria-label="Player">${alive().filter(q => q.id !== G.me).map(q => opt(q.id, q.id === id ? `${q.name} (the one asking)` : q.name)).join('')}</select>
+      <button class="btn primary sm" data-act="rq-sus" data-id="${id}">I think it's them</button><button class="btn sm" data-act="rq-unsure" data-id="${id}">Not sure yet</button></div>`;
+    return `<div class="form whisper"><div class="whisper">${asked}</div>${answers}<div class="row"><button class="btn sm" data-act="rq-no" data-id="${id}">Not now</button></div></div>`;
+  }).join('')}</section>`;
+}
 function dayView() {
   const d = G.dayS, m = me();
   const seats = tableHtml(q => ({
     button: true, attrs: `data-act="seat" data-id="${q.id}" aria-label="${esc(q.name)}"`,
     cls: 'seat ' + (teammate(q) ? 'mate ' : '') + (q.alive ? '' : 'dead') + (d.block === q.id ? ' block' : '') + (U.panel === q.id ? ' picked' : ''),
     sub: [q.id === G.me ? 'you' : '', q.claim || '', prefs.coach ? `${coachPct(q.id)}%` : ''].filter(Boolean).join(' · '),
-    mark: [teammate(q) ? '🔴' : '', q.alive ? '' : q.ghost ? '☠ vote' : '☠'].filter(Boolean).join(' '),
+    mark: [teammate(q) ? '🔴' : '', openRequests().some(r => r.by === q.id) ? '✉' : '', q.alive ? '' : q.ghost ? '☠ vote' : '☠'].filter(Boolean).join(' '),
   }), `<div class="mid-big">${alive().length}</div><div class="mid-sm">alive of ${G.players.length}</div>${midCounts()}${d.block != null ? `<div class="mid-sm" style="color:var(--evil)">${nm(d.block)} on the block</div>` : ''}`);
   const today = G.feed.filter(e => e.when === label()), earlier = G.feed.filter(e => e.when !== label());
   const endConfirm = U.confirmEnd ? `<div class="banner">${d.block != null ? `End the day? <b>${nm(d.block)}</b> will be executed.` : 'End the day? Nobody is on the block, so nobody will be executed.'}
       <div class="row" style="margin-top:8px"><button class="btn primary sm" data-act="end-yes">End the day</button><button class="btn sm" data-act="end-no">Not yet</button></div></div>` : '';
   return `${G.vote ? voteCard() : ''}
+    ${G.vote ? '' : requestsCard()}
     <section class="card">
       <h2>Day ${G.n}</h2>
       <p class="hint">${alive().length} alive. ${votesNeeded()} votes needed to execute. ${m.alive ? '' : "You're dead, but you can still talk" + (m.ghost ? ' and have one ghost vote.' : '.')}</p>
@@ -2227,6 +2323,12 @@ document.addEventListener('click', e => {
     case 'def-plead': say(G.me, pick(["I'm good. Executing me wastes a day we can't afford.", "I'm on your side. Look at who's pushing this.", "Vote me and you'll be one good player down tomorrow."])); break;
     case 'def-done': decideVotes(); return go();
     case 'team': teamWhisper(P(id), b.dataset.k); break;
+    case 'rq-three': U.panel = id; U.privOpen = id; U.three = []; U.sayForm = null; U.nomForm = null; render(); { const el = document.querySelector('details[data-priv]'); if (el) el.scrollIntoView({ block: 'center' }); } return;
+    case 'rq-one': whisper(P(id), 'one', [document.getElementById(`rq-role-${id}`).value]); break;
+    case 'rq-fact': whisper(P(id), 'info', G.facts[G.me][+b.dataset.i]); break;
+    case 'rq-sus': answerRequest(P(id), 'sus', +document.getElementById(`rq-x-${id}`).value); break;
+    case 'rq-unsure': answerRequest(P(id), 'unsure'); break;
+    case 'rq-no': answerRequest(P(id), 'no'); break;
     case 'team-sel': { const v = document.getElementById(b.dataset.src).value; teamWhisper(P(id), b.dataset.k, b.dataset.k === 'give' ? v : +v); break; }
     case 'shoot': {
       G.myShot = true;
