@@ -2,7 +2,7 @@
 
 ## Clocktower Companion
 
-Open `index.html` in any web browser for a cover page that lets you pick one of five *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, the **Storyteller's Grimoire**, the **Clockwork Storyteller**, which runs a game of Trouble Brewing by itself when nobody wants to be Storyteller, or **Solo Practice**, where you play Trouble Brewing on your own against bots. Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
+Open `index.html` in any web browser for a cover page that lets you pick one of five *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, the **Storyteller's Grimoire**, the **Clockwork Storyteller**, which runs a game of Trouble Brewing by itself when nobody wants to be Storyteller, or **Solo Practice**, where you play Trouble Brewing on your own against bots. The cover page also has **The Traitors**, a party game for family and friends (see below). Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
 
 ### In every app
 
@@ -18,6 +18,24 @@ Open `index.html` in any web browser for a cover page that lets you pick one of 
 - **Tap any character's name** (underlined with dots) to see what it does.
 - **Works offline**: once opened, every app is saved on the device and opens without signal. Updates arrive next time you're online.
 - **Continue buttons** on the cover page for any game in progress, such as "Continue: Solo Practice, Day 3".
+
+## The Traitors
+
+A party game for family and friends based on the TV show, played in one room with one phone. Pick it from the cover page, or open `traitors.html` directly. 4 to 20 players.
+
+- Setup: add everyone in the order you're sitting round the circle. Choose the number of Traitors (Auto: 1 for up to 6 players, 2 up to 10, 3 up to 15, then 4), and turn Missions, Shields and Recruiting on or off. Also set how many players are left when the final Round Table starts (3 to 6) and how long each Round Table discussion lasts
+- Pass the phone: for every secret part, the screen says whose turn it is. That player taps their name, makes their choice and taps Done, and the screen hides before the phone moves on. Every turn lasts a few seconds and looks the same, so watching doesn't give anyone away
+- Roles: each player secretly learns whether they're Faithful or a Traitor. Traitors also see who the other Traitors are
+- Missions: each day brings a group challenge for the room (24 built in, with a timer). Success adds £2,000 to the prize pot. The group then picks who earned the Shield, which protects that player from murder that night
+- Round Table: a big discussion timer (with +1 min), then a secret vote on the phone. Votes are shown one at a time with a running tally. In a tie, everyone else revotes between the tied players; if it's still tied, the draw decides. The banished player says "I am…" and the app reveals Faithful or Traitor
+- Night: everyone takes a turn. Traitors choose who to murder and can leave secret notes for each other. The Faithful pick who they suspect most, so every turn looks alike. Those picks are shown at the end
+- Recruiting: after a Traitor is banished, the remaining Traitors can recruit a Faithful instead of murdering. The chosen player gets a letter at dawn: join the Traitors, or be murdered
+- Breakfast: players arrive one by one, and then everyone finds out who never came down
+- The end: from the final Round Table, everyone first votes in secret to end the game or banish again. If everyone votes to end with a Traitor still at the table, the Traitors win. The Faithful win as soon as every Traitor is gone, and the Traitors win if they ever equal the Faithful in number
+- Game over: who wins and how the pot splits, everyone's role (including who was recruited), and the whole story day by day: every vote, murder, mission and suspicion
+- Narrator voice reads out whose turn it is, the votes, breakfast and the banishments (Menu: turn it off, or turn off the buzz). Menu also has the rules, the player list and "Someone forgot their role", for a private look at your role. Text size, light or dark, undo and saving the game to a file are under ⚙
+
+Games are saved in the browser on the device you use. Nothing is uploaded anywhere. *The Traitors* is a TV format by IDTV; this is an unofficial fan-made game.
 
 ## Clocktower Notebook
 

@@ -70,6 +70,10 @@ h1 { font-family: var(--font-display); font-weight: 400; color: var(--brass); fo
 .choice.st { --accent: var(--brass); }
 .choice.clock { --accent: var(--clock); }
 .choice.solo { --accent: var(--solo); }
+.choice.traitors { --accent: var(--evil); }
+.party { margin-top: 36px; }
+.party h2.sec { font-family: var(--font-display); font-weight: 400; color: var(--brass); text-align: center; font-size: 1.6rem; margin: 0 0 14px; }
+.party .choice { max-width: 420px; margin: 0 auto; }
 .icon { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font-size: 1.6rem; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
 .choice h2 { font-family: var(--font-display); font-weight: 400; font-size: 1.55rem; line-height: 1.1; margin: 0; color: var(--fg); }
 .choice h2 small { display: block; font-family: var(--font-body); font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
@@ -130,9 +134,19 @@ footer p { margin: 4px 0; }
     </a>
   </nav>
 
+  <section class="party" aria-label="Party games">
+    <h2 class="sec">Also: a party game</h2>
+    <a class="choice traitors" href="traitors.html">
+      <span class="icon" aria-hidden="true">&#9820;&#xFE0E;</span>
+      <h2><small>Family and friends</small>The Traitors</h2>
+      <p>Faithful or Traitor? Missions, murders, the Round Table and banishments, all from one phone passed round the room. 4 to 20 players.</p>
+      <span class="go">Play <span>&rarr;</span></span>
+    </a>
+  </section>
+
   <footer>
     <p>Each app keeps its own saved game on this device. Tap &#8962; in any app to come back here.</p>
-    <p><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. This is an unofficial fan-made tool.</p>
+    <p><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. <i>The Traitors</i> is a TV format by IDTV. These are unofficial fan-made tools.</p>
   </footer>
 </main>
 <script>
@@ -151,6 +165,8 @@ footer p { margin: 4px 0; }
   if (ev && ev.players && !ev.example && !ev.over) add('evil.html', 'Evil Grimoire', '', 'evil');
   const st = read('botc-storyteller-v1');
   if (st && st.game && st.game.started && !st.game.end && !st.game.example) add('storyteller.html', "Storyteller's Grimoire", '', 'brass');
+  const tr = read('traitors-v1');
+  if (tr && tr.players && tr.players.length && tr.phase !== 'setup' && tr.phase !== 'over') add('traitors.html', 'The Traitors', `Day ${tr.day || 1}`, 'evil');
   document.getElementById('resume').innerHTML = out.join('');
 })();
 </script>

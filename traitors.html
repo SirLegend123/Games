@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Traitors">
+<title>The Traitors</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#15121b">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<script src="companion.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+/* The Traitors, played in one room: one phone passed round for the secret parts. Same palette as the Clocktower apps. */
+:root {
+  --bg: #15121b; --surface: #211c29; --surface-2: #2b2534; --line: #3b3346;
+  --fg: #ece6f2; --muted: #a69cb3; --brass: #d4ab55;
+  --faithful: #4c8ce4; --traitor: #d8435a; --cloak: #8e1428;
+  --ok: #3aa35c; --warn: #e3a53c;
+  --felt: radial-gradient(circle at 50% 0%, #2c2436 0%, #1b1622 55%, #15121b 100%);
+  --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+    --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+    --faithful: #2463c2; --traitor: #be2a42; --cloak: #8a1428; --ok: #2a9150; --warn: #b7791f;
+    --felt: radial-gradient(circle at 50% 0%, #ffffff 0%, #ebe5f0 60%, #e2dbe9 100%);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+  --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+  --faithful: #2463c2; --traitor: #be2a42; --cloak: #8a1428; --ok: #2a9150; --warn: #b7791f;
+  --felt: radial-gradient(circle at 50% 0%, #ffffff 0%, #ebe5f0 60%, #e2dbe9 100%);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { margin: 0; background: var(--bg); background-image: var(--felt); background-attachment: fixed; color: var(--fg); font-family: var(--font-body); font-size: 1rem; line-height: 1.45; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+.wrap { max-width: 640px; margin: 0 auto; padding: 0 16px 48px; display: grid; gap: 14px; }
+.bar { display: flex; align-items: center; gap: 10px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; padding: 10px 16px; margin-bottom: 14px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.brand { font-family: var(--font-display); font-weight: 400; font-size: 1.45rem; color: var(--brass); margin: 0; line-height: 1; margin-right: auto; }
+.phase { font-weight: 800; font-size: .9rem; color: var(--muted); white-space: nowrap; }
+@media (max-width: 420px) { .brand { font-size: 1.15rem; } }
+
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 16px; font-weight: 700; min-height: 48px; }
+.btn:hover { border-color: var(--brass); }
+.btn.primary { background: var(--brass); color: #1a1408; border-color: var(--brass); }
+.btn.sm { padding: 5px 11px; min-height: 36px; font-size: .88rem; }
+.btn.danger { color: var(--traitor); }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn[aria-pressed="true"] { background: var(--brass); color: #1a1408; border-color: var(--brass); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row.center { justify-content: center; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 10px; }
+.card h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.6rem; line-height: 1.1; color: var(--brass); }
+.card h3 { margin: 4px 0 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.card p { margin: 0; }
+.hint { color: var(--muted); font-size: .92rem; }
+.center { text-align: center; }
+.kicker { color: var(--muted); text-transform: uppercase; letter-spacing: .14em; font-size: .78rem; font-weight: 800; margin: 0; }
+.title { font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: clamp(2rem, 9vw, 3rem); line-height: 1; margin: 0; }
+
+/* Setup */
+.names { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; counter-reset: seat; }
+.names li { display: flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 4px 6px 4px 12px; counter-increment: seat; }
+.names li::before { content: counter(seat); color: var(--muted); font-weight: 800; min-width: 1.4em; }
+.names li span { margin-right: auto; font-weight: 700; overflow-wrap: anywhere; }
+.add { display: flex; gap: 8px; }
+.add input { flex: 1; min-width: 0; }
+input[type="text"], textarea, select { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 48px; }
+textarea { width: 100%; min-height: 70px; resize: vertical; }
+.set { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 0; border-top: 1px solid var(--line); }
+.set > span { font-weight: 700; margin-right: auto; }
+.set small { display: block; color: var(--muted); font-weight: 500; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface-2); padding: 8px 12px; min-height: 40px; font-weight: 700; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--brass); color: #1a1408; }
+
+/* Picking a player */
+.pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.pick button { min-height: 56px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface-2); font-weight: 800; padding: 8px; overflow-wrap: anywhere; }
+.pick button[aria-pressed="true"] { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 22%, var(--surface-2)); }
+.pick button small { display: block; font-weight: 600; color: var(--muted); font-size: .78rem; }
+
+/* Pass the phone */
+.pass { min-height: calc(100vh - 140px); display: grid; align-content: center; gap: 18px; text-align: center; }
+.pass .who { font-family: var(--font-display); font-size: clamp(2.4rem, 12vw, 4rem); line-height: 1.05; color: var(--fg); margin: 0; overflow-wrap: anywhere; }
+.dots { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.dots i.done { background: var(--brass); }
+.dots i.now { background: var(--fg); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fg) 30%, transparent); }
+.private { border: 2px dashed var(--brass); }
+
+/* Roles */
+.role { border-radius: 16px; padding: 22px 16px; text-align: center; display: grid; gap: 8px; color: #fff; }
+.role.faithful { background: linear-gradient(160deg, color-mix(in srgb, var(--faithful) 85%, #000) 0%, color-mix(in srgb, var(--faithful) 55%, #000) 100%); }
+.role.traitor { background: linear-gradient(160deg, var(--traitor) 0%, var(--cloak) 100%); }
+.role .rname { font-family: var(--font-display); font-size: clamp(2.6rem, 13vw, 4.2rem); line-height: 1; }
+.role p { margin: 0; }
+.tag { display: inline-block; font-weight: 800; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; padding: 2px 8px; border-radius: 99px; }
+.tag.faithful { background: color-mix(in srgb, var(--faithful) 20%, transparent); color: var(--faithful); }
+.tag.traitor { background: color-mix(in srgb, var(--traitor) 20%, transparent); color: var(--traitor); }
+.tag.out { background: var(--surface-2); color: var(--muted); }
+
+/* Breakfast, votes, players */
+.list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.list li { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.list li b { margin-right: auto; overflow-wrap: anywhere; }
+.list li.out { opacity: .55; }
+.list li.new { animation: arrive .5s ease-out; }
+@keyframes arrive { from { opacity: 0; transform: translateY(8px); } }
+.big-news { font-family: var(--font-display); font-size: clamp(1.8rem, 8vw, 2.6rem); line-height: 1.1; text-align: center; margin: 6px 0; }
+.big-news.bad { color: var(--traitor); }
+.ballot { text-align: center; display: grid; gap: 4px; padding: 14px; border-radius: 14px; background: var(--parch, #efe4c9); color: #2a2118; animation: arrive .4s ease-out; }
+.ballot .slate { font-family: var(--font-display); font-size: clamp(2rem, 10vw, 3rem); line-height: 1; }
+.tally { display: grid; gap: 6px; }
+.tally div { display: grid; grid-template-columns: minmax(0, 8em) 1fr auto; gap: 8px; align-items: center; font-weight: 700; }
+.tally span.b { height: 14px; border-radius: 7px; background: var(--brass); min-width: 4px; }
+.gold { color: var(--brass); font-weight: 800; }
+
+.big-timer { text-align: center; font-family: var(--font-display); font-variant-numeric: tabular-nums; font-size: clamp(4rem, 24vw, 8rem); line-height: 1; color: var(--brass); padding: 6px 0 0; }
+.big-timer.low { color: var(--warn); }
+.big-timer.up { color: var(--traitor); }
+
+.banner { text-align: center; padding: 26px 16px; border-radius: 16px; color: #fff; display: grid; gap: 6px; }
+.banner.faithful { background: linear-gradient(160deg, var(--faithful), color-mix(in srgb, var(--faithful) 45%, #000)); }
+.banner.traitors { background: linear-gradient(160deg, var(--traitor), var(--cloak)); }
+.banner .title { color: #fff; }
+.mission { font-size: 1.15rem; font-weight: 700; }
+details summary { cursor: pointer; font-weight: 800; }
+.hist { display: grid; gap: 4px; font-size: .95rem; }
+.hist p { margin: 0; }
+
+.sheet-back { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.5); display: grid; place-items: end center; }
+@media (min-width: 640px) { .sheet-back { place-items: center; } }
+.sheet { width: min(560px, 100%); max-height: min(88vh, 900px); overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px 16px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; }
+@media (min-width: 640px) { .sheet { border-radius: 16px; } }
+.sheet h2 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.45rem; margin-right: auto; }
+.sheet h3 { margin: 6px 0 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.sheet p, .sheet ul { margin: 0; }
+.sheet ul { padding-left: 1.2em; display: grid; gap: 4px; }
+footer.note { text-align: center; color: var(--muted); font-size: .8rem; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="btn sm" href="index.html" title="Choose another app" aria-label="All apps" style="text-decoration:none;color:inherit;display:inline-grid;place-items:center">&#8962;</a>
+  <h1 class="brand">The Traitors</h1>
+  <span class="phase" id="phase"></span>
+  <button class="btn sm" type="button" data-act="menu">Menu</button>
+</header>
+<main class="wrap" id="app"></main>
+<div id="sheet"></div>
+
+<script>
+'use strict';
+/* ---------- Saved game and preferences ---------- */
+const KEY = 'traitors-v1', PKEY = 'traitors-prefs';
+const DEFAULTS = { traitors: 0, missions: true, shields: true, recruit: true, finalAt: 4, talk: 5, gold: 2000 };
+let prefs = { voice: true, buzz: true };
+try { Object.assign(prefs, JSON.parse(localStorage.getItem(PKEY)) || {}); } catch (e) {}
+const savePrefs = () => { try { localStorage.setItem(PKEY, JSON.stringify(prefs)); } catch (e) {} };
+
+function fresh(names, settings) {
+  return { v: 1, phase: 'setup', names: names || [], settings: Object.assign({}, DEFAULTS, settings || {}), players: [], day: 0, pot: 0, shield: null,
+    pass: null, night: null, vote: null, endVote: null, mission: null, bf: null, ban: null, usedMissions: [], recruitNext: false, notes: [], days: [], winner: null };
+}
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
+if (!S || S.v !== 1) S = fresh();
+if (S.pass) S.pass.open = false;  // after a reload, start the turn again from "pass the phone to…"
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+
+/* ---------- Small helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rnd = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pick = a => a[rnd(a.length)];
+const P = i => S.players[i];
+const nm = i => esc(P(i).name);
+const alive = () => S.players.map((p, i) => i).filter(i => P(i).alive);
+const traitorsAlive = () => alive().filter(i => P(i).role === 'traitor');
+const faithfulAlive = () => alive().filter(i => P(i).role === 'faithful');
+const money = n => '£' + n.toLocaleString('en-GB');
+const autoTraitors = n => n <= 6 ? 1 : n <= 10 ? 2 : n <= 15 ? 3 : 4;
+const today = () => S.days[S.days.length - 1];
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+function say(t) {
+  if (!prefs.voice || !('speechSynthesis' in window)) return;
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.rate = .95; u.lang = 'en-GB'; speechSynthesis.speak(u); } catch (e) {}
+}
+function buzz(p) { if (prefs.buzz && navigator.vibrate) try { navigator.vibrate(p); } catch (e) {} }
+
+/* ---------- Missions: things a room full of people can do together ---------- */
+const MISSIONS = [
+  ['As a team, name a country for every letter from A to M (skip none) within 2 minutes.', 120],
+  ['Build a tower from things in this room at least as tall as the shortest player, standing on its own for 10 seconds. You have 3 minutes.', 180],
+  ['Everyone stands in a line in order of birthday (day and month) without speaking. Check: one mistake and the mission fails. 2 minutes.', 120],
+  ['Count to 20 as a group, one number per person, in no fixed order and without planning. If two people speak at once, start again. 3 minutes.', 180],
+  ['Name 15 animals that live in the sea in 90 seconds, one at a time around the circle. A repeat or a long pause means failure.', 90],
+  ['Hum the theme tune of 5 TV shows. Everyone else must name each one. 3 minutes.', 180],
+  ['Pass a coin round the circle using only your elbows. Drop it and you start again. 2 minutes.', 120],
+  ['Keep a balloon (or a rolled-up sock thrown in the air) off the floor while everyone touches it at least once. 90 seconds.', 90],
+  ['Each player has 20 seconds to describe a famous person without saying their name; the group must guess at least 5 people in total.', 240],
+  ['Silently arrange everyone by height, tallest first, with your eyes closed. 2 minutes.', 120],
+  ['Name 30 words that rhyme with "cat" as a group in 2 minutes.', 120],
+  ['Recite the alphabet backwards as a group, one letter each around the circle, with no mistakes. 2 minutes.', 120],
+  ['Spell "TRAITORS" using your bodies, one letter per photo (or per pose the group agrees on). 3 minutes.', 180],
+  ['Every player says one true fact about the person on their left. The person must confirm each one. 3 minutes.', 180],
+  ['Find 10 things in the room that are red within 60 seconds.', 60],
+  ['Name 12 capital cities in Europe in 90 seconds. One wrong answer and the mission fails.', 90],
+  ['Tell a story around the circle, one word each, that lasts two full laps and makes sense. 3 minutes.', 180],
+  ['Everyone must get up, touch four different walls and sit in a different seat. Nobody can talk. 60 seconds.', 60],
+  ['Name 10 films with a number in the title in 2 minutes.', 120],
+  ['Stack 10 coins (or similar small things) in a single tower, each player adding at least one. 2 minutes.', 120],
+  ['Without looking, everyone guesses when exactly 60 seconds have passed. At least half the players must be within 5 seconds.', 120],
+  ['Name 20 things you would find in a kitchen in 60 seconds.', 60],
+  ['Play "Fizz Buzz" round the circle up to 40: say "Fizz" for multiples of 3, "Buzz" for 5, "Fizz Buzz" for both. Any slip and you restart. 3 minutes.', 180],
+  ['Each player draws something in 15 seconds; the others must guess at least half of the drawings correctly.', 240],
+];
+
+/* ---------- Pass the phone ---------- */
+// Every private turn: "pass the phone to X", X taps their name, sees their screen, makes any choice and taps Done.
+// Each turn lasts at least a few seconds, so nobody watching can tell who had something to do.
+const MIN_TURN = { reveal: 5, night: 6, letters: 5, vote: 3, endvote: 3, peek: 2 };
+let turnAt = 0, turnTimer = null;
+function newPass(kind, order) { return { kind, order, i: 0, open: false, choice: null, note: '', got: {} }; }
+function passTo() { const p = S.pass; return p.order[p.i]; }
+function openTurn() {
+  S.pass.open = true; S.pass.choice = null; S.pass.note = '';
+  turnAt = Date.now();
+  clearTimeout(turnTimer);
+  turnTimer = setTimeout(render, MIN_TURN[S.pass.kind] * 1000 + 50);
+  buzz(30);
+  render();
+}
+function turnLocked() { return Date.now() - turnAt < MIN_TURN[S.pass.kind] * 1000; }
+function doneTurn() {
+  const p = S.pass, me = passTo();
+  p.got[me] = { choice: p.choice, note: (p.note || '').trim() };
+  p.i++; p.open = false; p.choice = null; p.note = '';
+  if (p.i >= p.order.length) { const kind = p.kind, got = p.got; S.pass = null; finishPass(kind, got); }
+  else { const next = p.order[p.i]; say(`Pass the phone to ${P(next).name}.`); buzz([60, 80, 60]); }
+  save(); render(); scrollTo(0, 0);
+}
+
+function passHtml() {
+  const p = S.pass, who = passTo();
+  const dots = `<div class="dots" aria-hidden="true">${p.order.map((x, k) => `<i class="${k < p.i ? 'done' : k === p.i ? 'now' : ''}"></i>`).join('')}</div>`;
+  const label = { reveal: 'Your secret role', night: 'Night in the castle', letters: 'Letters at dawn', vote: 'Round Table vote', endvote: 'End the game?', peek: 'Check your role' }[p.kind];
+  if (!p.open) return `<div class="pass">
+      <p class="kicker">${label} · ${p.i + 1} of ${p.order.length}</p>
+      ${dots}
+      <p class="hint">Pass the phone to</p>
+      <p class="who">${nm(who)}</p>
+      <p class="hint">Everyone else, look away.</p>
+      <button class="btn primary block" data-act="open">I'm ${nm(who)}: show me</button>
+    </div>`;
+  const locked = turnLocked(), needs = needsChoice(p.kind, who);
+  const ready = !locked && (!needs || p.choice != null);
+  return `<div class="card private">
+      <p class="kicker">Only ${nm(who)} should see this</p>
+      ${turnHtml(p.kind, who)}
+      <button class="btn primary block" data-act="done" ${ready ? '' : 'disabled'}>${locked ? 'Wait a moment…' : needs && p.choice == null ? 'Choose first' : 'Done: hide this and pass on'}</button>
+    </div>`;
+}
+
+function needsChoice(kind, who) {
+  if (kind === 'night' || kind === 'vote' || kind === 'endvote') return true;
+  if (kind === 'letters') return S.night && S.night.target === who;
+  return false;
+}
+function roleCard(i) {
+  const t = P(i).role === 'traitor';
+  const team = traitorsAlive().filter(x => x !== i);
+  return `<div class="role ${t ? 'traitor' : 'faithful'}">
+      <p class="kicker" style="color:#fff;opacity:.8">${nm(i)}, you are</p>
+      <div class="rname">${t ? 'a Traitor' : 'Faithful'}</div>
+      <p>${t ? 'Each night you and your fellow Traitors choose a Faithful to murder. By day, blend in. Survive to the end to take the gold.'
+              : 'Find the Traitors and banish them at the Round Table. If none are left at the end, the Faithful share the gold.'}</p>
+      ${t ? `<p><b>${team.length ? `Your fellow Traitor${team.length > 1 ? 's' : ''}: ${team.map(nm).join(', ')}` : 'You are the only Traitor.'}</b></p>` : ''}
+    </div>`;
+}
+function pickHtml(opts, chosen, sub) {
+  return `<div class="pick">${opts.map(i => `<button type="button" data-act="choose" data-v="${i}" aria-pressed="${chosen === i}">${nm(i)}${sub ? `<small>${sub(i) || '&nbsp;'}</small>` : ''}</button>`).join('')}</div>`;
+}
+function turnHtml(kind, me) {
+  const p = S.pass;
+  if (kind === 'reveal' || kind === 'peek') return roleCard(me) + (kind === 'reveal' ? '<p class="hint center">Keep a straight face. When you tap Done, the screen hides before you pass it on.</p>' : '');
+  if (kind === 'night') {
+    if (P(me).role === 'traitor') {
+      const rec = S.night.recruit;
+      const opts = faithfulAlive();
+      const earlier = Object.keys(p.got).filter(x => P(+x).role === 'traitor');
+      const notes = S.notes.slice(-6);
+      return `${roleCard(me)}
+        <h3 style="margin:0">${rec ? 'Tonight you may recruit' : 'Tonight you murder'}</h3>
+        <p>${rec ? `A Traitor was banished. Choose a Faithful to recruit. They must join you, or be murdered.` : 'Choose a Faithful to murder. If the Traitors disagree, the most popular choice wins (a tie is settled at random).'}</p>
+        ${earlier.length ? `<p class="hint">Already chosen tonight: ${earlier.map(x => `${nm(+x)} → <b>${nm(p.got[x].choice)}</b>`).join(', ')}</p>` : ''}
+        ${S.shield != null && P(S.shield).alive ? `<p class="hint">${nm(S.shield)} holds the Shield tonight: a murder on them will fail.</p>` : ''}
+        ${pickHtml(opts, p.choice)}
+        ${notes.length ? `<h3 style="margin:0">Notes from the Traitors</h3><div class="hist">${notes.map(n => `<p><b>${esc(n.from)}</b> (night ${n.day}): ${esc(n.text)}</p>`).join('')}</div>` : ''}
+        <label class="hint" for="note">A secret note for your fellow Traitors (optional)</label>
+        <textarea id="note" data-act="note" maxlength="200" placeholder="e.g. Push the vote towards…">${esc(p.note || '')}</textarea>`;
+    }
+    return `<p class="big-news" style="margin:0">You sleep in your turret</p>
+      <p>The Traitors are meeting. To keep them hidden, everyone makes a choice: <b>who do you suspect most?</b> Your answer is secret until the end of the game.</p>
+      ${pickHtml(alive().filter(x => x !== me), p.choice)}`;
+  }
+  if (kind === 'letters') {
+    if (S.night.target === me) return `<div class="role traitor"><p class="kicker" style="color:#fff;opacity:.8">A letter for ${nm(me)}</p>
+        <div class="rname" style="font-size:2rem">The Traitors want you</div>
+        <p>Join them and become a Traitor, or refuse and be murdered tonight.</p></div>
+        <div class="pick"><button type="button" data-act="choose" data-v="1" aria-pressed="${p.choice === 1}">Join the Traitors</button><button type="button" data-act="choose" data-v="0" aria-pressed="${p.choice === 0}">Refuse</button></div>
+        ${p.choice === 1 ? `<p><b>Welcome. Your fellow Traitors: ${traitorsAlive().map(nm).join(', ')}.</b></p>` : ''}`;
+    return `<p class="big-news" style="margin:0">No letter for you</p><p class="hint center">Wait for the button, then pass the phone on.</p>`;
+  }
+  if (kind === 'vote') {
+    const cands = (S.vote.cands || alive()).filter(x => x !== me);
+    return `<h3 style="margin:0">${S.vote.round > 1 ? 'Revote' : 'Round Table'}: who do you banish?</h3>
+      <p>Write a name on your slate. Votes are shown to everyone one at a time, so be ready to explain yours.</p>
+      ${pickHtml(cands, p.choice)}`;
+  }
+  if (kind === 'endvote') return `<h3 style="margin:0">End the game, or banish again?</h3>
+      <p>If <b>everyone</b> votes to end, the game ends now: if any Traitor is still here, the Traitors take the gold. If even one person votes to banish again, the Round Table banishes someone else.</p>
+      <div class="pick"><button type="button" data-act="choose" data-v="1" aria-pressed="${p.choice === 1}">End the game</button><button type="button" data-act="choose" data-v="0" aria-pressed="${p.choice === 0}">Banish again</button></div>`;
+  return '';
+}
+
+/* ---------- The game ---------- */
+function start() {
+  const n = S.names.length;
+  const k = S.settings.traitors || autoTraitors(n);
+  const tr = new Set(shuffle(S.names.map((x, i) => i)).slice(0, k));
+  S.players = S.names.map((name, i) => ({ name, role: tr.has(i) ? 'traitor' : 'faithful', alive: true, out: null, first: tr.has(i) ? 'traitor' : 'faithful' }));
+  Object.assign(S, { day: 0, pot: 0, shield: null, notes: [], days: [], winner: null, usedMissions: [], recruitNext: false });
+  S.phase = 'reveal';
+  S.pass = newPass('reveal', alive());
+  say(`Welcome to the castle. ${plural(k, 'Traitor')} walk among you. Pass the phone to ${P(0).name}.`);
+}
+function newDay() {
+  S.day++;
+  S.days.push({ day: S.day, murdered: null, recruited: null, saved: false, mission: null, shield: null, votes: [], banished: null, suspects: {}, endVotes: null });
+}
+function finishPass(kind, got) {
+  if (kind === 'reveal') { newDay(); S.phase = 'dawn'; say('Every player knows their role. The game begins.'); }
+  else if (kind === 'peek') S.phase = S.peekFrom || S.phase;
+  else if (kind === 'night') resolveNight(got);
+  else if (kind === 'letters') resolveLetters(got);
+  else if (kind === 'vote') { S.vote.ballots = S.vote.voters.map(v => [v, got[v].choice]); S.vote.shown = 0; S.phase = 'votereveal'; say('The votes are in. Let\'s see them, one at a time.'); }
+  else if (kind === 'endvote') { S.endVote = { ballots: alive().map(v => [v, got[v].choice]), shown: 0 }; S.phase = 'endreveal'; }
+}
+
+function goMissionOrTable() {
+  if (S.settings.missions) {
+    const left = MISSIONS.map((m, i) => i).filter(i => !S.usedMissions.includes(i));
+    const m = pick(left.length ? left : MISSIONS.map((m, i) => i));
+    S.usedMissions.push(m);
+    S.mission = { m, ok: null };
+    S.phase = 'mission';
+    say(`Today's mission. ${MISSIONS[m][0]}`);
+  } else toTable();
+}
+function toTable() {
+  S.phase = 'table';
+  S.vote = null; S.endVote = null; S.ban = null;
+  const final = S.day > 1 && alive().length <= S.settings.finalAt;
+  S.tableStep = final && !today().endVotes ? 'final' : 'talk';
+  resetTimer();
+  say(final ? 'The final Round Table. First, you decide: end the game, or banish again?' : 'Take your seats at the Round Table.');
+}
+function startVote(round, cands) {
+  const voters = alive().filter(x => !(cands && round > 1 && cands.includes(x)));
+  S.vote = { round, cands: cands || null, voters, ballots: null, shown: 0 };
+  S.pass = newPass('vote', voters);
+  say(`Time to vote. Pass the phone to ${P(voters[0]).name}.`);
+}
+function tally(ballots) {
+  const c = {};
+  ballots.forEach(([, t]) => { c[t] = (c[t] || 0) + 1; });
+  const top = Math.max(...Object.values(c));
+  return { counts: c, leaders: Object.keys(c).filter(k => c[k] === top).map(Number), top };
+}
+function afterVotes() {
+  const t = tally(S.vote.ballots);
+  today().votes.push({ round: S.vote.round, ballots: S.vote.ballots });
+  if (t.leaders.length === 1) return banish(t.leaders[0], false);
+  if (S.vote.round === 1 && S.vote.voters.some(v => !t.leaders.includes(v)) && alive().length > t.leaders.length) {
+    S.phase = 'tie'; S.tie = t.leaders; say(`It's a tie between ${t.leaders.map(i => P(i).name).join(' and ')}. Everyone else votes again.`);
+  } else banish(pick(t.leaders), true);
+}
+function banish(i, drawn) {
+  S.ban = { who: i, drawn, shown: false };
+  S.phase = 'banish';
+  say(`${drawn ? 'Still tied. The draw has chosen. ' : ''}${P(i).name}, you have been banished. Please stand, and tell everyone who you really are.`);
+}
+function revealBanished() {
+  const i = S.ban.who;
+  S.ban.shown = true;
+  P(i).alive = false; P(i).out = { how: 'banished', day: S.day };
+  today().banished = { who: i, role: P(i).role };
+  if (P(i).role === 'traitor') {
+    S.recruitNext = S.settings.recruit && traitorsAlive().length > 0 && faithfulAlive().length > 2;
+    say(`${P(i).name} was a Traitor!`);
+  } else say(`${P(i).name} was Faithful.`);
+  buzz(200);
+}
+function checkWin() {
+  const t = traitorsAlive().length, f = faithfulAlive().length;
+  if (!t) return 'faithful';
+  if (t >= f) return 'traitors';
+  return null;
+}
+function endGame(w, why) {
+  S.winner = w; S.winWhy = why; S.phase = 'over'; S.pass = null;
+  say(w === 'faithful' ? 'The Faithful have won! Every Traitor has been found.' : 'The Traitors have won! They take the gold.');
+}
+function afterBanish() {
+  const w = checkWin();
+  if (w) return endGame(w, w === 'faithful' ? 'Every Traitor has been banished.' : 'The Traitors now match the Faithful in number, so they can no longer be outvoted.');
+  if (alive().length <= 2) return endGame(traitorsAlive().length ? 'traitors' : 'faithful', 'Only two players remain.');
+  S.phase = 'dusk';
+  say(S.recruitNext ? 'Night falls. Tonight, the Traitors may recruit.' : 'Night falls on the castle.');
+}
+function startNight() {
+  S.night = { recruit: S.recruitNext, target: null };
+  S.recruitNext = false;
+  S.pass = newPass('night', alive());
+  S.phase = 'night';
+  say(`Pass the phone to ${P(alive()[0]).name}.`);
+}
+function resolveNight(got) {
+  const ballots = traitorsAlive().map(t => [t, got[t] && got[t].choice]).filter(b => b[1] != null);
+  alive().forEach(i => { if (P(i).role === 'faithful' && got[i]) today().suspects[i] = got[i].choice; });
+  traitorsAlive().forEach(t => { if (got[t] && got[t].note) S.notes.push({ from: P(t).name, day: S.day, text: got[t].note }); });
+  const target = ballots.length ? pick(tally(ballots).leaders) : null;
+  S.night.target = target;
+  const d = today();
+  if (S.night.recruit && target != null) {
+    S.pass = newPass('letters', alive());
+    S.phase = 'night';
+    say(`Before dawn, letters are delivered. Pass the phone round once more, starting with ${P(alive()[0]).name}.`);
+    return;
+  }
+  if (target != null && target === S.shield) { d.saved = true; S.night.result = 'saved'; }
+  else if (target != null) { P(target).alive = false; P(target).out = { how: 'murdered', day: S.day + 1 }; S.night.result = 'murder'; }
+  dawn();
+}
+function resolveLetters(got) {
+  const t = S.night.target, yes = got[t] && got[t].choice === 1;
+  if (yes) { P(t).role = 'traitor'; S.night.result = 'recruited'; today().recruited = t; }
+  else { P(t).alive = false; P(t).out = { how: 'murdered', day: S.day + 1 }; S.night.result = 'murder'; today().refused = t; }
+  dawn();
+}
+function dawn() {
+  S.shield = null;
+  const victim = S.night.result === 'murder' ? S.night.target : null;
+  newDay();
+  today().murdered = victim;
+  S.bf = { victim, order: shuffle(alive()), shown: 0 };
+  S.phase = 'breakfast';
+  say('Good morning. Let\'s see who joins us for breakfast.');
+}
+function afterBreakfast() {
+  const w = checkWin();
+  if (w) return endGame(w, w === 'traitors' ? 'The Traitors now match the Faithful in number, so they can no longer be outvoted.' : 'No Traitors remain.');
+  if (alive().length <= 2) return endGame(traitorsAlive().length ? 'traitors' : 'faithful', 'Only two players remain.');
+  goMissionOrTable();
+}
+
+/* ---------- Discussion timer (kept in memory; restarting it is harmless) ---------- */
+let T = { left: 0, end: 0, running: false }, tick = null;
+function resetTimer() { T = { left: S.settings.talk * 60, end: 0, running: false }; }
+function timerLeft() { return T.running ? Math.max(0, Math.round((T.end - Date.now()) / 1000)) : T.left; }
+function fmt(s) { return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+let warned = {};
+function runTick() {
+  clearInterval(tick);
+  tick = setInterval(() => {
+    const el = $('#clock'); if (!el) return;
+    const s = timerLeft();
+    el.textContent = s ? fmt(s) : "Time's up";
+    el.className = 'big-timer' + (s === 0 ? ' up' : s <= 30 ? ' low' : '');
+    if (T.running && s === 60 && !warned[60]) { warned[60] = 1; say('One minute left.'); buzz(100); }
+    if (T.running && s === 0 && !warned[0]) { warned[0] = 1; T.running = false; T.left = 0; say("Time's up."); buzz([200, 100, 200]); render(); }
+  }, 250);
+}
+function missionTimer(sec) { T = { left: sec, end: 0, running: false }; warned = {}; }
+
+/* ---------- Screens ---------- */
+function setupHtml() {
+  const n = S.names.length, s = S.settings;
+  const seg = (k, opts) => `<div class="seg">${opts.map(([v, l]) => `<button type="button" data-act="set" data-k="${k}" data-v="${v}" aria-pressed="${String(s[k]) === String(v)}">${l}</button>`).join('')}</div>`;
+  return `<div class="center" style="display:grid;gap:8px;margin-top:18px">
+      <p class="kicker">Played in one room · one phone</p>
+      <p class="title">The Traitors</p>
+      <p class="hint">Sit in a circle. The phone goes round for the secret parts; everything else happens out loud.</p>
+    </div>
+    <section class="card">
+      <h2>Players</h2>
+      <p class="hint">Add everyone in the order you're sitting, going round the circle. 4 to 20 players.</p>
+      <ol class="names">${S.names.map((x, i) => `<li><span>${esc(x)}</span><button class="btn sm" data-act="up" data-i="${i}" aria-label="Move ${esc(x)} up" ${i ? '' : 'disabled'}>↑</button><button class="btn sm danger" data-act="del" data-i="${i}" aria-label="Remove ${esc(x)}">✕</button></li>`).join('')}</ol>
+      <form class="add" data-act="add"><input type="text" id="newName" placeholder="Name" maxlength="20" autocomplete="off" enterkeyhint="done"><button class="btn" type="submit">Add</button></form>
+    </section>
+    <section class="card">
+      <h2>Rules</h2>
+      <div class="set"><span>Traitors<small>Auto: 1 for up to 6 players, 2 up to 10, 3 up to 15, then 4</small></span>${seg('traitors', [[0, `Auto${n >= 4 ? ` (${autoTraitors(n)})` : ''}`], [1, '1'], [2, '2'], [3, '3'], [4, '4']])}</div>
+      <div class="set"><span>Missions<small>A group challenge each day that adds gold to the prize pot</small></span>${seg('missions', [[true, 'On'], [false, 'Off']])}</div>
+      <div class="set"><span>Shields<small>The mission's best player is safe from murder that night</small></span>${seg('shields', [[true, 'On'], [false, 'Off']])}</div>
+      <div class="set"><span>Recruiting<small>When a Traitor is banished, the rest may recruit a Faithful</small></span>${seg('recruit', [[true, 'On'], [false, 'Off']])}</div>
+      <div class="set"><span>Final Round Table<small>From this many players left, you can vote to end the game</small></span>${seg('finalAt', [[3, '3'], [4, '4'], [5, '5'], [6, '6']])}</div>
+      <div class="set"><span>Talking time<small>Minutes at each Round Table before the vote</small></span>${seg('talk', [[3, '3'], [5, '5'], [8, '8'], [10, '10']])}</div>
+    </section>
+    <button class="btn primary block" data-act="start" ${n >= 4 && n <= 20 && (s.traitors || autoTraitors(n)) < n / 2 ? '' : 'disabled'}>${n < 4 ? `Add ${4 - n} more player${4 - n === 1 ? '' : 's'}` : n > 20 ? 'At most 20 players' : (s.traitors || autoTraitors(n)) >= n / 2 ? 'Too many Traitors for this many players' : `Start with ${n} players`}</button>
+    <footer class="note"><p><i>The Traitors</i> is a TV format by IDTV. This is an unofficial fan-made party game.</p></footer>`;
+}
+
+function playersHtml() {
+  return `<ul class="list">${S.players.map((p, i) => `<li class="${p.alive ? '' : 'out'}"><b>${nm(i)}</b>${p.alive ? (S.shield === i ? '<span class="tag faithful">🛡 Shield</span>' : '') : `<span class="tag ${p.role}">${p.role === 'traitor' ? 'Traitor' : 'Faithful'}</span><span class="tag out">${p.out.how} ${p.out.how === 'banished' ? 'day' : 'night'} ${p.out.how === 'banished' ? p.out.day : p.out.day - 1}</span>`}</li>`).join('')}</ul>`;
+}
+function statusHtml() {
+  return `<div class="row center hint"><span>${plural(alive().length, 'player')} left</span>·<span>Prize pot <span class="gold">${money(S.pot)}</span></span></div>`;
+}
+
+function phaseHtml() {
+  switch (S.phase) {
+    case 'setup': return setupHtml();
+    case 'dawn': return `<section class="card center">
+        <p class="kicker">Day 1</p><h2>The game begins</h2>
+        <p>Everyone has seen their role. ${plural(S.players.filter(p => p.role === 'traitor').length, 'Traitor')} sit among you.</p>
+        <p class="hint">Nobody is murdered before the first Round Table. Talk, watch, and decide who you trust.</p>
+        <button class="btn primary block" data-act="next">${S.settings.missions ? 'To the first mission' : 'To the Round Table'}</button></section>${statusHtml()}`;
+    case 'mission': {
+      const [txt, sec] = MISSIONS[S.mission.m], m = S.mission;
+      if (m.ok == null) return `<section class="card">
+          <p class="kicker">Day ${S.day} · Mission</p><h2>Today's mission</h2>
+          <p class="mission">${esc(txt)}</p>
+          <p class="hint">Success adds <span class="gold">${money(S.settings.gold)}</span> to the pot. Traitors might quietly make it fail…</p>
+          <div id="clock" class="big-timer">${fmt(timerLeft())}</div>
+          <div class="row center"><button class="btn" data-act="timer">${T.running ? 'Pause' : timerLeft() === sec ? 'Start timer' : timerLeft() ? 'Resume' : 'Restart'}</button><button class="btn sm" data-act="newmission">Different mission</button></div>
+          <div class="row"><button class="btn primary" style="flex:1" data-act="mission" data-v="1">We did it</button><button class="btn" style="flex:1" data-act="mission" data-v="0">We failed</button></div>
+        </section>${statusHtml()}`;
+      if (S.settings.shields) return `<section class="card">
+          <p class="kicker">Day ${S.day} · Shield</p><h2>${m.ok ? `Success: +${money(S.settings.gold)}` : 'Mission failed'}</h2>
+          <p>Who played best in the mission? They win the <b>Shield</b> and can't be murdered tonight. Agree out loud, then tap their name.</p>
+          ${pickHtml(alive(), S.mission.shield)}
+          <button class="btn primary block" data-act="shield">${S.mission.shield != null ? `Give ${nm(S.mission.shield)} the Shield` : 'No Shield today'}</button></section>`;
+      return '';
+    }
+    case 'table': {
+      if (S.tableStep === 'final') return `<section class="card center">
+          <p class="kicker">Day ${S.day} · Final Round Table</p><h2>End the game, or banish again?</h2>
+          <p>Only ${plural(alive().length, 'player')} remain. Talk it over, then everyone votes in secret. It takes <b>every</b> vote to end the game.</p>
+          <p class="hint">End the game with a Traitor still here, and the Traitors take the whole pot.</p>
+          <button class="btn primary block" data-act="endvote">Pass the phone round to vote</button></section>${playersHtml()}`;
+      return `<section class="card">
+          <p class="kicker">Day ${S.day} · Round Table</p><h2>Who is a Traitor?</h2>
+          <p>Accuse, defend, question. When the time's up (or everyone's ready), pass the phone round to vote in secret.</p>
+          <div id="clock" class="big-timer">${fmt(timerLeft())}</div>
+          <div class="row center"><button class="btn" data-act="timer">${T.running ? 'Pause' : timerLeft() === S.settings.talk * 60 ? 'Start talking' : timerLeft() ? 'Resume' : 'Restart'}</button><button class="btn sm" data-act="plus">+1 min</button></div>
+          <button class="btn primary block" data-act="vote">Start the vote</button>
+        </section>${statusHtml()}${playersHtml()}`;
+    }
+    case 'votereveal': {
+      const v = S.vote, shown = v.ballots.slice(0, v.shown), last = shown[shown.length - 1];
+      const t = shown.length ? tally(shown) : null;
+      return `<section class="card">
+          <p class="kicker">Day ${S.day} · ${v.round > 1 ? 'Revote' : 'The votes'}</p>
+          ${last ? `<div class="ballot"><span>${nm(last[0])} votes for</span><span class="slate">${nm(last[1])}</span></div>` : `<p>Everyone has voted. Each player in turn: say who you voted for and why, then tap to show it.</p>`}
+          ${t ? `<div class="tally">${Object.keys(t.counts).sort((a, b) => t.counts[b] - t.counts[a]).map(k => `<div><span>${nm(+k)}</span><span class="b" style="width:${t.counts[k] / v.ballots.length * 100}%"></span><span>${t.counts[k]}</span></div>`).join('')}</div>` : ''}
+          ${v.shown < v.ballots.length
+            ? `<button class="btn primary block" data-act="showvote">Show ${nm(v.ballots[v.shown][0])}'s vote</button><p class="hint center">${v.ballots.length - v.shown} to go</p>`
+            : `<button class="btn primary block" data-act="countvotes">Count the votes</button>`}
+        </section>`;
+    }
+    case 'tie': return `<section class="card center">
+        <p class="kicker">Day ${S.day} · Tie</p><h2>A tie</h2>
+        <p>${S.tie.map(nm).join(' and ')} have the most votes. Everyone else votes again, choosing only between them. If it's still tied, the draw decides.</p>
+        <button class="btn primary block" data-act="revote">Pass the phone round to revote</button></section>`;
+    case 'banish': {
+      const b = S.ban, i = b.who, t = P(i).role === 'traitor';
+      if (!b.shown) return `<section class="card center">
+          <p class="kicker">Day ${S.day} · Banished</p>
+          ${b.drawn ? '<p class="hint">Still tied: the draw chose.</p>' : ''}
+          <p class="big-news bad">${nm(i)}</p>
+          <p>You have been banished. Stand up and tell everyone: <b>"I am…"</b></p>
+          <button class="btn primary block" data-act="reveal">Show who ${nm(i)} really is</button></section>`;
+      return `<div class="role ${t ? 'traitor' : 'faithful'}"><p class="kicker" style="color:#fff;opacity:.8">${nm(i)} was</p><div class="rname">${t ? 'a Traitor' : 'Faithful'}</div>
+          <p>${t ? (traitorsAlive().length ? `${plural(traitorsAlive().length, 'Traitor')} still hide${traitorsAlive().length === 1 ? 's' : ''} among you.` : 'That was the last Traitor!') : 'The Traitors are still among you.'}</p></div>
+        <button class="btn primary block" data-act="afterban">Continue</button>`;
+    }
+    case 'endreveal': {
+      const e = S.endVote, shown = e.ballots.slice(0, e.shown), ends = shown.filter(b => b[1] === 1).length;
+      const done = e.shown >= e.ballots.length, all = done && e.ballots.every(b => b[1] === 1);
+      return `<section class="card">
+          <p class="kicker">Day ${S.day} · Final vote</p><h2>End or banish again?</h2>
+          <ul class="list">${shown.map(([v, c]) => `<li class="new"><b>${nm(v)}</b><span class="tag ${c ? 'faithful' : 'traitor'}">${c ? 'End the game' : 'Banish again'}</span></li>`).join('')}</ul>
+          ${!done ? `<button class="btn primary block" data-act="showend">Show ${nm(e.ballots[e.shown][0])}'s vote</button>`
+            : all ? `<p class="big-news">Everyone voted to end</p><button class="btn primary block" data-act="finish">Reveal who is still here</button>`
+            : `<p class="big-news">${plural(shown.length - ends, 'vote')} to banish again</p><button class="btn primary block" data-act="banishagain">Back to the Round Table</button>`}
+        </section>`;
+    }
+    case 'dusk': return `<section class="card center">
+        <p class="kicker">Night ${S.day}</p><h2>Night falls</h2>
+        <p>Everyone gets a secret turn with the phone, in seating order. ${S.recruitNext ? '<b>Tonight the Traitors may recruit a Faithful.</b>' : 'The Traitors choose their victim.'}</p>
+        <p class="hint">Every turn looks the same and lasts the same time, so watching won't give anyone away.</p>
+        <button class="btn primary block" data-act="night">Begin the night</button></section>${statusHtml()}`;
+    case 'breakfast': {
+      const b = S.bf, done = b.shown >= b.order.length;
+      const arrived = b.order.slice(0, b.shown);
+      const r = S.night.result;
+      return `<section class="card">
+          <p class="kicker">Day ${S.day} · Breakfast</p><h2>Who comes to breakfast?</h2>
+          <ul class="list">${arrived.map((i, k) => `<li class="${k === arrived.length - 1 ? 'new' : ''}"><b>${nm(i)}</b><span class="hint">arrives</span></li>`).join('')}</ul>
+          ${!done ? `<div class="row"><button class="btn primary" style="flex:1" data-act="arrive">Next to arrive</button><button class="btn" data-act="arriveall">Everyone</button></div>`
+            : b.victim != null ? `<p class="big-news bad">${nm(b.victim)} never came down.</p><p class="center">${nm(b.victim)} was murdered in the night. They were Faithful.</p>`
+            : `<p class="big-news">Everyone is here!</p><p class="center">${r === 'saved' ? 'The Traitors struck, but their victim was protected by the Shield.' : r === 'recruited' ? 'Nobody was murdered last night…' : 'Nobody was murdered last night.'}</p>`}
+          ${done ? `<button class="btn primary block" data-act="afterbf">Continue</button>` : ''}
+        </section>${statusHtml()}`;
+    }
+    case 'over': return overHtml();
+  }
+  return '';
+}
+
+function overHtml() {
+  const w = S.winner, winners = alive().filter(i => (P(i).role === 'traitor') === (w === 'traitors'));
+  const share = winners.length ? Math.floor(S.pot / winners.length) : 0;
+  const hist = S.days.map(d => {
+    const bits = [];
+    if (d.murdered != null) bits.push(`<p>☠ ${nm(d.murdered)} was murdered in the night.</p>`);
+    if (d.mission) bits.push(`<p>⚔ Mission ${d.mission.ok ? `succeeded (+${money(S.settings.gold)})` : 'failed'}${d.shield != null ? `; ${nm(d.shield)} won the Shield` : ''}.</p>`);
+    d.votes.forEach(v => { bits.push(`<p>🗳 ${v.round > 1 ? 'Revote' : 'Votes'}: ${v.ballots.map(([a, b]) => `${nm(a)}→${nm(b)}`).join(', ')}</p>`); });
+    if (d.endVotes) bits.push(`<p>⚖ End-game vote: ${d.endVotes.map(([a, c]) => `${nm(a)} ${c ? 'end' : 'banish'}`).join(', ')}</p>`);
+    if (d.banished) bits.push(`<p>🚪 ${nm(d.banished.who)} was banished: ${d.banished.role === 'traitor' ? '<b style="color:var(--traitor)">Traitor</b>' : 'Faithful'}.</p>`);
+    const sus = Object.keys(d.suspects);
+    if (sus.length) bits.push(`<p class="hint">Night ${d.day}, the Faithful suspected: ${sus.map(k => `${nm(+k)}→${nm(d.suspects[k])}`).join(', ')}</p>`);
+    if (d.recruited != null) bits.push(`<p>🗝 ${nm(d.recruited)} accepted the Traitors' offer.</p>`);
+    if (d.refused != null) bits.push(`<p>🗝 ${nm(d.refused)} refused to join the Traitors.</p>`);
+    return bits.length ? `<div class="hist"><h3>Day ${d.day}</h3>${bits.join('')}</div>` : '';
+  }).join('');
+  return `<div class="banner ${w}"><p class="kicker" style="color:#fff;opacity:.85">Game over</p><p class="title">${w === 'traitors' ? 'The Traitors win' : 'The Faithful win'}</p>
+      <p>${esc(S.winWhy || '')}</p>
+      <p>${winners.length ? `${winners.map(nm).join(', ')} ${winners.length === 1 ? 'takes' : 'share'} <b>${money(S.pot)}</b>${winners.length > 1 ? ` (${money(share)} each)` : ''}.` : ''}</p></div>
+    <section class="card"><h2>Who was who</h2>
+      <ul class="list">${S.players.map((p, i) => `<li class="${p.alive ? '' : 'out'}"><b>${nm(i)}</b>${p.first !== p.role ? '<span class="hint">recruited</span>' : ''}<span class="tag ${p.role}">${p.role === 'traitor' ? 'Traitor' : 'Faithful'}</span>${p.alive ? '' : `<span class="tag out">${p.out.how}</span>`}</li>`).join('')}</ul></section>
+    <section class="card"><h2>How it happened</h2>${hist || '<p class="hint">Nothing happened.</p>'}</section>
+    <div class="row"><button class="btn primary" style="flex:1" data-act="again">Play again (same players)</button><button class="btn" data-act="newgame">New players</button></div>`;
+}
+
+function phaseLabel() {
+  if (S.phase === 'setup') return 'Setup';
+  if (S.phase === 'over') return 'Game over';
+  if (S.phase === 'reveal') return 'Roles';
+  if (S.phase === 'night' || S.phase === 'dusk') return `Night ${S.day}`;
+  return `Day ${S.day}`;
+}
+
+/* ---------- Menu ---------- */
+let menu = null;
+function menuHtml() {
+  if (menu === 'rules') return `<div class="row"><h2>How to play</h2><button class="btn sm" data-act="menu">‹ Back</button><button class="btn sm" data-act="close" aria-label="Close">✕</button></div>
+    <ul>
+      <li>Everyone sits in a circle with one phone. At the start, the phone goes round and each player secretly learns if they are <b>Faithful</b> or a <b>Traitor</b>. Traitors also learn who the other Traitors are.</li>
+      <li><b>Missions</b> (optional): a quick group challenge. Success adds gold to the prize pot. The best player can win the <b>Shield</b>, which protects them from murder that night.</li>
+      <li><b>Round Table</b>: talk, accuse and defend. Then the phone goes round and everyone secretly votes to banish someone. Votes are revealed one at a time. The banished player reveals whether they were Faithful or a Traitor.</li>
+      <li><b>Night</b>: the phone goes round again. Traitors choose a Faithful to murder; everyone else picks who they suspect, so all turns look alike. At breakfast, players "arrive" one by one, and you find out who's missing.</li>
+      <li><b>Recruiting</b>: after a Traitor is banished, the remaining Traitors may instead make a Faithful an offer: join them, or be murdered.</li>
+      <li><b>The end</b>: once few enough players remain, each Round Table starts with a secret vote to end the game. If everyone votes to end, the game is over: any Traitor still standing takes the whole pot. Otherwise, banish again.</li>
+      <li>The Faithful also win as soon as every Traitor is gone. The Traitors win straight away if they equal the Faithful in number.</li>
+    </ul>`;
+  const inGame = S.phase !== 'setup' && S.phase !== 'over';
+  return `<div class="row"><h2>Menu</h2><button class="btn sm" data-act="close" aria-label="Close">✕</button></div>
+    <button class="btn" data-act="rules">How to play</button>
+    ${inGame ? `<h3>Players</h3>${playersHtml()}<p class="hint">Prize pot: <span class="gold">${money(S.pot)}</span></p>` : ''}
+    ${inGame && !S.pass ? `<button class="btn" data-act="peekmenu">Someone forgot their role</button>` : ''}
+    ${menu === 'peek' ? `<p>Who needs to check? Only they should look at the next screen.</p>${pickHtml(alive(), null)}` : ''}
+    <h3>Sound</h3>
+    <div class="row"><button class="btn sm" data-act="voice" aria-pressed="${prefs.voice}">Narrator voice: ${prefs.voice ? 'on' : 'off'}</button>${navigator.vibrate ? `<button class="btn sm" data-act="buzz" aria-pressed="${prefs.buzz}">Buzz: ${prefs.buzz ? 'on' : 'off'}</button>` : ''}</div>
+    <p class="hint">Text size, light or dark, undo and saving the game to a file are under ⚙.</p>
+    ${inGame ? `<h3>Game</h3><button class="btn danger" data-act="quit">End this game and start again</button>` : ''}`;
+}
+function renderMenu() {
+  $('#sheet').innerHTML = menu ? `<div class="sheet-back" data-act="backdrop"><div class="sheet" role="dialog" aria-modal="true" aria-label="Menu">${menuHtml()}</div></div>` : '';
+}
+
+/* ---------- Draw ---------- */
+function render() {
+  $('#phase').textContent = phaseLabel();
+  $('#app').innerHTML = S.pass ? passHtml() : phaseHtml();
+  renderMenu();
+  if ($('#clock')) runTick(); else clearInterval(tick);
+}
+
+/* ---------- Taps ---------- */
+document.addEventListener('submit', e => {
+  if (e.target.dataset.act !== 'add') return;
+  e.preventDefault();
+  const v = $('#newName').value.trim().replace(/\s+/g, ' ');
+  if (!v) return;
+  if (S.names.some(x => x.toLowerCase() === v.toLowerCase())) { $('#newName').setCustomValidity('That name is already in.'); $('#newName').reportValidity(); return; }
+  S.names.push(v); save(); render();
+  $('#newName').focus();
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'newName') e.target.setCustomValidity('');
+  if (e.target.dataset.act === 'note' && S.pass) S.pass.note = e.target.value;
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b || b.tagName === 'FORM' || b.tagName === 'TEXTAREA') return;
+  const a = b.dataset.act;
+  if (a === 'backdrop') { if (e.target === b) { menu = null; renderMenu(); } return; }
+  switch (a) {
+    case 'menu': menu = 'main'; return renderMenu();
+    case 'rules': menu = 'rules'; return renderMenu();
+    case 'close': menu = null; return renderMenu();
+    case 'voice': prefs.voice = !prefs.voice; savePrefs(); if (prefs.voice) say('The narrator is on.'); else if (window.speechSynthesis) speechSynthesis.cancel(); return renderMenu();
+    case 'buzz': prefs.buzz = !prefs.buzz; savePrefs(); buzz(60); return renderMenu();
+    case 'peekmenu': menu = 'peek'; return renderMenu();
+    case 'quit': if (confirm('End this game? The players stay; roles are dealt again.')) { S = fresh(S.names, S.settings); menu = null; save(); render(); } return;
+    case 'choose':
+      if (menu === 'peek') { const i = +b.dataset.v; menu = null; S.peekFrom = S.phase; S.pass = newPass('peek', [i]); save(); return render(); }
+      if (S.phase === 'mission') { S.mission.shield = S.mission.shield === +b.dataset.v ? null : +b.dataset.v; return render(); }
+      if (S.pass && S.pass.open) { S.pass.choice = +b.dataset.v; const ta = $('#note'), note = ta && ta.value; render(); if (note != null && $('#note')) $('#note').value = note; }
+      return;
+    case 'open': return openTurn();
+    case 'done': if (!turnLocked()) doneTurn(); return;
+    case 'set': { const k = b.dataset.k, v = b.dataset.v; S.settings[k] = v === 'true' ? true : v === 'false' ? false : +v; break; }
+    case 'up': { const i = +b.dataset.i; [S.names[i - 1], S.names[i]] = [S.names[i], S.names[i - 1]]; break; }
+    case 'del': S.names.splice(+b.dataset.i, 1); break;
+    case 'start': start(); break;
+    case 'next': goMissionOrTable(); if (S.phase === 'mission') missionTimer(MISSIONS[S.mission.m][1]); break;
+    case 'newmission': { const left = MISSIONS.map((m, i) => i).filter(i => !S.usedMissions.includes(i)); const m = pick(left.length ? left : MISSIONS.map((m, i) => i)); S.usedMissions.push(m); S.mission.m = m; missionTimer(MISSIONS[m][1]); say(MISSIONS[m][0]); break; }
+    case 'timer':
+      if (T.running) { T.left = timerLeft(); T.running = false; }
+      else { if (!T.left) { T.left = S.phase === 'mission' ? MISSIONS[S.mission.m][1] : S.settings.talk * 60; } warned = {}; T.end = Date.now() + T.left * 1000; T.running = true; }
+      break;
+    case 'plus': if (T.running) T.end += 60000; else T.left += 60; warned = {}; break;
+    case 'mission': {
+      const ok = b.dataset.v === '1';
+      S.mission.ok = ok; if (ok) S.pot += S.settings.gold;
+      today().mission = { m: S.mission.m, ok };
+      say(ok ? `Mission complete. ${money(S.settings.gold)} goes into the pot.` : 'The mission failed. No gold today.');
+      T.running = false;
+      if (!S.settings.shields) toTable();
+      break;
+    }
+    case 'shield': S.shield = S.mission.shield != null ? S.mission.shield : null; today().shield = S.shield; if (S.shield != null) say(`${P(S.shield).name} wins the Shield.`); toTable(); break;
+    case 'vote': T.running = false; startVote(1, null); break;
+    case 'revote': startVote(2, S.tie); break;
+    case 'showvote': { const v = S.vote, [a, t] = v.ballots[v.shown]; v.shown++; say(`${P(a).name} votes for ${P(t).name}.`); break; }
+    case 'countvotes': afterVotes(); break;
+    case 'reveal': revealBanished(); break;
+    case 'afterban': afterBanish(); break;
+    case 'endvote': S.pass = newPass('endvote', alive()); say(`Pass the phone to ${P(alive()[0]).name}.`); break;
+    case 'showend': { const e2 = S.endVote, [a, c] = e2.ballots[e2.shown]; e2.shown++; say(`${P(a).name}: ${c ? 'end the game' : 'banish again'}.`); break; }
+    case 'finish': today().endVotes = S.endVote.ballots; endGame(traitorsAlive().length ? 'traitors' : 'faithful', traitorsAlive().length ? 'The game was ended with a Traitor still at the table.' : 'Everyone left standing was Faithful.'); break;
+    case 'banishagain': today().endVotes = S.endVote.ballots; S.tableStep = 'talk'; S.phase = 'table'; resetTimer(); say('Then the Round Table must banish again.'); break;
+    case 'night': startNight(); break;
+    case 'arrive': { const bf = S.bf; const i = bf.order[bf.shown++]; say(`${P(i).name}.`); if (bf.shown >= bf.order.length) announce(); break; }
+    case 'arriveall': S.bf.shown = S.bf.order.length; announce(); break;
+    case 'afterbf': afterBreakfast(); if (S.phase === 'mission') missionTimer(MISSIONS[S.mission.m][1]); break;
+    case 'again': S = fresh(S.players.map(p => p.name), S.settings); start(); break;
+    case 'newgame': S = fresh([], S.settings); break;
+    default: return;
+  }
+  save(); render();
+});
+function announce() {
+  const b = S.bf;
+  if (b.victim != null) { say(`${P(b.victim).name} never came down to breakfast. They were murdered in the night.`); buzz(250); }
+  else say(S.night.result === 'saved' ? 'Everyone is here. The Shield saved a life last night.' : 'Everyone is here. Nobody was murdered last night.');
+}
+
+if (S.phase === 'table') resetTimer();
+if (S.phase === 'mission' && S.mission) missionTimer(MISSIONS[S.mission.m][1]);
+render();
+</script>
+</body>
+</html>
