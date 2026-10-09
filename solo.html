@@ -2008,6 +2008,8 @@ function panelCard(id) {
   const shared = G.pub.filter(e => e.by === id);
   const hist = new Set(q.claimHist).size > 1 ? `<p class="hint">Earlier claims: ${q.claimHist.slice(0, -1).map(esc).join(', ')}</p>` : '';
   const canNom = !G.vote && m.alive && !d.nominators.includes(G.me) && !d.nominees.includes(id);
+  // Say why you can't nominate them, rather than just leaving the button out
+  const noNom = G.vote ? '' : !m.alive ? "Dead players can't nominate." : d.nominators.includes(G.me) ? `You've already nominated today (${nm(d.nominees[d.nominators.indexOf(G.me)])}). Each player can nominate once a day: tap <b>Let the town nominate</b> to see if someone else will.` : d.nominees.includes(id) ? `${isMe ? "You've" : esc(q.name) + ' has'} already been nominated today. Each player can be nominated once a day.` : '';
   const canShoot = !G.vote && m.alive && !G.myShot && !isMe;
   const askBtns = isMe ? '' : `<h3>Ask ${esc(q.name)}</h3><div class="row">
       <button class="btn sm" data-act="ask" data-q="role" data-id="${id}">What are you?</button>
@@ -2028,6 +2030,7 @@ function panelCard(id) {
     <div class="row">
       ${canNom && !isMe ? `<button class="btn primary sm" data-act="nom-open" data-id="${id}" aria-pressed="${U.nomForm === id}">Nominate ${esc(q.name)}…</button>` : ''}
       ${canNom && isMe ? `<button class="btn sm" data-act="nominate" data-id="${id}">Nominate yourself</button>` : ''}
+      ${noNom ? `<p class="hint" style="flex-basis:100%">${noNom}</p>` : ''}
       ${canShoot ? `<button class="btn sm" data-act="shoot" data-id="${id}">Slayer shot at ${esc(q.name)}</button>` : ''}
       <button class="btn sm" data-act="seat" data-id="${id}">Close</button>
     </div>
@@ -2292,7 +2295,13 @@ function whatNow() {
   let t;
   if (reqs.length) t = `<b>${list(reqs.map(r => esc(P(r.by).name)))}</b> ${reqs.length === 1 ? 'wants' : 'want'} a private word: answer above.`;
   else if (U.confirmEnd) t = 'Confirm below to end the day.';
-  else if (d.block != null) t = `<b>${nm(d.block)}</b> ${d.block === G.me ? 'are' : 'is'} on the block. Nominate someone more suspicious, or <b>End the day</b> to execute ${d.block === G.me ? 'you' : 'them'}.`;
+  else if (d.block != null) {
+    const used = d.nominators.includes(G.me) || !m.alive;
+    const onMe = d.block === G.me;
+    t = `<b>${Nm(d.block)}</b> ${onMe ? 'are' : 'is'} on the block with ${d.highest} votes. ` + (used
+      ? `You can't nominate again today, but you can still argue your case: accuse someone from their seat, then tap <b>Let the town nominate</b> so someone else nominates them. Someone needs more than ${d.highest} votes to replace ${onMe ? 'you' : 'them'}.`
+      : `To take ${onMe ? 'yourself' : 'them'} off the block, nominate someone more suspicious from their seat: they need more than ${d.highest} votes. Or <b>End the day</b> to execute ${onMe ? 'you' : 'them'}.`);
+  }
   else if (d.quiet) t = 'Nobody else wants to nominate. Nominate someone yourself, or <b>End the day</b>.';
   else if (G.n === 1 && !m.claim && !d.nominees.length) t = `The bots have said who they are on the <b>Talk</b> tab. Tap a seat to question someone, then claim your character${isGood(m) ? '' : ' (your bluff)'} on Talk → Say in town.`;
   else if (!d.nominees.length) t = 'Read the <b>Talk</b> tab, question anyone you doubt from their seat, then nominate them or tap <b>Let the town nominate</b>.';
