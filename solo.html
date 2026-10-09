@@ -253,6 +253,26 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .tok.lab-evil, button.tok.seat.lab-evil { border-color: var(--evil); border-style: dashed; border-width: 3px; }
 .tok.lab-good, button.tok.seat.lab-good { border-color: var(--good); border-style: dashed; border-width: 3px; }
 .tok.mate, button.tok.seat.mate { box-shadow: 0 0 0 3px color-mix(in srgb, var(--evil) 55%, transparent), 0 3px 10px rgba(0,0,0,.35); }
+/* Day tabs and the fixed action bar */
+.tabs { display: flex; gap: 4px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 57px); z-index: 9; background: var(--bg); margin: 0 -16px; padding: 6px 16px; border-bottom: 1px solid var(--line); }
+.tabs button { flex: 1; border: 0; background: none; font-weight: 800; padding: 8px 4px; min-height: 44px; border-radius: 10px; color: var(--muted); position: relative; }
+.tabs button[aria-selected="true"] { color: var(--brass); background: var(--surface); box-shadow: inset 0 -3px 0 var(--brass); }
+.tabs .badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--evil); color: #fff; font-size: .7rem; margin-left: 4px; vertical-align: 2px; }
+.actionbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--bg); border-top: 1px solid var(--line); padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 8px; justify-content: center; box-shadow: 0 -6px 16px rgba(0,0,0,.18); }
+.actionbar .btn { flex: 1; max-width: 260px; }
+body.has-actionbar .wrap { padding-bottom: 96px; }
+.whatnow { border-radius: 12px; padding: 10px 14px; border: 1px dashed var(--brass); background: color-mix(in srgb, var(--brass) 10%, var(--surface)); }
+.whatnow b { color: var(--brass); }
+.chips-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.chip { border: 1px solid var(--line); background: var(--surface-2); border-radius: 99px; padding: 4px 12px; font-weight: 700; font-size: .85rem; white-space: nowrap; min-height: 34px; }
+.chip[aria-pressed="true"] { background: var(--brass); color: #1a1408; border-color: var(--brass); }
+.say .who-btn { border: 0; background: none; padding: 0; font: inherit; font-weight: 800; color: var(--brass); margin-right: 4px; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+#player-panel, #talk-end { scroll-margin-top: 120px; }
+/* After-game review */
+.review-row { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: baseline; }
+.ok-txt { color: var(--ok); font-weight: 800; } .bad-txt { color: var(--evil); font-weight: 800; }
+.bar-track { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.bar-fill { height: 100%; background: var(--evil); }
 /* Seats you can tap to talk to: quieter than the glowing turn tokens */
 button.tok.seat { animation: none; border-color: var(--line); }
 button.tok.seat.picked { border-color: var(--brass); }
@@ -318,7 +338,7 @@ if (G) {
   G.players.forEach(p => { if (p.bot) { p.bot.heardFacts = p.bot.heardFacts || []; } });
 }
 const PREFS_KEY = 'clocktower-solo-prefs';
-let prefs = { text: 1, coach: false, n: 8, team: 'random', name: '' };
+let prefs = { text: 1, coach: false, n: 8, team: 'random', name: '', diff: 'normal' };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREFS_KEY)) || {}); } catch (e) {}
 function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {} applyPrefs(); }
 function applyPrefs() { document.documentElement.style.fontSize = ''; }  // text size is now in the shared ⚙ settings
@@ -707,6 +727,7 @@ function finishVote() {
   }
   hands = hands.filter(id => { const q = P(id); return !(id !== G.me && q.role === 'Butler' && q.master === G.me && !v.mine); });
   hands.forEach(id => { const q = P(id); if (!q.alive) q.ghost = false; });
+  if (v.order.includes(G.me)) (G.myVotes = G.myVotes || []).push({ day: G.n, a: v.a, b: v.b, yes: !!v.mine });
   const k = hands.length;
   let res;
   if (k >= need && k > d.highest) { d.block = v.b; d.highest = k; res = `${Nm(v.b)} ${v.b === G.me ? 'are' : 'is'} on the block.`; }
@@ -753,6 +774,17 @@ function startDay() {
   teamApproach();
   morningTalk();
   if (G.stage === 'day') botRequests();
+  trackDay();
+}
+// What your own info said about the real Demon each morning (for the review at the end)
+function trackDay() {
+  const imp = alive().find(q => q.role === 'Imp');
+  if (!imp) return;
+  G.track = G.track || [];
+  const mine = coachKey() === G.me, B = belief(mine ? G.me : 'town');
+  const cands = alive().filter(q => q.id !== G.me || !mine);
+  const top = topBy(cands, q => B.pd[q.id]);
+  G.track.push({ day: G.n, demon: imp.id, pd: B.pd[imp.id], top: top ? top.id : null, topPd: top ? B.pd[top.id] : 0, view: mine ? 'you' : 'town' });
 }
 
 /* ---------- What each player has learned, as data ---------- */
@@ -883,6 +915,9 @@ function computeBelief(key, pcons) {
     if (p.bot) {
       p.bot.heardFacts.forEach(f => { const fn = factFn(f); if (fn) cons = cons.concat([{ src: G.me, fn }]); });
       if (p.bot.heardSus != null) cons = cons.concat([{ src: G.me, fn: ev => ev[p.bot.heardSus] ? 1 : 0.75 }]);
+      // Difficulty: a daily hunch about one player, mostly right when the good bots are sharp, mostly wrong when dull
+      const g = isGood(p) ? hunch(p) : null;
+      if (g) cons = cons.concat([{ fn: ev => (!!ev[g.x]) === g.evil ? 1 : 0.35 }]);
       // You told a good bot, privately, that you are its own character
       if (isGood(p) && p.bot.heard && p.bot.heard.roles.length === 1 && p.bot.heard.roles[0] === believed(p)) cons = cons.concat([{ fn: ev => ev[G.me] ? 1 : 0.15 }]);
     }
@@ -919,8 +954,24 @@ function belief(key) {
 // How likely to be evil, weighted towards the Demon (executing a Minion helps, but less)
 const susOf = (B, x) => B.pd[x] + 0.35 * (B.pe[x] - B.pd[x]);
 // Each bot has its own hunches, which change a little each day
+const DIFF = () => (G && G.opts && G.opts.diff) || 'normal';
+// How sharp the good bots are: on your side when you're good, against you when you're evil
+const SHARP = () => { const d = DIFF(); if (d === 'normal') return 'normal'; return (d === 'easy') === isGood(me()) ? 'sharp' : 'dull'; };
+function hunch(p) {
+  const sharp = SHARP();
+  if (sharp === 'normal') return null;
+  if (!p.bot.hunch || p.bot.hunch.day !== G.n) {
+    const c = G.players.filter(q => q.id !== p.id);
+    const x = pick(c), right = chance(sharp === 'sharp' ? 0.8 : 0.25);
+    p.bot.hunch = { day: G.n, x: x.id, evil: right ? !isGood(x) : isGood(x) };
+  }
+  return p.bot.hunch;
+}
+// Careless evil bots only on Easy as a good player (as an evil player they're your team)
+const SLOPPY_EVIL = () => DIFF() === 'easy' && isGood(me());
 function bias(p, x) {
-  if (!p.bot.bias || p.bot.bias.day !== G.n) { p.bot.bias = { day: G.n, v: G.players.map(() => (Math.random() - 0.5) * 0.5) }; }
+  const spread = { sharp: 0.25, normal: 0.5, dull: 0.8 }[SHARP()];
+  if (!p.bot.bias || p.bot.bias.day !== G.n) { p.bot.bias = { day: G.n, v: G.players.map(() => (Math.random() - 0.5) * spread) }; }
   return p.bot.bias.v[x];
 }
 // How suspicious x looks to p, compared with an average player (1 = average)
@@ -956,6 +1007,8 @@ function setClaim(p, role) {
 }
 // The character an evil bot says it is, avoiding one somebody else has already claimed
 function validBluff(p) {
+  // On Easy, evil bots bluff carelessly and sometimes claim a character someone already has
+  if (SLOPPY_EVIL() && !p.bot.bluff && chance(0.4)) return pick(TF);
   const taken = new Set(G.players.filter(q => q.id !== p.id && q.claim).map(q => q.claim));
   if (p.bot.bluff && !taken.has(p.bot.bluff)) return p.bot.bluff;
   const given = (p.bot.gave || []).filter(r => !taken.has(r));
@@ -1052,7 +1105,8 @@ function morningTalk() {
   order.forEach(p => { if (!isGood(p) && p.claim) ensureFakes(p); });
   order.forEach(p => {
     if (!p.claim) {
-      let open = p.bot.open * (HIDDEN.includes(isGood(p) ? believed(p) : 'x') ? 0.5 : 1);
+      let open = p.bot.open * (HIDDEN.includes(isGood(p) ? believed(p) : 'x') ? (SHARP() === 'dull' ? 0.3 : 0.5) : 1);
+      if (SHARP() === 'sharp' && isGood(p)) open = 1;
       if (believed(p) === 'Saint' && isGood(p)) open = 1;
       if (p.bot.waitBluff && G.n === 1) return;
       if (G.n >= 2 || chance(open) || (!p.alive && chance(0.6))) botClaim(p);
@@ -1531,6 +1585,7 @@ function impTarget(p) {
   const req = p.bot.killReq;
   if (req && req.n === G.n && P(req.x).alive) return req.x;
   const team = knownTeam(p);
+  if (SLOPPY_EVIL() && chance(0.6)) { const c = alive().filter(q => q.id !== p.id && !team.includes(q.id)); if (c.length) return pick(c).id; }
   const cands = alive().filter(q => q.id !== p.id && !team.includes(q.id));
   if (!cands.length) return p.id;
   const accused = id => G.opinions.filter(o => o.by === id && o.x === p.id && o.kind !== 'good').length;
@@ -1541,6 +1596,7 @@ function poisonTarget(p) {
   const req = p.bot.poisonReq;
   if (req && req.n === G.n && P(req.x).alive) return req.x;
   const team = knownTeam(p);
+  if (SLOPPY_EVIL() && chance(0.6)) { const c = alive().filter(q => q.id !== p.id && !team.includes(q.id)); if (c.length) return pick(c).id; }
   const cands = alive().filter(q => q.id !== p.id && !team.includes(q.id));
   if (!cands.length) return p.id;
   return topBy(cands, q => (q.claim && INFO_ROLES.concat('Slayer').includes(q.claim) ? Math.max(1, ROLE_VALUE[q.claim]) : 0.5) + Math.random() * 1.5).id;
@@ -1688,6 +1744,7 @@ function howView() {
       <li>At dawn you read what you learned and who died.</li>
     </ul>
     <h3>Each day</h3>
+    <p>The day has four tabs: <b>Town</b> (the table, private requests, the player you're talking to and the last vote), <b>Talk</b> (everything said, with a filter for one player, and Say in town), <b>Notes</b> (the claim matrix and Claims and info) and <b>Me</b> (your character and what you've learned). Red numbers show what's new. <b>Let the town nominate</b> and <b>End the day</b> stay at the bottom of the screen, and a hint on the Town tab suggests what to do next. Tap a name in the talk to jump to that player.</p>
     <ul class="plain">
       <li><b>Town talk:</b> the bots claim characters, share info and say who they suspect. Tap any seat to ask that player what they are, what they've learned, who they suspect or who they trust, or to say you suspect or trust them.</li>
       <li><b>Private requests:</b> each day a bot or two asks you for a private word (✉ on their seat): a three for three (they go first), what you are, a swap of info, or who you think the Demon is. Answer from the Private requests card at the top, or say "Not now" (they'll trust you a little less that day).</li>
@@ -1712,7 +1769,10 @@ function howView() {
     </ul>
     <h3>Coach</h3>
     <p>Turn on <b>Coach</b> in the Menu to see, on each seat, how likely that player is to be the Demon given everything you know. If you're evil and know your team, it shows how suspicious the town finds each player instead. Leave it off to practise working it out yourself.</p>
-    <p>At the end you see the whole Grimoire and the Storyteller's log, including every bluff and lie the bots told.</p>
+    <h3>Difficulty</h3>
+    <p>Difficulty works for whichever side you're on. <b>Easy</b> as a good player: the good bots all claim on day 1 and read the evidence well, and the evil bots bluff carelessly and pick targets at random. <b>Easy</b> as an evil player: the good bots hide their claims and misread the evidence. <b>Hard</b> is the other way round. <b>Normal</b> is a fair game.</p>
+    <h3>After the game</h3>
+    <p><b>How it went</b> shows the evil team with every bluff and piece of made-up info, how likely your own info made the real Demon each morning, each execution, whether each of your votes helped your team, how many of your reads and labels were right, and any false info from the Drunk or the Poisoner. Then the whole Grimoire and the Storyteller's log.</p>
     <p class="hint">Games are saved in this browser only. Nothing is uploaded.</p>
     <div class="row"><button class="btn" data-act="home">Back</button></div>
   </section>`;
@@ -1728,6 +1788,8 @@ function setupView() {
       </label>
       <p class="hint">${breakdown(prefs.n)}</p>
       <div class="setting"><span>Your team</span><div class="seg">${[['random', 'Random'], ['good', 'Good'], ['evil', 'Evil']].map(([v, l]) => `<button data-act="team" data-v="${v}" aria-pressed="${prefs.team === v}">${l}</button>`).join('')}</div></div>
+      <div class="setting"><span>Difficulty</span><div class="seg">${[['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']].map(([v, l]) => `<button data-act="diff" data-v="${v}" aria-pressed="${(prefs.diff || 'normal') === v}">${l}</button>`).join('')}</div></div>
+      <p class="hint">${{ easy: 'Easy. If you\'re good: the good bots all say what they are on day 1 and read the evidence well, and the evil bots bluff carelessly and pick targets at random. If you\'re evil: the good bots hide their claims and misread the evidence.', normal: 'Normal: a fair game. Some good bots hold back their claim for a day; evil bots use the Demon\'s bluffs and frame good players.', hard: 'Hard. If you\'re good: the good bots hide their claims and misread the evidence more often. If you\'re evil: the good bots all claim on day 1 and read the evidence well.' }[prefs.diff || 'normal']}</p>
     </div>
     <div class="row">
       <button class="btn primary" data-act="start">Deal and start night 1</button>
@@ -1751,13 +1813,13 @@ function tableHtml(seat, mid) {
   }).join('');
   return `<div class="table" style="--d:${d.toFixed(2)}cqw;--fs:${(d * 0.2).toFixed(2)}cqw">${toks}<div class="table-mid">${mid}</div></div>`;
 }
-function myCard() {
+function myCard(open) {
   const p = me();
   const hist = G.info[p.id].map(e => {
     const lines = e.lines.filter(l => !l.startsWith('<div class="role-card'));
     return lines.length ? `<div><div class="hist-when">${e.when}</div>${infoLines(lines)}</div>` : '';
   }).join('');
-  return `<section class="card"><details ${G.stage === 'day' ? '' : 'open'}><summary>You: ${esc(p.name)}, the ${esc(believed(p))}${p.alive ? '' : ' (dead)'}</summary>
+  return `<section class="card"><details ${G.stage === 'day' && !open ? '' : 'open'}><summary>You: ${esc(p.name)}, the ${esc(believed(p))}${p.alive ? '' : ' (dead)'}</summary>
     <div class="hist">${roleCard(believed(p))}
     ${p.role === 'Butler' && p.master != null ? `<div class="info">Your master is <b>${nm(p.master)}</b>. You may only vote if they vote too.</div>` : ''}
     ${hist || '<p class="hint">Nothing learned yet.</p>'}</div></details></section>`;
@@ -1868,7 +1930,7 @@ function panelCard(id) {
     ${U.sayForm && U.sayForm.x === id ? sayFormHtml(id) : ''}
     ${privateHtml(q)}`;
   const labelRow = labelHtml(q);
-  return `<section class="card panel">
+  return `<section class="card panel" id="player-panel">
     <div class="panel-head"><h2>${isMe ? 'You' : esc(q.name)}</h2><span class="tag">${q.alive ? 'alive' : q.ghost ? 'dead · ghost vote' : 'dead'}</span>${prefs.coach ? `<span class="tag">${coachKey() === 'town' ? 'town suspicion' : 'Demon'} ${coachPct(id)}%</span>` : ''}</div>
     <p>${q.claim ? `${isMe ? 'You claim' : 'Claims'} to be the <b>${esc(q.claim)}</b>.` : isMe ? "You haven't claimed a character." : "Hasn't said what they are."}</p>
     ${hist}
@@ -2062,11 +2124,12 @@ function notesCard() {
   }).join('');
   return `<section class="card">${matrixHtml()}</section><section class="card"><h3>Claims and info</h3><table class="notes"><tr><th>Player</th><th>Claim and info</th>${prefs.coach ? `<th>${coachKey() === 'town' ? 'Town' : 'Demon'}</th>` : ''}</tr>${rows}</table></section>`;
 }
-function feedHtml(items) {
+function feedHtml(items, tappable) {
   return `<div class="feed">${items.map(e => {
     if (e.who == null) return `<div class="say sys">${e.text}</div>`;
-    const q = P(e.who);
-    return `<div class="say ${e.who === G.me ? 'me' : ''} ${q.alive ? '' : 'dead'}"><span class="who">${e.who === G.me ? 'You' : esc(q.name)}:</span>${e.text}</div>`;
+    const q = P(e.who), name = e.who === G.me ? 'You' : esc(q.name);
+    const who = tappable && e.who !== G.me && G.stage === 'day' ? `<button class="who-btn" data-act="seat-go" data-id="${e.who}">${name}:</button>` : `<span class="who">${name}:</span>`;
+    return `<div class="say ${e.who === G.me ? 'me' : ''} ${q.alive ? '' : 'dead'}">${who}${e.text}</div>`;
   }).join('')}</div>`;
 }
 // The setup for this many players, shown in the middle of the table
@@ -2108,26 +2171,54 @@ function dayView() {
   const today = G.feed.filter(e => e.when === label()), earlier = G.feed.filter(e => e.when !== label());
   const endConfirm = U.confirmEnd ? `<div class="banner">${d.block != null ? `End the day? <b>${nm(d.block)}</b> will be executed.` : 'End the day? Nobody is on the block, so nobody will be executed.'}
       <div class="row" style="margin-top:8px"><button class="btn primary sm" data-act="end-yes">End the day</button><button class="btn sm" data-act="end-no">Not yet</button></div></div>` : '';
-  return `${G.vote ? voteCard() : ''}
-    ${G.vote ? '' : requestsCard()}
+  const tab = U.tab || 'town', newTalk = Math.max(0, G.feed.length - (U.seenFeed || 0)), reqs = openRequests().length;
+  const tabs = `<nav class="tabs" role="tablist" aria-label="Day">${[['town', 'Town', reqs], ['talk', 'Talk', tab === 'talk' ? 0 : newTalk], ['notes', 'Notes', 0], ['me', 'Me', 0]].map(([k, l, n]) =>
+    `<button role="tab" aria-selected="${tab === k}" data-act="tab" data-t="${k}">${l}${n ? `<span class="badge">${n > 99 ? '99+' : n}</span>` : ''}</button>`).join('')}</nav>`;
+  let body = '';
+  if (tab === 'town') body = `${G.vote ? '' : requestsCard()}
     <section class="card">
       <h2>Day ${G.n}</h2>
+      ${G.vote ? '' : whatNow()}
       <p class="hint">${alive().length} alive. ${votesNeeded()} votes needed to execute. ${m.alive ? '' : "You're dead, but you can still talk" + (m.ghost ? ' and have one ghost vote.' : '.')}</p>
       <div class="banner ${d.block != null ? 'evil' : ''}">${d.block != null ? `On the block: ${nm(d.block)} with ${d.highest} votes` : d.highest ? `Nobody is on the block (tied at ${d.highest})` : 'Nobody is on the block'}</div>
-      ${G.vote ? '' : `<div class="row">
-        <button class="btn primary" data-act="town-nom">Let the town nominate</button>
-        <button class="btn" data-act="end">End the day</button>
-      </div>${d.quiet ? '<p class="hint">Nobody else wants to nominate right now.</p>' : ''}${endConfirm}`}
+      ${G.vote ? '' : `${d.quiet ? '<p class="hint">Nobody else wants to nominate right now.</p>' : ''}${endConfirm}`}
       <p class="hint">Tap a seat to talk to that player, nominate them or take a Slayer shot.</p>
       ${seats}
     </section>
     ${U.panel != null ? panelCard(U.panel) : ''}
-    ${G.lastVote && !G.vote ? lastVoteCard() : ''}
-    <section class="card"><h3>Town talk: day ${G.n}</h3>${feedHtml(today)}
-      ${earlier.length ? `<details><summary>Earlier days</summary>${feedHtml(earlier)}</details>` : ''}</section>
-    ${sayCard()}
-    ${notesCard()}
-    ${myCard()}`;
+    ${G.lastVote && !G.vote ? lastVoteCard() : ''}`;
+  else if (tab === 'talk') body = `${talkCard(today, earlier)}${sayCard()}`;
+  else if (tab === 'notes') body = notesCard();
+  else body = myCard(true);
+  return `${G.vote ? voteCard() : ''}${tabs}${body}`;
+}
+// The fixed bar at the bottom of the day: the two things that move the day on
+function actionBar() {
+  if (!G || U.view !== 'game' || G.stage !== 'day' || G.vote) return '';
+  return `<div class="actionbar"><button class="btn primary" data-act="town-nom">Let the town nominate</button><button class="btn" data-act="end">End the day</button></div>`;
+}
+// A nudge about what to do next
+function whatNow() {
+  const d = G.dayS, m = me(), reqs = openRequests();
+  let t;
+  if (reqs.length) t = `<b>${list(reqs.map(r => esc(P(r.by).name)))}</b> ${reqs.length === 1 ? 'wants' : 'want'} a private word: answer above.`;
+  else if (U.confirmEnd) t = 'Confirm below to end the day.';
+  else if (d.block != null) t = `<b>${nm(d.block)}</b> ${d.block === G.me ? 'are' : 'is'} on the block. Nominate someone more suspicious, or <b>End the day</b> to execute ${d.block === G.me ? 'you' : 'them'}.`;
+  else if (d.quiet) t = 'Nobody else wants to nominate. Nominate someone yourself, or <b>End the day</b>.';
+  else if (G.n === 1 && !m.claim && !d.nominees.length) t = `The bots have said who they are on the <b>Talk</b> tab. Tap a seat to question someone, then claim your character${isGood(m) ? '' : ' (your bluff)'} on Talk → Say in town.`;
+  else if (!d.nominees.length) t = 'Read the <b>Talk</b> tab, question anyone you doubt from their seat, then nominate them or tap <b>Let the town nominate</b>.';
+  else t = 'Keep nominating, or tap <b>Let the town nominate</b>. <b>End the day</b> when nobody else wants to.';
+  return `<div class="whatnow" role="note">${t}</div>`;
+}
+// Town talk, with a filter for one player's words, and names you can tap
+function talkCard(today, earlier) {
+  const f = U.feedFilter, keep = e => f == null || e.who === f || (e.who == null && e.text.includes(esc(P(f).name)));
+  const chips = `<div class="chips-row"><button class="chip" data-act="filter" data-id="" aria-pressed="${f == null}">Everyone</button>${G.players.map(q => `<button class="chip" data-act="filter" data-id="${q.id}" aria-pressed="${f === q.id}">${q.id === G.me ? 'You' : esc(q.name)}</button>`).join('')}</div>`;
+  const t = today.filter(keep), e = earlier.filter(keep);
+  return `<section class="card"><h3>Town talk: day ${G.n}</h3>${chips}
+    ${t.length ? feedHtml(t, true) : `<p class="hint">${f == null ? 'Nothing said yet today.' : 'Nothing from them today.'}</p>`}
+    ${e.length ? `<details ${f != null ? 'open' : ''}><summary>Earlier days</summary>${feedHtml(e, true)}</details>` : ''}
+    <div id="talk-end"></div></section>`;
 }
 
 function revealHtml() {
@@ -2154,6 +2245,57 @@ function revealHtml() {
     ${p ? `<div class="reveal-detail"><h3>${p.id === G.me ? 'You' : esc(p.name)}</h3>${roleCard(p.role)}<p class="hint">${notes.join(' · ')}</p></div>` : ''}
     <p class="hint">Demon bluffs: ${G.bluffs.map(esc).join(', ')}</p>`;
 }
+// After the game: what you could have spotted, and how your choices lined up with the truth
+function reviewHtml() {
+  const m = me(), good = isGood(m), team = q => isGood(q) ? 'good' : 'evil';
+  const tag = q => `<span class="${isGood(q) ? 'ok-txt' : 'bad-txt'}">${isGood(q) ? 'good' : 'evil'}</span>`;
+  const who = id => id === G.me ? 'you' : `<b>${esc(P(id).name)}</b>`;
+  const parts = [];
+  // The evil team and their stories
+  const evil = G.players.filter(q => !isGood(q));
+  parts.push(`<h3>The evil team</h3><div class="hist">${evil.map(q => {
+    const lies = q.bot ? q.bot.fakes.map(f => `<div class="hint">Made up: ${factText(f)}</div>`).join('') : '';
+    const claims = [...new Set(q.claimHist)];
+    const dup = claims.map(c => G.players.find(o => o.id !== q.id && o.claimHist.includes(c) && isGood(o))).find(Boolean);
+    return `<div class="info">${who(q.id)}: really the <b>${esc(q.was ? q.was + ' → Imp' : q.role)}</b>${claims.length ? `, claimed ${list(claims.map(c => 'the ' + esc(c)))}` : ', never claimed'}${dup ? ` <span class="bad-txt">(double claim with ${who(dup.id)}, a giveaway)</span>` : ''}.${lies}</div>`;
+  }).join('')}</div>`);
+  // How close your own info was to the Demon, morning by morning
+  const tr = (G.track || []).filter(t => t.view === (good ? 'you' : 'town'));
+  if (tr.length) {
+    const firstTop = tr.find(t => t.top === t.demon);
+    parts.push(`<h3>${good ? 'What your info said about the Demon' : 'How suspicious the town found your Demon'}</h3>
+      <div class="hist">${tr.map(t => `<div class="review-row"><span>Day ${t.day}</span><div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(100 * t.pd)}%"></div></div>
+        <span class="hint">${who(t.demon)}: ${Math.round(100 * t.pd)}% likely the Demon${t.top !== t.demon && t.top != null ? `. Top suspect: ${who(t.top)} (${Math.round(100 * t.topPd)}%)` : ' (the top suspect)'}</span></div></div>`).join('')}</div>
+      <p class="hint">${good ? (firstTop ? `From day ${firstTop.day}, everything you'd heard pointed at the real Demon more than anyone else.` : 'The evidence never quite pointed at the real Demon: their bluff held up.') : (firstTop ? `From day ${firstTop.day}, the town had the Demon as its top suspect.` : 'The town never made the Demon its top suspect.')}</p>`);
+  }
+  // Executions and your votes
+  const ex = G.deaths.filter(d => d.how === 'execution');
+  if (ex.length) parts.push(`<h3>Executions</h3><div class="hist">${ex.map(d => `<div class="info">Day ${d.n}: ${who(d.id)} (${esc(P(d.id).was || P(d.id).role)}, ${tag(P(d.id))})</div>`).join('')}</div>`);
+  const votes = G.myVotes || [];
+  if (votes.length) {
+    const right = votes.filter(v => v.yes === (good ? !isGood(P(v.b)) : isGood(P(v.b))));
+    parts.push(`<h3>Your votes</h3><p>${right.length} of ${votes.length} ${plural(votes.length, 'vote', 'votes')} helped your team${good ? ' (yes on evil, no on good)' : ' (yes on good, no on evil)'}.</p>
+      <div class="hist">${votes.map(v => { const okv = v.yes === (good ? !isGood(P(v.b)) : isGood(P(v.b))); return `<div class="hint">Day ${v.day}: ${v.yes ? 'voted' : "didn't vote"} on ${who(v.b)} (${tag(P(v.b))}) <span class="${okv ? 'ok-txt' : 'bad-txt'}">${okv ? '✓' : '✗'}</span></div>`; }).join('')}</div>`);
+  }
+  // Your reads: labels, accusations and characters you named
+  const reads = [];
+  Object.keys(G.labels || {}).forEach(id => {
+    const q = P(+id), l = G.labels[id], lg = l === 'Good' || (ROLES[l] && ['townsfolk', 'outsider'].includes(ROLES[l].type));
+    const exact = ROLES[l] && (q.role === l || q.was === l);
+    reads.push({ ok: lg === isGood(q), text: `Your label on ${who(q.id)}: ${esc(l)}${exact ? ' (exactly right)' : ''}` });
+  });
+  const latest = {};
+  G.opinions.filter(o => o.by === G.me).forEach(o => { latest[o.x] = o; });
+  Object.values(latest).forEach(o => {
+    const q = P(o.x), saidGood = o.kind === 'good';
+    reads.push({ ok: saidGood === isGood(q), text: `You said ${who(q.id)} ${o.role ? `was the ${esc(o.role)}` : saidGood ? 'was good' : o.kind === 'demon' ? 'was the Demon' : 'could be evil'}` });
+  });
+  if (reads.length) parts.push(`<h3>Your reads</h3><p>${reads.filter(r => r.ok).length} of ${reads.length} right.</p><div class="hist">${reads.map(r => `<div class="hint">${r.text} <span class="${r.ok ? 'ok-txt' : 'bad-txt'}">${r.ok ? '✓' : '✗'}</span></div>`).join('')}</div>`);
+  // False info from drunk or poisoned good players
+  const falseInfo = G.log.filter(e => e.text.includes('(false:'));
+  if (falseInfo.length) parts.push(`<h3>False info from the Drunk or the Poisoner</h3><div class="hist">${falseInfo.map(e => `<div class="hint">${e.when}: ${e.text}</div>`).join('')}</div>`);
+  return `<section class="card"><h2>How it went</h2>${parts.join('')}</section>`;
+}
 function overView() {
   const w = G.winner, mine = isGood(me()) ? 'good' : 'evil';
   let last = '', logHtml = '';
@@ -2164,6 +2306,7 @@ function overView() {
       <p class="hint" style="text-align:center">You were the ${esc(me().role)}${me().role === 'Drunk' ? ` (you thought you were the ${esc(me().fake)})` : ''}${me().was ? `, and started as the ${esc(me().was)}` : ''}.</p>
       <div class="row" style="justify-content:center"><button class="btn primary" data-act="start">Play again</button><button class="btn" data-act="setup">Change settings</button></div>
     </section>
+    ${reviewHtml()}
     <section class="card"><h2>The Grimoire</h2>${revealHtml()}</section>
     <section class="card"><details><summary>Everything said in town</summary>${feedHtml(G.feed)}</details></section>
     <section class="card"><h2>Storyteller's log</h2><p class="hint">Every character, choice, lie and piece of false info.</p><div class="log">${logHtml}</div></section>`;
@@ -2195,7 +2338,9 @@ function render() {
     else if (G.stage === 'dusk') html += duskView();
     else html += overView();
   } else { U.view = 'home'; html += homeView(); }
-  $app.innerHTML = html;
+  $app.innerHTML = html + actionBar();
+  document.body.classList.toggle('has-actionbar', !!actionBar());
+  if (G && G.stage === 'day' && (U.tab || 'town') === 'talk') U.seenFeed = G.feed.length;
   document.getElementById('phase').textContent = G && U.view === 'game' ? (G.stage === 'over' ? 'Game over' : label()) : '';
   save();
 }
@@ -2267,8 +2412,9 @@ document.addEventListener('click', e => {
     case 'resume': U.view = 'game'; break;
     case 'setup': U.view = 'setup'; U.menu = false; return go();
     case 'team': prefs.team = b.dataset.v; savePrefs(); break;
+    case 'diff': prefs.diff = b.dataset.v; savePrefs(); break;
     case 'start':
-      newGame({ n: prefs.n, team: prefs.team, name: prefs.name });
+      newGame({ n: prefs.n, team: prefs.team, name: prefs.name, diff: prefs.diff || 'normal' });
       G.created = Date.now();
       U = { view: 'game', sel: [], need: 0, menu: false, panel: null, confirmEnd: false, form: null, bc: null };
       return go();
@@ -2286,7 +2432,17 @@ document.addEventListener('click', e => {
     case 'day': startDay(); U.panel = null; return go();
     case 'night': startNight(); U.sel = []; U.panel = null; U.form = null; U.sayForm = null; U.three = []; U.confirmEnd = false; return go();
     case 'to-over': G.stage = 'over'; return go();
-    case 'seat': U.panel = U.panel === id ? null : id; U.sayForm = null; U.three = []; U.privOpen = null; U.nomForm = null; break;
+    case 'tab': U.tab = b.dataset.t; render(); window.scrollTo(0, 0); if (U.tab === 'talk') { const el = document.getElementById('talk-end'); if (el) el.scrollIntoView({ block: 'end' }); } return;
+    case 'filter': U.feedFilter = b.dataset.id === '' ? null : +b.dataset.id; break;
+    case 'seat-go': U.tab = 'town'; U.panel = id; U.sayForm = null; U.three = []; U.privOpen = null; U.nomForm = null; render(); { const el = document.getElementById('player-panel'); if (el) el.scrollIntoView({ block: 'start' }); } return;
+    case 'seat': {
+      const fromTown = (U.tab || 'town') === 'town';
+      U.panel = U.panel === id && fromTown ? null : id; U.sayForm = null; U.three = []; U.privOpen = null; U.nomForm = null; U.tab = 'town';
+      render();
+      const el = document.getElementById('player-panel');
+      if (el) el.scrollIntoView({ block: 'start', behavior: fromTown ? 'smooth' : 'auto' });
+      return;
+    }
     case 'ask': ask(P(id), b.dataset.q); break;
     case 'mx-all': prefs.mxAll = !prefs.mxAll; savePrefs(); break;
     case 'say-open': U.sayForm = U.sayForm && U.sayForm.x === id && sayGroup(U.sayForm.k) === b.dataset.k ? null : { x: id, k: b.dataset.k, r: 0, role: 'Poisoner' }; break;
