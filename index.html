@@ -6,6 +6,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Clocktower">
 <title>Clocktower Companion</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#15121b">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<script src="companion.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
@@ -73,6 +78,11 @@ h1 { font-family: var(--font-display); font-weight: 400; color: var(--brass); fo
 .choice:hover .go span { margin-left: 4px; }
 .go span { display: inline-block; transition: margin .15s ease; }
 
+.resume { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: -12px 0 28px; }
+.resume:empty { display: none; }
+.resume a { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent, var(--brass)); color: var(--fg); text-decoration: none; font-weight: 700; }
+.resume a:hover { border-color: var(--accent, var(--brass)); }
+.resume small { color: var(--muted); font-weight: 600; }
 footer { margin-top: 36px; text-align: center; color: var(--muted); font-size: .82rem; }
 footer p { margin: 4px 0; }
 </style>
@@ -84,6 +94,8 @@ footer p { margin: 4px 0; }
     <h1>Clocktower Companion</h1>
     <p class="lede">Five tools for one game. Pick the one that fits your seat tonight, let the app run the game for you, or practise on your own against bots.</p>
   </header>
+
+  <div class="resume" id="resume" aria-label="Games in progress"></div>
 
   <nav class="choices" aria-label="Choose an app">
     <a class="choice good" href="good.html">
@@ -123,5 +135,24 @@ footer p { margin: 4px 0; }
     <p><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. This is an unofficial fan-made tool.</p>
   </footer>
 </main>
+<script>
+// Games in progress on this device, so you can jump straight back in
+(function () {
+  const read = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+  const out = [];
+  const add = (href, name, detail, accent) => out.push(`<a href="${href}" style="--accent:var(--${accent})">Continue: ${name}${detail ? ` <small>${detail}</small>` : ''}</a>`);
+  const solo = read('clocktower-solo-v1');
+  if (solo && solo.players && !solo.winner) add('solo.html', 'Solo Practice', `${solo.time === 'night' ? 'Night' : 'Day'} ${solo.n}`, 'solo');
+  const cw = read('clockwork-storyteller-v1');
+  if (cw && cw.players && !cw.winner) add('clockwork-storyteller.html', 'Clockwork Storyteller', `${cw.time === 'night' ? 'Night' : 'Day'} ${cw.n}`, 'clock');
+  const nb = read('clocktower-notebook-v1');
+  if (nb && nb.players && !nb.example && !nb.over) add('good.html', 'Clocktower Notebook', nb.day ? `Day ${nb.day}` : '', 'good');
+  const ev = read('clocktower-evil-v1');
+  if (ev && ev.players && !ev.example && !ev.over) add('evil.html', 'Evil Grimoire', '', 'evil');
+  const st = read('botc-storyteller-v1');
+  if (st && st.game && st.game.started && !st.game.end && !st.game.example) add('storyteller.html', "Storyteller's Grimoire", '', 'brass');
+  document.getElementById('resume').innerHTML = out.join('');
+})();
+</script>
 </body>
 </html>

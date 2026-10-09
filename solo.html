@@ -6,6 +6,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Solo">
 <title>Solo Practice</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#15121b">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<script src="companion.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
@@ -316,7 +321,7 @@ const PREFS_KEY = 'clocktower-solo-prefs';
 let prefs = { text: 1, coach: false, n: 8, team: 'random', name: '' };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREFS_KEY)) || {}); } catch (e) {}
 function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {} applyPrefs(); }
-function applyPrefs() { document.documentElement.style.fontSize = (prefs.text * 100) + '%'; }
+function applyPrefs() { document.documentElement.style.fontSize = ''; }  // text size is now in the shared ⚙ settings
 applyPrefs();
 
 let U = { view: G ? 'game' : 'home', sel: [], need: 0, menu: false, panel: null, confirmEnd: false, form: null, bc: null };
@@ -2168,7 +2173,7 @@ function menuView() {
     <button class="btn danger" data-act="abandon-yes">Abandon the game</button><button class="btn" data-act="menu">Keep playing</button></div></section>`;
   const sizes = [[1, 'Normal'], [1.2, 'Large'], [1.4, 'Extra large']];
   return `<section class="card">
-    <div class="setting"><span>Text size</span><div class="seg">${sizes.map(([v, l]) => `<button data-act="text" data-v="${v}" aria-pressed="${prefs.text === v}">${l}</button>`).join('')}</div></div>
+    <p class="hint">Text size, light or dark, undo, saving your game and the character sheet are under ⚙ at the top.</p>
     <div class="setting"><span>Coach</span><div class="seg"><button data-act="coach" data-v="1" aria-pressed="${prefs.coach}">On</button><button data-act="coach" data-v="0" aria-pressed="${!prefs.coach}">Off</button></div></div>
     <p class="hint">Coach shows each player's chance of being the Demon, given what you know (or, if you're evil and know your team, how suspicious the town finds them).</p>
     <div class="row">

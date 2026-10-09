@@ -6,6 +6,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Storyteller">
 <title>Clockwork Storyteller</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#15121b">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<script src="companion.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
@@ -230,7 +235,7 @@ const PREFS_KEY = 'clockwork-storyteller-prefs';
 let prefs = { text: 1, voice: true, voiceURI: '', rate: 0.95 };
 try { Object.assign(prefs, JSON.parse(localStorage.getItem(PREFS_KEY)) || {}); } catch (e) {}
 function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {} applyPrefs(); }
-function applyPrefs() { document.documentElement.style.fontSize = (prefs.text * 100) + '%'; }
+function applyPrefs() { document.documentElement.style.fontSize = ''; }  // text size is now in the shared ⚙ settings
 applyPrefs();
 const canSpeak = () => typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
 // The voices this phone offers (the list can arrive a moment after the page loads)
@@ -699,7 +704,7 @@ function howView() {
     </ul>
     <p>Everything is written to a Storyteller's log, which you see at the end along with the full Grimoire. A few things are left to players' honesty: the Butler's voting rule, and keeping quiet about anything they glimpse.</p>
     <h3>Text size and voice</h3>
-    <p>In the Menu you can make all the text larger, and turn the voice on or off. The voice says whose turn it is to take the phone, and reads out deaths, executions, votes, Slayer shots and the winner. It never reads anything private.</p>
+    <p>Under ⚙ at the top you can make all the text larger, switch between light and dark, undo a mistake, keep the screen awake and save your game. In the Menu you can turn the voice on or off. The voice says whose turn it is to take the phone, and reads out deaths, executions, votes, Slayer shots and the winner. It never reads anything private.</p>
     <p class="hint">Games are saved in this browser only. Nothing is uploaded.</p>
     <div class="row"><button class="btn" data-act="home">Back</button></div>
   </section>`;
@@ -945,7 +950,7 @@ function menuView() {
     <button class="btn danger" data-act="abandon-yes">Abandon the game</button><button class="btn" data-act="menu">Keep playing</button></div></section>`;
   const sizes = [[1, 'Normal'], [1.2, 'Large'], [1.4, 'Extra large']];
   return `<section class="card">
-    <div class="setting"><span>Text size</span><div class="seg">${sizes.map(([v, l]) => `<button data-act="text" data-v="${v}" aria-pressed="${prefs.text === v}">${l}</button>`).join('')}</div></div>
+    <p class="hint">Text size, light or dark, undo, saving your game and the character sheet are under ⚙ at the top.</p>
     <div class="setting"><span>Voice</span><div class="seg"><button data-act="voice" data-v="1" aria-pressed="${prefs.voice}">On</button><button data-act="voice" data-v="0" aria-pressed="${!prefs.voice}">Off</button></div>
       ${canSpeak() ? '<button class="btn sm" data-act="voice-test">Test</button>' : '<span class="hint">This browser can\'t speak.</span>'}</div>
     ${canSpeak() && prefs.voice ? voiceSettings() : ''}
