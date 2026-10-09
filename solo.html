@@ -706,13 +706,20 @@ function startVote(a, b, from) {
   const N = G.players.length, order = [];
   for (let k = 1; k <= N; k++) { const q = G.players[(b + k) % N]; if (canVote(q)) order.push(q.id); }
   G.vote = { a, b, order, intent: {}, from, mine: order.includes(G.me) ? null : false };
-  // Nominated yourself? First you get to defend yourself; the bots decide after hearing you
+  // Nominated yourself? First you get to defend yourself; then the town weighs in, then the vote
   if (b === G.me) { G.vote.defending = true; return; }
-  decideVotes();
+  startDebate();
+}
+// After the defence, a few players speak for or against the nominee before anyone votes
+function startDebate() {
+  const v = G.vote;
+  v.defending = false; v.debating = true; v.debateFrom = G.feed.length;
+  if (G.dayS.virginTest === v.b) sys("It's a Virgin test: the town isn't asked to weigh in.");
+  else botDebate(v.a, v.b);
 }
 function decideVotes() {
   const v = G.vote, { a, b, order, intent } = v;
-  v.defending = false;
+  v.defending = false; v.debating = false;
   order.forEach(id => { if (id !== G.me) intent[id] = botVote(P(id), a, b); });
   // A Butler bot only votes if their master (another bot) does
   order.forEach(id => { const q = P(id); if (id !== G.me && q.role === 'Butler' && q.master != null && q.master !== G.me && intent[id] && !intent[q.master]) intent[id] = false; });
@@ -1219,6 +1226,71 @@ function reactTo(x, kind, role) {
       say(p.id, role && kind !== 'good' ? `I agree, <b>${nm(x)}</b> could well be the ${esc(role)}. ${cap(reasonFor(x))}.` : kind === 'good' ? `I agree, I trust <b>${nm(x)}</b> too.` : `I agree with ${esc(me().name)}. ${cap(reasonFor(x))}.`);
     } else say(p.id, kind === 'good' ? `I'm not so sure about <b>${nm(x)}</b>: ${reasonFor(x)}.` : `I don't see it. ${cap(trustReason(x))}.`);
   });
+}
+
+/* ---------- The town weighs in on a nomination ---------- */
+// Public evidence that a player is good
+function reasonsFor(x) {
+  const q = P(x), you = x === G.me, them = you ? 'you' : 'them', their = you ? 'your' : 'their', out = [];
+  if (G.virgins.some(v => v.fired && v.v === x)) out.push(`${you ? 'you\'re' : 'they\'re'} the proven Virgin`);
+  for (let i = G.pub.length - 1; i >= 0; i--) {
+    const { by, f } = G.pub[i];
+    if (by === x) continue;
+    const who = Nm(by);
+    if (f.k === 'ft' && !f.yes && (f.a === x || f.b === x)) out.push(`the Fortune Teller, ${who}, got a no on ${them}`);
+    if (f.k === 'empath' && f.num === 0 && f.nb.includes(x)) out.push(`the Empath, ${who}, sits next to ${them} and got a 0`);
+    if (f.k === 'pair' && f.role !== 'Investigator' && (f.a === x || f.b === x) && q.claim === f.char) out.push(`the ${esc(f.role)}, ${who}, saw ${them} as maybe the ${esc(f.char)}, which matches ${their} claim`);
+    if (f.k === 'see' && f.who === x && ROLES[f.char] && ['townsfolk', 'outsider'].includes(ROLES[f.char].type)) out.push(`${who} saw ${them} as the ${esc(f.char)}`);
+  }
+  G.shots.forEach(sh => { if (!sh.hit && sh.t === x && claimOf(sh.by) === 'Slayer') out.push(`${Nm(sh.by)}'s Slayer shot did nothing to ${them}`); });
+  if (G.pub.some(e => e.by === x) && belief('town').pe[x] < 0.25) out.push(`${their} info fits with everyone else's`);
+  return [...new Set(out)];
+}
+// Two or three bots with the strongest views speak up, each for or against the nominee
+function botDebate(a, b) {
+  const nominee = P(b);
+  const voices = alive().filter(q => q.id !== G.me && q.id !== a && q.id !== b).map(p => {
+    let side, strength;
+    if (!isGood(p)) {
+      const team = knownTeam(p);
+      if (team.includes(b)) { side = 'against'; strength = chance(0.7) ? 1 : 0; }
+      else { side = 'for'; strength = townRatio(b) > 0.9 && chance(0.6) ? 0.8 : 0; }
+    } else {
+      const r = ratio(p, b);
+      side = r >= 1 ? 'for' : 'against';
+      strength = r > 1.25 ? r - 1 : r < 0.8 ? 1 - r : 0;
+    }
+    return { p, side, strength: strength * (0.7 + Math.random() * 0.6) };
+  }).filter(v => v.strength > 0.15).sort((x, y) => y.strength - x.strength).slice(0, 2 + rnd(2));
+  if (!voices.length) { sys('Nobody else speaks up.'); return; }
+  const usedFor = new Set(), usedAgainst = new Set();
+  voices.forEach(({ p, side }) => {
+    if (side === 'for') {
+      const r = reasonsAgainst(b).find(t => !usedFor.has(t)) || reasonFor(b);
+      usedFor.add(r);
+      G.opinions.push({ by: p.id, x: b, day: G.n, kind: 'evil' });
+      say(p.id, pick([`I'll be voting for this. ${cap(r)}.`, `I support the nomination: ${r}.`, `I'm convinced. ${cap(r)}.`]));
+    } else {
+      const r = reasonsFor(b).find(t => !usedAgainst.has(t));
+      if (r) usedAgainst.add(r);
+      G.opinions.push({ by: p.id, x: b, day: G.n, kind: 'good' });
+      say(p.id, r ? pick([`Hold on, ${r}.`, `I don't think ${nm(b)} ${b === G.me ? 'are' : 'is'} evil: ${r}.`, `I'm not voting. ${cap(r)}.`])
+        : pick([`I'm not convinced. ${cap(trustReason(b))}.`, `This feels like a waste of a vote. ${cap(trustReason(b))}.`, `I'd rather we looked elsewhere.`]));
+    }
+  });
+}
+// You speak for or against the nominee
+function humanDebate(side, r) {
+  const v = G.vote, x = v.b;
+  if (side === 'for') { say(G.me, `I support this nomination: ${r.t}.`); G.opinions.push({ by: G.me, x, day: G.n, kind: 'evil', w: r.w }); }
+  else { say(G.me, `I don't think ${esc(P(x).name)} is evil: ${r.t}.`); G.opinions.push({ by: G.me, x, day: G.n, kind: 'good', w: r.w }); }
+  bump();
+  v.spoke = true;
+}
+function debateReasons(side, x) {
+  if (side === 'for') return humanReasons(x, 'evil');
+  const clues = reasonsFor(x).map(t => ({ t, w: 0.7 }));
+  return clues.concat(humanReasons(x, 'good').filter(r => !clues.some(c => c.t === r.t)));
 }
 
 /* ---------- Talking about the setup ---------- */
@@ -1749,6 +1821,7 @@ function howView() {
       <li><b>Town talk:</b> the bots claim characters, share info and say who they suspect. Tap any seat to ask that player what they are, what they've learned, who they suspect or who they trust, or to say you suspect or trust them.</li>
       <li><b>Private requests:</b> each day a bot or two asks you for a private word (✉ on their seat): a three for three (they go first), what you are, a swap of info, or who you think the Demon is. Answer from the Private requests card at the top, or say "Not now" (they'll trust you a little less that day).</li>
       <li><b>Virgin tests:</b> when someone claims Virgin, a good Townsfolk who believes them nominates them to test it. If the nominator is executed, both are proven. The town doesn't vote to execute on a test unless they're very suspicious.</li>
+      <li><b>The town weighs in:</b> after each nomination and defence, two or three players speak for or against the nominee, citing the evidence (an Investigator ping, a Fortune Teller no, an Empath's 0, a double claim). Evil players defend their teammates. You can speak too, for or against, with a reason. Then the vote starts, and the bots vote with everything said in mind.</li>
       <li><b>On trial:</b> when someone nominates you, you defend yourself before anyone decides their vote: claim your character, share your info, point at someone else, or plead. Your own nominations come with a reason, which the nominee answers.</li>
       <li><b>Labels:</b> on any player's seat, label what you think they are (any character, or just good or evil). Only you see it: it shows on their seat, in Claims and info and in the claim matrix.</li>
       <li><b>On the evil team</b> (7 or more players): your teammates (🔴 on the table) are honest with you in private. On the first morning Minions tell you, as the Demon, their real character and ask which bluff to take; a Demon tells you, as a Minion, the bluffs and which it's using; a Spy passes on what it saw in the Grimoire each day. From a teammate's seat you can ask their plan or the bluffs, tell them your real character, hand them a bluff, agree who to push, and ask the Imp to kill or the Poisoner to poison someone tonight.</li>
@@ -1881,18 +1954,34 @@ function defenceCard() {
   const opt = (val, l, on) => `<option value="${esc(val)}" ${on ? 'selected' : ''}>${esc(l)}</option>`;
   return `<section class="card panel"><h2>${Nm(v.a)} nominated you</h2>
     ${feedHtml(G.feed.slice(v.from || 0).filter(e => e.who != null))}
-    <p><b>Your defence.</b> Say as much as you like, then let the town vote. The bots decide after hearing you.</p>
+    <p><b>Your defence.</b> Say as much as you like. Then the town weighs in, and the bots decide their votes after hearing everything.</p>
     <div class="row"><select class="inp" id="def-role" aria-label="Character">${CLAIMABLE.map(r => opt(r, r, (m.claim || (isGood(m) ? believed(m) : G.bluffs[0])) === r)).join('')}</select>
       <button class="btn sm" data-act="def-claim">${m.claim ? 'Say my character again' : 'Claim this character'}</button></div>
     ${facts.length ? `<div class="row">${facts.map((f, i) => `<button class="btn sm" data-act="def-share" data-i="${i}">${shared.has(fkey(f)) ? 'Repeat' : 'Share'} my night ${f.n} info</button>`).join('')}</div>` : ''}
     <div class="row"><select class="inp" id="def-x" aria-label="Who to point at">${alive().filter(q => q.id !== G.me && q.id !== v.a).map(q => opt(q.id, q.name)).join('')}${opt(v.a, `${P(v.a).name} (who nominated you)`)}</select>
       <button class="btn sm" data-act="def-point">Point at them instead</button></div>
     <div class="row"><button class="btn sm" data-act="def-plead">"I'm good. Executing me wastes a day."</button></div>
-    <button class="btn primary block" data-act="def-done">I've said my piece: start the vote</button></section>`;
+    <button class="btn primary block" data-act="def-done">I've said my piece: hear the town</button></section>`;
+}
+// Before the vote: what's been said, and your chance to speak for or against
+function debateCard() {
+  const v = G.vote, f = U.debate;
+  const said = G.feed.slice(v.from || 0).filter(e => e.who != null);
+  const form = f ? `<div class="form whisper"><p><b>${f.side === 'for' ? `I support the nomination of ${esc(P(v.b).name)} because…` : `I don't think ${esc(P(v.b).name)} is evil because…`}</b></p>
+      <div class="reasons">${debateReasons(f.side, v.b).map((r, i) => `<button class="pc ${(f.r || 0) === i ? 'on' : ''}" data-act="deb-reason" data-i="${i}">${r.t}</button>`).join('')}</div>
+      <div class="row"><button class="btn primary sm" data-act="deb-say">Say it</button><button class="btn sm" data-act="deb-cancel">Cancel</button></div></div>` : '';
+  return `<section class="card panel"><h2>${Nm(v.a)} ${v.a === G.me ? 'nominate' : 'nominates'} ${nm(v.b)}</h2>
+    <p class="hint">The nomination, the defence, then the town weighs in. Votes come after.</p>
+    ${feedHtml(said)}
+    ${v.b !== G.me && !v.spoke ? `<h3>Speak before the vote</h3>
+      <div class="row"><button class="btn sm" data-act="deb-open" data-side="for" aria-pressed="${!!(f && f.side === 'for')}">Support the nomination…</button>
+      <button class="btn sm" data-act="deb-open" data-side="against" aria-pressed="${!!(f && f.side === 'against')}">Defend ${esc(P(v.b).name)}…</button></div>${form}` : ''}
+    <button class="btn primary block" data-act="deb-vote">Start the vote</button></section>`;
 }
 function voteCard() {
   const v = G.vote, m = me();
   if (v.defending) return defenceCard();
+  if (v.debating) return debateCard();
   const myIdx = v.order.indexOf(G.me);
   const chips = v.order.map((id, i) => {
     if (id === G.me) return `<span class="vote-chip wait">You?</span>`;
@@ -2482,7 +2571,12 @@ document.addEventListener('click', e => {
       break;
     }
     case 'def-plead': say(G.me, pick(["I'm good. Executing me wastes a day we can't afford.", "I'm on your side. Look at who's pushing this.", "Vote me and you'll be one good player down tomorrow."])); break;
-    case 'def-done': decideVotes(); return go();
+    case 'def-done': startDebate(); return go();
+    case 'deb-open': U.debate = U.debate && U.debate.side === b.dataset.side ? null : { side: b.dataset.side, r: 0 }; break;
+    case 'deb-reason': U.debate.r = +b.dataset.i; break;
+    case 'deb-cancel': U.debate = null; break;
+    case 'deb-say': { const f = U.debate, rs = debateReasons(f.side, G.vote.b); humanDebate(f.side, rs[f.r] || rs[0]); U.debate = null; break; }
+    case 'deb-vote': U.debate = null; decideVotes(); return go();
     case 'team': teamWhisper(P(id), b.dataset.k); break;
     case 'rq-three': U.panel = id; U.privOpen = id; U.three = []; U.sayForm = null; U.nomForm = null; render(); { const el = document.querySelector('details[data-priv]'); if (el) el.scrollIntoView({ block: 'center' }); } return;
     case 'rq-one': whisper(P(id), 'one', [document.getElementById(`rq-role-${id}`).value]); break;
