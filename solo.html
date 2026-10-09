@@ -161,6 +161,9 @@ button.tok:hover { transform: translate(-50%, -50%) scale(1.07); }
 .table-mid { position: absolute; inset: 27%; display: grid; place-content: center; text-align: center; gap: 2px; }
 .mid-big { font-family: var(--font-display); color: var(--brass); font-size: 11cqw; line-height: 1; }
 .mid-sm { color: var(--muted); font-weight: 700; font-size: max(11px, 3.6cqw); }
+.mid-counts { font-weight: 800; font-size: max(13px, 5cqw); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.mid-key { color: var(--muted); font-weight: 700; font-size: max(9px, 2.6cqw); white-space: nowrap; }
+.evil-txt { color: var(--evil); }
 @keyframes glow { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--brass) 40%, transparent), 0 3px 10px rgba(0,0,0,.35); } }
 @media (prefers-reduced-motion: reduce) { button.tok { animation: none; } }
 .log { display: grid; gap: 4px; font-size: .92rem; }
@@ -823,8 +826,12 @@ function publicCons() {
     const w = o.w || 0.9, x = o.x;
     if (o.kind === 'good') cons.push({ src: o.by, fn: ev => ev[x] ? w : 1 });
     else if (o.kind === 'demon') cons.push({ src: o.by, fn: (ev, d) => d === x ? 1 : w });
+    else if (o.kind === 'minion') cons.push({ src: o.by, fn: (ev, d) => ev[x] && x !== d ? 1 : w });
     else cons.push({ src: o.by, fn: ev => ev[x] ? 1 : w });
   });
+  // More good Outsiders than even a Baron allows means some Outsider claims are lies
+  const outCap = COUNTS[G.players.length][1] + 2, outers = G.players.filter(q => ['Saint', 'Recluse', 'Butler'].includes(q.claim)).map(q => q.id);
+  if (outers.length > outCap) cons.push({ fn: ev => outers.filter(x => !ev[x]).length > outCap ? 0.05 : 1 });
   // Told someone one thing in private and claimed another in public
   G.callouts.forEach(c => cons.push({ fn: ev => ev[c.x] ? 1 : 0.3 }));
   return cons;
@@ -1003,6 +1010,12 @@ function trusteeOf(p) {
   return topBy(cands, q => -ratio(p, q.id)).id;
 }
 function accuse(p, x, lead) {
+  const g = guessRole(p, x);
+  if (g && chance(0.5)) {
+    G.opinions.push({ by: p.id, x, day: G.n, kind: roleKind(g), role: g });
+    say(p.id, `${lead || ''}I think <b>${nm(x)}</b> ${x === G.me ? 'are' : 'is'} the <b>${esc(g)}</b>: ${reasonFor(x)}.`);
+    return;
+  }
   G.opinions.push({ by: p.id, x, day: G.n });
   const line = pick([`I think <b>${nm(x)}</b> could be evil`, `My eye is on <b>${nm(x)}</b>`, `<b>${Nm(x)}</b> ${x === G.me ? 'worry' : 'worries'} me`, `I don't trust <b>${nm(x)}</b>`]);
   say(p.id, `${lead || ''}${line}: ${reasonFor(x)}.`);
@@ -1025,6 +1038,7 @@ function morningTalk() {
     } else shareNew(p);
   });
   if (G.n >= 2 && !me().claim) { const asker = pick(order.filter(q => q.alive)); if (asker) say(asker.id, pick([`${esc(me().name)}, you still haven't told us your character.`, `What about you, ${esc(me().name)}? What are you?`])); }
+  setupTalk();
   order.forEach(p => { if (chance(p.alive ? 0.55 : 0.2)) opinion(p); });
   const talkers = shuffle(alive().filter(q => q.id !== G.me));
   for (let i = 0; i + 1 < talkers.length && i < 4; i += 2) if (chance(0.5)) sys(`${esc(talkers[i].name)} and ${esc(talkers[i + 1].name)} step aside for a private chat.`);
@@ -1057,6 +1071,21 @@ function ask(p, q) {
     else say(p.id, x === G.me ? `You, ${esc(m.name)}. ${pick(['Your story hangs together.', "You've been straight with us."])}` : `I believe <b>${nm(x)}</b>: ${trustReason(x)}.`);
   }
 }
+// Naming a character: the Imp is a Demon read, a Minion an evil read, a good character a vouch
+const roleKind = r => r === 'Imp' ? 'demon' : MN.includes(r) ? 'minion' : 'good';
+// A character a bot might name for a suspect, from public info
+function guessRole(p, x) {
+  for (let i = G.pub.length - 1; i >= 0; i--) {
+    const { by, f } = G.pub[i];
+    if (by === x) continue;
+    if (f.k === 'pair' && f.role === 'Investigator' && (f.a === x || f.b === x)) return f.char;
+    if (f.k === 'see' && f.who === x && ROLES[f.char] && !isGoodType(f.char)) return f.char;
+  }
+  if (isGood(p) && belief(p.id).pd[x] > 0.45) return 'Imp';
+  return null;
+}
+const isGoodType = r => ['townsfolk', 'outsider'].includes(ROLES[r].type);
+
 /* ---------- You speaking up: reasons the bots weigh ---------- */
 // Reasons you can give, with how much each moves a bot that trusts you (lower = stronger)
 function humanReasons(x, kind) {
@@ -1076,18 +1105,30 @@ function humanReasons(x, kind) {
   out.push({ t: "the way they've been voting", w: 0.85 }, { t: "it's a gut feeling", w: 0.88 });
   return out;
 }
+const sayGroup = k => k === 'good' ? 'good' : k === 'role' ? 'role' : 'evil';
+// The reasons offered depend on whether you're saying something good or bad about them
+const sayReasonKind = f => f.k === 'role' ? (roleKind(f.role) === 'good' ? 'good' : 'evil') : f.k;
 function humanSay() {
-  const f = U.sayForm, x = f.x, rs = humanReasons(x, f.k), r = rs[f.r] || rs[0];
-  const what = f.k === 'good' ? `I trust <b>${nm(x)}</b>` : f.k === 'demon' ? `I think <b>${nm(x)}</b> is the Demon` : `I think <b>${nm(x)}</b> could be evil`;
+  const f = U.sayForm, x = f.x, rs = humanReasons(x, sayReasonKind(f)), r = rs[f.r] || rs[0];
+  const kind = f.k === 'role' ? roleKind(f.role) : f.k;
+  const what = f.k === 'role' ? `I think <b>${nm(x)}</b> is the <b>${esc(f.role)}</b>` : f.k === 'good' ? `I trust <b>${nm(x)}</b>` : f.k === 'demon' ? `I think <b>${nm(x)}</b> is the Demon` : `I think <b>${nm(x)}</b> could be evil`;
   say(G.me, `${what}: ${r.t}.`);
-  G.opinions.push({ by: G.me, x, day: G.n, kind: f.k, w: r.w });
+  G.opinions.push({ by: G.me, x, day: G.n, kind, w: r.w, role: f.k === 'role' ? f.role : null });
   bump();
   U.sayForm = null;
-  if (f.k !== 'good') defend(P(x), G.me, true);
-  reactTo(x, f.k);
+  if (f.k === 'role' && kind === 'good') answerNamed(P(x), f.role);
+  else if (kind !== 'good') defend(P(x), G.me, true);
+  reactTo(x, kind, f.k === 'role' ? f.role : null);
+}
+// A bot you've named as a good character says whether you're right
+function answerNamed(p, r) {
+  if (p.claim) { say(p.id, p.claim === r ? "That's right." : `Close, but I'm the <b>${esc(p.claim)}</b>.`); return; }
+  if (isGood(p) && believed(p) === r && chance(0.6)) { say(p.id, 'Well… yes. You got me.'); setClaim(p, r); shareNew(p); return; }
+  say(p.id, pick(["I'm not saying yet.", 'Not quite.', "Maybe, maybe not."]));
 }
 // A couple of bots say whether they agree with you
-function reactTo(x, kind) {
+function reactTo(x, kind, role) {
+  const unsure = shuffle(["I'm not sure yet.", "Maybe. I'd like to hear more first.", 'Could be. I want to see how the votes go.']);
   shuffle(alive().filter(q => q.id !== G.me && q.id !== x)).slice(0, 2).forEach(p => {
     let agree;
     if (!isGood(p)) {
@@ -1096,13 +1137,77 @@ function reactTo(x, kind) {
     } else {
       const r = ratio(p, x);
       agree = kind === 'good' ? r < 0.9 : r > 1.15;
-      if (!agree && Math.abs(r - 1) < 0.15) { if (chance(0.6)) say(p.id, pick(["I'm not sure yet.", "Maybe. I'd like to hear more first.", 'Could be. I want to see how the votes go.'])); return; }
+      if (!agree && Math.abs(r - 1) < 0.15) { if (chance(0.6)) say(p.id, unsure.pop()); return; }
     }
     if (agree) {
       G.opinions.push({ by: p.id, x, day: G.n, kind: kind === 'good' ? 'good' : 'evil' });
-      say(p.id, kind === 'good' ? `I agree, I trust <b>${nm(x)}</b> too.` : `I agree with ${esc(me().name)}. ${cap(reasonFor(x))}.`);
+      say(p.id, role && kind !== 'good' ? `I agree, <b>${nm(x)}</b> could well be the ${esc(role)}. ${cap(reasonFor(x))}.` : kind === 'good' ? `I agree, I trust <b>${nm(x)}</b> too.` : `I agree with ${esc(me().name)}. ${cap(reasonFor(x))}.`);
     } else say(p.id, kind === 'good' ? `I'm not so sure about <b>${nm(x)}</b>: ${reasonFor(x)}.` : `I don't see it. ${cap(trustReason(x))}.`);
   });
+}
+
+/* ---------- Talking about the setup ---------- */
+const TOPICS = {
+  baron: 'I think this is a Baron game',
+  nobaron: "I don't think there's a Baron",
+  drunk: "I think there's a Drunk",
+  poisoner: "I think the Poisoner is at work: someone's info is wrong",
+  spy: "I think there's a Spy",
+  sw: "I think there's a Scarlet Woman",
+  recluse: "I think there's a Recluse",
+};
+// What the town can count: the setup for this many players, and the Outsiders claimed so far
+function makeup() {
+  const n = G.players.length, [t, o, m] = COUNTS[n];
+  const outClaims = G.players.filter(q => ['Saint', 'Recluse', 'Butler'].includes(q.claim)).length;
+  const lib = G.pub.find(e => e.f.k === 'noOut' || (e.f.k === 'pair' && e.f.role === 'Librarian'));
+  return { n, t, o, m, outClaims, noOut: lib && lib.f.k === 'noOut', libBy: lib && lib.by, libSaw: lib && lib.f.k === 'pair' ? lib.f.char : null };
+}
+function outsiderLine(M) { return `${M.outClaims} ${plural(M.outClaims, 'Outsider has', 'Outsiders have')} claimed. ${M.n} players means ${M.o} ${plural(M.o, 'Outsider', 'Outsiders')}, or ${M.o + 2} with a Baron`; }
+// What bots might say about a setup announcement: the most telling point first, then other angles
+function makeupLines(p, topic) {
+  const M = makeup(), mine = !isGood(p) && p.role === { baron: 'Baron', nobaron: 'Baron', poisoner: 'Poisoner', spy: 'Spy', sw: 'Scarlet Woman' }[topic];
+  if (mine && chance(0.6)) return shuffle(["I doubt it. Let's not get paranoid.", "I don't see it myself.", "Maybe, but that helps nobody right now."]);
+  const out = [];
+  switch (topic) {
+    case 'baron': case 'nobaron':
+      if (M.outClaims > M.o + 2) out.push(`${outsiderLine(M)}. That's more than even a Baron allows, so someone claiming an Outsider is lying.`);
+      else if (M.outClaims > M.o) out.push(`I think it is. ${outsiderLine(M)}, so either there's a Baron or an Outsider claim is fake.`);
+      if (M.noOut) out.push(`The Librarian, ${Nm(M.libBy)}, saw no Outsiders, so no Baron, unless the Librarian is drunk, poisoned or lying.`);
+      if (M.libSaw) out.push(`The Librarian saw a ${esc(M.libSaw)}, so there's at least one Outsider. ${outsiderLine(M)}.`);
+      if (M.outClaims <= M.o) out.push(`${outsiderLine(M)}. If there's a Baron, ${M.o + 2 - M.outClaims} ${plural(M.o + 2 - M.outClaims, 'Outsider is', 'Outsiders are')} hiding, or the Drunk thinks they're a Townsfolk.`);
+      out.push(`If there's a Baron, some of our Townsfolk claims are fake: there'd only be ${M.t - 2} real Townsfolk.`, 'Outsiders, now would be a good time to come out.');
+      break;
+    case 'drunk':
+      if (M.libSaw === 'Drunk') out.push(`The Librarian, ${Nm(M.libBy)}, did see a Drunk. One of our Townsfolk has wrong info and doesn't know it.`);
+      out.push("If there's a Drunk, one Townsfolk's info is wrong without them knowing. Look for info that doesn't fit with everyone else's.", "The Drunk always thinks they're a Townsfolk, so they'll be claiming one in good faith.");
+      break;
+    case 'poisoner': {
+      const odd = G.players.find(q => G.pub.some(e => e.by === q.id) && belief('town').pe[q.id] > 0.5);
+      if (odd) out.push(`That would explain why ${nm(odd.id)}'s info doesn't fit.`);
+      out.push('Then whoever was poisoned got false info that night and the next day.', 'The Poisoner usually goes after info characters. Empath, Fortune Teller, watch your numbers.');
+      break;
+    }
+    case 'spy': out.push('A Spy can claim anything and can even register as good to our info.', 'Watch for someone who seems to know too much.'); break;
+    case 'sw': out.push("Then careful: if the Demon dies while 5 or more are alive, the Scarlet Woman becomes the Demon.", "So executing the Demon might not end it. We'd need to keep going."); break;
+    case 'recluse': out.push('A Recluse can ping as evil, even as the Demon. Let\'s not execute on one ping alone.', 'Has anyone claimed Recluse? They should say so now.'); break;
+  }
+  return out.length ? out : ['Hmm.'];
+}
+function announce(topic) {
+  say(G.me, `${TOPICS[topic]}.`);
+  const used = new Set();
+  shuffle(alive().filter(q => q.id !== G.me)).slice(0, 2).forEach(p => {
+    const line = makeupLines(p, topic).find(l => !used.has(l));
+    if (line) { used.add(line); say(p.id, line); }
+  });
+}
+// A bot raises the setup itself when the Outsider claims don't add up
+function setupTalk() {
+  const M = makeup(), al = shuffle(alive().filter(q => q.id !== G.me && isGood(q)));
+  if (!al.length) return;
+  if (M.outClaims > M.o + 2 && G.saidSetup !== 'over') { G.saidSetup = 'over'; say(al[0].id, `${outsiderLine(M)}. That's more than even a Baron allows: someone claiming an Outsider is lying.`); }
+  else if (M.outClaims > M.o && !G.saidSetup) { G.saidSetup = 'baron'; say(al[0].id, `${outsiderLine(M)}. I think this is a Baron game, or an Outsider claim is fake.`); }
 }
 
 /* ---------- Private conversations ---------- */
@@ -1426,6 +1531,8 @@ function howView() {
     <h3>Each day</h3>
     <ul class="plain">
       <li><b>Town talk:</b> the bots claim characters, share info and say who they suspect. Tap any seat to ask that player what they are, what they've learned, who they suspect or who they trust, or to say you suspect or trust them.</li>
+      <li><b>Name their character:</b> from a player's seat, say what you think they are, good or evil ("I think Pip is the Poisoner"), with a reason. Naming the Imp counts as a Demon read, a Minion as an evil read, and a good character as a vouch. Bots name characters too, and the Claims and info table shows what each player has been named as.</li>
+      <li><b>Talk about the setup:</b> in Say in town, announce things like "I think this is a Baron game", "there's a Drunk" or "the Poisoner is at work". Bots answer with the counts (how many Outsiders have claimed against how many there should be) and what the Librarian saw, and raise it themselves when the Outsider claims don't add up. The middle of the table shows this game's setup: Townsfolk · Outsiders · Minions · Demon, and the same with a Baron.</li>
       <li><b>Speak up:</b> from a player's seat, accuse them (could be evil, or is the Demon) or vouch for them, and pick your reason: a specific piece of evidence, something you learned, their voting, or a hunch. Bots weigh what you say, more for a specific reason, and only as much as they trust you. A couple of them will say whether they agree.</li>
       <li><b>Talk privately:</b> from a player's seat, offer three for three (pick three characters, one of them true), tell them your character one for one, whisper your info (real or made up), or ask what they've learned and who they really suspect. Good bots open up if they trust you; evil bots always answer, with their bluff. The town sees that you talked, not what was said. Bots remember: if your public claim doesn't match what you told someone, they'll say so.</li>
       <li><b>Claim matrix:</b> under the town talk, every player against every character. Green H is a hard claim (🤫 if it was said to you privately), light green S is a soft claim (one of a three for three), a blue star is a character the game has proven (a Virgin whose nominator was executed, a Slayer whose shot killed the Demon), × is an earlier claim, and an amber ring means two or more players hard-claim it.</li>
@@ -1573,8 +1680,7 @@ function panelCard(id) {
       <button class="btn sm" data-act="ask" data-q="sus" data-id="${id}">Who do you suspect?</button>
       <button class="btn sm" data-act="ask" data-q="trust" data-id="${id}">Who do you trust?</button></div>
     <h3>Speak up in town</h3><div class="row">
-      <button class="btn sm" data-act="say-open" data-k="evil" data-id="${id}" aria-pressed="${!!(U.sayForm && U.sayForm.x === id && U.sayForm.k !== 'good')}">Accuse ${esc(q.name)}…</button>
-      <button class="btn sm" data-act="say-open" data-k="good" data-id="${id}" aria-pressed="${!!(U.sayForm && U.sayForm.x === id && U.sayForm.k === 'good')}">Vouch for ${esc(q.name)}…</button></div>
+      ${[['evil', `Accuse ${esc(q.name)}…`], ['good', `Vouch for ${esc(q.name)}…`], ['role', 'Name their character…']].map(([k, l]) => `<button class="btn sm" data-act="say-open" data-k="${k}" data-id="${id}" aria-pressed="${!!(U.sayForm && U.sayForm.x === id && sayGroup(U.sayForm.k) === k)}">${l}</button>`).join('')}</div>
     ${U.sayForm && U.sayForm.x === id ? sayFormHtml(id) : ''}
     ${privateHtml(q)}`;
   return `<section class="card panel">
@@ -1593,10 +1699,13 @@ function panelCard(id) {
 }
 // Choose what you're saying about a player, and why
 function sayFormHtml(x) {
-  const f = U.sayForm, rs = humanReasons(x, f.k);
-  const kinds = f.k === 'good' ? '' : `<div class="seg">${[['evil', 'could be evil'], ['demon', 'is the Demon']].map(([k, l]) => `<button data-act="say-kind" data-k="${k}" aria-pressed="${f.k === k}">${l}</button>`).join('')}</div>`;
+  const f = U.sayForm, rs = humanReasons(x, sayReasonKind(f));
+  const group = (label, roles) => `<optgroup label="${label}">${roles.map(r => `<option ${f.role === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</optgroup>`;
+  const kinds = f.k === 'good' ? '' : f.k === 'role'
+    ? `<select class="inp" data-sf="role" aria-label="Character">${group('Demon', ['Imp'])}${group('Minions', MN)}${group('Townsfolk', TF)}${group('Outsiders', OS)}</select>`
+    : `<div class="seg">${[['evil', 'could be evil'], ['demon', 'is the Demon']].map(([k, l]) => `<button data-act="say-kind" data-k="${k}" aria-pressed="${f.k === k}">${l}</button>`).join('')}</div>`;
   return `<div class="form whisper">
-    <p><b>${f.k === 'good' ? `I trust ${esc(P(x).name)}` : `I think ${esc(P(x).name)}…`}</b></p>${kinds}
+    <p><b>${f.k === 'good' ? `I trust ${esc(P(x).name)}` : f.k === 'role' ? `I think ${esc(P(x).name)} is the…` : `I think ${esc(P(x).name)}…`}</b></p>${kinds}
     <p class="hint">Because… (a specific reason moves the bots more than a hunch, if they trust you)</p>
     <div class="reasons">${rs.map((r, i) => `<button class="pc ${(f.r || 0) === i ? 'on' : ''}" data-act="say-reason" data-i="${i}">${r.t}</button>`).join('')}</div>
     <div class="row"><button class="btn primary sm" data-act="say-it">Say it in town</button><button class="btn sm" data-act="say-cancel">Cancel</button></div></div>`;
@@ -1647,7 +1756,11 @@ function sayCard() {
       <label>Tell<select class="inp" data-f="to">${opt('town', 'the whole town', f.to === 'town' || f.to == null)}${bots().map(q => opt(q.id, `${q.name}, privately`, String(f.to) === String(q.id))).join('')}</select></label>
       <div class="row"><button class="btn primary sm" data-act="make">${f.to == null || f.to === 'town' ? 'Say it in town' : 'Whisper it'}</button><button class="btn sm" data-act="make-cancel">Cancel</button></div></div>`;
   }
-  return `<section class="card"><h3>Say in town</h3>
+  const M = makeup();
+  const setupTalkHtml = `<details><summary>Talk about the setup</summary>
+      <p class="hint">${M.n} players: ${M.t} Townsfolk, ${M.o} ${plural(M.o, 'Outsider', 'Outsiders')}, ${M.m} ${plural(M.m, 'Minion', 'Minions')} and the Imp. With a Baron: ${M.t - 2} Townsfolk and ${M.o + 2} Outsiders. ${M.outClaims} ${plural(M.outClaims, 'Outsider has', 'Outsiders have')} claimed so far.</p>
+      <div class="reasons">${Object.keys(TOPICS).map(t => `<button class="pc" data-act="announce" data-t="${t}">“${TOPICS[t]}”</button>`).join('')}</div></details>`;
+  return `<section class="card"><h3>Say in town</h3>${setupTalkHtml}
     <div class="row"><select class="inp" id="claim-role" aria-label="Character to claim">${CLAIMABLE.map(r => opt(r, r, (p.claim || (isGood(p) ? believed(p) : (knowsBluffs(p) ? G.bluffs[0] : ''))) === r)).join('')}</select>
       <button class="btn sm" data-act="claim">${p.claim ? 'Change my claim' : 'Claim this character'}</button></div>
     ${facts.length ? `<h3>What you learned</h3>${facts.map((x, i) => `<div class="share-row"><div class="info">${factText(x, true)}</div>${shared.has(fkey(x)) ? '<span class="hint">Shared</span>' : `<button class="btn sm" data-act="share" data-i="${i}">Share</button>`}</div>`).join('')}` : ''}
@@ -1698,6 +1811,16 @@ function matrixHtml() {
     <tfoot><tr><th class="pcol">Hard claims</th>${cols.map(c => `<td class="${c.start ? 'team-start ' : ''}${hardCount[c.j] > 1 ? 'multi' : hardCount[c.j] ? 'one' : ''}">${hardCount[c.j] || ''}</td>`).join('')}</tr></tfoot>
   </table></div>`;
 }
+// The characters players have named this player as (each speaker's latest)
+function namedHtml(x) {
+  const latest = {};
+  G.opinions.forEach(o => { if (o.x === x) latest[o.by] = o; });
+  const named = Object.values(latest).filter(o => o.role);
+  if (!named.length) return '';
+  const by = {};
+  named.forEach(o => (by[o.role] = by[o.role] || []).push(o.by === G.me ? 'you' : esc(P(o.by).name)));
+  return `<div class="facts">${Object.keys(by).map(r => `<span>Named as the <b class="${isGoodType(r) ? '' : 'evil-txt'}">${esc(r)}</b> by ${list(by[r])}</span>`).join('')}</div>`;
+}
 function notesCard() {
   const rows = G.players.map(q => {
     const shared = G.pub.filter(e => e.by === q.id);
@@ -1706,6 +1829,7 @@ function notesCard() {
     return `<tr class="${q.alive ? '' : 'dead'} ${U.panel === q.id ? 'sel' : ''}"><td><button class="btn sm" data-act="seat" data-id="${q.id}" style="min-height:30px">${q.id === G.me ? 'You' : esc(q.name)}</button></td>
       <td>${q.claim ? esc(q.claim) : '<span class="muted">?</span>'}${new Set(q.claimHist).size > 1 ? ' <span class="tag evil">changed</span>' : ''}${how}
       ${shared.length ? `<div class="facts">${shared.map(e => `<span>${factText(e.f)}</span>`).join('')}</div>` : ''}
+      ${namedHtml(q.id)}
       ${q.bot && q.bot.toldMe ? `<div class="facts"><span>🤫 Told you: ${q.bot.toldMe.roles.length === 1 ? 'the ' + esc(q.bot.toldMe.roles[0]) : 'one of ' + list(q.bot.toldMe.roles.map(esc))}${q.claim && !q.bot.toldMe.roles.includes(q.claim) ? ' <span class="tag evil">doesn\'t match</span>' : ''}</span>${G.privFacts.filter(e => e.by === q.id && !shared.some(x => fkey(x.f) === fkey(e.f))).map(e => `<span>🤫 ${factText(e.f)}</span>`).join('')}</div>` : ''}</td>
       ${prefs.coach ? `<td class="pct">${coachPct(q.id)}%</td>` : ''}</tr>`;
   }).join('');
@@ -1718,14 +1842,20 @@ function feedHtml(items) {
     return `<div class="say ${e.who === G.me ? 'me' : ''} ${q.alive ? '' : 'dead'}"><span class="who">${e.who === G.me ? 'You' : esc(q.name)}:</span>${e.text}</div>`;
   }).join('')}</div>`;
 }
+// The setup for this many players, shown in the middle of the table
+function midCounts() {
+  const [t, o, m] = COUNTS[G.players.length];
+  const row = (t, o) => `<span style="color:var(--townsfolk)">${t}</span>·<span style="color:var(--outsider)">${o}</span>·<span style="color:var(--minion)">${m}</span>·<span style="color:var(--demon)">1</span>`;
+  return `<div class="mid-counts" title="${t} Townsfolk, ${o} Outsiders, ${m} Minions, 1 Demon">${row(t, o)}</div><div class="mid-key">Town · Out · Min · Dem</div><div class="mid-key">Baron: ${t - 2}·${o + 2}·${m}·1</div>`;
+}
 function dayView() {
   const d = G.dayS, m = me();
   const seats = tableHtml(q => ({
     button: true, attrs: `data-act="seat" data-id="${q.id}" aria-label="${esc(q.name)}"`,
     cls: 'seat ' + (q.alive ? '' : 'dead') + (d.block === q.id ? ' block' : '') + (U.panel === q.id ? ' picked' : ''),
-    sub: (q.id === G.me ? 'you · ' : '') + (q.claim || '') + (prefs.coach ? ` ${coachPct(q.id)}%` : ''),
+    sub: [q.id === G.me ? 'you' : '', q.claim || '', prefs.coach ? `${coachPct(q.id)}%` : ''].filter(Boolean).join(' · '),
     mark: q.alive ? '' : q.ghost ? '☠ vote' : '☠',
-  }), `<div class="mid-big">${alive().length}</div><div class="mid-sm">alive</div>${d.block != null ? `<div class="mid-sm" style="color:var(--evil)">${nm(d.block)} on the block</div>` : ''}`);
+  }), `<div class="mid-big">${alive().length}</div><div class="mid-sm">alive of ${G.players.length}</div>${midCounts()}${d.block != null ? `<div class="mid-sm" style="color:var(--evil)">${nm(d.block)} on the block</div>` : ''}`);
   const today = G.feed.filter(e => e.when === label()), earlier = G.feed.filter(e => e.when !== label());
   const endConfirm = U.confirmEnd ? `<div class="banner">${d.block != null ? `End the day? <b>${nm(d.block)}</b> will be executed.` : 'End the day? Nobody is on the block, so nobody will be executed.'}
       <div class="row" style="margin-top:8px"><button class="btn primary sm" data-act="end-yes">End the day</button><button class="btn sm" data-act="end-no">Not yet</button></div></div>` : '';
@@ -1860,6 +1990,12 @@ document.addEventListener('change', e => {
     if (t.dataset.f === 'role') { U.form.char = ''; render(); }
     if (t.dataset.f === 'to') render();
   }
+  if (t.dataset.sf === 'role' && U.sayForm) {
+    const was = sayReasonKind(U.sayForm);
+    U.sayForm.role = t.value;
+    if (sayReasonKind(U.sayForm) !== was) U.sayForm.r = 0;
+    render();
+  }
 });
 document.addEventListener('toggle', e => {
   const d = e.target;
@@ -1902,7 +2038,8 @@ document.addEventListener('click', e => {
     case 'seat': U.panel = U.panel === id ? null : id; U.sayForm = null; U.three = []; U.privOpen = null; break;
     case 'ask': ask(P(id), b.dataset.q); break;
     case 'mx-all': prefs.mxAll = !prefs.mxAll; savePrefs(); break;
-    case 'say-open': U.sayForm = U.sayForm && U.sayForm.x === id && (U.sayForm.k === 'good') === (b.dataset.k === 'good') ? null : { x: id, k: b.dataset.k, r: 0 }; break;
+    case 'say-open': U.sayForm = U.sayForm && U.sayForm.x === id && sayGroup(U.sayForm.k) === b.dataset.k ? null : { x: id, k: b.dataset.k, r: 0, role: 'Poisoner' }; break;
+    case 'announce': announce(b.dataset.t); break;
     case 'say-kind': U.sayForm.k = b.dataset.k; break;
     case 'say-reason': U.sayForm.r = +b.dataset.i; break;
     case 'say-cancel': U.sayForm = null; break;
