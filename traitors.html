@@ -698,7 +698,7 @@ function menuHtml() {
     <h3>Sound</h3>
     <div class="row"><button class="btn sm" data-act="voice" aria-pressed="${prefs.voice}">Narrator voice: ${prefs.voice ? 'on' : 'off'}</button>${navigator.vibrate ? `<button class="btn sm" data-act="buzz" aria-pressed="${prefs.buzz}">Buzz: ${prefs.buzz ? 'on' : 'off'}</button>` : ''}</div>
     <p class="hint">Text size, light or dark, undo and saving the game to a file are under ⚙.</p>
-    ${inGame ? `<h3>Game</h3><button class="btn danger" data-act="quit">End this game and start again</button>` : ''}`;
+    ${inGame ? `<h3>Game</h3>${menu === 'quit' ? `<p>End this game? The players stay, and roles are dealt again next time.</p><div class="row"><button class="btn danger" data-act="quityes">Yes, end it</button><button class="btn" data-act="menu">Keep playing</button></div>` : `<button class="btn danger" data-act="quit">End this game and start again</button>`}` : ''}`;
 }
 function renderMenu() {
   $('#sheet').innerHTML = menu ? `<div class="sheet-back" data-act="backdrop"><div class="sheet" role="dialog" aria-modal="true" aria-label="Menu">${menuHtml()}</div></div>` : '';
@@ -738,7 +738,8 @@ document.addEventListener('click', e => {
     case 'voice': prefs.voice = !prefs.voice; savePrefs(); if (prefs.voice) say('The narrator is on.'); else if (window.speechSynthesis) speechSynthesis.cancel(); return renderMenu();
     case 'buzz': prefs.buzz = !prefs.buzz; savePrefs(); buzz(60); return renderMenu();
     case 'peekmenu': menu = 'peek'; return renderMenu();
-    case 'quit': if (confirm('End this game? The players stay; roles are dealt again.')) { S = fresh(S.names, S.settings); menu = null; save(); render(); } return;
+    case 'quit': menu = 'quit'; return renderMenu();
+    case 'quityes': S = fresh(S.names, S.settings); menu = null; save(); render(); return;
     case 'choose':
       if (menu === 'peek') { const i = +b.dataset.v; menu = null; S.peekFrom = S.phase; S.pass = newPass('peek', [i]); save(); return render(); }
       if (S.phase === 'mission') { S.mission.shield = S.mission.shield === +b.dataset.v ? null : +b.dataset.v; return render(); }
