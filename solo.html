@@ -243,6 +243,11 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .matrix tfoot td.one { color: var(--ok); font-weight: 800; }
 .toggle { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 4px 12px; font-weight: 700; font-size: .82rem; min-height: 32px; }
 .toggle[aria-pressed="true"] { background: var(--brass); color: #1a1408; border-color: var(--brass); }
+.matrix td.cell.mx-lab { box-shadow: inset 0 0 0 2px var(--brass); }
+.matrix td.cell.mx-lab.multi { box-shadow: inset 0 0 0 3px var(--warn), inset 0 0 0 5px var(--brass); }
+.tok.lab-evil, button.tok.seat.lab-evil { border-color: var(--evil); border-style: dashed; border-width: 3px; }
+.tok.lab-good, button.tok.seat.lab-good { border-color: var(--good); border-style: dashed; border-width: 3px; }
+.tok.mate, button.tok.seat.mate { box-shadow: 0 0 0 3px color-mix(in srgb, var(--evil) 55%, transparent), 0 3px 10px rgba(0,0,0,.35); }
 /* Seats you can tap to talk to: quieter than the glowing turn tokens */
 button.tok.seat { animation: none; border-color: var(--line); }
 button.tok.seat.picked { border-color: var(--brass); }
@@ -304,7 +309,7 @@ const NAMES = ['Ada', 'Ben', 'Cleo', 'Dev', 'Esme', 'Finn', 'Gus', 'Hana', 'Ivo'
 /* ---------- State ---------- */
 let G = load();
 if (G) {
-  G.whispers = G.whispers || []; G.privFacts = G.privFacts || []; G.callouts = G.callouts || [];
+  G.whispers = G.whispers || []; G.privFacts = G.privFacts || []; G.callouts = G.callouts || []; G.team = G.team || {}; G.labels = G.labels || {};
   G.players.forEach(p => { if (p.bot) { p.bot.heardFacts = p.bot.heardFacts || []; } });
 }
 const PREFS_KEY = 'clocktower-solo-prefs';
@@ -386,7 +391,7 @@ function newGame(opts) {
     log: [], info: {}, inbox: {}, facts: {}, poison: null, bluffs: [], redHerring: null,
     lastExecuted: null, winner: null, announce: null, dayS: null, dawnInfo: {}, diedTonight: [], rkWait: false,
     feed: [], pub: [], deaths: [], virgins: [], nominatedEver: [], shots: [], opinions: [], execs: {}, vote: null, lastVote: null,
-    whispers: [], privFacts: [], callouts: [],
+    whispers: [], privFacts: [], callouts: [], team: {}, labels: {},
   };
   G.players.forEach(p => { G.info[p.id] = []; G.inbox[p.id] = []; G.facts[p.id] = []; });
   const drunk = G.players.find(p => p.role === 'Drunk');
@@ -675,12 +680,18 @@ const canVote = q => q.alive || q.ghost;
 function startVote(a, b, from) {
   const N = G.players.length, order = [];
   for (let k = 1; k <= N; k++) { const q = G.players[(b + k) % N]; if (canVote(q)) order.push(q.id); }
-  const intent = {};
+  G.vote = { a, b, order, intent: {}, from, mine: order.includes(G.me) ? null : false };
+  // Nominated yourself? First you get to defend yourself; the bots decide after hearing you
+  if (b === G.me) { G.vote.defending = true; return; }
+  decideVotes();
+}
+function decideVotes() {
+  const v = G.vote, { a, b, order, intent } = v;
+  v.defending = false;
   order.forEach(id => { if (id !== G.me) intent[id] = botVote(P(id), a, b); });
   // A Butler bot only votes if their master (another bot) does
   order.forEach(id => { const q = P(id); if (id !== G.me && q.role === 'Butler' && q.master != null && q.master !== G.me && intent[id] && !intent[q.master]) intent[id] = false; });
-  G.vote = { a, b, order, intent, from, mine: order.includes(G.me) ? null : false };
-  if (G.vote.mine === false) finishVote();
+  if (v.mine === false) finishVote();
 }
 function finishVote() {
   const v = G.vote, d = G.dayS, need = votesNeeded(), m = me();
@@ -734,6 +745,7 @@ function startDay() {
   G.dayS = { nominators: [], nominees: [], block: null, highest: 0, events: [], botNoms: 0, quiet: false };
   sys(G.diedTonight.length ? G.diedTonight.map(id => `${Nm(id)} died in the night.`).join(' ') : `Day ${G.n} begins. Nobody died in the night.`);
   G.lastExecuted = null;
+  teamApproach();
   morningTalk();
 }
 
@@ -948,6 +960,7 @@ function validBluff(p) {
 // Info a bot will share: its real info if good (false if it's drunk or poisoned), made-up info if evil
 const shareable = p => isGood(p) ? G.facts[p.id].filter(f => f.src === believed(p)) : p.bot.fakes;
 function botClaim(p) {
+  p.bot.waitBluff = false;
   const role = isGood(p) ? believed(p) : (p.bot.bluff = validBluff(p));
   if (!isGood(p) && !p.claim) log(`${esc(p.name)} (${p.role}) claims to be the ${role}.`);
   setClaim(p, role);
@@ -1034,6 +1047,7 @@ function morningTalk() {
     if (!p.claim) {
       let open = p.bot.open * (HIDDEN.includes(isGood(p) ? believed(p) : 'x') ? 0.5 : 1);
       if (believed(p) === 'Saint' && isGood(p)) open = 1;
+      if (p.bot.waitBluff && G.n === 1) return;
       if (G.n >= 2 || chance(open) || (!p.alive && chance(0.6))) botClaim(p);
     } else shareNew(p);
   });
@@ -1050,7 +1064,7 @@ function ask(p, q) {
   if (q === 'role') {
     say(G.me, `${esc(p.name)}, what's your character?`);
     if (p.claim) { say(p.id, `I'm the <b>${esc(p.claim)}</b>${p.alive ? '' : ', as I said'}.`); return; }
-    const willing = G.n >= 2 || p.bot.refused === G.n || chance(isGood(p) ? 0.7 : 0.9);
+    const willing = !(p.bot.waitBluff && G.n === 1) && (G.n >= 2 || p.bot.refused === G.n || chance(isGood(p) ? 0.7 : 0.9));
     if (willing) botClaim(p);
     else { p.bot.refused = G.n; say(p.id, pick(["I'd rather not say just yet. Ask me again later.", "I'm keeping that quiet for now. I'll tell you before the votes.", "Not yet. I don't want the Demon to know."])); }
   } else if (q === 'info') {
@@ -1208,6 +1222,71 @@ function setupTalk() {
   if (!al.length) return;
   if (M.outClaims > M.o + 2 && G.saidSetup !== 'over') { G.saidSetup = 'over'; say(al[0].id, `${outsiderLine(M)}. That's more than even a Baron allows: someone claiming an Outsider is lying.`); }
   else if (M.outClaims > M.o && !G.saidSetup) { G.saidSetup = 'baron'; say(al[0].id, `${outsiderLine(M)}. I think this is a Baron game, or an Outsider claim is fake.`); }
+}
+
+/* ---------- The evil team: honest with each other in private ---------- */
+// With 7 or more players the evil team knows each other, so a teammate bot drops the act with you
+const teammate = p => !!p && p.id !== G.me && !!p.bot && !isGood(p) && !isGood(me()) && G.players.length >= 7;
+const sayTo = (w, who) => text => w.lines.push({ who, text });
+// On the first morning, your teammates come to you; a Spy teammate also passes on what it saw each day
+function teamApproach() {
+  const m = me();
+  bots().filter(p => p.alive && teammate(p)).forEach(p => {
+    if (G.n === 1) {
+      const w = whisperWith(p.id), t = sayTo(w, p.id);
+      if (!p.bot.bluff) p.bot.bluff = validBluff(p);
+      G.team[p.id] = { role: p.role, bluff: p.bot.bluff };
+      if (p.role === 'Imp') {
+        t(`I'm the <b>Imp</b>. Our bluffs are <b>${list(G.bluffs.map(esc))}</b>. I'll be the <b>${esc(p.bot.bluff)}</b>, so take one of the others. What are you?`);
+        tell(G.me, [`Your Demon, ${esc(p.name)}, shared the bluffs: <b>${G.bluffs.map(esc).join(', ')}</b>. They are claiming the ${esc(p.bot.bluff)}.`]);
+      } else if (m.role === 'Imp') {
+        p.bot.waitBluff = true;
+        t(`I'm the <b>${esc(p.role)}</b>. Which bluff should I take? I was thinking the <b>${esc(p.bot.bluff)}</b>, but tell me if you want it.`);
+      } else t(`I'm the <b>${esc(p.role)}</b>. I'll be claiming the <b>${esc(p.bot.bluff)}</b>.`);
+      log(`${esc(p.name)} (${p.role}) tells you, privately, their real character and plan.`);
+    }
+    if (p.role === 'Spy') {
+      G.team[p.id] = G.team[p.id] || { role: p.role };
+      const w = whisperWith(p.id), seen = (G.team[p.id].seen = G.team[p.id].seen || []);
+      const reveal = alive().filter(q => isGood(q) && q.id !== G.me && !seen.includes(q.id)).sort((a, b) => (ROLE_VALUE[believed(b)] || 0) - (ROLE_VALUE[believed(a)] || 0)).slice(0, 2);
+      if (reveal.length) {
+        reveal.forEach(q => seen.push(q.id));
+        sayTo(w, p.id)(`From the Grimoire: ${list(reveal.map(q => `<b>${esc(q.name)}</b> is the <b>${esc(q.role === 'Drunk' ? 'Drunk (they think they\'re the ' + q.fake + ')' : q.role)}</b>`))}.`);
+      }
+    }
+  });
+}
+// What you can say to a teammate
+function teamWhisper(p, kind, x) {
+  const w = whisperWith(p.id), mine = sayTo(w, G.me), theirs = sayTo(w, p.id), m = me();
+  G.team[p.id] = G.team[p.id] || { role: p.role };
+  if (kind === 'role') { mine(`I'm really the <b>${esc(m.role)}</b>${m.claim ? `, and I'm claiming the <b>${esc(m.claim)}</b>` : ''}.`); theirs('Good to know. We stick together.'); }
+  else if (kind === 'plan') {
+    mine("What's your plan?");
+    const bits = [`I'm ${p.claim ? 'claiming' : 'going to claim'} the <b>${esc(p.claim || p.bot.bluff || validBluff(p))}</b>.`];
+    const f = frameTarget(p); if (f != null) bits.push(`I'll push <b>${nm(f)}</b>.`);
+    if (p.role === 'Imp') bits.push(`Tonight I'm thinking of killing <b>${nm(p.bot.killReq && p.bot.killReq.n === G.n + 1 ? p.bot.killReq.x : impTarget(p))}</b>.`);
+    if (p.role === 'Poisoner') bits.push(`I'll poison <b>${nm(p.bot.poisonReq && p.bot.poisonReq.n === G.n + 1 ? p.bot.poisonReq.x : poisonTarget(p))}</b>.`);
+    theirs(bits.join(' '));
+  } else if (kind === 'bluffs') {
+    mine('What are our bluffs?');
+    if (p.role === 'Imp') { theirs(`<b>${list(G.bluffs.map(esc))}</b>. I'm the ${esc(p.claim || p.bot.bluff)}.`); tell(G.me, [`Bluffs from ${esc(p.name)}: <b>${G.bluffs.map(esc).join(', ')}</b>.`]); }
+    else theirs(`The Demon has them, not me. I'm going with the ${esc(p.claim || p.bot.bluff)}.`);
+  } else if (kind === 'give') {
+    mine(`Take the <b>${esc(x)}</b>.`);
+    if (p.claim && p.claim !== x) theirs(`Too late, I've already claimed the ${esc(p.claim)}.`);
+    else if (G.players.some(q => q.id !== p.id && q.claim === x)) theirs(`Someone's already claimed the ${esc(x)}. I'll stick with the ${esc(p.bot.bluff)}.`);
+    else { p.bot.bluff = x; p.bot.gave = null; p.bot.waitBluff = false; G.team[p.id].bluff = x; theirs(`Got it, I'm the <b>${esc(x)}</b>.`); log(`You told ${esc(p.name)} to bluff as the ${x}.`); }
+  } else if (kind === 'kill' || kind === 'poison') {
+    mine(kind === 'kill' ? `Kill <b>${nm(x)}</b> tonight.` : `Poison <b>${nm(x)}</b> tonight.`);
+    if (knownTeam(p).includes(x) && x !== p.id) theirs("They're one of us!");
+    else { p.bot[kind === 'kill' ? 'killReq' : 'poisonReq'] = { x, n: G.n + 1 }; theirs(pick(['Consider it done.', 'Leave it to me.', 'Good choice.'])); }
+  } else if (kind === 'push') {
+    mine(`Let's both push <b>${nm(x)}</b>.`);
+    if (knownTeam(p).includes(x)) theirs("They're one of us, careful!");
+    else { p.bot.frame = x; theirs(`Agreed. I'll go after <b>${nm(x)}</b> too.`); }
+  }
+  bump();
 }
 
 /* ---------- Private conversations ---------- */
@@ -1386,6 +1465,8 @@ function botNight(p) {
   return null;
 }
 function impTarget(p) {
+  const req = p.bot.killReq;
+  if (req && req.n === G.n && P(req.x).alive) return req.x;
   const team = knownTeam(p);
   const cands = alive().filter(q => q.id !== p.id && !team.includes(q.id));
   if (!cands.length) return p.id;
@@ -1394,6 +1475,8 @@ function impTarget(p) {
   return t.id;
 }
 function poisonTarget(p) {
+  const req = p.bot.poisonReq;
+  if (req && req.n === G.n && P(req.x).alive) return req.x;
   const team = knownTeam(p);
   const cands = alive().filter(q => q.id !== p.id && !team.includes(q.id));
   if (!cands.length) return p.id;
@@ -1531,6 +1614,9 @@ function howView() {
     <h3>Each day</h3>
     <ul class="plain">
       <li><b>Town talk:</b> the bots claim characters, share info and say who they suspect. Tap any seat to ask that player what they are, what they've learned, who they suspect or who they trust, or to say you suspect or trust them.</li>
+      <li><b>On trial:</b> when someone nominates you, you defend yourself before anyone decides their vote: claim your character, share your info, point at someone else, or plead. Your own nominations come with a reason, which the nominee answers.</li>
+      <li><b>Labels:</b> on any player's seat, label what you think they are (any character, or just good or evil). Only you see it: it shows on their seat, in Claims and info and in the claim matrix.</li>
+      <li><b>On the evil team</b> (7 or more players): your teammates (🔴 on the table) are honest with you in private. On the first morning Minions tell you, as the Demon, their real character and ask which bluff to take; a Demon tells you, as a Minion, the bluffs and which it's using; a Spy passes on what it saw in the Grimoire each day. From a teammate's seat you can ask their plan or the bluffs, tell them your real character, hand them a bluff, agree who to push, and ask the Imp to kill or the Poisoner to poison someone tonight.</li>
       <li><b>Name their character:</b> from a player's seat, say what you think they are, good or evil ("I think Pip is the Poisoner"), with a reason. Naming the Imp counts as a Demon read, a Minion as an evil read, and a good character as a vouch. Bots name characters too, and the Claims and info table shows what each player has been named as.</li>
       <li><b>Talk about the setup:</b> in Say in town, announce things like "I think this is a Baron game", "there's a Drunk" or "the Poisoner is at work". Bots answer with the counts (how many Outsiders have claimed against how many there should be) and what the Librarian saw, and raise it themselves when the Outsider claims don't add up. The middle of the table shows this game's setup: Townsfolk · Outsiders · Minions · Demon, and the same with a Baron.</li>
       <li><b>Speak up:</b> from a player's seat, accuse them (could be evil, or is the Demon) or vouch for them, and pick your reason: a specific piece of evidence, something you learned, their voting, or a hunch. Bots weigh what you say, more for a specific reason, and only as much as they trust you. A couple of them will say whether they agree.</li>
@@ -1580,7 +1666,10 @@ function tableHtml(seat, mid) {
     const text = s.text || q.name, longest = Math.max(3, ...text.split(/\s+/).map(w => w.length));
     const nfs = (s.text ? Math.min(d * 0.19, d * 1.05 / longest) : Math.min(d * 0.24, d * 1.4 / longest)).toFixed(2);
     const sfs = s.sub ? Math.min(d * 0.16, d * 1.25 / Math.max(4, s.sub.length)).toFixed(2) : 0;
-    return `<${tag} class="tok ${s.cls || ''}" style="left:${(50 + 39 * Math.cos(a)).toFixed(2)}%;top:${(50 + 39 * Math.sin(a)).toFixed(2)}%;--nfs:${nfs}cqw;--sfs:${sfs}cqw" ${s.attrs || ''}><span class="tok-nm">${esc(text)}</span>${s.sub ? `<span class="tok-sub">${esc(s.sub)}</span>` : ''}${s.mark ? `<span class="mark">${s.mark}</span>` : ''}</${tag}>`;
+    const lab = G && G.labels && G.stage !== 'over' ? G.labels[q.id] : null;
+    const labCls = lab ? (lab === 'Good' || (ROLES[lab] && isGoodType(lab)) ? 'lab-good' : 'lab-evil') : '';
+    if (lab) s.mark = (s.mark ? s.mark + ' ' : '') + `🏷${esc(lab === 'Fortune Teller' ? 'FT' : lab === 'Scarlet Woman' ? 'SW' : lab)}`;
+    return `<${tag} class="tok ${s.cls || ''} ${labCls}" style="left:${(50 + 39 * Math.cos(a)).toFixed(2)}%;top:${(50 + 39 * Math.sin(a)).toFixed(2)}%;--nfs:${nfs}cqw;--sfs:${sfs}cqw" ${s.attrs || ''}><span class="tok-nm">${esc(text)}</span>${s.sub ? `<span class="tok-sub">${esc(s.sub)}</span>` : ''}${s.mark ? `<span class="mark">${s.mark}</span>` : ''}</${tag}>`;
   }).join('');
   return `<div class="table" style="--d:${d.toFixed(2)}cqw;--fs:${(d * 0.2).toFixed(2)}cqw">${toks}<div class="table-mid">${mid}</div></div>`;
 }
@@ -1645,8 +1734,25 @@ function coachPct(id) {
   const B = belief(coachKey());
   return coachKey() === 'town' ? Math.round(100 * B.pe[id]) : Math.round(100 * B.pd[id]);
 }
+// Your defence when you're on trial
+function defenceCard() {
+  const v = G.vote, m = me(), facts = G.facts[G.me];
+  const shared = new Set(G.pub.filter(e => e.by === G.me).map(e => fkey(e.f)));
+  const opt = (val, l, on) => `<option value="${esc(val)}" ${on ? 'selected' : ''}>${esc(l)}</option>`;
+  return `<section class="card panel"><h2>${Nm(v.a)} nominated you</h2>
+    ${feedHtml(G.feed.slice(v.from || 0).filter(e => e.who != null))}
+    <p><b>Your defence.</b> Say as much as you like, then let the town vote. The bots decide after hearing you.</p>
+    <div class="row"><select class="inp" id="def-role" aria-label="Character">${CLAIMABLE.map(r => opt(r, r, (m.claim || (isGood(m) ? believed(m) : G.bluffs[0])) === r)).join('')}</select>
+      <button class="btn sm" data-act="def-claim">${m.claim ? 'Say my character again' : 'Claim this character'}</button></div>
+    ${facts.length ? `<div class="row">${facts.map((f, i) => `<button class="btn sm" data-act="def-share" data-i="${i}">${shared.has(fkey(f)) ? 'Repeat' : 'Share'} my night ${f.n} info</button>`).join('')}</div>` : ''}
+    <div class="row"><select class="inp" id="def-x" aria-label="Who to point at">${alive().filter(q => q.id !== G.me && q.id !== v.a).map(q => opt(q.id, q.name)).join('')}${opt(v.a, `${P(v.a).name} (who nominated you)`)}</select>
+      <button class="btn sm" data-act="def-point">Point at them instead</button></div>
+    <div class="row"><button class="btn sm" data-act="def-plead">"I'm good. Executing me wastes a day."</button></div>
+    <button class="btn primary block" data-act="def-done">I've said my piece: start the vote</button></section>`;
+}
 function voteCard() {
   const v = G.vote, m = me();
+  if (v.defending) return defenceCard();
   const myIdx = v.order.indexOf(G.me);
   const chips = v.order.map((id, i) => {
     if (id === G.me) return `<span class="vote-chip wait">You?</span>`;
@@ -1683,6 +1789,7 @@ function panelCard(id) {
       ${[['evil', `Accuse ${esc(q.name)}…`], ['good', `Vouch for ${esc(q.name)}…`], ['role', 'Name their character…']].map(([k, l]) => `<button class="btn sm" data-act="say-open" data-k="${k}" data-id="${id}" aria-pressed="${!!(U.sayForm && U.sayForm.x === id && sayGroup(U.sayForm.k) === k)}">${l}</button>`).join('')}</div>
     ${U.sayForm && U.sayForm.x === id ? sayFormHtml(id) : ''}
     ${privateHtml(q)}`;
+  const labelRow = labelHtml(q);
   return `<section class="card panel">
     <div class="panel-head"><h2>${isMe ? 'You' : esc(q.name)}</h2><span class="tag">${q.alive ? 'alive' : q.ghost ? 'dead · ghost vote' : 'dead'}</span>${prefs.coach ? `<span class="tag">${coachKey() === 'town' ? 'town suspicion' : 'Demon'} ${coachPct(id)}%</span>` : ''}</div>
     <p>${q.claim ? `${isMe ? 'You claim' : 'Claims'} to be the <b>${esc(q.claim)}</b>.` : isMe ? "You haven't claimed a character." : "Hasn't said what they are."}</p>
@@ -1690,11 +1797,13 @@ function panelCard(id) {
     ${shared.length ? `<div class="hist">${shared.map(e => `<div class="info">${factText(e.f)}</div>`).join('')}</div>` : ''}
     ${askBtns}
     <div class="row">
-      ${canNom && !isMe ? `<button class="btn primary sm" data-act="nominate" data-id="${id}">Nominate ${esc(q.name)}</button>` : ''}
+      ${canNom && !isMe ? `<button class="btn primary sm" data-act="nom-open" data-id="${id}" aria-pressed="${U.nomForm === id}">Nominate ${esc(q.name)}…</button>` : ''}
       ${canNom && isMe ? `<button class="btn sm" data-act="nominate" data-id="${id}">Nominate yourself</button>` : ''}
       ${canShoot ? `<button class="btn sm" data-act="shoot" data-id="${id}">Slayer shot at ${esc(q.name)}</button>` : ''}
       <button class="btn sm" data-act="seat" data-id="${id}">Close</button>
     </div>
+    ${U.nomForm === id ? nomFormHtml(id) : ''}
+    ${labelRow}
   </section>`;
 }
 // Choose what you're saying about a player, and why
@@ -1711,8 +1820,23 @@ function sayFormHtml(x) {
     <div class="row"><button class="btn primary sm" data-act="say-it">Say it in town</button><button class="btn sm" data-act="say-cancel">Cancel</button></div></div>`;
 }
 // Talking privately with a bot: three for three, one for one, info, and what they really think
+// Why you're nominating someone (they'll answer it)
+function nomFormHtml(x) {
+  const rs = humanReasons(x, 'evil');
+  return `<div class="form whisper"><p><b>I nominate ${esc(P(x).name)} because…</b></p>
+    <div class="reasons">${rs.map((r, i) => `<button class="pc ${(U.nomR || 0) === i ? 'on' : ''}" data-act="nom-reason" data-i="${i}">${r.t}</button>`).join('')}</div>
+    <div class="row"><button class="btn primary sm" data-act="nom-go" data-id="${x}">Nominate</button><button class="btn sm" data-act="nom-cancel">Cancel</button></div></div>`;
+}
+// Your own private label for what a player is
+function labelHtml(q) {
+  const cur = G.labels[q.id] || '';
+  const group = (label, roles) => `<optgroup label="${label}">${roles.map(r => `<option ${cur === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</optgroup>`;
+  return `<div class="row"><label class="hint" for="lab-${q.id}">🏷 ${q.id === G.me ? 'Label' : 'My label for ' + esc(q.name)} (only you see this)</label>
+    <select class="inp" id="lab-${q.id}" data-label="${q.id}"><option value="">No label</option>${group('Demon', ['Imp'])}${group('Minions', MN)}${group('Townsfolk', TF)}${group('Outsiders', OS)}<option value="Evil">Evil (not sure which)</option><option value="Good">Good (not sure which)</option></select></div>`;
+}
 function privateHtml(q) {
   if (q.id === G.me) return '';
+  if (teammate(q)) return teamHtml(q);
   const chats = G.whispers.filter(w => w.with === q.id);
   const myFacts = G.facts[G.me];
   const three = U.three || [];
@@ -1732,6 +1856,26 @@ function privateHtml(q) {
     </div>
     ${myFacts.length ? `<div class="row">${myFacts.map((f, i) => `<button class="btn sm" data-act="whisper-fact" data-i="${i}" data-id="${q.id}">🤫 Whisper my night ${f.n} info</button>`).join('')}</div>` : ''}
     <p class="hint">To whisper made-up info, use <i>Make up info</i> below and choose who to tell.</p>`;
+}
+// Private talk with a teammate on the evil team
+function teamHtml(q) {
+  const chats = G.whispers.filter(w => w.with === q.id), m = me(), t = G.team[q.id];
+  const opt = (val, l) => `<option value="${esc(val)}">${esc(l)}</option>`;
+  const targets = alive().filter(x => x.id !== q.id && x.id !== G.me).map(x => opt(x.id, x.name)).join('');
+  const bluffs = m.role === 'Imp' || G.info[G.me].some(e => e.lines.some(l => l.includes('bluffs'))) ? G.bluffs : CLAIMABLE;
+  return `<h3>🔴 Your teammate ${esc(q.name)}</h3>
+    <p class="hint">${t ? `Really the <b>${esc(t.role)}</b>${t.bluff ? `, bluffing as the <b>${esc(t.bluff)}</b>` : ''}.` : 'You know they are evil.'} Only the two of you hear this.</p>
+    ${chats.length ? `<div class="whisper">${chats.map(w => `<div class="hist-when">Day ${w.day}</div>${w.lines.map(l => `<div class="say ${l.who === G.me ? 'me' : ''}"><span class="who">${l.who === G.me ? 'You' : esc(q.name)}:</span>${l.text}</div>`).join('')}`).join('')}</div>` : ''}
+    <div class="row">
+      <button class="btn sm" data-act="team" data-k="plan" data-id="${q.id}">What's your plan?</button>
+      <button class="btn sm" data-act="team" data-k="bluffs" data-id="${q.id}">What are our bluffs?</button>
+      <button class="btn sm" data-act="team" data-k="role" data-id="${q.id}">Tell them my real character</button>
+    </div>
+    <div class="row"><select class="inp" id="team-bluff" aria-label="Bluff">${bluffs.map(r => opt(r, r)).join('')}</select><button class="btn sm" data-act="team-sel" data-k="give" data-src="team-bluff" data-id="${q.id}">Tell them to bluff as this</button></div>
+    <div class="row"><select class="inp" id="team-x" aria-label="Player">${targets}</select>
+      <button class="btn sm" data-act="team-sel" data-k="push" data-src="team-x" data-id="${q.id}">Let's both push them</button>
+      ${q.role === 'Imp' ? `<button class="btn sm" data-act="team-sel" data-k="kill" data-src="team-x" data-id="${q.id}">Kill them tonight</button>` : ''}
+      ${q.role === 'Poisoner' ? `<button class="btn sm" data-act="team-sel" data-k="poison" data-src="team-x" data-id="${q.id}">Poison them tonight</button>` : ''}</div>`;
 }
 function sayCard() {
   const p = me(), f = U.form;
@@ -1786,15 +1930,17 @@ function claimState(q, r) {
 }
 function matrixHtml() {
   const only = prefs.mxAll !== true;
-  const states = G.players.map(q => CLAIMABLE.map(r => claimState(q, r)));
-  const hardCount = CLAIMABLE.map((r, j) => states.filter(row => row[j] && (row[j].k === 'hard' || row[j].k === 'conf')).length);
+  const ALLC = [...CLAIMABLE, ...MN, 'Imp'];
+  const states = G.players.map(q => ALLC.map(r => MN.includes(r) || r === 'Imp' ? null : claimState(q, r)));
+  const hardCount = ALLC.map((r, j) => states.filter(row => row[j] && (row[j].k === 'hard' || row[j].k === 'conf')).length);
   const anyAt = j => states.some(row => row[j]);
-  const groups = [['townsfolk', 'Townsfolk', TF], ['outsider', 'Outsiders', OS.filter(r => r !== 'Drunk')]].map(([team, label, roles]) => ({ team, label, roles: roles.filter(r => !only || anyAt(CLAIMABLE.indexOf(r))) })).filter(g => g.roles.length);
-  const cols = groups.flatMap(g => g.roles.map((r, i) => ({ r, j: CLAIMABLE.indexOf(r), start: i === 0 })));
+  const evilLabels = [...MN, 'Imp'].filter(r => Object.values(G.labels).includes(r));
+  const groups = [['townsfolk', 'Townsfolk', TF], ['outsider', 'Outsiders', OS.filter(r => r !== 'Drunk')], ['minion', 'Your evil labels', evilLabels]].map(([team, label, roles]) => ({ team, label, roles: roles.filter(r => !only || anyAt(ALLC.indexOf(r)) || Object.values(G.labels).includes(r)) })).filter(g => g.roles.length);
+  const cols = groups.flatMap(g => g.roles.map((r, i) => ({ r, j: ALLC.indexOf(r), start: i === 0 })));
   const legend = `<div class="legend">
       <span><i class="mx-hard">H</i>Hard claim</span><span><i class="mx-soft">S</i>Soft (one of three)</span>
       <span><i class="mx-conf">★</i>Confirmed</span><span><i class="mx-was">×</i>Earlier claim</span>
-      <span><i style="box-shadow:inset 0 0 0 3px var(--warn)"></i>Claimed by 2+</span><span>🤫 said privately</span></div>`;
+      <span><i style="box-shadow:inset 0 0 0 3px var(--warn)"></i>Claimed by 2+</span><span>🤫 said privately</span><span><i style="box-shadow:inset 0 0 0 2px var(--brass)">🏷</i>Your label</span></div>`;
   const head = `<div class="matrix-head"><h3>Claim matrix</h3><button class="toggle" data-act="mx-all" aria-pressed="${!only}">Show every character</button></div>${legend}`;
   if (!cols.length) return `${head}<p class="hint">No claims yet.</p>`;
   const mark = { hard: 'H', soft: 'S', conf: '★', was: '×' };
@@ -1805,8 +1951,9 @@ function matrixHtml() {
     </thead>
     <tbody>${G.players.map(q => `<tr class="${q.alive ? '' : 'dead'}${U.panel === q.id ? ' sel' : ''}">
       <th class="pcol" scope="row"><button data-act="seat" data-id="${q.id}">${q.id === G.me ? 'You' : esc(q.name)}</button></th>
-      ${cols.map(c => { const st = states[q.id][c.j]; const multi = st && (st.k === 'hard' || st.k === 'conf') && hardCount[c.j] > 1;
-        return `<td class="cell${c.start ? ' team-start' : ''}${st ? ' mx-' + st.k : ''}${multi ? ' multi' : ''}" ${st ? `title="${esc(st.why)}" aria-label="${esc(q.id === G.me ? 'You' : q.name)}, ${esc(c.r)}: ${esc(st.why)}"` : ''}>${st ? (st.priv ? '🤫' : mark[st.k]) : ''}</td>`; }).join('')}
+      ${cols.map(c => { const st = states[q.id][c.j]; const multi = st && (st.k === 'hard' || st.k === 'conf') && hardCount[c.j] > 1, lab = G.labels[q.id] === c.r;
+        const why = [st && st.why, lab && 'Your label'].filter(Boolean).join('; ');
+        return `<td class="cell${c.start ? ' team-start' : ''}${st ? ' mx-' + st.k : ''}${multi ? ' multi' : ''}${lab ? ' mx-lab' : ''}" ${why ? `title="${esc(why)}" aria-label="${esc(q.id === G.me ? 'You' : q.name)}, ${esc(c.r)}: ${esc(why)}"` : ''}>${st ? (st.priv ? '🤫' : mark[st.k]) : lab ? '🏷' : ''}</td>`; }).join('')}
     </tr>`).join('')}</tbody>
     <tfoot><tr><th class="pcol">Hard claims</th>${cols.map(c => `<td class="${c.start ? 'team-start ' : ''}${hardCount[c.j] > 1 ? 'multi' : hardCount[c.j] ? 'one' : ''}">${hardCount[c.j] || ''}</td>`).join('')}</tr></tfoot>
   </table></div>`;
@@ -1829,6 +1976,8 @@ function notesCard() {
     return `<tr class="${q.alive ? '' : 'dead'} ${U.panel === q.id ? 'sel' : ''}"><td><button class="btn sm" data-act="seat" data-id="${q.id}" style="min-height:30px">${q.id === G.me ? 'You' : esc(q.name)}</button></td>
       <td>${q.claim ? esc(q.claim) : '<span class="muted">?</span>'}${new Set(q.claimHist).size > 1 ? ' <span class="tag evil">changed</span>' : ''}${how}
       ${shared.length ? `<div class="facts">${shared.map(e => `<span>${factText(e.f)}</span>`).join('')}</div>` : ''}
+      ${G.labels[q.id] ? `<div class="facts"><span>🏷 Your label: <b class="${G.labels[q.id] === 'Good' || (ROLES[G.labels[q.id]] && isGoodType(G.labels[q.id])) ? '' : 'evil-txt'}">${esc(G.labels[q.id])}</b></span></div>` : ''}
+      ${q.id !== G.me && G.team[q.id] ? `<div class="facts"><span>🔴 Teammate: really the <b class="evil-txt">${esc(G.team[q.id].role)}</b>${G.team[q.id].bluff ? `, bluffing as the ${esc(G.team[q.id].bluff)}` : ''}</span></div>` : ''}
       ${namedHtml(q.id)}
       ${q.bot && q.bot.toldMe ? `<div class="facts"><span>🤫 Told you: ${q.bot.toldMe.roles.length === 1 ? 'the ' + esc(q.bot.toldMe.roles[0]) : 'one of ' + list(q.bot.toldMe.roles.map(esc))}${q.claim && !q.bot.toldMe.roles.includes(q.claim) ? ' <span class="tag evil">doesn\'t match</span>' : ''}</span>${G.privFacts.filter(e => e.by === q.id && !shared.some(x => fkey(x.f) === fkey(e.f))).map(e => `<span>🤫 ${factText(e.f)}</span>`).join('')}</div>` : ''}</td>
       ${prefs.coach ? `<td class="pct">${coachPct(q.id)}%</td>` : ''}</tr>`;
@@ -1852,9 +2001,9 @@ function dayView() {
   const d = G.dayS, m = me();
   const seats = tableHtml(q => ({
     button: true, attrs: `data-act="seat" data-id="${q.id}" aria-label="${esc(q.name)}"`,
-    cls: 'seat ' + (q.alive ? '' : 'dead') + (d.block === q.id ? ' block' : '') + (U.panel === q.id ? ' picked' : ''),
+    cls: 'seat ' + (teammate(q) ? 'mate ' : '') + (q.alive ? '' : 'dead') + (d.block === q.id ? ' block' : '') + (U.panel === q.id ? ' picked' : ''),
     sub: [q.id === G.me ? 'you' : '', q.claim || '', prefs.coach ? `${coachPct(q.id)}%` : ''].filter(Boolean).join(' · '),
-    mark: q.alive ? '' : q.ghost ? '☠ vote' : '☠',
+    mark: [teammate(q) ? '🔴' : '', q.alive ? '' : q.ghost ? '☠ vote' : '☠'].filter(Boolean).join(' '),
   }), `<div class="mid-big">${alive().length}</div><div class="mid-sm">alive of ${G.players.length}</div>${midCounts()}${d.block != null ? `<div class="mid-sm" style="color:var(--evil)">${nm(d.block)} on the block</div>` : ''}`);
   const today = G.feed.filter(e => e.when === label()), earlier = G.feed.filter(e => e.when !== label());
   const endConfirm = U.confirmEnd ? `<div class="banner">${d.block != null ? `End the day? <b>${nm(d.block)}</b> will be executed.` : 'End the day? Nobody is on the block, so nobody will be executed.'}
@@ -1990,6 +2139,7 @@ document.addEventListener('change', e => {
     if (t.dataset.f === 'role') { U.form.char = ''; render(); }
     if (t.dataset.f === 'to') render();
   }
+  if (t.dataset.label != null) { const v = t.value; if (v) G.labels[+t.dataset.label] = v; else delete G.labels[+t.dataset.label]; render(); }
   if (t.dataset.sf === 'role' && U.sayForm) {
     const was = sayReasonKind(U.sayForm);
     U.sayForm.role = t.value;
@@ -2035,7 +2185,7 @@ document.addEventListener('click', e => {
     case 'day': startDay(); U.panel = null; return go();
     case 'night': startNight(); U.sel = []; U.panel = null; U.form = null; U.sayForm = null; U.three = []; U.confirmEnd = false; return go();
     case 'to-over': G.stage = 'over'; return go();
-    case 'seat': U.panel = U.panel === id ? null : id; U.sayForm = null; U.three = []; U.privOpen = null; break;
+    case 'seat': U.panel = U.panel === id ? null : id; U.sayForm = null; U.three = []; U.privOpen = null; U.nomForm = null; break;
     case 'ask': ask(P(id), b.dataset.q); break;
     case 'mx-all': prefs.mxAll = !prefs.mxAll; savePrefs(); break;
     case 'say-open': U.sayForm = U.sayForm && U.sayForm.x === id && sayGroup(U.sayForm.k) === b.dataset.k ? null : { x: id, k: b.dataset.k, r: 0, role: 'Poisoner' }; break;
@@ -2055,6 +2205,29 @@ document.addEventListener('click', e => {
     case 'whisper-ask': whisper(P(id), b.dataset.k); break;
     case 'whisper-fact': whisper(P(id), 'info', G.facts[G.me][+b.dataset.i]); break;
     case 'nominate': U.confirmEnd = false; nominate(G.me, id); return go();
+    case 'nom-open': U.nomForm = U.nomForm === id ? null : id; U.nomR = 0; break;
+    case 'nom-reason': U.nomR = +b.dataset.i; break;
+    case 'nom-cancel': U.nomForm = null; break;
+    case 'nom-go': {
+      const rs = humanReasons(id, 'evil'), r = rs[U.nomR || 0] || rs[0];
+      G.opinions.push({ by: G.me, x: id, day: G.n, kind: 'evil', w: r.w });
+      U.nomForm = null; U.confirmEnd = false;
+      nominate(G.me, id, `I nominate <b>${esc(P(id).name)}</b>: ${r.t}.`);
+      return go();
+    }
+    case 'def-claim': { const r = document.getElementById('def-role').value; setClaim(me(), r); say(G.me, `I'm the <b>${esc(r)}</b>.`); break; }
+    case 'def-share': { const f = G.facts[G.me][+b.dataset.i]; if (G.pub.some(e => e.by === G.me && fkey(e.f) === fkey(f))) say(G.me, factText(f, true)); else shareFact(f); break; }
+    case 'def-point': {
+      const x = +document.getElementById('def-x').value;
+      say(G.me, `Look at <b>${esc(P(x).name)}</b> instead: ${reasonFor(x)}.`);
+      G.opinions.push({ by: G.me, x, day: G.n, kind: 'evil', w: 0.8 });
+      defend(P(x), G.me, true);
+      break;
+    }
+    case 'def-plead': say(G.me, pick(["I'm good. Executing me wastes a day we can't afford.", "I'm on your side. Look at who's pushing this.", "Vote me and you'll be one good player down tomorrow."])); break;
+    case 'def-done': decideVotes(); return go();
+    case 'team': teamWhisper(P(id), b.dataset.k); break;
+    case 'team-sel': { const v = document.getElementById(b.dataset.src).value; teamWhisper(P(id), b.dataset.k, b.dataset.k === 'give' ? v : +v); break; }
     case 'shoot': {
       G.myShot = true;
       if (me().claim !== 'Slayer') setClaim(me(), 'Slayer');
