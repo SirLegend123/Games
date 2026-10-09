@@ -71,6 +71,10 @@ button { cursor: pointer; }
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .btn.sm { padding: 4px 9px; font-size: .82rem; }
+@media (pointer: coarse) { .btn { min-height: 44px; } .btn.sm { min-height: 38px; } }
+html.simple .adv { display: none !important; }
+html.simple .btn { font-size: 1rem; padding: 9px 14px; min-height: 46px; }
+html.simple .btn.sm { font-size: .92rem; padding: 7px 12px; min-height: 40px; }
 .btn.danger { color: var(--evil); }
 .tabs { display: flex; gap: 4px; width: 100%; overflow-x: auto; scrollbar-width: none; }
 .tab { border: 0; background: none; padding: 7px 12px; border-radius: 8px; font-weight: 700; color: var(--muted); white-space: nowrap; }
@@ -344,7 +348,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
       </section>
       <aside class="card" id="panel"></aside>
     </div>
-    <section class="card" aria-labelledby="dashTitle">
+    <section class="card adv" aria-labelledby="dashTitle">
       <div class="head"><h2 id="dashTitle">How the team is doing</h2><span class="foot" id="dashFoot"></span></div>
       <div class="dash" id="dash"></div>
       <div class="grid2">
@@ -374,9 +378,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
         <div class="card" aria-labelledby="storyTitle"><div class="head"><h2 id="storyTitle">Made-up info for your bluff</h2><span class="foot" id="storyFoot"></span></div><div id="storyForm" class="col"></div></div>
       </section>
       <section class="col">
-        <div class="card"><h2>Story checks</h2><div id="storyChecks" class="col"></div></div>
+        <div class="card adv"><h2>Story checks</h2><div id="storyChecks" class="col"></div></div>
         <div class="card"><div class="head"><h2>What you've said</h2><span class="foot">Keep your story straight</span></div><div id="storyLog" class="col"></div></div>
-        <div class="card"><div class="head"><h2>Who you've told what</h2><span class="foot">From your conversations</span></div><div id="toldLog" class="col"></div></div>
+        <div class="card adv"><div class="head"><h2>Who you've told what</h2><span class="foot">From your conversations</span></div><div id="toldLog" class="col"></div></div>
         <div class="card"><h2 id="myTipsTitle">Your character</h2><div id="myTips" class="col"></div></div>
       </section>
     </div>
@@ -386,7 +390,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
     <p class="phase-note" id="dayNote" hidden></p>
     <div class="grid2">
       <section class="col">
-        <div class="card"><h2>Where the game stands</h2><div id="endgame" class="col"></div></div>
+        <div class="card adv"><h2>Where the game stands</h2><div id="endgame" class="col"></div></div>
         <div class="card"><h2>Votes</h2><div id="votes" class="col"></div></div>
         <div class="card"><div class="head"><h2>Virgin and Slayer</h2><div class="row"><button class="btn sm" data-dayonly data-event="virgin">+ Virgin nomination</button><button class="btn sm" data-dayonly data-event="slayer">+ Slayer shot</button></div></div><div id="events" class="col"></div></div>
       </section>
@@ -394,8 +398,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
         <div class="card"><div class="head"><h2>Town square</h2><div class="row"><button data-dayonly class="btn sm primary" id="tsSay">+ Public statement</button><button data-dayonly class="btn sm primary" id="tsNom">+ Nomination</button></div></div><span class="hint">What's said in the open during discussion, and each nomination and vote.</span><div id="block" class="col"></div><div id="square" class="col"></div></div>
         <div class="card"><div class="head"><h2>Conversations</h2><button data-dayonly class="btn sm primary" id="hdAdd">+ I spoke to someone</button></div><span class="hint">Log each chat: their claims, who they suspect, and any info, their own or hearsay. The table updates as you save.</span><div id="heard" class="col"></div></div>
         <div class="card"><div class="head"><h2>Who to push for execution</h2><span class="foot">Good players the town might believe are evil</span></div><div id="push" class="col"></div></div>
-        <div class="card"><h2>Careful</h2><div id="careful" class="col"></div></div>
-        <div class="card"><div class="head"><h2>Everyone's likely character</h2><span class="foot">From claims, what you know and what's not in play</span></div><div id="likely" class="col"></div></div>
+        <div class="card adv"><h2>Careful</h2><div id="careful" class="col"></div></div>
+        <div class="card adv"><div class="head"><h2>Everyone's likely character</h2><span class="foot">From claims, what you know and what's not in play</span></div><div id="likely" class="col"></div></div>
       </section>
     </div>
   </div>

@@ -105,6 +105,10 @@ button { cursor: pointer; }
 .btn.danger { color: var(--evil); }
 .btn.danger.solid { background: var(--evil); color: #fff; border-color: var(--evil); }
 .btn.sm { padding: 4px 9px; font-size: .82rem; }
+@media (pointer: coarse) { .btn { min-height: 44px; } .btn.sm { min-height: 38px; } }
+html.simple [data-tab="worlds"], html.simple [data-view="worlds"], html.simple .bar .bar-group, html.simple .bar .sync { display: none !important; }
+html.simple .btn { font-size: 1rem; padding: 9px 14px; min-height: 46px; }
+html.simple .btn.sm { font-size: .92rem; padding: 7px 12px; min-height: 40px; }
 select.btn { padding-right: 8px; }
 .sync { font-size: .78rem; color: var(--muted); }
 

@@ -8,8 +8,8 @@
 
   // Each app's saved game, plus its own preferences
   const APPS = {
-    'good.html': { name: 'Clocktower Notebook', game: 'clocktower-notebook-v1', keys: ['clocktower-notebook-v1', 'clocktower-notebook-tab'] },
-    'evil.html': { name: 'Evil Grimoire', game: 'clocktower-evil-v1', keys: ['clocktower-evil-v1', 'clocktower-evil-tab'] },
+    'good.html': { name: 'Clocktower Notebook', game: 'clocktower-notebook-v1', keys: ['clocktower-notebook-v1', 'clocktower-notebook-tab'], simple: 'Hides World building (the possible-worlds maths) and the script picker, and makes the buttons bigger.' },
+    'evil.html': { name: 'Evil Grimoire', game: 'clocktower-evil-v1', keys: ['clocktower-evil-v1', 'clocktower-evil-tab'], simple: "Hides the analysis cards (how the team is doing, story checks, who you've told what, where the game stands, careful, everyone's likely character) and makes the buttons bigger." },
     'storyteller.html': { name: "Storyteller's Grimoire", game: 'botc-storyteller-v1', keys: ['botc-storyteller-v1', 'botc-storyteller-v1-tab'] },
     'clockwork-storyteller.html': { name: 'Clockwork Storyteller', game: 'clockwork-storyteller-v1', keys: ['clockwork-storyteller-v1', 'clockwork-storyteller-prefs'] },
     'solo.html': { name: 'Solo Practice', game: 'clocktower-solo-v1', keys: ['clocktower-solo-v1', 'clocktower-solo-prefs'] },
@@ -28,8 +28,14 @@
     try { localStorage.setItem(PREFS, JSON.stringify(prefs)); } catch (e) {}
   }
   const savePrefs = () => { try { localStorage.setItem(PREFS, JSON.stringify(prefs)); } catch (e) {} apply(); };
+  // Simple mode (Notebook and Evil Grimoire): on for someone new, off for anyone already mid-game
+  if (app && app.simple && prefs['simple:' + page] == null) {
+    prefs['simple:' + page] = !localStorage.getItem(app.game);
+    try { localStorage.setItem(PREFS, JSON.stringify(prefs)); } catch (e) {}
+  }
   function applyLook() {
     const root = document.documentElement;
+    root.classList.toggle('simple', !!(app && app.simple && prefs['simple:' + page]));
     if (prefs.theme === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', prefs.theme);
     root.style.zoom = prefs.zoom === 1 ? '' : String(prefs.zoom);
   }
@@ -213,6 +219,7 @@
       : '<p>In your browser\'s menu, choose <b>Install app</b> or <b>Add to Home Screen</b>. The apps then open full screen and work without signal.</p>';
     return `<div class="cc-head"><h2>Settings</h2><button class="cc-btn" data-cc="close" aria-label="Close">✕</button></div>
       ${app ? `<h3>Undo</h3><div class="cc-row"><button class="cc-btn ${can ? 'on' : ''}" data-cc="undo" ${can ? '' : 'disabled'}>↶ Undo last change</button><span class="cc-hint">${can ? `${can} ${can === 1 ? 'step' : 'steps'} back available` : 'Nothing to undo yet'}</span></div>` : ''}
+      ${app && app.simple ? `<h3>Simple mode</h3><div class="cc-set"><span>Simple mode</span>${seg('simple:' + page, [[true, 'On'], [false, 'Off']])}</div><p class="cc-hint">${esc(app.simple)}</p>` : ''}
       <h3>Display</h3>
       <div class="cc-set"><span>Text size</span>${seg('zoom', [[1, 'Normal'], [1.15, 'Large'], [1.3, 'Extra large']])}</div>
       <div class="cc-set"><span>Light or dark</span>${seg('theme', [['auto', 'Like my phone'], ['light', 'Light'], ['dark', 'Dark']])}</div>
@@ -272,7 +279,12 @@
       else if (a === 'menu') view = 'menu';
       else if (a === 'sheet') view = 'sheet';
       else if (a === 'undo') return undo();
-      else if (a === 'pref') { const k = cc.dataset.k, v = cc.dataset.v; prefs[k] = k === 'zoom' ? +v : k === 'awake' ? v === 'true' : v; savePrefs(); }
+      else if (a === 'pref') {
+        const k = cc.dataset.k, v = cc.dataset.v;
+        prefs[k] = k === 'zoom' ? +v : (k === 'awake' || k.startsWith('simple:')) ? v === 'true' : v;
+        savePrefs();
+        fixTab();
+      }
       else if (a === 'export') { exportGame(); note('Saved. Look in your downloads.'); }
       else if (a === 'import') { const i = el('input', { type: 'file', accept: '.json,application/json' }); i.onchange = () => i.files[0] && importGame(i.files[0]); i.click(); }
       else if (a === 'install' && installEvt) { installEvt.prompt(); installEvt = null; }
@@ -300,6 +312,11 @@
   addEventListener('keydown', e => { if (e.key === 'Escape') { if (pop) closePop(); else if (open) { open = false; render(); } } });
   addEventListener('scroll', closePop, { passive: true });
 
+  // If the tab you're on is hidden by Simple mode, go to the first one you can see
+  function fixTab() {
+    const cur = document.querySelector('.tab[aria-selected="true"]');
+    if (cur && !cur.offsetParent) { const first = [...document.querySelectorAll('.tab')].find(t => t.offsetParent); if (first) first.click(); }
+  }
   function start() {
     document.head.appendChild(el('style', {}, css));
     root = el('div', { className: 'cc-root' });
@@ -307,6 +324,7 @@
     mountButton();
     apply();
     markNames();
+    setTimeout(fixTab, 0);
     observer.observe(document.body, { childList: true, subtree: true });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
