@@ -8,7 +8,7 @@
 
   // Each app's saved game, plus its own preferences
   const APPS = {
-    'good.html': { name: 'Clocktower Notebook', game: 'clocktower-notebook-v1', keys: ['clocktower-notebook-v1', 'clocktower-notebook-tab'], simple: 'Hides World building (the possible-worlds maths) and the script picker, and makes the buttons bigger.' },
+    'good.html': { name: 'Clocktower Notebook', game: 'clocktower-notebook-v1', keys: ['clocktower-notebook-v1', 'clocktower-notebook-tab'] },
     'evil.html': { name: 'Evil Grimoire', game: 'clocktower-evil-v1', keys: ['clocktower-evil-v1', 'clocktower-evil-tab'], simple: "Hides the analysis cards (how the team is doing, story checks, who you've told what, where the game stands, careful, everyone's likely character) and makes the buttons bigger." },
     'storyteller.html': { name: "Storyteller's Grimoire", game: 'botc-storyteller-v1', keys: ['botc-storyteller-v1', 'botc-storyteller-v1-tab'] },
     'clockwork-storyteller.html': { name: 'Clockwork Storyteller', game: 'clockwork-storyteller-v1', keys: ['clockwork-storyteller-v1', 'clockwork-storyteller-prefs'] },
