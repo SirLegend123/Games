@@ -255,7 +255,30 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .tok.mate, button.tok.seat.mate { box-shadow: 0 0 0 3px color-mix(in srgb, var(--evil) 55%, transparent), 0 3px 10px rgba(0,0,0,.35); }
 /* Day tabs and the fixed action bar */
 .tabs { display: flex; gap: 4px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 57px); z-index: 9; background: var(--bg); margin: 0 -16px; padding: 6px 16px; border-bottom: 1px solid var(--line); }
-.tabs button { flex: 1; border: 0; background: none; font-weight: 800; padding: 8px 4px; min-height: 44px; border-radius: 10px; color: var(--muted); position: relative; }
+.tabs button { flex: 1; border: 0; background: none; font-weight: 800; padding: 8px 2px; min-height: 44px; border-radius: 10px; color: var(--muted); position: relative; font-size: .95rem; }
+/* World building, as in the Clocktower Notebook */
+.wb-head { margin: 0; font-size: 1.02rem; }
+.wb-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.wb-chip { border: 1px solid var(--line); background: var(--surface-2); border-radius: 99px; padding: 5px 12px; font-weight: 700; font-size: .88rem; min-height: 36px; }
+.wb-chip.demon { background: var(--demon); color: #fff; border-color: var(--demon); }
+.wb-chip.evil { background: var(--evil); color: #fff; border-color: var(--evil); }
+.wb-chip.good { background: var(--good); color: #fff; border-color: var(--good); }
+table.wb-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+table.wb-table th { text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 4px; border-bottom: 1px solid var(--line); }
+table.wb-table td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.wb-table td small { display: block; color: var(--muted); font-size: .78rem; }
+.wb-pct { font-weight: 800; font-variant-numeric: tabular-nums; display: block; }
+.wb-pct.g { color: var(--good); }
+.wb-bar { display: block; height: 5px; border-radius: 99px; background: var(--surface-2); overflow: hidden; margin-top: 2px; }
+.wb-bar i { display: block; height: 100%; background: var(--evil); }
+.wb-bar.good i { background: var(--good); }
+.wb-world { display: grid; gap: 3px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: .9rem; }
+.wb-world.hi { border-left-color: var(--warn); }
+.wb-world .when { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 800; }
+.wb-world small { color: var(--muted); }
+.wb-world small.vote { font-style: italic; }
+.wb-q { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); font-size: .9rem; }
+.wb-q small { grid-column: 1; color: var(--muted); }
 .tabs button[aria-selected="true"] { color: var(--brass); background: var(--surface); box-shadow: inset 0 -3px 0 var(--brass); }
 .tabs .badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--evil); color: #fff; font-size: .7rem; margin-left: 4px; vertical-align: 2px; }
 .actionbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--bg); border-top: 1px solid var(--line); padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 8px; justify-content: center; box-shadow: 0 -6px 16px rgba(0,0,0,.18); }
@@ -743,6 +766,7 @@ function finishVote() {
   else res = `Not enough to beat ${d.highest}.`;
   dayEvent(`${k} ${plural(k, 'vote', 'votes')} to execute ${nm(v.b)}${k ? ' (' + list(hands.map(Nm)) + ')' : ''}. ${res}`);
   G.lastVote = { a: v.a, b: v.b, order: v.order, hands, res: res + note };
+  (G.voteLog = G.voteLog || []).push({ day: G.n, a: v.a, b: v.b, hands: hands.slice(), need, block: d.block === v.b });
   G.vote = null;
 }
 function endDay() {
@@ -1830,6 +1854,8 @@ function howView() {
       <li><b>Speak up:</b> from a player's seat, accuse them (could be evil, or is the Demon) or vouch for them, and pick your reason: a specific piece of evidence, something you learned, their voting, or a hunch. Bots weigh what you say, more for a specific reason, and only as much as they trust you. A couple of them will say whether they agree.</li>
       <li><b>Talk privately:</b> from a player's seat, offer three for three (pick three characters, one of them true), tell them your character one for one, whisper your info (real or made up), or ask what they've learned and who they really suspect. Good bots open up if they trust you; evil bots always answer, with their bluff. The town sees that you talked, not what was said. Bots remember: if your public claim doesn't match what you told someone, they'll say so.</li>
       <li><b>Claim matrix:</b> under the town talk, every player against every character. Green H is a hard claim (🤫 if it was said to you privately), light green S is a soft claim (one of a three for three), a blue star is a character the game has proven (a Virgin whose nominator was executed, a Slayer whose shot killed the Demon), × is an earlier claim, and an amber ring means two or more players hard-claim it.</li>
+      <li><b>Worlds:</b> like the Clocktower Notebook's World building. Every way the Demon and Minions could be seated, tested against public info, your own info and what you were told in private, with each player's chance of being the Demon, evil or good, the most likely worlds and what each one needs to be wrong. Tap names to assume someone is the Demon, evil or good. Nominations and votes count as softer clues. If you're evil, it shows how the town sees it.</li>
+      <li><b>Nominations and votes:</b> on the Notes tab, who nominated whom each day, how many votes they got against how many were needed, and who voted.</li>
       <li><b>Say in town:</b> claim a character and share your info. You can share what you really learned, or make up info (you'll need to if you're evil).</li>
       <li><b>Nominations:</b> nominate a player from their seat, or tap <i>Let the town nominate</i> for the bots' turn. Voting goes clockwise from the nominee; you see the votes before yours, then cast your own.</li>
       <li><b>End the day:</b> anyone still keen gets a last nomination, then the player on the block is executed.</li>
@@ -2200,6 +2226,157 @@ function namedHtml(x) {
   named.forEach(o => (by[o.role] = by[o.role] || []).push(o.by === G.me ? 'you' : esc(P(o.by).name)));
   return `<div class="facts">${Object.keys(by).map(r => `<span>Named as the <b class="${isGoodType(r) ? '' : 'evil-txt'}">${esc(r)}</b> by ${list(by[r])}</span>`).join('')}</div>`;
 }
+/* ---------- World building (as in the Clocktower Notebook): every Demon + Minion seating, tested against what you know ---------- */
+// What's on record for the Demon and Minions, from your seat: public info, your own info, and what you were told in private
+function wbView() {
+  const m = me(), n = G.players.length;
+  // As an evil player who knows the team, the worlds show how the town sees it (your own knowledge would leave one world)
+  const townView = !isGood(m) && knownTeam(m).length > 1;
+  return { townView, k: COUNTS[n][2] };
+}
+const wbAssume = () => (G.wbAssume = G.wbAssume || {});
+const WB_NEXT = { '': 'demon', demon: 'evil', evil: 'good', good: '' };
+const WB_LABEL = { demon: 'Demon', evil: 'Evil', good: 'Good' };
+function factLabel(f) { return `${f.src}${f.n ? ` (night ${f.n})` : ''}`; }
+function solveWorldsRaw() {
+  const N = G.players.length, { townView, k } = wbView(), m = me(), assume = wbAssume();
+  const name = id => id === G.me ? 'you' : P(id).name;
+  // Proven good: you (unless evil or showing the town's view), and a Townsfolk who died nominating the real Virgin
+  const proven = new Set();
+  if (!townView && isGood(m)) proven.add(G.me);
+  G.virgins.forEach(v => { if (v.fired) proven.add(v.by); });
+  const pool = G.players.filter(q => !proven.has(q.id) && assume[q.id] !== 'good').map(q => q.id);
+  const fixedDemon = Object.keys(assume).find(id => assume[id] === 'demon');
+  const selfEvil = !townView && !isGood(m) ? G.me : null;
+  const demons = pool.filter(id => P(id).alive && (fixedDemon == null || +fixedDemon === id) && (!selfEvil || m.role !== 'Imp' || id === G.me) && !(selfEvil && m.role !== 'Imp' && id === G.me));
+  const mustEvil = Object.keys(assume).filter(id => assume[id] === 'evil' || assume[id] === 'demon').map(Number).concat(selfEvil != null ? [selfEvil] : []);
+  // Hard evidence: info that's simply wrong in a world unless its source is drunk, poisoned or evil
+  const tests = [];
+  const addFact = (src, f) => { const fn = factFn(f); if (fn) tests.push({ src, fn, label: factLabel(f) }); };
+  const seen = new Set();
+  G.pub.forEach(e => { const key = e.by + fkey(e.f); if (!seen.has(key)) { seen.add(key); addFact(e.by, e.f); } });
+  if (!townView) {
+    G.facts[G.me].forEach(f => { const key = G.me + fkey(f); if (!seen.has(key)) { seen.add(key); addFact(G.me, f); } });
+    G.privFacts.forEach(e => { const key = e.by + fkey(e.f); if (!seen.has(key)) { seen.add(key); addFact(e.by, e.f); } });
+  }
+  G.shots.forEach(sh => { if (!sh.hit && claimOf(sh.by) === 'Slayer') tests.push({ src: sh.by, fn: (ev, d) => d === sh.t ? 0 : 1, label: `Slayer shot (day ${sh.n})` }); });
+  // Two players claiming the same character: only one can be telling the truth
+  const byRole = {};
+  G.players.forEach(q => { if (q.claim) (byRole[q.claim] = byRole[q.claim] || []).push(q.id); });
+  const clashes = Object.entries(byRole).filter(([, ids]) => ids.length > 1);
+  // Softer clues: they make a world less likely, never impossible
+  const soft = [];
+  G.deaths.filter(x => x.how === 'night').forEach(x => soft.push(ev => ev[x.id] ? { f: 0.12, why: `${name(x.id)} died at night, and the Demon rarely kills their own team` } : null));
+  G.players.forEach(q => { if (new Set(q.claimHist).size > 1) soft.push(ev => !ev[q.id] ? { f: 0.35, why: `${name(q.id)} changed their story while good` } : null); });
+  G.callouts.forEach(c => soft.push(ev => !ev[c.x] ? { f: 0.3, why: `${name(c.x)}'s private and public claims don't match` } : null));
+  G.deaths.filter(x => x.how === 'execution' && x.claim === 'Saint').forEach(x => soft.push(ev => !ev[x.id] ? { f: 0.1, why: `${name(x.id)} would be a real Saint executed without the game ending` } : null));
+  G.virgins.filter(v => !v.fired).forEach(v => soft.push(ev => !ev[v.v] && !ev[v.by] && TF.includes(claimOf(v.by)) ? { f: 0.15, why: `${name(v.by)} nominated the Virgin ${name(v.v)} and nothing happened` } : null));
+  // Nominations and votes (as in the Notebook)
+  (G.voteLog || []).forEach(n => {
+    soft.push((ev, d) => ev[n.a] && ev[n.b] && n.a !== n.b ? { f: d === n.b ? 0.45 : 0.7, why: `${name(n.a)} nominated their own ${d === n.b ? 'Demon' : 'teammate'} ${name(n.b)} (day ${n.day})` } : null);
+    n.hands.filter(v => v !== n.b).forEach(v => soft.push((ev, d) => ev[v] && d === n.b ? { f: 0.5, why: `${name(v)} voted to execute their own Demon ${name(n.b)} (day ${n.day})` } : ev[v] && ev[n.b] && d !== n.b ? { f: 0.85, why: `${name(v)} voted to execute their teammate ${name(n.b)} (day ${n.day})` } : null));
+  });
+  const worlds = [], ev = new Uint8Array(N);
+  for (const d of demons) {
+    const rest = pool.filter(id => id !== d);
+    combos(rest, Math.min(k, rest.length), 0, [], mins => {
+      ev.fill(0); ev[d] = 1; mins.forEach(x => { ev[x] = 1; });
+      if (mustEvil.some(id => !ev[id])) return;
+      if (selfEvil != null && m.role !== 'Imp' && d === G.me) return;
+      const bad = new Map();
+      for (const t of tests) { if (ev[t.src]) continue; if (t.fn(ev, d) === 0) (bad.get(t.src) || bad.set(t.src, []).get(t.src)).push(t.label); }
+      const why = [...bad].map(([src, ls]) => src === G.me ? `Your ${[...new Set(ls)].join(', ')} would be wrong (you'd be drunk or poisoned).` : `${name(src)}'s ${[...new Set(ls)].join(', ')} would be wrong (drunk or poisoned).`);
+      let breaks = bad.size;
+      for (const [role, ids] of clashes) { const good = ids.filter(id => !ev[id]); if (good.length > 1) { breaks += good.length - 1; why.push(`${list(good.map(name))} would both be good while claiming the ${role} (one would be the Drunk or lying).`); } }
+      let f = 1; const votes = [];
+      for (const c of soft) { const r = c(ev, d); if (r) { f *= r.f; votes.push(r.why); } }
+      worlds.push({ demon: d, minions: mins.slice(), evil: new Set([d, ...mins]), breaks, why, soft: f, notes: votes });
+    });
+  }
+  const best = worlds.length ? Math.min(...worlds.map(w => w.breaks)) : 0;
+  const kept = worlds.filter(w => w.breaks <= best + 1);
+  const weight = w => Math.pow(0.15, w.breaks - best) * w.soft;
+  const total = kept.reduce((t, w) => t + weight(w), 0) || 1;
+  const odds = new Map();
+  kept.forEach(w => { const wt = weight(w) / total; w.evil.forEach(id => { const o = odds.get(id) || odds.set(id, { demon: 0, evil: 0 }).get(id); o.evil += wt; if (id === w.demon) o.demon += wt; }); w.p = wt; });
+  kept.sort((x, y) => x.breaks - y.breaks || y.p - x.p);
+  return { worlds: kept, all: worlds.length, best, odds, k, townView, tests: tests.length + clashes.length + soft.length, proven };
+}
+let wbCache = { key: '', val: null };
+function solveWorlds() {
+  const key = G.created + ':' + G.ver + ':' + JSON.stringify(G.wbAssume || {}) + ':' + G.players.map(q => q.alive ? 1 : 0).join('');
+  if (wbCache.key !== key) wbCache = { key, val: solveWorldsRaw() };
+  return wbCache.val;
+}
+// Questions whose answers would rule out the most worlds (as in the Notebook)
+function worldAsks(wb) {
+  const fit = wb.worlds.filter(w => w.breaks === wb.best), out = [];
+  if (fit.length < 2) return out;
+  const W = n => `${n} world${n === 1 ? '' : 's'}`;
+  const split = (id, f) => {
+    const groups = new Map(); let evil = 0;
+    fit.forEach(w => { if (w.evil.has(id)) evil++; else { const a = f(w); groups.set(a, (groups.get(a) || 0) + 1); } });
+    if (groups.size < 2) return null;
+    const good = fit.length - evil;
+    const expected = [...groups.values()].reduce((t, c) => t + (c / good) * (c + evil), 0);
+    return { gain: fit.length - expected, note: `Narrows ${W(fit.length)}: ${[...groups].sort((x, y) => (typeof x[0] === 'number' ? x[0] - y[0] : y[1] - x[1])).map(([a, c]) => `${a} → ${W(c + evil)}`).join(' · ')}${evil ? ` (${W(evil)} where they're evil stay either way)` : ''}.` };
+  };
+  alive().filter(q => q.id !== G.me).forEach(q => {
+    if (q.claim === 'Empath') { const nb = aliveNeighbours(q).map(x => x.id); const s = split(q.id, w => nb.filter(id => w.evil.has(id)).length); if (s) out.push({ id: q.id, text: `As the Empath: what number did you get last night?`, ...s }); }
+    if (q.claim === 'Undertaker' && G.lastExecuted != null) { const ex = G.lastExecuted; const s = split(q.id, w => w.demon === ex ? 'the Demon' : w.evil.has(ex) ? 'a Minion' : 'a good character'); if (s) out.push({ id: q.id, text: `As the Undertaker: what did ${P(ex).name} show as?`, ...s }); }
+    if (q.claim === 'Fortune Teller') {
+      const al = alive().filter(x => x.id !== G.me).map(x => x.id); let bestPair = null;
+      for (let i = 0; i < al.length; i++) for (let j = i + 1; j < al.length; j++) { const a = al[i], b = al[j]; const s = split(q.id, w => (w.demon === a || w.demon === b) ? 'Yes' : 'No'); if (s && (!bestPair || s.gain > bestPair.gain)) bestPair = { ...s, a, b }; }
+      if (bestPair) out.push({ id: q.id, tip: true, text: `Fortune Teller tip: checking ${P(bestPair.a).name} and ${P(bestPair.b).name} tonight would split the worlds best.`, gain: bestPair.gain, note: bestPair.note });
+    }
+    if (q.claim === 'Slayer' && !G.shots.some(sh => sh.by === q.id)) {
+      const top = [...wb.odds].filter(([id]) => id !== q.id && P(id).alive).sort((x, y) => y[1].demon - x[1].demon)[0];
+      if (top && top[1].demon > 0) out.push({ id: q.id, tip: true, text: `Slayer tip: ${P(top[0]).name} is the Demon in ${Math.round(top[1].demon * 100)}% of the worlds left.`, gain: top[1].demon * fit.length, note: '' });
+    }
+  });
+  return out.sort((x, y) => y.gain - x.gain);
+}
+function worldsCard() {
+  const wb = solveWorlds(), assume = wbAssume(), fit = wb.worlds.filter(w => w.breaks === wb.best);
+  const name = id => id === G.me ? 'You' : esc(P(id).name);
+  const pct = x => `${Math.round(x * 100)}%`;
+  const others = G.players.filter(q => wb.townView || q.id !== G.me);
+  const chips = others.map(q => `<button class="wb-chip ${assume[q.id] || ''}" data-act="wb-assume" data-id="${q.id}" aria-label="${name(q.id)}: ${WB_LABEL[assume[q.id]] || 'no assumption'}">${name(q.id)}${q.alive ? '' : ' ☠'}${assume[q.id] ? ` · ${WB_LABEL[assume[q.id]]}` : ''}</button>`).join('');
+  const head = !wb.all ? '<p class="wb-head">No world fits your assumptions. Tap a name below to change or clear them.</p>'
+    : wb.best === 0 ? `<p class="wb-head"><b>${fit.length}</b> world${fit.length === 1 ? '' : 's'} fit${fit.length === 1 ? 's' : ''} everything ${wb.townView ? 'the town has heard' : "you've heard"}.</p>`
+    : `<p class="wb-head">No world fits everything. The best ${fit.length === 1 ? 'one needs' : `${fit.length} need`} <b>${wb.best}</b> piece${wb.best === 1 ? '' : 's'} of info to be wrong.</p>`;
+  const rows = wb.all ? others.map(q => [q.id, wb.odds.get(q.id) || { demon: 0, evil: 0 }]).sort((x, y) => y[1].evil - x[1].evil || y[1].demon - x[1].demon) : [];
+  const table = rows.length ? `<table class="wb-table"><thead><tr><th>Player</th><th>Is the Demon</th><th>Is evil</th><th>Is good</th></tr></thead><tbody>${rows.map(([id, o]) => `<tr><td><button class="who-btn" data-act="seat-go" data-id="${id}">${name(id)}</button>${P(id).claim ? `<small>${esc(P(id).claim)}${P(id).alive ? '' : ' · dead'}</small>` : P(id).alive ? '' : '<small>dead</small>'}</td>
+    <td><span class="wb-pct">${pct(o.demon)}</span><span class="wb-bar"><i style="width:${pct(o.demon)}"></i></span></td>
+    <td><span class="wb-pct">${pct(o.evil)}</span><span class="wb-bar"><i style="width:${pct(o.evil)}"></i></span></td>
+    <td><span class="wb-pct g">${pct(1 - o.evil)}</span><span class="wb-bar good"><i style="width:${pct(1 - o.evil)}"></i></span></td></tr>`).join('')}</tbody></table>` : '';
+  const clear = others.filter(q => !wb.odds.has(q.id) && wb.all);
+  const qa = wb.all ? worldAsks(wb).slice(0, 5) : [];
+  const qHtml = qa.length ? `<h3>Questions that narrow the worlds</h3><div class="hist">${qa.map(q => `<div class="wb-q"><span><b>${name(q.id)}</b>: ${esc(q.text)}</span><button class="btn sm" data-act="seat-go" data-id="${q.id}">Talk</button>${q.note ? `<small>${esc(q.note)}</small>` : ''}</div>`).join('')}</div>` : '';
+  const listHtml = wb.worlds.slice(0, 8).map((w, i) => `<div class="wb-world ${w.breaks ? 'hi' : ''}"><span class="when">World ${i + 1} · ${Math.round(w.p * 100)}% · ${w.breaks === 0 ? 'fits everything' : `needs ${w.breaks} thing${w.breaks === 1 ? '' : 's'} to be wrong`}</span>
+    <b>Demon: ${name(w.demon)}${w.minions.length ? ` · Minion${w.minions.length > 1 ? 's' : ''}: ${w.minions.map(name).join(', ')}` : ''}</b>
+    ${w.why.map(x => `<small>${esc(x)}</small>`).join('')}${w.notes.length ? `<small class="vote">Less likely: ${esc(w.notes.slice(0, 3).join('; '))}${w.notes.length > 3 ? `; and ${w.notes.length - 3} more` : ''}.</small>` : ''}</div>`).join('');
+  return `<section class="card"><h2>Possible worlds</h2>
+    <p class="hint">${wb.townView ? "You know your team, so this shows how the town sees it: every way the Demon and Minions could be seated, tested against everything said in public." : "Every way the Demon and Minions could be seated, tested against everything you know: public info, your own info, and what you were told in private."}</p>
+    ${head}
+    <div><h3>Assume (tap to cycle Demon → Evil → Good → none)</h3><div class="wb-chips">${chips}</div></div>
+    ${table}
+    ${qHtml}
+    ${clear.length ? `<p class="hint"><b style="color:var(--good)">Good in every world here:</b> ${clear.map(q => name(q.id)).join(', ')}</p>` : ''}
+    ${listHtml ? `<h3>Most likely worlds${wb.worlds.length > 8 ? ` (8 of ${wb.worlds.length})` : ''}</h3><div class="hist">${listHtml}</div>` : ''}
+    <p class="hint">Counts ${wb.k} Minion${wb.k === 1 ? '' : 's'} and one living Demon${wb.proven.size ? `; ${list([...wb.proven].map(name))} ${wb.proven.size === 1 && wb.proven.has(G.me) ? 'are' : 'counted as'} good` : ''}. Worlds needing one more piece of wrong info than the best count for much less. Night deaths, changed stories, and nominations and votes are softer clues: they make a world less likely but don't rule it out. The Spy and Recluse can register falsely and the Demon can pass to a Minion, so treat this as a guide.</p>
+  </section>`;
+}
+// Every nomination and vote, day by day (as in the Notebook)
+function nomsCard() {
+  const log = G.voteLog || [];
+  const name = id => id === G.me ? 'You' : esc(P(id).name);
+  const days = [...new Set(log.map(n => n.day))].sort((a, b) => b - a);
+  return `<section class="card"><h3>Nominations and votes</h3>
+    ${days.length ? days.map(day => `<div class="hist"><div class="hist-when">Day ${day}</div>${log.filter(n => n.day === day).map(n => `<div class="info"><b>${name(n.a)}</b> → <b>${name(n.b)}</b>: <b>${n.hands.length}</b> of ${n.need} needed${n.block ? ' · <span class="bad-txt">on the block</span>' : ''}<div class="hint">${n.hands.length ? 'Voted: ' + n.hands.map(name).join(', ') : 'Nobody voted'}</div></div>`).join('')}</div>`).join('')
+      : '<p class="hint">No votes yet. Every nomination and who voted is recorded here, and World building uses it.</p>'}
+  </section>`;
+}
 function notesCard() {
   const rows = G.players.map(q => {
     const shared = G.pub.filter(e => e.by === q.id);
@@ -2264,7 +2441,7 @@ function dayView() {
   const endConfirm = U.confirmEnd ? `<div class="banner">${d.block != null ? `End the day? <b>${nm(d.block)}</b> will be executed.` : 'End the day? Nobody is on the block, so nobody will be executed.'}
       <div class="row" style="margin-top:8px"><button class="btn primary sm" data-act="end-yes">End the day</button><button class="btn sm" data-act="end-no">Not yet</button></div></div>` : '';
   const tab = U.tab || 'town', newTalk = Math.max(0, G.feed.length - (U.seenFeed || 0)), reqs = openRequests().length;
-  const tabs = `<nav class="tabs" role="tablist" aria-label="Day">${[['town', 'Town', reqs], ['talk', 'Talk', tab === 'talk' ? 0 : newTalk], ['notes', 'Notes', 0], ['me', 'Me', 0]].map(([k, l, n]) =>
+  const tabs = `<nav class="tabs" role="tablist" aria-label="Day">${[['town', 'Town', reqs], ['talk', 'Talk', tab === 'talk' ? 0 : newTalk], ['notes', 'Notes', 0], ['worlds', 'Worlds', 0], ['me', 'Me', 0]].map(([k, l, n]) =>
     `<button role="tab" aria-selected="${tab === k}" data-act="tab" data-t="${k}">${l}${n ? `<span class="badge">${n > 99 ? '99+' : n}</span>` : ''}</button>`).join('')}</nav>`;
   let body = '';
   if (tab === 'town') body = `${G.vote ? '' : requestsCard()}
@@ -2280,7 +2457,8 @@ function dayView() {
     ${U.panel != null ? panelCard(U.panel) : ''}
     ${G.lastVote && !G.vote ? lastVoteCard() : ''}`;
   else if (tab === 'talk') body = `${talkCard(today, earlier)}${sayCard()}`;
-  else if (tab === 'notes') body = notesCard();
+  else if (tab === 'notes') body = notesCard() + nomsCard();
+  else if (tab === 'worlds') body = worldsCard();
   else body = myCard(true);
   return `${G.vote ? voteCard() : ''}${tabs}${body}`;
 }
@@ -2531,6 +2709,7 @@ document.addEventListener('click', e => {
     case 'night': startNight(); U.sel = []; U.panel = null; U.form = null; U.sayForm = null; U.three = []; U.confirmEnd = false; return go();
     case 'to-over': G.stage = 'over'; return go();
     case 'tab': U.tab = b.dataset.t; render(); window.scrollTo(0, 0); if (U.tab === 'talk') { const el = document.getElementById('talk-end'); if (el) el.scrollIntoView({ block: 'end' }); } return;
+    case 'wb-assume': { const a = wbAssume(), nx = WB_NEXT[a[id] || '']; if (nx === 'demon') Object.keys(a).forEach(x => { if (a[x] === 'demon') a[x] = 'evil'; }); if (nx) a[id] = nx; else delete a[id]; break; }
     case 'filter': U.feedFilter = b.dataset.id === '' ? null : +b.dataset.id; break;
     case 'seat-go': U.tab = 'town'; U.panel = id; U.sayForm = null; U.three = []; U.privOpen = null; U.nomForm = null; render(); { const el = document.getElementById('player-panel'); if (el) el.scrollIntoView({ block: 'start' }); } return;
     case 'seat': {
