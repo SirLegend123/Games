@@ -4,17 +4,17 @@
 
 Open `index.html` in any web browser for a cover page that lets you pick one of five *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, the **Storyteller's Grimoire**, the **Clockwork Storyteller**, which runs a game of Trouble Brewing by itself when nobody wants to be Storyteller, or **Solo Practice**, where you play Trouble Brewing on your own against bots. Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
 
-### In every app
+### Shared by the apps
 
-- **⚙ Settings** in the top bar of every app (bottom corner on the cover page):
+- **⚙ Settings** in the top bar of the Evil Grimoire, Storyteller's Grimoire, Clockwork Storyteller and Solo Practice (bottom corner on the cover page). The Clocktower Notebook is kept exactly as it was, without these additions:
   - **Undo** the last change to your game, step by step. Each tap of a button is one step; typing a note counts as one.
   - **Text size** (Normal, Large, Extra large) and **light or dark** (or like your phone), shared by all the apps.
   - **Keep screen on**: stops the phone dimming and locking while an app is open (on by default, where the browser supports it).
   - **Trouble Brewing character sheet**: every character's ability, and how many of each type for 5 to 15 players.
   - **Save game to a file** and **Load a saved game**, to keep a backup or carry on on another device.
   - **Install**: add the apps to your home screen. They then open full screen and work without signal.
-- **Simple mode** (Clocktower Notebook and Evil Grimoire, under ⚙): hides the advanced parts until you want them. In the Notebook that's World building and the script picker; in the Evil Grimoire, the analysis cards (how the team is doing, story checks, who you've told what, where the game stands, careful, everyone's likely character). Buttons get bigger too. It starts on for someone new and off for anyone already in a game
-- **Bigger buttons on phones and tablets** in the Notebook and Evil Grimoire: every button is at least finger-sized on a touch screen
+- **Simple mode** (Evil Grimoire, under ⚙): hides the advanced parts until you want them: the analysis cards (how the team is doing, story checks, who you've told what, where the game stands, careful, everyone's likely character). Buttons get bigger too. It starts on for someone new and off for anyone already in a game
+- **Bigger buttons on phones and tablets** in the Evil Grimoire: every button is at least finger-sized on a touch screen
 - **Tap any character's name** (underlined with dots) to see what it does.
 - **Works offline**: once opened, every app is saved on the device and opens without signal. Updates arrive next time you're online.
 - **Continue buttons** on the cover page for any game in progress, such as "Continue: Solo Practice, Day 3".
@@ -106,7 +106,7 @@ An automated Storyteller for *Trouble Brewing*, so nobody has to sit out. Pick i
 - Game over: a large Good wins or Evil wins banner as soon as the result is known, then the Grimoire as the seating circle: tap a seat to flip it and reveal that player's character (good in blue, evil in red), or reveal everyone at once. Then the Storyteller's log of every choice, including each piece of false information and why it was given
 
 - Voice: says whose turn it is to take the phone (the next seat round the circle, which is also ringed on the table), and reads out deaths, executions, votes, Slayer shots, timer warnings and the winner. It never reads anything private. In the Menu you can turn it off, test it, pick any of the voices on your phone and set its speed
-- Text size, light or dark, undo and saving the game: under ⚙ (see In every app)
+- Text size, light or dark, undo and saving the game: under ⚙ (see Shared by the apps)
 - Buzz: on phones that can vibrate, the phone buzzes when it's time to pass it on, when a private turn's choices unlock, and at one minute left and time's up. Turn it off in the Menu
 - The discussion timer shows in very large numbers, turns amber in the last 30 seconds and red at time's up, and has a +1 min button
 
