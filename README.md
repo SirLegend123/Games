@@ -2,7 +2,7 @@
 
 ## Clocktower Companion
 
-Open `index.html` in any web browser for a cover page that lets you pick one of five *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, the **Storyteller's Grimoire**, the **Clockwork Storyteller**, which runs a game of Trouble Brewing by itself when nobody wants to be Storyteller, or **Solo Practice**, where you play Trouble Brewing on your own against bots. The cover page also has **The Traitors**, a party game for family and friends (see below). Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
+Open `index.html` in any web browser for a cover page that lets you pick one of five *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, the **Storyteller's Grimoire**, the **Clockwork Storyteller**, which runs a game of Trouble Brewing by itself when nobody wants to be Storyteller, or **Solo Practice**, where you play Trouble Brewing on your own against bots. The cover page also has **The Traitors**, a party game for family and friends, and **The Traitors: Solo**, the same game against bots (see below). Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
 
 ### In every app
 
@@ -36,6 +36,19 @@ A party game for family and friends based on the TV show, played in one room wit
 - Narrator voice reads out whose turn it is, the votes, breakfast and the banishments (Menu: turn it off, or turn off the buzz). Menu also has the rules, the player list and "Someone forgot their role", for a private look at your role. Text size, light or dark, undo and saving the game to a file are under ⚙
 
 Games are saved in the browser on the device you use. Nothing is uploaded anywhere. *The Traitors* is a TV format by IDTV; this is an unofficial fan-made game.
+
+## The Traitors: Solo
+
+The same game for one person: you take one seat in the castle, and bots play everyone else. Pick it from the cover page, or open `traitors-solo.html` directly.
+
+- Setup: your name, 8 to 16 players (including you), and whether you play as Faithful, as a Traitor or at random. Missions, Shields and Recruiting can be turned on or off. The number of Traitors is always secret
+- The bots: each has a personality (bold, calm, sharp, joker or nervous) that sets how they talk, how well they do in missions and how sure they need to be before they'll end the game. Each Faithful bot keeps its own suspicion of every player. It builds this from what the whole castle knows (who voted for someone who turned out to be Faithful, who a murder victim had accused, who got nothing right in a mission, who a banished Traitor had pointed at) and from being persuaded at the Round Table, where it trusts some speakers more than others. Traitor bots know the truth: they pile onto whoever the Faithful already suspect, and they sometimes vote out a fellow Traitor who is doomed anyway, to look clean
+- Missions: a three-question quiz (over 40 questions). Every right answer, yours or a bot's, adds £500 to the pot, and the top scorer wins the Shield. As a Traitor you can answer wrongly on purpose to sabotage, but a zero score gets noticed. Bot Traitors sabotage too
+- Round Table: the bots speak one at a time (or all at once), each accusing someone with a reason, and defending themselves when accused. You can accuse someone, and defend yourself if you're accused (swear you're Faithful, or turn it on your accuser). Then everyone votes and the slates are turned one by one, with revotes and the draw for ties
+- Night: as a Traitor you choose who to murder, with your fellow Traitors' suggestion shown. As a Faithful you wait for morning. Recruiting follows the same rules as the group game (seduction with two or more Traitors, blackmail with one, none once 6 or fewer remain), and the letter can come to you
+- The final five and the fire pit work as in the group game. At the fire pit each bot says whether it trusts everyone or still has doubts, and votes that way
+- The Dossier (in the Menu) lists what the castle knows about every player, plus your role and, as a Traitor, your team
+- If you're murdered or banished, watch the rest or skip to the end. At the end: who won, whether you won any gold, everyone's role, each Faithful bot's final read (right or wrong), and every vote day by day
 
 ## Clocktower Notebook
 

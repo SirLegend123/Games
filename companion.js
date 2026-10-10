@@ -15,6 +15,7 @@
     'solo.html': { name: 'Solo Practice', game: 'clocktower-solo-v1', keys: ['clocktower-solo-v1', 'clocktower-solo-prefs'] },
     // Not a Clocktower game: no character sheet, and player names are never mistaken for characters
     'traitors.html': { name: 'The Traitors', game: 'traitors-v1', keys: ['traitors-v1', 'traitors-prefs'], clocktower: false },
+    'traitors-solo.html': { name: 'The Traitors: Solo', game: 'traitors-solo-v1', keys: ['traitors-solo-v1', 'traitors-prefs'], clocktower: false },
   };
   const page = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
   const app = APPS[page] || null;

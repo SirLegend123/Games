@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Traitors Solo">
+<title>The Traitors: Solo</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#15121b">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<script src="companion.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+/* The Traitors, solo: you against bots. Same look as the group game and the Clocktower apps. */
+:root {
+  --bg: #15121b; --surface: #211c29; --surface-2: #2b2534; --line: #3b3346;
+  --fg: #ece6f2; --muted: #a69cb3; --brass: #d4ab55;
+  --faithful: #4c8ce4; --traitor: #d8435a; --cloak: #8e1428;
+  --ok: #3aa35c; --warn: #e3a53c;
+  --felt: radial-gradient(circle at 50% 0%, #2c2436 0%, #1b1622 55%, #15121b 100%);
+  --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+    --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+    --faithful: #2463c2; --traitor: #be2a42; --cloak: #8a1428; --ok: #2a9150; --warn: #b7791f;
+    --felt: radial-gradient(circle at 50% 0%, #ffffff 0%, #ebe5f0 60%, #e2dbe9 100%);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+  --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+  --faithful: #2463c2; --traitor: #be2a42; --cloak: #8a1428; --ok: #2a9150; --warn: #b7791f;
+  --felt: radial-gradient(circle at 50% 0%, #ffffff 0%, #ebe5f0 60%, #e2dbe9 100%);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { margin: 0; background: var(--bg); background-image: var(--felt); background-attachment: fixed; color: var(--fg); font-family: var(--font-body); font-size: 1rem; line-height: 1.45; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+.wrap { max-width: 640px; margin: 0 auto; padding: 0 16px 48px; display: grid; gap: 14px; }
+.bar { display: flex; align-items: center; gap: 10px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; padding: 10px 16px; margin-bottom: 14px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.brand { font-family: var(--font-display); font-weight: 400; font-size: 1.45rem; color: var(--brass); margin: 0; line-height: 1; margin-right: auto; }
+.phase { font-weight: 800; font-size: .9rem; color: var(--muted); white-space: nowrap; }
+@media (max-width: 420px) { .brand { font-size: 1.15rem; } }
+
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 16px; font-weight: 700; min-height: 48px; }
+.btn:hover { border-color: var(--brass); }
+.btn.primary { background: var(--brass); color: #1a1408; border-color: var(--brass); }
+.btn.sm { padding: 5px 11px; min-height: 36px; font-size: .88rem; }
+.btn.danger { color: var(--traitor); }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn[aria-pressed="true"] { background: var(--brass); color: #1a1408; border-color: var(--brass); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row.center { justify-content: center; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 10px; }
+.card h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.6rem; line-height: 1.1; color: var(--brass); }
+.card h3 { margin: 4px 0 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.card p { margin: 0; }
+.hint { color: var(--muted); font-size: .92rem; }
+.center { text-align: center; }
+.kicker { color: var(--muted); text-transform: uppercase; letter-spacing: .14em; font-size: .78rem; font-weight: 800; margin: 0; }
+.title { font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: clamp(2rem, 9vw, 3rem); line-height: 1; margin: 0; }
+
+/* Setup */
+.names { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; counter-reset: seat; }
+.names li { display: flex; align-items: center; gap: 8px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 4px 6px 4px 12px; counter-increment: seat; }
+.names li::before { content: counter(seat); color: var(--muted); font-weight: 800; min-width: 1.4em; }
+.names li span { margin-right: auto; font-weight: 700; overflow-wrap: anywhere; }
+.add { display: flex; gap: 8px; }
+.add input { flex: 1; min-width: 0; }
+input[type="text"], textarea, select { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 48px; }
+textarea { width: 100%; min-height: 70px; resize: vertical; }
+.set { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 0; border-top: 1px solid var(--line); }
+.set > span { font-weight: 700; margin-right: auto; }
+.set small { display: block; color: var(--muted); font-weight: 500; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface-2); padding: 8px 12px; min-height: 40px; font-weight: 700; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--brass); color: #1a1408; }
+
+/* Picking a player */
+.pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.pick button { min-height: 56px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface-2); font-weight: 800; padding: 8px; overflow-wrap: anywhere; }
+.pick button[aria-pressed="true"] { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 22%, var(--surface-2)); }
+.pick button small { display: block; font-weight: 600; color: var(--muted); font-size: .78rem; }
+
+/* Pass the phone */
+.pass { min-height: calc(100vh - 140px); display: grid; align-content: center; gap: 18px; text-align: center; }
+.pass .who { font-family: var(--font-display); font-size: clamp(2.4rem, 12vw, 4rem); line-height: 1.05; color: var(--fg); margin: 0; overflow-wrap: anywhere; }
+.dots { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.dots i.done { background: var(--brass); }
+.dots i.now { background: var(--fg); box-shadow: 0 0 0 3px color-mix(in srgb, var(--fg) 30%, transparent); }
+.private { border: 2px dashed var(--brass); }
+
+/* Roles */
+.role { border-radius: 16px; padding: 22px 16px; text-align: center; display: grid; gap: 8px; color: #fff; }
+.role.faithful { background: linear-gradient(160deg, color-mix(in srgb, var(--faithful) 85%, #000) 0%, color-mix(in srgb, var(--faithful) 55%, #000) 100%); }
+.role.traitor { background: linear-gradient(160deg, var(--traitor) 0%, var(--cloak) 100%); }
+.role .rname { font-family: var(--font-display); font-size: clamp(2.6rem, 13vw, 4.2rem); line-height: 1; }
+.role p { margin: 0; }
+.tag { display: inline-block; font-weight: 800; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; padding: 2px 8px; border-radius: 99px; }
+.tag.faithful { background: color-mix(in srgb, var(--faithful) 20%, transparent); color: var(--faithful); }
+.tag.traitor { background: color-mix(in srgb, var(--traitor) 20%, transparent); color: var(--traitor); }
+.tag.out { background: var(--surface-2); color: var(--muted); }
+
+/* Breakfast, votes, players */
+.list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.list li { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.list li b { margin-right: auto; overflow-wrap: anywhere; }
+.list li.out { opacity: .55; }
+.list li.new { animation: arrive .5s ease-out; }
+@keyframes arrive { from { opacity: 0; transform: translateY(8px); } }
+.big-news { font-family: var(--font-display); font-size: clamp(1.8rem, 8vw, 2.6rem); line-height: 1.1; text-align: center; margin: 6px 0; }
+.big-news.bad { color: var(--traitor); }
+.ballot { text-align: center; display: grid; gap: 4px; padding: 14px; border-radius: 14px; background: var(--parch, #efe4c9); color: #2a2118; animation: arrive .4s ease-out; }
+.ballot .slate { font-family: var(--font-display); font-size: clamp(2rem, 10vw, 3rem); line-height: 1; }
+.tally { display: grid; gap: 6px; }
+.tally div { display: grid; grid-template-columns: minmax(0, 8em) 1fr auto; gap: 8px; align-items: center; font-weight: 700; }
+.tally span.b { height: 14px; border-radius: 7px; background: var(--brass); min-width: 4px; }
+.gold { color: var(--brass); font-weight: 800; }
+
+.big-timer { text-align: center; font-family: var(--font-display); font-variant-numeric: tabular-nums; font-size: clamp(4rem, 24vw, 8rem); line-height: 1; color: var(--brass); padding: 6px 0 0; }
+.big-timer.low { color: var(--warn); }
+.big-timer.up { color: var(--traitor); }
+
+.banner { text-align: center; padding: 26px 16px; border-radius: 16px; color: #fff; display: grid; gap: 6px; }
+.banner.faithful { background: linear-gradient(160deg, var(--faithful), color-mix(in srgb, var(--faithful) 45%, #000)); }
+.banner.traitors { background: linear-gradient(160deg, var(--traitor), var(--cloak)); }
+.banner .title { color: #fff; }
+.mission { font-size: 1.15rem; font-weight: 700; }
+details summary { cursor: pointer; font-weight: 800; }
+.hist { display: grid; gap: 4px; font-size: .95rem; }
+.hist p { margin: 0; }
+
+.sheet-back { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.5); display: grid; place-items: end center; }
+@media (min-width: 640px) { .sheet-back { place-items: center; } }
+.sheet { width: min(560px, 100%); max-height: min(88vh, 900px); overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px 16px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; }
+@media (min-width: 640px) { .sheet { border-radius: 16px; } }
+.sheet h2 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.45rem; margin-right: auto; }
+.sheet h3 { margin: 6px 0 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.sheet p, .sheet ul { margin: 0; }
+.sheet ul { padding-left: 1.2em; display: grid; gap: 4px; }
+footer.note { text-align: center; color: var(--muted); font-size: .8rem; }
+
+/* Round Table talk */
+.feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 55vh; overflow-y: auto; }
+.feed li { background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+.feed li.me { border-color: var(--brass); }
+.feed li.new { animation: arrive .4s ease-out; }
+.feed li p { flex-basis: 100%; margin: 0; min-width: 0; }
+.pick button.right { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 22%, var(--surface-2)); opacity: 1; }
+.pick button.wrong { border-color: var(--traitor); background: color-mix(in srgb, var(--traitor) 18%, var(--surface-2)); opacity: 1; }
+.pick button:disabled { cursor: default; opacity: .6; }
+.dossier li { align-items: flex-start; }
+.dossier li > div { min-width: 0; }
+.sheet ul.dossier { padding-left: 0; }
+.dossier ul { margin: 4px 0 0; padding-left: 1.1em; font-size: .9rem; color: var(--muted); display: grid; gap: 2px; }
+.dossier ul li { display: list-item; background: none; border: 0; border-radius: 0; padding: 0; }
+.list li .hint { margin-right: 4px; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="btn sm" href="index.html" title="Choose another app" aria-label="All apps" style="text-decoration:none;color:inherit;display:inline-grid;place-items:center">&#8962;</a>
+  <h1 class="brand">The Traitors: Solo</h1>
+  <span class="phase" id="phase"></span>
+  <button class="btn sm" type="button" data-act="menu">Menu</button>
+</header>
+<main class="wrap" id="app"></main>
+<div id="sheet"></div>
+
+<script>
+'use strict';
+/* ---------- Saved game and preferences ---------- */
+const KEY = 'traitors-solo-v1', PKEY = 'traitors-prefs';
+const DEFAULTS = { players: 12, role: 'random', missions: true, shields: true, recruit: true };
+// The show's endgame, as in the group game: secret banishments from the final five, the fire pit at four
+const SECRET_AT = 5, FIRE_PIT = 4, RECRUIT_ABOVE = 6, GOLD_PER_ANSWER = 500;
+let prefs = { voice: true };
+try { Object.assign(prefs, JSON.parse(localStorage.getItem(PKEY)) || {}); } catch (e) {}
+const savePrefs = () => { try { localStorage.setItem(PKEY, JSON.stringify(prefs)); } catch (e) {} };
+
+// Bots: a name and a personality, which sets how they talk, how good they are at missions and how sure they need to be
+const BOTS = [['Aisha', 'bold'], ['Ben', 'calm'], ['Chloe', 'sharp'], ['Dev', 'joker'], ['Ellie', 'nervous'], ['Finn', 'bold'], ['Grace', 'calm'], ['Harry', 'joker'],
+  ['Isla', 'sharp'], ['Jamal', 'calm'], ['Kate', 'nervous'], ['Leo', 'bold'], ['Mia', 'sharp'], ['Noah', 'joker'], ['Olivia', 'calm'], ['Priya', 'sharp'],
+  ['Rory', 'nervous'], ['Sophie', 'bold'], ['Tom', 'calm'], ['Zara', 'joker']];
+const PERSONA = {
+  bold: { skill: .62, doubt: .55, label: 'Bold' }, calm: { skill: .7, doubt: .5, label: 'Calm' }, sharp: { skill: .8, doubt: .45, label: 'Sharp' },
+  joker: { skill: .58, doubt: .6, label: 'Joker' }, nervous: { skill: .55, doubt: .35, label: 'Nervous' },
+};
+
+let S;
+try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
+if (!S || S.v !== 1) S = fresh();
+function fresh(settings, me) {
+  return { v: 1, phase: 'setup', settings: Object.assign({}, DEFAULTS, settings || {}), myName: me || '', players: [], day: 0, pot: 0, shield: null,
+    noise: [], pf: [], herd: [], facts: [], days: [], rt: null, fp: null, vote: null, endVote: null, mission: null, bf: null, ban: null, night: null,
+    recruitNext: false, resume: null, outSeen: false, watching: false, winner: null, usedQ: [] };
+}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+
+/* ---------- Helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rnd = n => Math.floor(Math.random() * n);
+const chance = p => Math.random() < p;
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pick = a => a[rnd(a.length)];
+const ME = 0;
+const P = i => S.players[i];
+const nm = i => i === ME ? 'You' : esc(P(i).name);
+const nmPlain = i => P(i).name;
+const alive = () => S.players.map((p, i) => i).filter(i => P(i).alive);
+const traitorsAlive = () => alive().filter(i => P(i).role === 'traitor');
+const faithfulAlive = () => alive().filter(i => P(i).role === 'faithful');
+const meAlive = () => P(ME).alive;
+const iAmTraitor = () => P(ME).role === 'traitor';
+const money = n => '£' + n.toLocaleString('en-GB');
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const today = () => S.days[S.days.length - 1];
+const secretRange = n => n <= 8 ? [1, 2] : n <= 12 ? [2, 3] : [3, 4];
+const isFaithfulBot = i => P(i).bot && P(i).role === 'faithful';
+function say(t) {
+  if (!prefs.voice || !('speechSynthesis' in window)) return;
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.rate = 1; u.lang = 'en-GB'; speechSynthesis.speak(u); } catch (e) {}
+}
+
+/* ---------- What the bots believe ---------- */
+// A Faithful bot's suspicion of a player: its own hunch, plus the public evidence about that player (weighted by how much
+// this bot trusts evidence), plus what it has been persuaded of at the Round Table. Traitor bots know the truth and only
+// care what the Faithful think ("heat").
+const factSum = b => S.facts[b].reduce((t, f) => t + f.w, 0);
+const sus = (a, b) => S.noise[a][b] + S.pf[a] * factSum(b) + S.herd[a][b];
+function heat(b) {
+  const fs = alive().filter(f => f !== b && isFaithfulBot(f));
+  return fs.length ? fs.reduce((t, f) => t + sus(f, b), 0) / fs.length : 0;
+}
+function addFact(b, text, w) { S.facts[b].push({ text, w, day: S.day }); }
+function topSuspect(a, opts) {
+  let best = null, bv = -1e9;
+  opts.forEach(b => { if (b === a) return; const v = sus(a, b) + (Math.random() - .5) * .16; if (v > bv) { bv = v; best = b; } });
+  return best;
+}
+function traitorTarget(a, opts) {
+  const mates = opts.filter(b => b !== a && P(b).role === 'traitor'), others = opts.filter(b => b !== a && P(b).role !== 'traitor');
+  let best = null, bv = -1e9;
+  others.forEach(b => { const v = heat(b) + (Math.random() - .5) * .3; if (v > bv) { bv = v; best = b; } });
+  // A fellow Traitor who is going to be banished anyway: sometimes vote with the crowd to look clean
+  mates.forEach(m => { if (heat(m) > bv + .25 && chance(.5)) { best = m; bv = heat(m); } });
+  return best != null ? best : mates[0];
+}
+const botChoice = (a, opts) => P(a).role === 'traitor' ? traitorTarget(a, opts) : topSuspect(a, opts);
+
+/* ---------- Mission questions ---------- */
+const QUESTIONS = [
+  ['What is the capital of Australia?', 'Canberra', 'Sydney', 'Melbourne', 'Perth'],
+  ['How many sides does a hexagon have?', '6', '5', '7', '8'],
+  ['Which planet is known as the Red Planet?', 'Mars', 'Venus', 'Jupiter', 'Mercury'],
+  ['Who painted the Mona Lisa?', 'Leonardo da Vinci', 'Michelangelo', 'Raphael', 'Vincent van Gogh'],
+  ['What is the largest ocean on Earth?', 'Pacific', 'Atlantic', 'Indian', 'Arctic'],
+  ['In which year did the Titanic sink?', '1912', '1905', '1921', '1898'],
+  ['What is the chemical symbol for gold?', 'Au', 'Ag', 'Go', 'Gd'],
+  ['How many players does a football team have on the pitch?', '11', '10', '12', '9'],
+  ['What is the longest river in the UK?', 'Severn', 'Thames', 'Trent', 'Tay'],
+  ['What is the smallest prime number?', '2', '1', '3', '5'],
+  ['Which country gave the Statue of Liberty to the USA?', 'France', 'Britain', 'Spain', 'Italy'],
+  ['How many hearts does an octopus have?', '3', '1', '2', '8'],
+  ['What is the hardest natural substance?', 'Diamond', 'Quartz', 'Granite', 'Iron'],
+  ['Who wrote Romeo and Juliet?', 'William Shakespeare', 'Charles Dickens', 'Christopher Marlowe', 'Jane Austen'],
+  ['What is the capital of Canada?', 'Ottawa', 'Toronto', 'Vancouver', 'Montreal'],
+  ['Which gas do plants take in from the air?', 'Carbon dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen'],
+  ['How many minutes are there in a day?', '1,440', '1,240', '1,400', '1,600'],
+  ['In which country is the castle in the UK series of The Traitors?', 'Scotland', 'Wales', 'Ireland', 'England'],
+  ['What is the largest mammal?', 'Blue whale', 'African elephant', 'Giraffe', 'Orca'],
+  ['Which element has the symbol Fe?', 'Iron', 'Fluorine', 'Lead', 'Fermium'],
+  ['How many continents are there?', '7', '5', '6', '8'],
+  ['At what temperature does water boil at sea level?', '100 °C', '90 °C', '110 °C', '120 °C'],
+  ['Who was the first person to walk on the Moon?', 'Neil Armstrong', 'Buzz Aldrin', 'Yuri Gagarin', 'Michael Collins'],
+  ['What colour do you get by mixing blue and yellow?', 'Green', 'Purple', 'Orange', 'Brown'],
+  ['What is the capital of Spain?', 'Madrid', 'Barcelona', 'Seville', 'Valencia'],
+  ['How many strings does a standard violin have?', '4', '5', '6', '3'],
+  ['What is the square root of 81?', '9', '8', '7', '11'],
+  ['Which ocean lies between Africa and Australia?', 'Indian', 'Atlantic', 'Pacific', 'Southern'],
+  ['How many legs does a spider have?', '8', '6', '10', '12'],
+  ['What is the tallest mountain above sea level?', 'Everest', 'K2', 'Kilimanjaro', 'Mont Blanc'],
+  ['Which language has the most native speakers?', 'Mandarin Chinese', 'English', 'Spanish', 'Hindi'],
+  ['What is the currency of Japan?', 'Yen', 'Won', 'Yuan', 'Ringgit'],
+  ['In chess, which piece only ever moves diagonally?', 'Bishop', 'Rook', 'Knight', 'Queen'],
+  ['Which planet has the most famous rings?', 'Saturn', 'Jupiter', 'Uranus', 'Neptune'],
+  ['How many days are there in a leap year?', '366', '365', '364', '367'],
+  ['Who discovered penicillin?', 'Alexander Fleming', 'Louis Pasteur', 'Marie Curie', 'Edward Jenner'],
+  ['What is the capital of Italy?', 'Rome', 'Milan', 'Venice', 'Naples'],
+  ['What is the largest hot desert in the world?', 'Sahara', 'Gobi', 'Kalahari', 'Arabian'],
+  ['How many bones are in the adult human body?', '206', '186', '226', '306'],
+  ['How many keys does a standard piano have?', '88', '76', '92', '64'],
+  ['Which is the closest star to Earth?', 'The Sun', 'Proxima Centauri', 'Sirius', 'Polaris'],
+  ['How many years are there in a century?', '100', '10', '1,000', '50'],
+];
+
+/* ---------- Start ---------- */
+function start() {
+  const n = S.settings.players;
+  const bots = shuffle(BOTS).slice(0, n - 1);
+  S.players = [{ name: S.myName || 'Alex', bot: false, persona: null }].concat(bots.map(([name, persona]) => ({ name, bot: true, persona })));
+  const [lo, hi] = secretRange(n), k = lo + rnd(hi - lo + 1);
+  const role = S.settings.role === 'random' ? (chance(k / n) ? 'traitor' : 'faithful') : S.settings.role;
+  const pool = shuffle(S.players.map((p, i) => i).filter(i => i !== ME));
+  const tr = new Set(role === 'traitor' ? [ME, ...pool.slice(0, k - 1)] : pool.slice(0, k));
+  S.players.forEach((p, i) => { p.role = p.first = tr.has(i) ? 'traitor' : 'faithful'; p.alive = true; p.out = null; });
+  S.noise = S.players.map(() => S.players.map(() => (Math.random() - .5) * .5));
+  S.pf = S.players.map(() => .7 + Math.random() * .6);
+  S.herd = S.players.map(() => S.players.map(() => 0));
+  S.facts = S.players.map(() => []);
+  Object.assign(S, { day: 0, pot: 0, shield: null, days: [], winner: null, recruitNext: false, outSeen: false, watching: false, usedQ: [] });
+  S.phase = 'reveal';
+}
+function newDay() {
+  S.day++;
+  S.days.push({ day: S.day, murdered: null, recruited: null, refused: null, refusedDied: false, mission: null, votes: [], banished: null, acc: [], endVotes: [] });
+}
+
+/* ---------- Breakfast ---------- */
+function dawn(victim) {
+  S.shield = null;
+  // Yesterday's Round Table fades a little overnight
+  S.herd = S.herd.map(r => r.map(v => v * .6));
+  if (victim != null) {
+    // The Traitors murdered someone who was onto them? Whoever the victim accused looks a bit more suspicious.
+    const d = today();
+    if (d) {
+      const accused = new Set(d.acc.filter(([s]) => s === victim).map(([, t]) => t));
+      const lastVote = d.votes.length ? d.votes[d.votes.length - 1].ballots.find(([v]) => v === victim) : null;
+      if (lastVote) accused.add(lastVote[1]);
+      accused.forEach(t => { if (P(t).alive) addFact(t, `was accused by ${nmPlain(victim)}, who was murdered that night`, .3); });
+    }
+  }
+  newDay();
+  today().murdered = victim;
+  S.bf = { victim, order: shuffle(alive()), shown: 0 };
+  S.phase = 'breakfast';
+  say('Good morning. Let\'s see who joins us for breakfast.');
+}
+function afterBreakfast() {
+  if (alive().length <= 2) return endGame(traitorsAlive().length ? 'traitors' : 'faithful', 'Only two players remain.');
+  startMission();
+}
+
+/* ---------- Mission: a three-question quiz ---------- */
+function startMission() {
+  if (!S.settings.missions) return toTable();
+  let left = QUESTIONS.map((q, i) => i).filter(i => !S.usedQ.includes(i));
+  if (left.length < 3) { S.usedQ = []; left = QUESTIONS.map((q, i) => i); }
+  const qs = shuffle(left).slice(0, 3);
+  S.usedQ.push(...qs);
+  S.mission = { qs, opts: qs.map(() => shuffle([1, 2, 3, 4])), i: 0, mine: [], picked: null, result: null };
+  S.phase = 'mission';
+  if (!meAlive()) resolveMission();
+  else say('Today\'s mission: three questions. Every right answer adds gold to the prize pot.');
+}
+function resolveMission() {
+  const m = S.mission, scores = {};
+  alive().forEach(i => {
+    if (i === ME) { scores[i] = m.mine.filter(Boolean).length; return; }
+    // Traitor bots sometimes sabotage the mission by answering wrongly
+    const p = P(i).role === 'traitor' && chance(.3) ? .15 : PERSONA[P(i).persona].skill;
+    scores[i] = [0, 1, 2].filter(() => chance(p)).length;
+  });
+  const total = Object.values(scores).reduce((a, b) => a + b, 0), gold = total * GOLD_PER_ANSWER;
+  S.pot += gold;
+  const avg = total / alive().length;
+  Object.keys(scores).forEach(k => {
+    if (scores[k] === 0 && avg >= 1.3) addFact(+k, 'got nothing right in a mission', .18);
+    if (scores[k] === 3) addFact(+k, 'got every mission question right', -.05);
+  });
+  let shield = null;
+  if (S.settings.shields && alive().length > FIRE_PIT) {
+    const top = Math.max(...Object.values(scores));
+    shield = pick(Object.keys(scores).filter(k => scores[k] === top).map(Number));
+    S.shield = shield;
+  }
+  m.result = { scores, gold, shield };
+  today().mission = { gold, shield, scores };
+  S.phase = 'missionResult';
+  say(`The mission earned ${money(gold)}.${shield != null ? ` ${shield === ME ? 'You win' : nmPlain(shield) + ' wins'} the Shield.` : ''}`);
+}
+
+/* ---------- Round Table ---------- */
+function toTable() {
+  S.vote = null; S.endVote = null; S.ban = null;
+  if (alive().length <= FIRE_PIT && !(S.fp && S.fp.talk)) {
+    S.fp = { order: shuffle(alive().filter(i => i !== ME)), i: 0, feed: [], talk: false };
+    S.phase = 'firepit';
+    say('Welcome to the fire pit. End the game, or banish again?');
+    return;
+  }
+  const firepit = !!(S.fp && S.fp.talk);
+  if (S.fp) S.fp.talk = false;
+  S.rt = { order: shuffle(alive().filter(i => i !== ME)), i: 0, feed: [], acc: {}, defended: false, accusedMe: [], iSpoke: false, firepit };
+  S.phase = 'table';
+  say('Take your seats at the Round Table.');
+}
+const GENERIC = ['has gone very quiet', 'is trying too hard to be everyone\'s friend', 'keeps changing the subject', 'hasn\'t pointed the finger at anyone yet',
+  'looked far too relaxed this morning', 'answers every question with a question'];
+function reasonFor(t) {
+  const facts = S.facts[t].filter(f => f.w > 0).sort((a, b) => b.w - a.w || b.day - a.day);
+  return facts.length ? `${nmPlain(t)} ${facts[0].text}.` : `${nmPlain(t)} ${GENERIC[(t * 7 + S.day) % GENERIC.length]}.`;
+}
+function accuseLine(s, t) {
+  // Bots talk about you by name, as they would about anyone else at the table
+  const T = nmPlain(t), r = reasonFor(t);
+  const unsure = P(s).role === 'faithful' && sus(s, t) < .15;
+  if (unsure) return `I honestly don't have a strong read yet. If I had to pick, it's ${T}. ${r}`;
+  switch (P(s).persona) {
+    case 'bold': return `I'll say it: ${T}. ${r} I'd stake my life on it.`;
+    case 'calm': return `I keep coming back to ${T}. ${r}`;
+    case 'sharp': return `Look at the facts. ${r} That points to ${T}.`;
+    case 'joker': return `Call it a hunch, but ${T} has Traitor written all over them. ${r}`;
+    default: return `I might be wrong, but… ${T}? ${r}`;
+  }
+}
+function defendLine(s, by) {
+  const B = by === ME ? 'you' : nmPlain(by);
+  switch (P(s).persona) {
+    case 'bold': return `Me? Absolutely not. I'm Faithful, and ${B} is wasting a vote.`;
+    case 'calm': return `I understand why ${B} would say that, but I'm Faithful.`;
+    case 'sharp': return `Interesting that ${B} is so keen to point at me.`;
+    case 'joker': return `If I were a Traitor, ${B}, I'd be much better at hiding it.`;
+    default: return `Oh no, please, I'm Faithful! I promise!`;
+  }
+}
+function accuse(s, t) {
+  S.rt.acc[s] = t;
+  today().acc.push([s, t]);
+  alive().forEach(l => {
+    if (!isFaithfulBot(l) || l === t || l === s) return;
+    const trust = Math.max(.2, Math.min(1.5, 1 - sus(l, s)));
+    S.herd[l][t] += .12 * trust;
+  });
+  if (isFaithfulBot(t)) S.herd[t][s] += .2;  // nobody likes being accused
+  if (t === ME) S.rt.accusedMe.push(s);
+}
+function botSpeak(b) {
+  const rt = S.rt;
+  const by = Object.keys(rt.acc).map(Number).filter(s => rt.acc[s] === b);
+  if (by.length) {
+    rt.feed.push({ who: b, text: defendLine(b, by[by.length - 1]), kind: 'defend' });
+    alive().forEach(l => { if (isFaithfulBot(l) && l !== b) S.herd[l][b] -= .03; });
+  }
+  const t = botChoice(b, alive());
+  if (t == null) return;
+  rt.feed.push({ who: b, text: accuseLine(b, t), t });
+  accuse(b, t);
+}
+function nextSpeaker() { const rt = S.rt; if (rt.i < rt.order.length) botSpeak(rt.order[rt.i++]); }
+function humanAccuse(t) {
+  S.rt.iSpoke = true;
+  S.rt.feed.push({ who: ME, text: `I'm going to say it: ${nmPlain(t)}. ${reasonFor(t)}`, t });
+  accuse(ME, t);
+  if (P(t).bot) { S.rt.feed.push({ who: t, text: defendLine(t, ME), kind: 'defend' }); }
+}
+function humanDefend(how) {
+  const rt = S.rt;
+  rt.defended = true;
+  if (how === 'swear') {
+    rt.feed.push({ who: ME, text: 'I am Faithful. I swear it on everything. You\'re looking at the wrong person.', kind: 'defend' });
+    alive().forEach(l => { if (isFaithfulBot(l)) S.herd[l][ME] -= .06 + Math.random() * .06; });
+  } else {
+    const a = rt.accusedMe[rt.accusedMe.length - 1];
+    rt.feed.push({ who: ME, text: `Isn't it convenient that ${nmPlain(a)} is so desperate to get rid of me?`, t: a, kind: 'defend' });
+    accuse(ME, a);
+  }
+}
+
+/* ---------- Votes ---------- */
+function startVote(round, cands) {
+  const voters = alive().filter(x => !(cands && round > 1 && cands.includes(x)));
+  S.vote = { round, cands: cands || null, voters, ballots: null, shown: 0, mine: null };
+  S.phase = 'vote';
+  if (!voters.includes(ME)) castVotes(null);
+  else say(round > 1 ? 'A tie. Vote again.' : 'Time to vote.');
+}
+function castVotes(mine) {
+  const v = S.vote, opts = v.cands || alive();
+  v.ballots = shuffle(v.voters).map(x => [x, x === ME ? mine : botChoice(x, opts)]);
+  v.shown = 0;
+  S.phase = 'votereveal';
+}
+function tally(ballots) {
+  const c = {};
+  ballots.forEach(([, t]) => { c[t] = (c[t] || 0) + 1; });
+  const top = Math.max(...Object.values(c));
+  return { counts: c, leaders: Object.keys(c).filter(k => c[k] === top).map(Number) };
+}
+function afterVotes() {
+  const t = tally(S.vote.ballots);
+  today().votes.push({ round: S.vote.round, ballots: S.vote.ballots });
+  if (t.leaders.length === 1) return banish(t.leaders[0], false);
+  if (S.vote.round === 1 && S.vote.voters.some(v => !t.leaders.includes(v)) && alive().length > t.leaders.length) {
+    S.tie = t.leaders; S.phase = 'tie'; say(`It's a tie. Everyone else votes again.`);
+  } else banish(pick(t.leaders), true);
+}
+function banish(i, drawn) {
+  const secret = alive().length <= SECRET_AT;
+  S.ban = { who: i, drawn, shown: false, secret };
+  S.phase = 'banish';
+  if (secret) removeBanished();
+  say(`${drawn ? 'Still tied. The draw has chosen. ' : ''}${i === ME ? 'You have' : nmPlain(i) + ' has'} been banished.`);
+}
+function removeBanished() {
+  const i = S.ban.who, b = S.ban;
+  P(i).alive = false; P(i).out = { how: 'banished', day: S.day, secret: b.secret };
+  today().banished = { who: i, role: P(i).role, secret: b.secret };
+  if (P(i).role === 'traitor') S.recruitNext = S.settings.recruit && traitorsAlive().length > 0;
+}
+function revealBanished() {
+  const i = S.ban.who, d = today(), last = d.votes[d.votes.length - 1];
+  S.ban.shown = true;
+  removeBanished();
+  // What the reveal tells everyone about the people who voted
+  const t = P(i).role === 'traitor';
+  last.ballots.forEach(([v, c]) => {
+    if (v === i) return;
+    if (c === i) addFact(v, t ? `voted to banish ${nmPlain(i)}, a Traitor` : `voted for ${nmPlain(i)}, who turned out to be Faithful`, t ? -.3 : .3);
+    else if (t) addFact(v, `didn't vote for ${nmPlain(i)}, a Traitor`, .08);
+  });
+  if (t) {
+    const accusedByTraitor = new Set(S.days.flatMap(x => x.acc).filter(([s]) => s === i).map(([, x]) => x));
+    accusedByTraitor.forEach(x => { if (P(x).alive) addFact(x, `was accused by ${nmPlain(i)}, a Traitor`, -.25); });
+  }
+  say(i === ME ? (t ? 'You were a Traitor.' : 'You were Faithful.') : t ? `${nmPlain(i)} was a Traitor!` : `${nmPlain(i)} was Faithful.`);
+}
+function afterBanish() {
+  if (S.ban.who === ME && !S.outSeen) { S.outSeen = true; S.resume = 'banish'; S.phase = 'out'; return; }
+  if (!S.ban.secret && !traitorsAlive().length) return endGame('faithful', 'Every Traitor has been banished.');
+  if (alive().length <= 2) return endGame(traitorsAlive().length ? 'traitors' : 'faithful', 'Only two players remain.');
+  if (alive().length <= FIRE_PIT) return toTable();
+  startNight();
+}
+
+/* ---------- Night ---------- */
+function murderPick() {
+  const tr = traitorsAlive();
+  let best = null, bv = -1e9;
+  faithfulAlive().forEach(f => {
+    if (f === S.shield) return;
+    // The biggest threat: whoever suspects the Traitors most (for you, whoever you've accused)
+    let threat = f === ME
+      ? S.days.flatMap(d => d.acc).filter(([s, t]) => s === ME && tr.includes(t)).length * .25 - (S.day < 2 ? 9 : .15)
+      : tr.reduce((t, T) => t + sus(f, T), 0) / tr.length;
+    threat += Math.random() * .4;
+    if (threat > bv) { bv = threat; best = f; }
+  });
+  return best;
+}
+function recruitPick() {
+  const fs = faithfulAlive();
+  let best = null, bv = 1e9;
+  fs.forEach(f => { const v = heat(f) + Math.random() * .3; if (v < bv) { bv = v; best = f; } });
+  return best;
+}
+function startNight() {
+  const recruit = S.recruitNext && alive().length > RECRUIT_ABOVE && faithfulAlive().length > 0;
+  S.recruitNext = false;
+  S.night = { recruit, black: recruit && traitorsAlive().length === 1, sugg: recruit ? recruitPick() : murderPick(), choice: null, result: null };
+  S.phase = 'night';
+  say('Night falls on the castle.');
+}
+function resolveNight(target) {
+  const n = S.night;
+  n.target = target;
+  if (n.recruit && target != null) {
+    if (target === ME) { S.phase = 'letter'; return; }
+    return resolveLetter(chance(n.black ? .8 : .55));
+  }
+  if (target != null && target === S.shield) n.result = 'saved';
+  else if (target != null) kill(target);
+  afterNight();
+}
+function kill(t) { P(t).alive = false; P(t).out = { how: 'murdered', day: S.day + 1 }; S.night.result = 'murder'; }
+function resolveLetter(yes) {
+  const n = S.night, t = n.target;
+  if (yes) { P(t).role = 'traitor'; n.result = 'recruited'; today().recruited = t; }
+  else { today().refused = t; today().refusedDied = n.black; if (n.black) kill(t); else n.result = 'refused'; }
+  afterNight();
+}
+function afterNight() {
+  if (S.night.result === 'murder' && S.night.target === ME && !S.outSeen) { S.outSeen = true; S.resume = 'night'; S.phase = 'out'; return; }
+  dawn(S.night.result === 'murder' ? S.night.target : null);
+}
+function resumeAfterOut() {
+  S.watching = true;
+  if (S.resume === 'banish') afterBanish(); else dawn(S.night.target);
+}
+
+/* ---------- The fire pit ---------- */
+function firepitLine(b) {
+  const others = alive().filter(x => x !== b);
+  if (P(b).role === 'traitor') return { end: true, text: pick(['I trust everyone at this fire. Let\'s end it.', 'We\'ve done it. There are no Traitors left. End the game.', 'I\'m ready. I trust every one of you.']) };
+  const t = topSuspect(b, others), doubt = sus(b, t) > PERSONA[P(b).persona].doubt;
+  return doubt ? { end: false, t, text: `I can't end it yet. I still have doubts about ${t === ME ? 'you' : nmPlain(t)}.` } : { end: true, text: 'I trust everyone here. I\'m ready to end the game.' };
+}
+function firepitNext() { const f = S.fp; if (f.i < f.order.length) { const b = f.order[f.i++]; f.feed.push(Object.assign({ who: b }, firepitLine(b))); } }
+function castEndVotes(mine) {
+  const f = S.fp;
+  while (f.i < f.order.length) firepitNext();
+  const ballots = shuffle(alive()).map(x => [x, x === ME ? mine : f.feed.find(e => e.who === x).end ? 1 : 0]);
+  S.endVote = { ballots, shown: 0 };
+  S.phase = 'endreveal';
+}
+function afterEndVotes() {
+  const e = S.endVote;
+  today().endVotes.push(e.ballots);
+  if (e.ballots.every(b => b[1] === 1)) return endGame(traitorsAlive().length ? 'traitors' : 'faithful', traitorsAlive().length ? 'The game was ended with a Traitor still at the fire.' : 'Everyone left at the fire was Faithful.');
+  S.fp.talk = true;
+  toTable();
+  say('Not everyone agrees. The Round Table must banish again.');
+}
+
+/* ---------- The end ---------- */
+function endGame(w, why) {
+  S.winner = w; S.winWhy = why; S.phase = 'over';
+  const mine = (P(ME).role === 'traitor') === (w === 'traitors');
+  say(mine ? (meAlive() ? 'You won!' : 'Your team won.') : 'You lost.');
+}
+// When you're out and don't want to watch: play every remaining step automatically
+function skipToEnd() {
+  S.watching = true;
+  for (let k = 0; k < 2000 && S.phase !== 'over'; k++) {
+    switch (S.phase) {
+      case 'out': resumeAfterOut(); break;
+      case 'breakfast': afterBreakfast(); break;
+      case 'mission': resolveMission(); break;
+      case 'missionResult': toTable(); break;
+      case 'table': while (S.rt.i < S.rt.order.length) nextSpeaker(); startVote(1, null); break;
+      case 'vote': castVotes(null); break;
+      case 'votereveal': afterVotes(); break;
+      case 'tie': startVote(2, S.tie); break;
+      case 'banish': if (!S.ban.secret && !S.ban.shown) revealBanished(); afterBanish(); break;
+      case 'night': resolveNight(S.night.sugg); break;
+      case 'firepit': castEndVotes(null); break;
+      case 'endreveal': afterEndVotes(); break;
+      default: return;
+    }
+  }
+}
+
+/* ---------- Screens ---------- */
+function roleCard() {
+  const t = iAmTraitor(), mates = S.players.map((p, i) => i).filter(i => i !== ME && P(i).role === 'traitor' && P(i).alive);
+  return `<div class="role ${t ? 'traitor' : 'faithful'}">
+      <p class="kicker" style="color:#fff;opacity:.8">${esc(nmPlain(ME))}, you are</p>
+      <div class="rname">${t ? 'a Traitor' : 'Faithful'}</div>
+      <p>${t ? 'Each night you and your fellow Traitors murder a Faithful. By day, blend in and steer the votes. Survive to the end to take the gold.'
+              : `There are ${S.players.length} players in the castle, and some of them are Traitors. Nobody knows how many. Find them and banish them at the Round Table.`}</p>
+      ${t ? `<p><b>${mates.length ? `Your fellow Traitor${mates.length > 1 ? 's' : ''}: ${mates.map(i => esc(nmPlain(i))).join(', ')}` : 'You are the only Traitor.'}</b></p>` : ''}
+    </div>`;
+}
+function tagFor(i) {
+  const p = P(i);
+  const bits = [];
+  if (i !== ME && iAmTraitor() && p.role === 'traitor' && (p.alive || !p.out || !p.out.secret)) bits.push('<span class="tag traitor">your team</span>');
+  if (!p.alive) {
+    if (p.out.secret) bits.push('<span class="tag out">role secret</span>');
+    else bits.push(`<span class="tag ${p.role}">${p.role === 'traitor' ? 'Traitor' : 'Faithful'}</span>`);
+    bits.push(`<span class="tag out">${p.out.how}</span>`);
+  } else if (S.shield === i) bits.push('<span class="tag faithful">🛡 Shield</span>');
+  return bits.join('');
+}
+function pickHtml(opts, chosen, act) {
+  return `<div class="pick">${opts.map(i => `<button type="button" data-act="${act}" data-v="${i}" aria-pressed="${chosen === i}">${nm(i)}${tagFor(i) ? `<small>${tagFor(i).replace(/<[^>]+>/g, ' ').trim()}</small>` : ''}</button>`).join('')}</div>`;
+}
+function statusHtml() {
+  return `<div class="row center hint"><span>${plural(alive().length, 'player')} left</span>·<span>Prize pot <span class="gold">${money(S.pot)}</span></span>${S.watching ? '·<span>Watching</span>' : ''}</div>`;
+}
+function feedHtml(feed) {
+  return `<ol class="feed">${feed.map((e, k) => `<li class="${e.who === ME ? 'me' : ''} ${k === feed.length - 1 ? 'new' : ''}"><b>${nm(e.who)}</b>${e.t != null ? `<span class="tag ${e.kind === 'defend' ? 'out' : 'traitor'}">→ ${nm(e.t)}</span>` : e.end != null ? `<span class="tag ${e.end ? 'faithful' : 'traitor'}">${e.end ? 'end it' : 'banish again'}</span>` : ''}<p>${esc(e.text)}</p></li>`).join('')}</ol>`;
+}
+function setupHtml() {
+  const s = S.settings;
+  const seg = (k, opts) => `<div class="seg">${opts.map(([v, l]) => `<button type="button" data-act="set" data-k="${k}" data-v="${v}" aria-pressed="${String(s[k]) === String(v)}">${l}</button>`).join('')}</div>`;
+  return `<div class="center" style="display:grid;gap:8px;margin-top:6px">
+      <p class="kicker">Just you · against bots</p>
+      <p class="title">The Traitors</p>
+      <p class="hint">You take one seat in the castle. Every other player is a bot that suspects, accuses, lies, votes and murders.</p>
+    </div>
+    <section class="card">
+      <h2>Your game</h2>
+      <label class="hint" for="myName">Your name</label>
+      <input type="text" id="myName" maxlength="20" autocomplete="off" placeholder="Your name" value="${esc(S.myName)}">
+      <div class="set"><span>Players<small>Including you</small></span>${seg('players', [[8, '8'], [10, '10'], [12, '12'], [14, '14'], [16, '16']])}</div>
+      <div class="set"><span>Your role<small>The number of Traitors is always secret</small></span>${seg('role', [['random', 'Random'], ['faithful', 'Faithful'], ['traitor', 'Traitor']])}</div>
+      <div class="set"><span>Missions<small>A three-question quiz each day; every right answer adds ${money(GOLD_PER_ANSWER)}</small></span>${seg('missions', [[true, 'On'], [false, 'Off']])}</div>
+      <div class="set"><span>Shields<small>The mission's top scorer can't be murdered that night</small></span>${seg('shields', [[true, 'On'], [false, 'Off']])}</div>
+      <div class="set"><span>Recruiting<small>After a Traitor is banished (while more than 6 remain)</small></span>${seg('recruit', [[true, 'On'], [false, 'Off']])}</div>
+    </section>
+    <button class="btn primary block" data-act="start">Enter the castle</button>
+    <footer class="note"><p><i>The Traitors</i> is a TV format by IDTV. This is an unofficial fan-made game.</p></footer>`;
+}
+function phaseLabel() {
+  if (S.phase === 'setup') return 'Setup';
+  if (S.phase === 'over') return 'Game over';
+  if (S.phase === 'reveal') return 'Your role';
+  if (S.phase === 'night' || S.phase === 'letter') return `Night ${S.day}`;
+  return `Day ${S.day}`;
+}
+function phaseHtml() {
+  switch (S.phase) {
+    case 'setup': return setupHtml();
+    case 'reveal': return `${roleCard()}<p class="hint center">Your fellow players are bots with their own personalities. Watch how they vote: it's the best clue you'll get.</p><button class="btn primary block" data-act="enter">Begin day 1</button>`;
+    case 'breakfast': {
+      const b = S.bf, done = b.shown >= b.order.length, r = S.night && S.night.result;
+      return `<section class="card">
+          <p class="kicker">Day ${S.day} · Breakfast</p><h2>Who comes to breakfast?</h2>
+          <ul class="list">${b.order.slice(0, b.shown).map((i, k) => `<li class="${k === b.shown - 1 ? 'new' : ''}"><b>${nm(i)}</b><span class="hint">${i === ME ? 'arrive' : 'arrives'}</span></li>`).join('')}</ul>
+          ${!done ? `<div class="row"><button class="btn primary" style="flex:1" data-act="arrive">Next to arrive</button><button class="btn" data-act="arriveall">Everyone</button></div>`
+            : b.victim != null ? `<p class="big-news bad">${nm(b.victim)} never came down.</p><p class="center">${b.victim === ME ? 'You were' : `${nm(b.victim)} was`} murdered in the night, and ${b.victim === ME ? 'were' : 'was'} Faithful.</p>`
+            : `<p class="big-news">Everyone is here!</p><p class="center">${r === 'saved' ? 'The Traitors struck, but their victim held the Shield.' : 'Nobody was murdered last night…'}</p>`}
+          ${done ? `<button class="btn primary block" data-act="afterbf">${S.settings.missions ? 'To the mission' : 'To the Round Table'}</button>` : ''}
+        </section>${statusHtml()}`;
+    }
+    case 'mission': {
+      const m = S.mission, q = QUESTIONS[m.qs[m.i]], o = m.opts[m.i];
+      const answered = m.picked != null;
+      return `<section class="card">
+          <p class="kicker">Day ${S.day} · Mission · question ${m.i + 1} of 3</p>
+          <h2>${esc(q[0])}</h2>
+          ${iAmTraitor() ? '<p class="hint">You\'re a Traitor: answer wrongly on purpose to sabotage, but a poor score gets noticed.</p>' : ''}
+          <div class="pick">${o.map(k => `<button type="button" data-act="answer" data-v="${k}" ${answered ? 'disabled' : ''} class="${answered && k === 1 ? 'right' : answered && k === m.picked ? 'wrong' : ''}">${esc(q[k])}</button>`).join('')}</div>
+          ${answered ? `<p class="center"><b>${m.picked === 1 ? 'Correct!' : `Wrong: it's ${esc(q[1])}.`}</b></p><button class="btn primary block" data-act="nextq">${m.i < 2 ? 'Next question' : 'See the results'}</button>` : ''}
+        </section>${statusHtml()}`;
+    }
+    case 'missionResult': {
+      const r = S.mission.result, rows = Object.keys(r.scores).map(Number).sort((a, b) => r.scores[b] - r.scores[a]);
+      return `<section class="card">
+          <p class="kicker">Day ${S.day} · Mission results</p><h2>+${money(r.gold)} to the pot</h2>
+          <div class="tally">${rows.map(i => `<div><span>${nm(i)}${r.shield === i ? ' 🛡' : ''}</span><span class="b" style="width:${r.scores[i] / 3 * 100}%"></span><span>${r.scores[i]}/3</span></div>`).join('')}</div>
+          ${r.shield != null ? `<p>${r.shield === ME ? 'You win' : `${nm(r.shield)} wins`} the <b>Shield</b>: safe from murder tonight.</p>` : ''}
+          <p class="hint">A player who gets nothing right might just be unlucky… or sabotaging.</p>
+          <button class="btn primary block" data-act="totable">To the Round Table</button>
+        </section>${statusHtml()}`;
+    }
+    case 'table': {
+      const rt = S.rt, more = rt.i < rt.order.length, canDefend = meAlive() && rt.accusedMe.length && !rt.defended;
+      return `<section class="card">
+          <p class="kicker">Day ${S.day} · ${rt.firepit ? 'Fire pit · banish again' : 'Round Table'}</p><h2>Who is a Traitor?</h2>
+          ${rt.feed.length ? feedHtml(rt.feed) : '<p class="hint">The players take their seats. Who will speak first?</p>'}
+          ${more ? `<div class="row"><button class="btn primary" style="flex:1" data-act="speak">Next to speak</button><button class="btn" data-act="speakall">Hear everyone</button></div>` : '<p class="hint center">Everyone has had their say.</p>'}
+          ${meAlive() ? `<div class="row">${!rt.iSpoke ? '<button class="btn" style="flex:1" data-act="accusemenu">Accuse someone</button>' : ''}${canDefend ? '<button class="btn" style="flex:1" data-act="defendmenu">Defend yourself</button>' : ''}</div>` : ''}
+          ${S.ui === 'accuse' ? `<p><b>Who do you accuse?</b></p>${pickHtml(alive().filter(i => i !== ME), null, 'accuse')}` : ''}
+          ${S.ui === 'defend' ? `<div class="pick"><button type="button" data-act="defend" data-v="swear">Swear you're Faithful</button><button type="button" data-act="defend" data-v="turn">Turn it on ${esc(nmPlain(rt.accusedMe[rt.accusedMe.length - 1]))}</button></div>` : ''}
+          <button class="btn primary block" data-act="tovote">${more ? 'Skip to the vote' : 'Go to the vote'}</button>
+        </section>${statusHtml()}`;
+    }
+    case 'vote': {
+      const v = S.vote, opts = (v.cands || alive()).filter(i => i !== ME);
+      return `<section class="card">
+          <p class="kicker">Day ${S.day} · ${v.round > 1 ? 'Revote' : 'Vote'}</p><h2>Who do you banish?</h2>
+          <p>Write a name on your slate. Everyone will see your vote.</p>
+          ${pickHtml(opts, v.mine, 'myvote')}
+          <button class="btn primary block" data-act="castvote" ${v.mine == null ? 'disabled' : ''}>${v.mine == null ? 'Choose a name' : `Vote for ${nm(v.mine)}`}</button>
+        </section>`;
+    }
+    case 'votereveal': {
+      const v = S.vote, shown = v.ballots.slice(0, v.shown), last = shown[shown.length - 1], t = shown.length ? tally(shown) : null;
+      return `<section class="card">
+          <p class="kicker">Day ${S.day} · ${v.round > 1 ? 'Revote' : 'The votes'}</p>
+          ${last ? `<div class="ballot"><span>${last[0] === ME ? 'You vote' : `${nm(last[0])} votes`} for</span><span class="slate">${nm(last[1])}</span></div>` : '<p>Everyone has written a name. One by one, they turn their slates.</p>'}
+          ${t ? `<div class="tally">${Object.keys(t.counts).sort((a, b) => t.counts[b] - t.counts[a]).map(k => `<div><span>${nm(+k)}</span><span class="b" style="width:${t.counts[k] / v.ballots.length * 100}%"></span><span>${t.counts[k]}</span></div>`).join('')}</div>` : ''}
+          ${v.shown < v.ballots.length ? `<div class="row"><button class="btn primary" style="flex:1" data-act="showvote">Next slate</button><button class="btn" data-act="showall">All slates</button></div>` : '<button class="btn primary block" data-act="countvotes">Count the votes</button>'}
+        </section>`;
+    }
+    case 'tie': return `<section class="card center"><p class="kicker">Day ${S.day} · Tie</p><h2>A tie</h2>
+        <p>${S.tie.map(nm).join(' and ')} have the most votes. ${S.tie.includes(ME) ? 'Everyone else votes again, choosing only between you.' : 'Everyone else votes again, choosing only between them.'} If it's still tied, the draw decides.</p>
+        <button class="btn primary block" data-act="revote">Revote</button></section>`;
+    case 'banish': {
+      const b = S.ban, i = b.who, t = P(i).role === 'traitor';
+      if (b.secret) return `<section class="card center"><p class="kicker">Day ${S.day} · Banished</p>${b.drawn ? '<p class="hint">Still tied: the draw chose.</p>' : ''}
+          <p class="big-news bad">${nm(i)}</p><p>${i === ME ? 'You have been banished. From the final five, roles stay secret.' : `${nm(i)} has been banished and leaves without revealing who they were. From the final five, roles stay secret until the end.`}</p>
+          <button class="btn primary block" data-act="afterban">Continue</button></section>`;
+      if (!b.shown) return `<section class="card center"><p class="kicker">Day ${S.day} · Banished</p>${b.drawn ? '<p class="hint">Still tied: the draw chose.</p>' : ''}
+          <p class="big-news bad">${nm(i)}</p><p>${i === ME ? 'You have been banished. Tell them who you really are.' : `${nm(i)} stands up: "I am…"`}</p>
+          <button class="btn primary block" data-act="reveal">Reveal</button></section>`;
+      return `<div class="role ${t ? 'traitor' : 'faithful'}"><p class="kicker" style="color:#fff;opacity:.8">${i === ME ? 'You were' : `${nm(i)} was`}</p><div class="rname">${t ? 'a Traitor' : 'Faithful'}</div>
+          <p>${t ? 'One Traitor caught. Are there more?' : 'The Traitors are still among you.'}</p></div>
+        <button class="btn primary block" data-act="afterban">Continue</button>`;
+    }
+    case 'night': {
+      const n = S.night;
+      if (meAlive() && iAmTraitor()) {
+        const mates = traitorsAlive().filter(i => i !== ME);
+        const verb = !n.recruit ? 'murder' : n.black ? 'blackmail' : 'seduce';
+        return `<section class="card">
+            <p class="kicker">Night ${S.day} · The Traitors' meeting</p><h2>Who do you ${verb}?</h2>
+            <p>${!n.recruit ? 'Choose a Faithful to murder.' : n.black ? 'You are the last Traitor. Blackmail a Faithful: they join you, or die. Nobody else is murdered tonight.' : 'A Traitor was banished. Seduce a Faithful to join you. They may refuse; nobody is murdered tonight.'}</p>
+            ${mates.length && n.sugg != null ? `<p class="hint">${mates.map(i => esc(nmPlain(i))).join(' and ')} suggest${mates.length === 1 ? 's' : ''} <b>${nm(n.sugg)}</b>.</p>` : ''}
+            ${S.shield != null && P(S.shield).alive && !n.recruit ? `<p class="hint">${nm(S.shield)} has the Shield: a murder on them will fail.</p>` : ''}
+            ${pickHtml(faithfulAlive(), n.choice, 'nightpick')}
+            <button class="btn primary block" data-act="nightgo" ${n.choice == null ? 'disabled' : ''}>${n.choice == null ? 'Choose a name' : `${verb[0].toUpperCase() + verb.slice(1)} ${nm(n.choice)}`}</button>
+          </section>`;
+      }
+      return `<section class="card center"><p class="kicker">Night ${S.day}</p><h2>Night falls</h2>
+          <p>${meAlive() ? 'You lock your door and lie awake in your turret. Somewhere in the castle, the Traitors are meeting.' : 'The castle sleeps. The Traitors meet.'}</p>
+          <button class="btn primary block" data-act="sleep">Wait for morning</button></section>${statusHtml()}`;
+    }
+    case 'letter': {
+      const n = S.night;
+      return `<div class="role traitor"><p class="kicker" style="color:#fff;opacity:.8">A letter slides under your door</p>
+          <div class="rname" style="font-size:2rem">${n.black ? 'Join us, or die' : 'The Traitors want you'}</div>
+          <p>${n.black ? 'This is blackmail. Join the Traitors, or refuse and be murdered tonight.' : 'Join them and become a Traitor, or refuse and stay Faithful. Nothing happens to you if you refuse.'}</p></div>
+        <div class="pick"><button type="button" data-act="letter" data-v="1">Join the Traitors</button><button type="button" data-act="letter" data-v="0">Refuse</button></div>`;
+    }
+    case 'out': {
+      const how = P(ME).out.how;
+      return `<section class="card center"><p class="kicker">${how === 'murdered' ? `Night ${S.day}` : `Day ${S.day}`}</p>
+          <h2>${how === 'murdered' ? 'You have been murdered' : 'You have been banished'}</h2>
+          <p>${how === 'murdered' ? 'The Traitors came for you in the night. Your game is over, but the castle carries on.' : 'You leave the castle. The game carries on without you.'}</p>
+          <p class="hint">${iAmTraitor() ? 'Your fellow Traitors can still win.' : 'The Faithful can still win.'}</p>
+          <button class="btn primary block" data-act="watch">Watch the rest</button>
+          <button class="btn block" data-act="skip">Skip to the end</button></section>`;
+    }
+    case 'firepit': {
+      const f = S.fp, more = f.i < f.order.length;
+      return `<section class="card">
+          <p class="kicker">Day ${S.day} · The fire pit</p><h2>End the game, or banish again?</h2>
+          <p class="hint">${plural(alive().length, 'player')} remain, and there are no more murders. It takes every vote to end the game. End it with a Traitor still here, and the Traitors take the pot.</p>
+          ${f.feed.length ? feedHtml(f.feed) : ''}
+          ${more ? `<div class="row"><button class="btn" style="flex:1" data-act="fpnext">Next to speak</button><button class="btn" data-act="fpall">Hear everyone</button></div>` : ''}
+          ${meAlive() ? `<div class="row"><button class="btn primary" style="flex:1" data-act="endvote" data-v="1">Vote to end</button><button class="btn" style="flex:1" data-act="endvote" data-v="0">Banish again</button></div>`
+            : `<button class="btn primary block" data-act="endvote" data-v="">See the vote</button>`}
+        </section>${statusHtml()}`;
+    }
+    case 'endreveal': {
+      const e = S.endVote, shown = e.ballots.slice(0, e.shown), done = e.shown >= e.ballots.length;
+      return `<section class="card"><p class="kicker">Day ${S.day} · The fire pit</p><h2>The vote</h2>
+          <ul class="list">${shown.map(([v, c], k) => `<li class="${k === shown.length - 1 ? 'new' : ''}"><b>${nm(v)}</b><span class="tag ${c ? 'faithful' : 'traitor'}">${c ? 'End the game' : 'Banish again'}</span></li>`).join('')}</ul>
+          ${!done ? `<button class="btn primary block" data-act="showend">Next vote</button>` : `<button class="btn primary block" data-act="afterend">${e.ballots.every(b => b[1] === 1) ? 'Everyone voted to end: reveal' : 'Back to the Round Table'}</button>`}
+        </section>`;
+    }
+    case 'over': return overHtml();
+  }
+  return '';
+}
+function overHtml() {
+  const w = S.winner, winners = alive().filter(i => (P(i).role === 'traitor') === (w === 'traitors'));
+  const share = winners.length ? Math.floor(S.pot / winners.length) : 0, myTeam = (P(ME).role === 'traitor') === (w === 'traitors');
+  const me = !myTeam ? `You lost. ${iAmTraitor() ? 'The Faithful found the Traitors.' : 'The Traitors fooled the castle.'}`
+    : meAlive() ? `You won${winners.length ? ` ${money(share)}` : ''}!` : `Your team won, but you were ${P(ME).out.how} on ${P(ME).out.how === 'murdered' ? `night ${P(ME).out.day - 1}` : `day ${P(ME).out.day}`}, so you leave with nothing.`;
+  const hist = S.days.map(d => {
+    const bits = [];
+    if (d.murdered != null) bits.push(`<p>☠ ${nm(d.murdered)} ${d.murdered === ME ? 'were' : 'was'} murdered in the night.</p>`);
+    if (d.mission) bits.push(`<p>⚔ The mission earned ${money(d.mission.gold)}${d.mission.shield != null ? `; ${nm(d.mission.shield)} won the Shield` : ''}.</p>`);
+    d.votes.forEach(v => bits.push(`<p>🗳 ${v.round > 1 ? 'Revote' : 'Votes'}: ${v.ballots.map(([a, b]) => `${nm(a)}→${nm(b)}`).join(', ')}</p>`));
+    d.endVotes.forEach(ev => bits.push(`<p>🔥 Fire pit vote: ${ev.map(([a, c]) => `${nm(a)} ${c ? 'end' : 'banish'}`).join(', ')}</p>`));
+    if (d.banished) bits.push(`<p>🚪 ${nm(d.banished.who)} ${d.banished.who === ME ? 'were' : 'was'} banished${d.banished.secret ? ' (role kept secret)' : ''}: ${d.banished.role === 'traitor' ? '<b style="color:var(--traitor)">Traitor</b>' : 'Faithful'}.</p>`);
+    if (d.recruited != null) bits.push(`<p>🗝 ${nm(d.recruited)} accepted the Traitors' offer.</p>`);
+    if (d.refused != null) bits.push(`<p>🗝 ${nm(d.refused)} refused to join the Traitors${d.refusedDied ? ' and paid for it' : ''}.</p>`);
+    return bits.length ? `<div class="hist"><h3>Day ${d.day}</h3>${bits.join('')}</div>` : '';
+  }).join('');
+  const reads = S.players.map((p, i) => i).filter(i => isFaithfulBot(i)).map(i => { const t = topSuspect(i, S.players.map((q, j) => j).filter(j => j !== i)); return `<li><b>${nm(i)}</b><span class="hint">suspected ${nm(t)} most</span><span class="tag ${P(t).role}">${P(t).role === 'traitor' ? 'right' : 'wrong'}</span></li>`; }).join('');
+  return `<div class="banner ${w}"><p class="kicker" style="color:#fff;opacity:.85">Game over</p><p class="title">${w === 'traitors' ? 'The Traitors win' : 'The Faithful win'}</p>
+      <p>${esc(S.winWhy || '')}</p><p><b>${me}</b></p>
+      <p>${winners.length ? `${winners.map(nm).join(', ')} ${winners.length === 1 && winners[0] !== ME ? 'takes' : 'share'} ${money(S.pot)}.` : ''}</p></div>
+    <section class="card"><h2>Who was who</h2>
+      <ul class="list">${S.players.map((p, i) => `<li class="${p.alive ? '' : 'out'}"><b>${nm(i)}</b>${p.first !== p.role ? '<span class="hint">recruited</span>' : ''}<span class="tag ${p.role}">${p.role === 'traitor' ? 'Traitor' : 'Faithful'}</span>${p.alive ? '' : `<span class="tag out">${p.out.how}</span>`}</li>`).join('')}</ul></section>
+    ${reads ? `<section class="card"><h2>The Faithful's final reads</h2><ul class="list">${reads}</ul></section>` : ''}
+    <section class="card"><h2>How it happened</h2>${hist}</section>
+    <div class="row"><button class="btn primary" style="flex:1" data-act="again">Play again</button><button class="btn" data-act="newgame">Change settings</button></div>`;
+}
+
+/* ---------- Menu: the dossier, rules and settings ---------- */
+let menu = null;
+function menuHtml() {
+  if (menu === 'rules') return `<div class="row"><h2>How to play</h2><button class="btn sm" data-act="menu">‹ Back</button><button class="btn sm" data-act="close" aria-label="Close">✕</button></div>
+    <ul>
+      <li>You are one of the players in the castle. Everyone else is a bot. Some players are <b>Traitors</b>; nobody is told how many.</li>
+      <li><b>Missions</b>: a three-question quiz. Every right answer from anyone adds ${money(GOLD_PER_ANSWER)} to the pot. The top scorer wins the <b>Shield</b> and can't be murdered that night. Traitors sometimes sabotage by answering wrongly.</li>
+      <li><b>Round Table</b>: the bots take turns to accuse someone and give a reason. You can accuse someone too, and defend yourself if you're accused. Then everyone votes, and the slates are turned one by one.</li>
+      <li>Bots remember what happens. Voting for someone who turns out to be Faithful makes you look suspicious; voting out a Traitor clears you a little. If a murder victim had accused someone, that person looks guilty. The <b>Dossier</b> in this menu shows what the castle knows about each player.</li>
+      <li><b>Night</b>: the Traitors murder a Faithful. If you're a Traitor, you choose who. After a Traitor is banished, and while more than 6 remain, the Traitors recruit instead: a <b>seduction</b> (refusing is safe) with two or more Traitors left, or <b>blackmail</b> (join or die) with only one.</li>
+      <li><b>The final five</b>: banished players no longer reveal their role. <b>The fire pit</b>: once 4 remain there are no more murders. Everyone votes to end the game or banish again. If everyone votes to end with a Traitor still there, the Traitors take the pot.</li>
+      <li>If you're murdered or banished, you can watch the rest or skip to the end. Only players still in the game at the end share the gold.</li>
+    </ul>`;
+  const inGame = S.phase !== 'setup';
+  return `<div class="row"><h2>Menu</h2><button class="btn sm" data-act="close" aria-label="Close">✕</button></div>
+    <button class="btn" data-act="rules">How to play</button>
+    ${inGame && S.players.length ? `<h3>Your role</h3><p>You ${meAlive() ? 'are' : 'were'} <b style="color:var(--${iAmTraitor() ? 'traitor' : 'faithful'})">${iAmTraitor() ? 'a Traitor' : 'Faithful'}</b>.${iAmTraitor() ? ` Your team: ${S.players.map((p, i) => i).filter(i => i !== ME && P(i).role === 'traitor').map(i => esc(nmPlain(i)) + (P(i).alive ? '' : ' (out)')).join(', ') || 'just you'}.` : ''}</p>
+      <h3>Dossier</h3><p class="hint">What the whole castle knows about each player.</p>
+      <ul class="list dossier">${S.players.map((p, i) => i).sort((a, b) => P(b).alive - P(a).alive).map(i => `<li class="${P(i).alive ? '' : 'out'}"><div><b>${nm(i)}</b>${P(i).bot ? ` <span class="hint">${PERSONA[P(i).persona].label}</span>` : ''} ${tagFor(i)}${S.facts[i].length ? `<ul>${S.facts[i].slice(-4).map(f => `<li>${esc(f.text)} (day ${f.day})</li>`).join('')}</ul>` : ''}</div></li>`).join('')}</ul>
+      <p class="hint">Prize pot: <span class="gold">${money(S.pot)}</span></p>` : ''}
+    <h3>Sound</h3>
+    <button class="btn sm" data-act="voice" aria-pressed="${prefs.voice}">Narrator voice: ${prefs.voice ? 'on' : 'off'}</button>
+    <p class="hint">Text size, light or dark, undo and saving the game to a file are under ⚙.</p>
+    ${inGame ? `<h3>Game</h3>${menu === 'quit' ? `<p>End this game and go back to the settings?</p><div class="row"><button class="btn danger" data-act="quityes">Yes, end it</button><button class="btn" data-act="menu">Keep playing</button></div>` : `<button class="btn danger" data-act="quit">End this game</button>`}` : ''}`;
+}
+function renderMenu() { $('#sheet').innerHTML = menu ? `<div class="sheet-back" data-act="backdrop"><div class="sheet" role="dialog" aria-modal="true" aria-label="Menu">${menuHtml()}</div></div>` : ''; }
+function render() {
+  $('#phase').textContent = phaseLabel();
+  $('#app').innerHTML = phaseHtml();
+  renderMenu();
+  const f = $('.feed li:last-child'); if (f && S.scrollFeed) { f.scrollIntoView({ block: 'nearest' }); S.scrollFeed = false; }
+}
+
+/* ---------- Taps ---------- */
+document.addEventListener('input', e => { if (e.target.id === 'myName') { S.myName = e.target.value.trim(); save(); } });
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const a = b.dataset.act, v = b.dataset.v;
+  if (a === 'backdrop') { if (e.target === b) { menu = null; renderMenu(); } return; }
+  let top = true;
+  switch (a) {
+    case 'menu': menu = 'main'; return renderMenu();
+    case 'rules': menu = 'rules'; return renderMenu();
+    case 'close': menu = null; return renderMenu();
+    case 'quit': menu = 'quit'; return renderMenu();
+    case 'quityes': S = fresh(S.settings, S.myName); menu = null; break;
+    case 'voice': prefs.voice = !prefs.voice; savePrefs(); if (!prefs.voice && window.speechSynthesis) speechSynthesis.cancel(); return renderMenu();
+    case 'set': S.settings[b.dataset.k] = v === 'true' ? true : v === 'false' ? false : isNaN(+v) ? v : +v; top = false; break;
+    case 'start': start(); break;
+    case 'enter': newDay(); startMission(); break;
+    case 'arrive': { const bf = S.bf, i = bf.order[bf.shown++]; say(i === ME ? 'You.' : nmPlain(i) + '.'); if (bf.shown >= bf.order.length) announce(); top = false; break; }
+    case 'arriveall': S.bf.shown = S.bf.order.length; announce(); break;
+    case 'afterbf': afterBreakfast(); break;
+    case 'answer': S.mission.picked = +v; S.mission.mine[S.mission.i] = +v === 1; top = false; break;
+    case 'nextq': { const m = S.mission; m.picked = null; if (m.i < 2) m.i++; else resolveMission(); break; }
+    case 'totable': toTable(); break;
+    case 'speak': nextSpeaker(); S.ui = null; S.scrollFeed = true; top = false; break;
+    case 'speakall': while (S.rt.i < S.rt.order.length) nextSpeaker(); S.ui = null; top = false; break;
+    case 'accusemenu': S.ui = S.ui === 'accuse' ? null : 'accuse'; top = false; break;
+    case 'defendmenu': S.ui = S.ui === 'defend' ? null : 'defend'; top = false; break;
+    case 'accuse': humanAccuse(+v); S.ui = null; S.scrollFeed = true; top = false; break;
+    case 'defend': humanDefend(v); S.ui = null; S.scrollFeed = true; top = false; break;
+    case 'tovote': while (S.rt.i < S.rt.order.length) nextSpeaker(); S.ui = null; startVote(1, null); break;
+    case 'myvote': S.vote.mine = +v; top = false; break;
+    case 'castvote': if (S.vote.mine != null) castVotes(S.vote.mine); break;
+    case 'showvote': { const vt = S.vote, [x, t] = vt.ballots[vt.shown++]; say(`${x === ME ? 'You' : nmPlain(x)}: ${t === ME ? 'you' : nmPlain(t)}.`); break; }
+    case 'showall': S.vote.shown = S.vote.ballots.length; break;
+    case 'countvotes': afterVotes(); break;
+    case 'revote': startVote(2, S.tie); break;
+    case 'reveal': revealBanished(); break;
+    case 'afterban': afterBanish(); break;
+    case 'nightpick': S.night.choice = +v; top = false; break;
+    case 'nightgo': if (S.night.choice != null) resolveNight(S.night.choice); break;
+    case 'sleep': resolveNight(S.night.sugg); break;
+    case 'letter': resolveLetter(v === '1'); break;
+    case 'watch': resumeAfterOut(); break;
+    case 'skip': skipToEnd(); break;
+    case 'fpnext': firepitNext(); top = false; break;
+    case 'fpall': while (S.fp.i < S.fp.order.length) firepitNext(); top = false; break;
+    case 'endvote': castEndVotes(v === '' ? null : +v); break;
+    case 'showend': S.endVote.shown++; top = false; break;
+    case 'afterend': afterEndVotes(); break;
+    case 'again': { const st = S.settings, me = S.myName; S = fresh(st, me); start(); break; }
+    case 'newgame': S = fresh(S.settings, S.myName); break;
+    default: return;
+  }
+  save(); render();
+  if (top) scrollTo(0, 0);
+});
+function announce() {
+  const b = S.bf;
+  if (b.victim != null) say(`${b.victim === ME ? 'You' : nmPlain(b.victim)} never came down to breakfast.`);
+  else say(S.night && S.night.result === 'saved' ? 'Everyone is here. The Shield saved a life.' : 'Everyone is here. Nobody was murdered.');
+}
+render();
+</script>
+</body>
+</html>

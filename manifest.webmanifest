@@ -1,7 +1,7 @@
 {
   "name": "Clocktower Companion",
   "short_name": "Clocktower",
-  "description": "Blood on the Clocktower tools: a player's notebook, an evil grimoire, a Storyteller's grimoire, an automatic Storyteller and solo practice against bots, plus The Traitors party game.",
+  "description": "Blood on the Clocktower tools: a player's notebook, an evil grimoire, a Storyteller's grimoire, an automatic Storyteller and solo practice against bots, plus The Traitors party game and its solo version.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

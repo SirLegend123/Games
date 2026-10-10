@@ -1,7 +1,7 @@
 /* Clocktower Companion offline support: keeps a copy of every app so they open without signal.
    Pages are fetched fresh when online (so updates arrive straight away) and fall back to the copy offline. */
-const CACHE = 'clocktower-v2';
-const FILES = ['./', 'index.html', 'good.html', 'evil.html', 'storyteller.html', 'clockwork-storyteller.html', 'solo.html', 'traitors.html', 'companion.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'];
+const CACHE = 'clocktower-v3';
+const FILES = ['./', 'index.html', 'good.html', 'evil.html', 'storyteller.html', 'clockwork-storyteller.html', 'solo.html', 'traitors.html', 'traitors-solo.html', 'companion.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
 });
