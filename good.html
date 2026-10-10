@@ -335,6 +335,21 @@ textarea { resize: vertical; min-height: 90px; }
 
 /* Claim matrix */
 .matrix-card { gap: 10px; }
+/* Nominations and votes */
+.noms-card { gap: 10px; }
+.nom-form { display: grid; gap: 10px; padding: 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.nom-form .row2 { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.nom-form label { font-weight: 700; font-size: .85rem; color: var(--muted); }
+.nom-form select, .nom-form input { min-width: 0; }
+.nom-form input[type=number] { width: 5.5em; }
+.nom-day { display: grid; gap: 6px; }
+.nom-day h3 { margin: 4px 0 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 800; }
+.nom-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid var(--line); font-size: .9rem; }
+.nom-row.block { border-left-color: var(--evil); }
+.nom-row small { display: block; color: var(--muted); }
+.nom-votes { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 1.05rem; text-align: right; }
+.nom-votes.enough { color: var(--evil); }
+.wb-vote { color: var(--muted); font-style: italic; }
 .matrix-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
 .matrix-head h2 { margin-right: auto; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .8rem; color: var(--muted); align-items: center; }
@@ -556,6 +571,12 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     <div class="matrix-wrap"><table class="matrix" id="matrix"></table></div>
     <span class="matrix-note">Tap a square to add or remove that claim. Tap a name to open that player.</span>
   </section>
+  <section class="card noms-card" aria-labelledby="nomsTitle">
+    <div class="tips-head"><h2 id="nomsTitle">Nominations and votes</h2><button class="btn primary" id="nomAdd">+ Nomination</button></div>
+    <span class="tips-foot">Who nominated whom each day, and who voted. World building uses this: evil players rarely vote to execute their own Demon or nominate a teammate.</span>
+    <div id="nomForm"></div>
+    <div id="nomList"></div>
+  </section>
   </div>
 
   <div id="panelHome" hidden><aside class="card panel" id="panel"></aside></div>
@@ -652,6 +673,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <li><b>Changed claims:</b> if a player gives info as one role and later claims another, or swaps a hard claim, the app flags it on World building, rings them amber and stops trusting that info. A real typo can be cleared with <b>Forget this</b> in their panel.</li>
           <li><b>Game wrap-up:</b> when the game ends, enter who was evil, then everyone's real character (or skip that), to see how the evidence held up, which information was right, whose claims were true, how your reads did, and a timeline.</li>
           <li><b>Claim matrix</b> (under the circle): every claim at a glance. Amber means two players claim the same role.</li>
+          <li><b>Nominations and votes</b> (under the claim matrix): tap <b>+ Nomination</b> to log who nominated whom, and tap each player who voted (or just enter the number). Each day's list shows the votes against the number needed and who ended up on the block. World building uses it: a world where an evil player nominated their teammate, or voted to execute their own Demon, counts for less.</li>
         </ul>
       </li>
     </ol>
@@ -780,6 +802,11 @@ function exampleState() {
     { id: uid(), src: id("Priya"), night: 1, role: "Investigator", p: [id("Tom"), id("Mia")], r: ["Baron"], n: null, yn: null, note: "" },
     { id: uid(), src: id("Jess"), night: 1, role: "Fortune Teller", p: [id("Ben"), id("Mia")], r: [], n: null, yn: 1, note: "" }
   ];
+  // Day 1 nominations: Sam pushed Leo (the Saint) through; Tom didn't vote on him
+  st.noms = [
+    { id: uid(), day: 1, by: id("Priya"), on: id("Tom"), votes: 3, voters: [id("Priya"), id("Mia"), id("Ben")], need: 4 },
+    { id: uid(), day: 1, by: id("Sam"), on: id("Leo"), votes: 5, voters: [id("Sam"), id("Mia"), id("Ben"), id("Jess"), id("You")], need: 4 }
+  ];
   // Day 2 conversations: Mia's account of Sam doesn't match what Sam told you
   st.talks = [
     { id: uid(), day: 2, with: id("Priya"), claim: { type: "hard", roles: ["Investigator"] }, relayed: [{ about: id("Tom"), role: "Monk", type: "soft" }], ids: [], note: "" },
@@ -806,6 +833,7 @@ function normalize(s) {
   }
   for (const p of s.players) if (!p.claimType) p.claimType = "soft";
   s.shots = Array.isArray(s.shots) ? s.shots : [];
+  s.noms = Array.isArray(s.noms) ? s.noms : [];
   s.talks = Array.isArray(s.talks) ? s.talks : [];
   s.pings = Array.isArray(s.pings) ? s.pings : [];
   s.wb = s.wb && typeof s.wb === "object" && !Array.isArray(s.wb) ? s.wb : {};
@@ -2781,6 +2809,7 @@ function render() {
   renderCircle();
   renderPanel();
   renderMatrix();
+  renderNoms();
   renderInfo();
   renderTips();
   renderStory();
@@ -3761,6 +3790,66 @@ function renderStory() {
 $("townBtn").onclick = () => openTalk("", { town: true });
 $("talkOverlay").addEventListener("click", e => { if (e.target === $("talkOverlay") && talk && !talk.with) closeTalk(false); });
 
+/* ---------- Nominations and votes ---------- */
+let nomDraft = null;
+const aliveCount = () => state.players.filter(p => !p.dead && !p.traveller).length;
+function renderNoms() {
+  const ps = state.players, form = $("nomForm"), listBox = $("nomList");
+  if (!form || !listBox) return;
+  const name = id => { const p = pById(id); return esc(p ? (p.me && lc(pName(p)) !== "you" ? `${pName(p)} (you)` : pName(p)) : "someone"); };
+  if (nomDraft) {
+    const d = nomDraft, opt = (id, on) => `<option value="${id}" ${on ? "selected" : ""}>${name(id)}</option>`;
+    const canVote = ps.filter(p => !p.traveller && (!p.dead || p.ghostVote || d.voters.includes(p.id)));
+    form.innerHTML = `<div class="nom-form">
+      <div class="row2"><label for="nomBy">Day ${state.day}:</label>
+        <select class="btn" id="nomBy" aria-label="Who nominated">${ps.map(p => opt(p.id, p.id === d.by)).join("")}</select>
+        <span>nominated</span>
+        <select class="btn" id="nomOn" aria-label="Who was nominated">${ps.map(p => opt(p.id, p.id === d.on)).join("")}</select></div>
+      <div><label>Who voted (tap each raised hand)</label>
+        <div class="choice-list">${canVote.map(p => `<button class="choice" data-nv="${p.id}" aria-pressed="${d.voters.includes(p.id)}">${name(p.id)}${p.dead ? " ☠" : ""}</button>`).join("")}</div></div>
+      <div class="row2"><label for="nomVotes">Votes</label><input class="btn" type="number" min="0" max="20" id="nomVotes" value="${d.votes}">
+        <span class="hint">${Math.ceil(aliveCount() / 2)} needed with ${aliveCount()} alive. If you don't know who voted, just enter the number.</span></div>
+      <div class="row2"><button class="btn primary" id="nomSave">Save nomination</button><button class="btn" id="nomCancel">Cancel</button></div>
+    </div>`;
+    $("nomBy").onchange = e => { d.by = e.target.value; };
+    $("nomOn").onchange = e => { d.on = e.target.value; };
+    $("nomVotes").oninput = e => { d.votes = e.target.value; d.typed = true; };
+    form.querySelectorAll("[data-nv]").forEach(b => b.onclick = () => {
+      const id = b.dataset.nv;
+      d.voters = d.voters.includes(id) ? d.voters.filter(x => x !== id) : [...d.voters, id];
+      if (!d.typed) d.votes = d.voters.length;
+      renderNoms();
+    });
+    $("nomSave").onclick = () => {
+      if (d.by === d.on && !confirm("Someone nominating themselves? Save it anyway?")) return;
+      const votes = d.votes === "" ? d.voters.length : Math.max(0, parseInt(d.votes, 10) || 0);
+      state.noms.push({ id: uid(), day: state.day, by: d.by, on: d.on, votes, voters: d.voters.slice(), need: Math.ceil(aliveCount() / 2) });
+      // A dead player who voted has used their one ghost vote
+      for (const v of d.voters) { const p = pById(v); if (p && p.dead) p.ghostVote = false; }
+      nomDraft = null; save(); render();
+    };
+    $("nomCancel").onclick = () => { nomDraft = null; renderNoms(); };
+  } else form.innerHTML = "";
+  // Each day's nominations, newest day first; the highest vote that reached half the living (with no tie) is on the block
+  const days = [...new Set(state.noms.map(n => n.day))].sort((a, b) => b - a);
+  listBox.innerHTML = days.length ? days.map(day => {
+    const ns = state.noms.filter(n => n.day === day);
+    const top = Math.max(...ns.map(n => n.votes)), tops = ns.filter(n => n.votes === top);
+    const block = tops.length === 1 && top >= (tops[0].need || 0) ? tops[0].id : null;
+    return `<div class="nom-day"><h3>Day ${day}</h3>${ns.map(n => `<div class="nom-row ${n.id === block ? "block" : ""}">
+      <span><b>${name(n.by)}</b> → <b>${name(n.on)}</b>${n.id === block ? " · on the block" : ""}${n.voters && n.voters.length ? `<small>Voted: ${n.voters.map(name).join(", ")}</small>` : ""}</span>
+      <span class="nom-votes ${n.need && n.votes >= n.need ? "enough" : ""}" title="${n.need ? n.need + " needed" : ""}">${n.votes}${n.need ? `<small>of ${n.need}</small>` : ""}</span>
+      <button class="btn sm" data-nomdel="${n.id}" aria-label="Delete this nomination">×</button></div>`).join("")}</div>`;
+  }).join("") : `<p class="tips-empty">No nominations logged yet. Tap <b>+ Nomination</b> as each one happens.</p>`;
+  listBox.querySelectorAll("[data-nomdel]").forEach(b => b.onclick = () => { state.noms = state.noms.filter(n => n.id !== b.dataset.nomdel); save(); render(); });
+}
+$("nomAdd").onclick = () => {
+  const alive = state.players.filter(p => !p.dead && !p.traveller);
+  nomDraft = { by: (alive[0] || state.players[0]).id, on: (alive[1] || state.players[0]).id, voters: [], votes: 0 };
+  renderNoms();
+  $("nomForm").scrollIntoView({ block: "nearest" });
+};
+
 /* ---------- World building: every Demon + Minion seating, tested against the evidence ---------- */
 const wbAssume = () => (state.wb = state.wb && typeof state.wb === "object" && !Array.isArray(state.wb) ? state.wb : {});
 const WB_NEXT = { "": "demon", demon: "evil", evil: "good", good: "" };
@@ -3825,6 +3914,20 @@ function buildWorldsRaw() {
   for (const p of seated) if (isHard(p) && teamOf(p.claims[0]) === "townsfolk") (byRole[p.claims[0].toLowerCase()] = byRole[p.claims[0].toLowerCase()] || []).push(p);
   const clashes = Object.values(byRole).filter(l => l.length > 1);
 
+  // Nominations and votes: softer clues than night info. They make a world less likely, never impossible.
+  const voteClues = [];
+  for (const n of (state.noms || [])) {
+    if (!P(n.by) || !P(n.on)) continue;
+    const day = `day ${n.day}`;
+    // An evil player rarely nominates a teammate, and almost never their own Demon
+    voteClues.push(W => W.evil.has(n.by) && W.evil.has(n.on) && n.by !== n.on ? { f: W.demon === n.on ? 0.45 : 0.7, why: `${nm(n.by)} nominated their own ${W.demon === n.on ? "Demon" : "teammate"} ${nm(n.on)} (${day})` } : null);
+    for (const v of (n.voters || []).filter(P)) {
+      if (v === n.on) continue;
+      // An evil player voting to execute their own Demon is rare; a Minion teammate, less so
+      voteClues.push(W => W.evil.has(v) && W.demon === n.on ? { f: 0.5, why: `${nm(v)} voted to execute their own Demon ${nm(n.on)} (${day})` }
+        : W.evil.has(v) && W.minions.has(n.on) ? { f: 0.85, why: `${nm(v)} voted to execute their teammate ${nm(n.on)} (${day})` } : null);
+    }
+  }
   const worlds = [];
   const mustEvil = Object.keys(assume).filter(id => (assume[id] === "evil" || assume[id] === "demon") && P(id));
   for (const d of demons) {
@@ -3838,22 +3941,24 @@ function buildWorldsRaw() {
       for (const l of clashes) { const good = l.filter(p => !W.evil.has(p.id)); if (good.length > 1) { drunk += good.length - 1; drunkWhy.push(`${good.map(p => nm(p.id)).join(" or ")} would be the Drunk (both claim ${good[0].claims[0]}).`); } }
       W.breaks = bad.size + drunk;
       W.why = [...[...bad].map(([src, ts]) => { const m = ts.find(t => t.msg); if (m) return m.msg; const ls = [...new Set(ts.map(t => t.label))].join(", "); return src === meId ? `Your ${ls} would be wrong (you'd be drunk or poisoned).` : `${nm(src)}'s ${ls} would be wrong (drunk or poisoned).`; }), ...drunkWhy];
+      W.soft = 1; W.votes = [];
+      for (const c of voteClues) { const r = c(W); if (r) { W.soft *= r.f; W.votes.push(r.why); } }
       worlds.push(W);
     }
   }
   const best = worlds.length ? Math.min(...worlds.map(w => w.breaks)) : 0;
   const kept = worlds.filter(w => w.breaks <= best + 1);
-  const weight = w => Math.pow(0.15, w.breaks - best);
+  const weight = w => Math.pow(0.15, w.breaks - best) * (w.soft || 1);
   const total = kept.reduce((s, w) => s + weight(w), 0) || 1;
   const odds = new Map();
   for (const w of kept) for (const id of w.evil) { const o = odds.get(id) || odds.set(id, { demon: 0, evil: 0 }).get(id); o.evil += weight(w) / total; if (id === w.demon) o.demon += weight(w) / total; }
-  kept.sort((x, y) => x.breaks - y.breaks || [...y.evil].reduce((s, id) => s + (odds.get(id)?.evil || 0), 0) - [...x.evil].reduce((s, id) => s + (odds.get(id)?.evil || 0), 0));
-  return { worlds: kept, all: worlds.length, best, odds, k, tests: tests.length + clashes.length, pool };
+  kept.sort((x, y) => x.breaks - y.breaks || (y.soft || 1) - (x.soft || 1) || [...y.evil].reduce((s, id) => s + (odds.get(id)?.evil || 0), 0) - [...x.evil].reduce((s, id) => s + (odds.get(id)?.evil || 0), 0));
+  return { worlds: kept, all: worlds.length, best, odds, k, tests: tests.length + clashes.length + voteClues.length, voteClues: voteClues.length, pool };
 }
 // Cached: the worlds only change when the evidence does
 let wbCache = { key: "", val: null };
 function buildWorlds() {
-  const key = JSON.stringify([state.players, state.myInfo, state.shots, state.wb, state.over, state.script]);
+  const key = JSON.stringify([state.players, state.myInfo, state.shots, state.noms, state.wb, state.over, state.script]);
   if (wbCache.key !== key) wbCache = { key, val: buildWorldsRaw() };
   return wbCache.val;
 }
@@ -3922,14 +4027,14 @@ function renderWorlds() {
   const table = rows.length ? `<table class="whos-table wb-table"><thead><tr><th>Player</th><th>Is the Demon</th><th>Is evil</th><th>Is good</th></tr></thead><tbody>${rows.map(([id, o]) => `<tr><td><button class="linkish" data-open="${id}">${nm(id)}</button>${P(id).claims.length ? `<small>${esc(P(id).claims.join(" / "))}</small>` : ""}</td><td><span class="wb-pct">${pct(o.demon)}</span><span class="cand-bar"><i style="width:${pct(o.demon)}"></i></span></td><td><span class="wb-pct">${pct(o.evil)}</span><span class="cand-bar"><i style="width:${pct(o.evil)}"></i></span></td><td><span class="wb-pct g">${pct(1 - o.evil)}</span><span class="cand-bar good"><i style="width:${pct(1 - o.evil)}"></i></span></td></tr>`).join("")}</tbody></table>` : "";
   const qa = wb.best === 0 || wb.worlds.length ? worldAsks().slice(0, 6) : [];
   const qHtml = qa.length ? `<h3 class="label" style="margin:10px 0 4px">Questions that narrow the worlds</h3><div class="tips-col">${qa.map(q => `<div class="tip wb-q"><span><b>${nm(q.id)}</b>: ${esc(q.text)}</span>${q.note ? `<small>${esc(q.note.replace(/^World building: n/, "N"))}</small>` : ""}<button class="btn" data-open="${q.id}">Talk</button></div>`).join("")}</div>` : "";
-  const list = wb.worlds.slice(0, 8).map((w, i) => `<div class="tip wb-world ${w.breaks ? "hi" : ""}"><span class="when">World ${i + 1} · ${w.breaks === 0 ? "fits everything" : `needs ${w.breaks} thing${w.breaks === 1 ? "" : "s"} to be wrong`}</span><b>Demon: ${nm(w.demon)}${w.minions.size ? ` · Minion${w.minions.size > 1 ? "s" : ""}: ${[...w.minions].map(nm).join(", ")}` : ""}</b>${w.why.map(x => `<small>${esc(x)}</small>`).join("")}</div>`).join("");
+  const list = wb.worlds.slice(0, 8).map((w, i) => `<div class="tip wb-world ${w.breaks ? "hi" : ""}"><span class="when">World ${i + 1} · ${w.breaks === 0 ? "fits everything" : `needs ${w.breaks} thing${w.breaks === 1 ? "" : "s"} to be wrong`}</span><b>Demon: ${nm(w.demon)}${w.minions.size ? ` · Minion${w.minions.size > 1 ? "s" : ""}: ${[...w.minions].map(nm).join(", ")}` : ""}</b>${w.why.map(x => `<small>${esc(x)}</small>`).join("")}${(w.votes || []).length ? `<small class="wb-vote">Less likely, from the votes: ${esc(w.votes.join("; "))}.</small>` : ""}</div>`).join("");
   box.innerHTML = `${head}
     <div class="wb-assume"><span class="label">Assume (tap to cycle Demon → Evil → Good → none)</span><div class="choice-list">${chips}</div></div>
     ${table}
     ${qHtml}
     ${clear.length && wb.all ? `<p class="wb-clear"><span class="g">Good in every world here:</span> ${clear.map(p => nm(p.id)).join(", ")}</p>` : ""}
     ${list ? `<h3 class="label" style="margin:10px 0 4px">Most likely worlds${wb.worlds.length > 8 ? ` (8 of ${wb.worlds.length})` : ""}</h3><div class="tips-col">${list}</div>` : ""}
-    <span class="tips-foot">Counts ${wb.k} Minion${wb.k === 1 ? "" : "s"} and one living Demon; you and proven-good players are good. Worlds needing one more piece of wrong info than the best count for much less. The Spy and Recluse can register falsely and the Demon can pass to a Minion, so treat this as a guide.</span>`;
+    <span class="tips-foot">Counts ${wb.k} Minion${wb.k === 1 ? "" : "s"} and one living Demon; you and proven-good players are good. Worlds needing one more piece of wrong info than the best count for much less.${wb.voteClues ? ` Nominations and votes (from the Table tab) count as softer clues: a world where an evil player nominated their teammate or voted to execute their own Demon counts for less, but isn't ruled out.` : ""} The Spy and Recluse can register falsely and the Demon can pass to a Minion, so treat this as a guide.</span>`;
   box.querySelectorAll("[data-wb]").forEach(b => b.onclick = () => { const id = b.dataset.wb, a = wbAssume(); const nx = WB_NEXT[a[id] || ""]; if (nx === "demon") for (const x of Object.keys(a)) if (a[x] === "demon") a[x] = "evil"; if (nx) a[id] = nx; else delete a[id]; save(); renderWorlds(); });
   box.querySelectorAll("[data-open]").forEach(b => b.onclick = () => openPlayer(b.dataset.open));
 }
@@ -3976,7 +4081,7 @@ $("ngStart").onclick = () => {
   const names = $("ngNames").value.split("\n").map(s => s.trim()).filter(Boolean);
   const count = names.length || Math.max(5, Math.min(20, parseInt($("ngCount").value, 10) || 8));
   const players = Array.from({ length: count }, (_, i) => mkPlayer(names[i] || `Player ${i + 1}`));
-  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], heard: [], talks: [], pings: [], wb: {}, softDefault: true, over: null, shots: [], firstNightDone: false, updatedAt: 0 };
+  state = { v: 1, example: false, script: $("ngScript").value, day: 1, notes: "", players, selected: players[0].id, myRole: "", myInfo: [], heard: [], talks: [], pings: [], wb: {}, softDefault: true, over: null, shots: [], noms: [], firstNightDone: false, updatedAt: 0 };
   confirmRemove = false;
   $("overlay").hidden = true; $("ngNames").value = "";
   save(); render();
