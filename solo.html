@@ -156,6 +156,8 @@ button.tok:hover { transform: translate(-50%, -50%) scale(1.07); }
 .tok .mark { position: absolute; top: -6%; right: -10%; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 99px; padding: 1px 5px; font-size: max(10px, calc(var(--fs) * .8)); white-space: nowrap; }
 .tok-sub { font-weight: 700; font-size: var(--sfs); color: color-mix(in srgb, var(--parch-ink) 72%, transparent); white-space: nowrap; }
 .tok:has(.tok-sub) { align-content: center; gap: 1px; }
+.tok-sub.claim { color: color-mix(in srgb, var(--ok) 80%, #000); font-weight: 800; }
+.tok-sub.claim.conf { color: var(--good); }
 .tok.flipped { animation: none; border-width: 4px; }
 .tok.flipped.good { border-color: var(--good); } .tok.flipped.evil { border-color: var(--evil); }
 .tok.flipped.minion, .tok.flipped.demon { background: color-mix(in srgb, var(--evil) 22%, var(--parch)); }
@@ -1853,6 +1855,7 @@ function howView() {
       <li><b>Talk about the setup:</b> in Say in town, announce things like "I think this is a Baron game", "there's a Drunk" or "the Poisoner is at work". Bots answer with the counts (how many Outsiders have claimed against how many there should be) and what the Librarian saw, and raise it themselves when the Outsider claims don't add up. The middle of the table shows this game's setup: Townsfolk · Outsiders · Minions · Demon, and the same with a Baron.</li>
       <li><b>Speak up:</b> from a player's seat, accuse them (could be evil, or is the Demon) or vouch for them, and pick your reason: a specific piece of evidence, something you learned, their voting, or a hunch. Bots weigh what you say, more for a specific reason, and only as much as they trust you. A couple of them will say whether they agree.</li>
       <li><b>Talk privately:</b> from a player's seat, offer three for three (pick three characters, one of them true), tell them your character one for one, whisper your info (real or made up), or ask what they've learned and who they really suspect. Good bots open up if they trust you; evil bots always answer, with their bluff. The town sees that you talked, not what was said. Bots remember: if your public claim doesn't match what you told someone, they'll say so.</li>
+      <li><b>Claims on the table:</b> every hard claim shows on that player's seat. Green is said in town, a blue ★ is proven by the game (a Virgin whose nominator was executed, a Slayer who killed the Demon), and 🤫 is what they told you privately, one for one.</li>
       <li><b>Claim matrix:</b> under the town talk, every player against every character. Green H is a hard claim (🤫 if it was said to you privately), light green S is a soft claim (one of a three for three), a blue star is a character the game has proven (a Virgin whose nominator was executed, a Slayer whose shot killed the Demon), × is an earlier claim, and an amber ring means two or more players hard-claim it.</li>
       <li><b>Worlds:</b> like the Clocktower Notebook's World building. Every way the Demon and Minions could be seated, tested against public info, your own info and what you were told in private, with each player's chance of being the Demon, evil or good, the most likely worlds and what each one needs to be wrong. Tap names to assume someone is the Demon, evil or good. Nominations and votes count as softer clues. If you're evil, it shows how the town sees it.</li>
       <li><b>Nominations and votes:</b> on the Notes tab, who nominated whom each day, how many votes they got against how many were needed, and who voted.</li>
@@ -1904,11 +1907,11 @@ function tableHtml(seat, mid) {
     const a = 2 * Math.PI * i / N - Math.PI / 2, s = seat(q), tag = s.button ? 'button' : 'div';
     const text = s.text || q.name, longest = Math.max(3, ...text.split(/\s+/).map(w => w.length));
     const nfs = (s.text ? Math.min(d * 0.19, d * 1.05 / longest) : Math.min(d * 0.24, d * 1.4 / longest)).toFixed(2);
-    const sfs = s.sub ? Math.min(d * 0.16, d * 1.25 / Math.max(4, s.sub.length)).toFixed(2) : 0;
+    const sfs = s.sub || s.claim ? Math.min(d * 0.16, d * 1.25 / Math.max(4, (s.sub || '').length, (s.claim || '').length)).toFixed(2) : 0;
     const lab = G && G.labels && G.stage !== 'over' ? G.labels[q.id] : null;
     const labCls = lab ? (lab === 'Good' || (ROLES[lab] && isGoodType(lab)) ? 'lab-good' : 'lab-evil') : '';
     if (lab) s.mark = (s.mark ? s.mark + ' ' : '') + `🏷${esc(lab === 'Fortune Teller' ? 'FT' : lab === 'Scarlet Woman' ? 'SW' : lab)}`;
-    return `<${tag} class="tok ${s.cls || ''} ${labCls}" style="left:${(50 + 39 * Math.cos(a)).toFixed(2)}%;top:${(50 + 39 * Math.sin(a)).toFixed(2)}%;--nfs:${nfs}cqw;--sfs:${sfs}cqw" ${s.attrs || ''}><span class="tok-nm">${esc(text)}</span>${s.sub ? `<span class="tok-sub">${esc(s.sub)}</span>` : ''}${s.mark ? `<span class="mark">${s.mark}</span>` : ''}</${tag}>`;
+    return `<${tag} class="tok ${s.cls || ''} ${labCls}" style="left:${(50 + 39 * Math.cos(a)).toFixed(2)}%;top:${(50 + 39 * Math.sin(a)).toFixed(2)}%;--nfs:${nfs}cqw;--sfs:${sfs}cqw" ${s.attrs || ''}><span class="tok-nm">${esc(text)}</span>${s.claim ? `<span class="tok-sub claim${s.claimConf ? ' conf' : ''}">${esc(s.claim)}</span>` : ''}${s.sub ? `<span class="tok-sub">${esc(s.sub)}</span>` : ''}${s.mark ? `<span class="mark">${s.mark}</span>` : ''}</${tag}>`;
   }).join('');
   return `<div class="table" style="--d:${d.toFixed(2)}cqw;--fs:${(d * 0.2).toFixed(2)}cqw">${toks}<div class="table-mid">${mid}</div></div>`;
 }
@@ -2186,6 +2189,13 @@ function claimState(q, r) {
   if (q.claimHist.includes(r)) return { k: 'was', why: 'An earlier claim' };
   return null;
 }
+// The hard claim to show on a player's seat: said in town (★ if the game proved it), or told to you one for one (🤫)
+function seatClaim(q) {
+  const short = r => r === 'Fortune Teller' ? 'Fortune T.' : r === 'Scarlet Woman' ? 'Scarlet W.' : r;
+  if (q.claim) return (claimState(q, q.claim).k === 'conf' ? '★ ' : '') + short(q.claim);
+  const r = CLAIMABLE.find(c => { const st = claimState(q, c); return st && st.k === 'hard' && st.priv; });
+  return r ? '🤫 ' + short(r) : '';
+}
 function matrixHtml() {
   const only = prefs.mxAll !== true;
   const ALLC = [...CLAIMABLE, ...MN, 'Imp'];
@@ -2434,7 +2444,8 @@ function dayView() {
   const seats = tableHtml(q => ({
     button: true, attrs: `data-act="seat" data-id="${q.id}" aria-label="${esc(q.name)}"`,
     cls: 'seat ' + (teammate(q) ? 'mate ' : '') + (q.alive ? '' : 'dead') + (d.block === q.id ? ' block' : '') + (U.panel === q.id ? ' picked' : ''),
-    sub: [q.id === G.me ? 'you' : '', q.claim || '', prefs.coach ? `${coachPct(q.id)}%` : ''].filter(Boolean).join(' · '),
+    claim: seatClaim(q), claimConf: claimState(q, q.claim || '') && claimState(q, q.claim).k === 'conf',
+    sub: [q.id === G.me ? 'you' : '', prefs.coach ? `${coachPct(q.id)}%` : ''].filter(Boolean).join(' · '),
     mark: [teammate(q) ? '🔴' : '', openRequests().some(r => r.by === q.id) ? '✉' : '', q.alive ? '' : q.ghost ? '☠ vote' : '☠'].filter(Boolean).join(' '),
   }), `<div class="mid-big">${alive().length}</div><div class="mid-sm">alive of ${G.players.length}</div>${midCounts()}${d.block != null ? `<div class="mid-sm" style="color:var(--evil)">${nm(d.block)} on the block</div>` : ''}`);
   const today = G.feed.filter(e => e.when === label()), earlier = G.feed.filter(e => e.when !== label());
