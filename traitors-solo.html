@@ -353,7 +353,7 @@ function dawn(victim) {
   }
   newDay();
   today().murdered = victim;
-  S.bf = { victim, order: shuffle(alive()), shown: 0 };
+  S.bf = { victim, order: shuffle(alive()), shown: 0, talk: breakfastTalk(victim), heard: 0 };
   S.phase = 'breakfast';
   say('Good morning. Let\'s see who joins us for breakfast.');
 }
@@ -555,11 +555,11 @@ function afterBanish() {
 }
 
 /* ---------- Night ---------- */
-function murderPick() {
+function murderPick(not) {
   const tr = traitorsAlive();
   let best = null, bv = -1e9;
   faithfulAlive().forEach(f => {
-    if (f === S.shield) return;
+    if (f === S.shield || f === not) return;
     // The biggest threat: whoever suspects the Traitors most (for you, whoever you've accused)
     let threat = f === ME
       ? S.days.flatMap(d => d.acc).filter(([s, t]) => s === ME && tr.includes(t)).length * .25 - (S.day < 2 ? 9 : .15)
@@ -578,35 +578,99 @@ function recruitPick() {
 function startNight() {
   const recruit = S.recruitNext && alive().length > RECRUIT_ABOVE && faithfulAlive().length > 0;
   S.recruitNext = false;
-  S.night = { recruit, black: recruit && traitorsAlive().length === 1, sugg: recruit ? recruitPick() : murderPick(), choice: null, result: null };
+  const black = recruit && traitorsAlive().length === 1, sugg = recruit ? recruitPick() : murderPick();
+  // A seduction night has a murder too (blackmail doesn't: refusing is the murder)
+  const msugg = recruit && !black ? murderPick(sugg) : null;
+  S.night = { recruit, black, sugg, msugg, choice: null, mchoice: null, result: null, victim: null };
   S.phase = 'night';
   say('Night falls on the castle.');
 }
-function resolveNight(target) {
+function resolveNight(target, murder) {
   const n = S.night;
   n.target = target;
+  n.murder = n.recruit ? (n.black ? null : murder) : target;
   if (n.recruit && target != null) {
     if (target === ME) { S.phase = 'letter'; return; }
     return resolveLetter(chance(n.black ? .8 : .55));
   }
-  if (target != null && target === S.shield) n.result = 'saved';
-  else if (target != null) kill(target);
-  afterNight();
+  finishNight();
 }
-function kill(t) { P(t).alive = false; P(t).out = { how: 'murdered', day: S.day + 1 }; S.night.result = 'murder'; }
+function kill(t) { P(t).alive = false; P(t).out = { how: 'murdered', day: S.day + 1 }; S.night.victim = t; S.night.result = 'murder'; }
 function resolveLetter(yes) {
   const n = S.night, t = n.target;
   if (yes) { P(t).role = 'traitor'; n.result = 'recruited'; today().recruited = t; }
   else { today().refused = t; today().refusedDied = n.black; if (n.black) kill(t); else n.result = 'refused'; }
-  afterNight();
+  finishNight();
 }
-function afterNight() {
-  if (S.night.result === 'murder' && S.night.target === ME && !S.outSeen) { S.outSeen = true; S.resume = 'night'; S.phase = 'out'; return; }
-  dawn(S.night.result === 'murder' ? S.night.target : null);
+function finishNight() {
+  const n = S.night, m = n.murder;
+  if (m != null && P(m).alive) { if (m === S.shield) { n.result = 'saved'; n.saved = m; } else kill(m); }
+  // Nobody, you included, learns who died until breakfast
+  dawn(n.victim);
 }
 function resumeAfterOut() {
   S.watching = true;
-  if (S.resume === 'banish') afterBanish(); else dawn(S.night.target);
+  if (S.resume === 'banish') afterBanish(); else afterBreakfast();
+}
+
+/* ---------- Breakfast talk: reacting to the murder and working out why ---------- */
+const REACT = {
+  bold: v => `${v}! I can't believe it. Whoever did this, I'm coming for you.`,
+  calm: v => `Poor ${v}. Let's keep our heads and think about why it was them.`,
+  sharp: v => `${v} wasn't chosen at random. The Traitors had a reason.`,
+  joker: v => `I was sure it'd be me. Sorry, ${v}, you deserved better.`,
+  nervous: v => `Oh no, ${v}… I barely slept. I thought it would be me.`,
+};
+// A breakfast theory persuades each listener only as far as they trust the person saying it
+function nudge(t, w, from) { alive().forEach(l => { if (isFaithfulBot(l) && l !== t && l !== from) S.herd[l][t] += w * Math.max(.2, Math.min(1.5, 1 - sus(l, from))); }); }
+function murderTheory(b, v) {
+  const prev = S.days[S.days.length - 2], V = nmPlain(v), traitor = P(b).role === 'traitor';
+  const live = x => P(x).alive && x !== b;
+  const accusedByV = prev ? [...new Set(prev.acc.filter(([s, t]) => s === v && live(t)).map(([, t]) => t))] : [];
+  const accusedV = prev ? [...new Set(prev.acc.filter(([s, t]) => t === v && live(s)).map(([s]) => s))] : [];
+  const lastVote = prev && prev.votes.length ? prev.votes[prev.votes.length - 1].ballots.find(([x]) => x === v) : null;
+  const votedFor = lastVote && live(lastVote[1]) ? lastVote[1] : null;
+  const topScore = prev && prev.mission && Math.max(...Object.values(prev.mission.scores)) === prev.mission.scores[v];
+  // Traitors steer the theory onto a Faithful; Faithful bots onto whoever they already suspect most
+  const rank = xs => xs.filter(x => !traitor || P(x).role !== 'traitor').sort((x, y) => (traitor ? heat(y) - heat(x) : sus(b, y) - sus(b, x)))[0];
+  const ideas = [];
+  const a = rank(accusedByV);
+  if (a != null) ideas.push(() => { nudge(a, .1, b); return { t: a, text: `${V} went after ${nmPlain(a)} at the Round Table, and the next morning ${V} is dead. The Traitors silence people who get close. I'm looking at ${nmPlain(a)}.` }; });
+  const c = rank(accusedV);
+  if (c != null) ideas.push(() => { nudge(c, .07, b); return { t: c, text: `Funny how ${nmPlain(c)} wanted ${V} gone yesterday, and now ${V} is gone. Convenient, isn't it?` }; });
+  if (votedFor != null && (!traitor || P(votedFor).role !== 'traitor')) ideas.push(() => { nudge(votedFor, .06, b); return { t: votedFor, text: `${V}'s last vote was for ${nmPlain(votedFor)}. Maybe that vote got ${V} killed.` }; });
+  if (a != null && P(b).persona === 'sharp') ideas.push(() => { nudge(a, -.08, b); return { text: `Don't fall for it. ${V} accused ${nmPlain(a)}, so the Traitors killed ${V} to make ${nmPlain(a)} look guilty. That's a frame.` }; });
+  if (topScore) ideas.push(() => ({ text: `${V} was brilliant in the mission. The Traitors are getting rid of the strong players before the end.` }));
+  ideas.push(() => ({ text: pick([`${V} trusted everyone. I think the Traitors just wanted an easy kill that wouldn't point at anyone.`, `${V} was everyone's friend. Killing them gives us nothing to go on, and that's exactly the point.`,
+    `Nobody had a bad word to say about ${V}. That's why they were safe to murder.`, `${V} was quiet, but they were watching. Maybe they'd worked something out and told the wrong person.`,
+    `Think about who ${V} sat with last night. The Traitors knew ${V} wouldn't see it coming.`, `The Traitors are sending a message with ${V}: nobody is safe, however well liked.`]) }));
+  // Prefer a theory with something behind it; the last idea is the fallback
+  const specific = ideas.slice(0, -1);
+  return pick(specific.length && chance(.85) ? specific : ideas)();
+}
+function breakfastTalk(victim) {
+  const n = S.night || {}, speakers = shuffle(alive().filter(i => i !== ME)).slice(0, Math.min(4, alive().length - 1)), talk = [];
+  if (victim != null) {
+    const used = new Set();
+    speakers.forEach((b, k) => {
+      let th = murderTheory(b, victim);
+      for (let tries = 0; used.has(th.text) && tries < 6; tries++) th = murderTheory(b, victim);
+      if (used.has(th.text)) return;
+      used.add(th.text);
+      talk.push({ who: b, text: (k < 2 ? REACT[P(b).persona](nmPlain(victim)) + ' ' : '') + th.text, t: th.t });
+    });
+  } else if (n.result === 'saved' && n.saved != null) {
+    const sh = n.saved, SH = nmPlain(sh);
+    speakers.slice(0, 3).forEach(b => {
+      const pool = (S.days[S.days.length - 2] || { acc: [] }).acc.filter(([s, t]) => s === sh && P(t).alive && t !== b).map(([, t]) => t);
+      const t = pool.length ? pool[0] : null;
+      if (t != null) nudge(t, .06, b);
+      talk.push({ who: b, text: b === sh ? 'Nobody died… The Shield saved me. They came for me. I must be onto something.' : t != null ? `Everyone's here, so the Traitors must have gone for ${SH}, who had the Shield. ${SH} has been on to ${nmPlain(t)}. That's no coincidence.` : `Everyone's here! They must have tried for ${SH}. The Shield saved a life last night.`, t });
+    });
+  } else {
+    speakers.slice(0, 3).forEach(b => talk.push({ who: b, text: pick(['Nobody was murdered? That doesn\'t happen. Something else went on in the night.', 'No murder… I don\'t like it. Have the Traitors recruited someone?', 'Everyone came down. Either the Traitors got clever, or somebody here made a deal.']) }));
+  }
+  return talk;
 }
 
 /* ---------- The fire pit ---------- */
@@ -653,7 +717,7 @@ function skipToEnd() {
       case 'votereveal': afterVotes(); break;
       case 'tie': startVote(2, S.tie); break;
       case 'banish': if (!S.ban.secret && !S.ban.shown) revealBanished(); afterBanish(); break;
-      case 'night': resolveNight(S.night.sugg); break;
+      case 'night': resolveNight(S.night.sugg, S.night.msugg); break;
       case 'firepit': castEndVotes(null); break;
       case 'endreveal': afterEndVotes(); break;
       default: return;
@@ -730,9 +794,11 @@ function phaseHtml() {
           <p class="kicker">Day ${S.day} · Breakfast</p><h2>Who comes to breakfast?</h2>
           <ul class="list">${b.order.slice(0, b.shown).map((i, k) => `<li class="${k === b.shown - 1 ? 'new' : ''}"><b>${nm(i)}</b><span class="hint">${i === ME ? 'arrive' : 'arrives'}</span></li>`).join('')}</ul>
           ${!done ? `<div class="row"><button class="btn primary" style="flex:1" data-act="arrive">Next to arrive</button><button class="btn" data-act="arriveall">Everyone</button></div>`
-            : b.victim != null ? `<p class="big-news bad">${nm(b.victim)} never came down.</p><p class="center">${b.victim === ME ? 'You were' : `${nm(b.victim)} was`} murdered in the night, and ${b.victim === ME ? 'were' : 'was'} Faithful.</p>`
+            : b.victim === ME ? `<p class="big-news bad">You never came down.</p><p class="center">The others wait, and wait… The Traitors came for you in the night.</p>`
+            : b.victim != null ? `<p class="big-news bad">${nm(b.victim)} never came down.</p><p class="center">${nm(b.victim)} was murdered in the night, and was Faithful.</p>`
             : `<p class="big-news">Everyone is here!</p><p class="center">${r === 'saved' ? 'The Traitors struck, but their victim held the Shield.' : 'Nobody was murdered last night…'}</p>`}
-          ${done ? `<button class="btn primary block" data-act="afterbf">${S.settings.missions ? 'To the mission' : 'To the Round Table'}</button>` : ''}
+          ${done && b.talk && b.talk.length ? `<h3>Around the table</h3>${b.heard ? feedHtml(b.talk.slice(0, b.heard)) : ''}${b.heard < b.talk.length ? `<div class="row"><button class="btn" style="flex:1" data-act="talk">${b.heard ? 'Hear more' : 'Hear what they think'}</button><button class="btn" data-act="talkall">Everyone</button></div>` : ''}` : ''}
+          ${done ? `<button class="btn primary block" data-act="afterbf">${b.victim === ME && !S.outSeen ? 'Continue' : S.settings.missions ? 'To the mission' : 'To the Round Table'}</button>` : ''}
         </section>${statusHtml()}`;
     }
     case 'mission': {
@@ -808,11 +874,12 @@ function phaseHtml() {
         const verb = !n.recruit ? 'murder' : n.black ? 'blackmail' : 'seduce';
         return `<section class="card">
             <p class="kicker">Night ${S.day} · The Traitors' meeting</p><h2>Who do you ${verb}?</h2>
-            <p>${!n.recruit ? 'Choose a Faithful to murder.' : n.black ? 'You are the last Traitor. Blackmail a Faithful: they join you, or die. Nobody else is murdered tonight.' : 'A Traitor was banished. Seduce a Faithful to join you. They may refuse; nobody is murdered tonight.'}</p>
+            <p>${!n.recruit ? 'Choose a Faithful to murder.' : n.black ? 'You are the last Traitor. Blackmail a Faithful: they join you, or die. Nobody else is murdered tonight.' : 'A Traitor was banished. Seduce a Faithful to join you (they may refuse), and murder another.'}</p>
             ${mates.length && n.sugg != null ? `<p class="hint">${mates.map(i => esc(nmPlain(i))).join(' and ')} suggest${mates.length === 1 ? 's' : ''} <b>${nm(n.sugg)}</b>.</p>` : ''}
             ${S.shield != null && P(S.shield).alive && !n.recruit ? `<p class="hint">${nm(S.shield)} has the Shield: a murder on them will fail.</p>` : ''}
             ${pickHtml(faithfulAlive(), n.choice, 'nightpick')}
-            <button class="btn primary block" data-act="nightgo" ${n.choice == null ? 'disabled' : ''}>${n.choice == null ? 'Choose a name' : `${verb[0].toUpperCase() + verb.slice(1)} ${nm(n.choice)}`}</button>
+            ${n.recruit && !n.black ? `<h3 style="margin:0">And who do you murder?</h3>${n.msugg != null && mates.length ? `<p class="hint">They suggest <b>${nm(n.msugg)}</b>.</p>` : ''}${S.shield != null && P(S.shield).alive ? `<p class="hint">${nm(S.shield)} has the Shield: a murder on them will fail.</p>` : ''}${pickHtml(faithfulAlive().filter(i => i !== n.choice), n.mchoice, 'nightmurder')}` : ''}
+            <button class="btn primary block" data-act="nightgo" ${n.choice == null || (n.recruit && !n.black && n.mchoice == null) ? 'disabled' : ''}>${n.choice == null ? 'Choose a name' : n.recruit && !n.black ? (n.mchoice == null ? 'Choose who to murder' : `Seduce ${nm(n.choice)}, murder ${nm(n.mchoice)}`) : `${verb[0].toUpperCase() + verb.slice(1)} ${nm(n.choice)}`}</button>
           </section>`;
       }
       return `<section class="card center"><p class="kicker">Night ${S.day}</p><h2>Night falls</h2>
@@ -828,9 +895,9 @@ function phaseHtml() {
     }
     case 'out': {
       const how = P(ME).out.how;
-      return `<section class="card center"><p class="kicker">${how === 'murdered' ? `Night ${S.day}` : `Day ${S.day}`}</p>
+      return `<section class="card center"><p class="kicker">Day ${S.day}</p>
           <h2>${how === 'murdered' ? 'You have been murdered' : 'You have been banished'}</h2>
-          <p>${how === 'murdered' ? 'The Traitors came for you in the night. Your game is over, but the castle carries on.' : 'You leave the castle. The game carries on without you.'}</p>
+          <p>${how === 'murdered' ? 'You were murdered in the night. Your game is over, but the castle carries on.' : 'You leave the castle. The game carries on without you.'}</p>
           <p class="hint">${iAmTraitor() ? 'Your fellow Traitors can still win.' : 'The Faithful can still win.'}</p>
           <button class="btn primary block" data-act="watch">Watch the rest</button>
           <button class="btn block" data-act="skip">Skip to the end</button></section>`;
@@ -893,7 +960,7 @@ function menuHtml() {
       <li><b>Missions</b>: a three-question quiz. Every right answer from anyone adds ${money(GOLD_PER_ANSWER)} to the pot. The top scorer wins the <b>Shield</b> and can't be murdered that night. Traitors sometimes sabotage by answering wrongly.</li>
       <li><b>Round Table</b>: the bots take turns to accuse someone and give a reason. You can accuse someone too, and defend yourself if you're accused. Then everyone votes, and the slates are turned one by one.</li>
       <li>Bots remember what happens. Voting for someone who turns out to be Faithful makes you look suspicious; voting out a Traitor clears you a little. If a murder victim had accused someone, that person looks guilty. The <b>Dossier</b> in this menu shows what the castle knows about each player.</li>
-      <li><b>Night</b>: the Traitors murder a Faithful. If you're a Traitor, you choose who. After a Traitor is banished, and while more than 6 remain, the Traitors recruit instead: a <b>seduction</b> (refusing is safe) with two or more Traitors left, or <b>blackmail</b> (join or die) with only one.</li>
+      <li><b>Night</b>: the Traitors murder a Faithful. If you're a Traitor, you choose who. After a Traitor is banished, and while more than 6 remain, the Traitors also recruit: a <b>seduction</b> (refusing is safe, and they still murder someone else) with two or more Traitors left, or <b>blackmail</b> (join or die, and no other murder) with only one. Who died is only revealed at breakfast, even to you.</li>
       <li><b>The final five</b>: banished players no longer reveal their role. <b>The fire pit</b>: once 4 remain there are no more murders. Everyone votes to end the game or banish again. If everyone votes to end with a Traitor still there, the Traitors take the pot.</li>
       <li>If you're murdered or banished, you can watch the rest or skip to the end. Only players still in the game at the end share the gold.</li>
     </ul>`;
@@ -937,7 +1004,9 @@ document.addEventListener('click', e => {
     case 'enter': newDay(); startMission(); break;
     case 'arrive': { const bf = S.bf, i = bf.order[bf.shown++]; say(i === ME ? 'You.' : nmPlain(i) + '.'); if (bf.shown >= bf.order.length) announce(); top = false; break; }
     case 'arriveall': S.bf.shown = S.bf.order.length; announce(); break;
-    case 'afterbf': afterBreakfast(); break;
+    case 'afterbf': if (S.bf.victim === ME && !S.outSeen) { S.outSeen = true; S.resume = 'breakfast'; S.phase = 'out'; } else afterBreakfast(); break;
+    case 'talk': S.bf.heard++; S.scrollFeed = true; top = false; break;
+    case 'talkall': S.bf.heard = S.bf.talk.length; top = false; break;
     case 'answer': S.mission.picked = +v; S.mission.mine[S.mission.i] = +v === 1; top = false; break;
     case 'nextq': { const m = S.mission; m.picked = null; if (m.i < 2) m.i++; else resolveMission(); break; }
     case 'totable': toTable(); break;
@@ -956,9 +1025,10 @@ document.addEventListener('click', e => {
     case 'revote': startVote(2, S.tie); break;
     case 'reveal': revealBanished(); break;
     case 'afterban': afterBanish(); break;
-    case 'nightpick': S.night.choice = +v; top = false; break;
-    case 'nightgo': if (S.night.choice != null) resolveNight(S.night.choice); break;
-    case 'sleep': resolveNight(S.night.sugg); break;
+    case 'nightpick': S.night.choice = +v; if (S.night.mchoice === +v) S.night.mchoice = null; top = false; break;
+    case 'nightmurder': S.night.mchoice = +v; top = false; break;
+    case 'nightgo': if (S.night.choice != null) resolveNight(S.night.choice, S.night.mchoice); break;
+    case 'sleep': resolveNight(S.night.sugg, S.night.msugg); break;
     case 'letter': resolveLetter(v === '1'); break;
     case 'watch': resumeAfterOut(); break;
     case 'skip': skipToEnd(); break;

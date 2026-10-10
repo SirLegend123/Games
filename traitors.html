@@ -251,7 +251,7 @@ let turnAt = 0, turnTimer = null;
 function newPass(kind, order) { return { kind, order, i: 0, open: false, choice: null, note: '', got: {} }; }
 function passTo() { const p = S.pass; return p.order[p.i]; }
 function openTurn() {
-  S.pass.open = true; S.pass.choice = null; S.pass.note = '';
+  S.pass.open = true; S.pass.choice = null; S.pass.choice2 = null; S.pass.note = '';
   turnAt = Date.now();
   clearTimeout(turnTimer);
   turnTimer = setTimeout(render, MIN_TURN[S.pass.kind] * 1000 + 50);
@@ -261,8 +261,8 @@ function openTurn() {
 function turnLocked() { return Date.now() - turnAt < MIN_TURN[S.pass.kind] * 1000; }
 function doneTurn() {
   const p = S.pass, me = passTo();
-  p.got[me] = { choice: p.choice, note: (p.note || '').trim() };
-  p.i++; p.open = false; p.choice = null; p.note = '';
+  p.got[me] = { choice: p.choice, choice2: p.choice2, note: (p.note || '').trim() };
+  p.i++; p.open = false; p.choice = null; p.choice2 = null; p.note = '';
   if (p.i >= p.order.length) { const kind = p.kind, got = p.got; S.pass = null; finishPass(kind, got); }
   else { const next = p.order[p.i]; say(`Pass the phone to ${P(next).name}.`); buzz([60, 80, 60]); }
   save(); render(); scrollTo(0, 0);
@@ -281,11 +281,13 @@ function passHtml() {
       <button class="btn primary block" data-act="open">I'm ${nm(who)}: show me</button>
     </div>`;
   const locked = turnLocked(), needs = needsChoice(p.kind, who);
-  const ready = !locked && (!needs || p.choice != null);
+  // On a seduction night each Traitor also picks who to murder
+  const needs2 = p.kind === 'night' && P(who).role === 'traitor' && S.night.recruit && !S.night.black;
+  const ready = !locked && (!needs || p.choice != null) && (!needs2 || p.choice2 != null);
   return `<div class="card private">
       <p class="kicker">Only ${nm(who)} should see this</p>
       ${turnHtml(p.kind, who)}
-      <button class="btn primary block" data-act="done" ${ready ? '' : 'disabled'}>${locked ? 'Wait a moment…' : needs && p.choice == null ? 'Choose first' : 'Done: hide this and pass on'}</button>
+      <button class="btn primary block" data-act="done" ${ready ? '' : 'disabled'}>${locked ? 'Wait a moment…' : (needs && p.choice == null) || (needs2 && p.choice2 == null) ? 'Choose first' : 'Done: hide this and pass on'}</button>
     </div>`;
 }
 
@@ -305,8 +307,8 @@ function roleCard(i) {
       ${t ? `<p><b>${team.length ? `Your fellow Traitor${team.length > 1 ? 's' : ''}: ${team.map(nm).join(', ')}` : 'You are the only Traitor.'}</b></p>` : ''}
     </div>`;
 }
-function pickHtml(opts, chosen, sub) {
-  return `<div class="pick">${opts.map(i => `<button type="button" data-act="choose" data-v="${i}" aria-pressed="${chosen === i}">${nm(i)}${sub ? `<small>${sub(i) || '&nbsp;'}</small>` : ''}</button>`).join('')}</div>`;
+function pickHtml(opts, chosen, sub, act) {
+  return `<div class="pick">${opts.map(i => `<button type="button" data-act="${act || 'choose'}" data-v="${i}" aria-pressed="${chosen === i}">${nm(i)}${sub ? `<small>${sub(i) || '&nbsp;'}</small>` : ''}</button>`).join('')}</div>`;
 }
 function turnHtml(kind, me) {
   const p = S.pass;
@@ -321,10 +323,12 @@ function turnHtml(kind, me) {
         <h3 style="margin:0">${!rec ? 'Tonight you murder' : black ? 'Tonight you blackmail' : 'Tonight you seduce'}</h3>
         <p>${!rec ? 'Choose a Faithful to murder. If the Traitors disagree, the most popular choice wins (a tie is settled at random).'
           : black ? 'You are the last Traitor. Choose a Faithful to blackmail: they must join you, or be murdered. Nobody else dies tonight.'
-          : 'A Traitor was banished. Choose a Faithful to seduce. They may join you or refuse; either way, nobody is murdered tonight.'}</p>
-        ${earlier.length ? `<p class="hint">Already chosen tonight: ${earlier.map(x => `${nm(+x)} → <b>${nm(p.got[x].choice)}</b>`).join(', ')}</p>` : ''}
+          : 'A Traitor was banished. Choose a Faithful to seduce (they may join you or refuse), and another to murder. If the Traitors disagree, the most popular choices win.'}</p>
+        ${earlier.length ? `<p class="hint">Already chosen tonight: ${earlier.map(x => `${nm(+x)} → <b>${nm(p.got[x].choice)}</b>${p.got[x].choice2 != null ? ` (murder <b>${nm(p.got[x].choice2)}</b>)` : ''}`).join(', ')}</p>` : ''}
         ${S.shield != null && P(S.shield).alive ? `<p class="hint">${nm(S.shield)} holds the Shield tonight: a murder on them will fail.</p>` : ''}
+        ${rec && !black ? '<h3 style="margin:0">Seduce</h3>' : ''}
         ${pickHtml(opts, p.choice)}
+        ${rec && !black ? `<h3 style="margin:0">Murder</h3>${pickHtml(opts.filter(x => x !== p.choice), p.choice2, null, 'choose2')}` : ''}
         ${notes.length ? `<h3 style="margin:0">Notes from the Traitors</h3><div class="hist">${notes.map(n => `<p><b>${esc(n.from)}</b> (night ${n.day}): ${esc(n.text)}</p>`).join('')}</div>` : ''}
         <label class="hint" for="note">A secret note for your fellow Traitors (optional)</label>
         <textarea id="note" data-act="note" maxlength="200" placeholder="e.g. Push the vote towards…">${esc(p.note || '')}</textarea>`;
@@ -450,7 +454,7 @@ function afterBanish() {
 }
 function startNight() {
   const recruit = S.recruitNext && alive().length > RECRUIT_ABOVE && faithfulAlive().length > 0;
-  S.night = { recruit, black: recruit && traitorsAlive().length === 1, target: null };
+  S.night = { recruit, black: recruit && traitorsAlive().length === 1, target: null, murder: null, victim: null };
   S.recruitNext = false;
   S.pass = newPass('night', alive());
   S.phase = 'night';
@@ -462,28 +466,37 @@ function resolveNight(got) {
   traitorsAlive().forEach(t => { if (got[t] && got[t].note) S.notes.push({ from: P(t).name, day: S.day, text: got[t].note }); });
   const target = ballots.length ? pick(tally(ballots).leaders) : null;
   S.night.target = target;
-  const d = today();
+  if (!S.night.recruit) S.night.murder = target;
+  else if (!S.night.black) {
+    // Seduction night: the murder is a separate choice (never the person being seduced)
+    const mb = traitorsAlive().map(t => [t, got[t] && got[t].choice2]).filter(b => b[1] != null && b[1] !== target);
+    S.night.murder = mb.length ? pick(tally(mb).leaders) : null;
+  }
   if (S.night.recruit && target != null) {
     S.pass = newPass('letters', alive());
     S.phase = 'night';
     say(`Before dawn, letters are delivered. Pass the phone round once more, starting with ${P(alive()[0]).name}.`);
     return;
   }
-  if (target != null && target === S.shield) { d.saved = true; S.night.result = 'saved'; }
-  else if (target != null) { P(target).alive = false; P(target).out = { how: 'murdered', day: S.day + 1 }; S.night.result = 'murder'; }
+  finishNight();
+}
+function murder(t) { P(t).alive = false; P(t).out = { how: 'murdered', day: S.day + 1 }; S.night.result = 'murder'; S.night.victim = t; }
+function finishNight() {
+  const m = S.night.murder;
+  if (m != null && P(m).alive) { if (m === S.shield) { today().saved = true; S.night.result = 'saved'; } else murder(m); }
   dawn();
 }
 function resolveLetters(got) {
   const t = S.night.target, yes = got[t] && got[t].choice === 1;
   if (yes) { P(t).role = 'traitor'; S.night.result = 'recruited'; today().recruited = t; }
-  else if (S.night.black) { P(t).alive = false; P(t).out = { how: 'murdered', day: S.day + 1 }; S.night.result = 'murder'; today().refused = t; }
+  else if (S.night.black) { murder(t); today().refused = t; }
   else { S.night.result = 'refused'; today().refused = t; }
   if (!yes) today().refusedDied = !!S.night.black;
-  dawn();
+  finishNight();
 }
 function dawn() {
   S.shield = null;
-  const victim = S.night.result === 'murder' ? S.night.target : null;
+  const victim = S.night.victim != null ? S.night.victim : null;
   newDay();
   today().murdered = victim;
   S.bf = { victim, order: shuffle(alive()), shown: 0 };
@@ -697,7 +710,7 @@ function menuHtml() {
       <li><b>Missions</b> (optional): a quick group challenge. Success adds gold to the prize pot. The best player can win the <b>Shield</b>, which protects them from murder that night.</li>
       <li><b>Round Table</b>: talk, accuse and defend. Then the phone goes round and everyone secretly votes to banish someone. Votes are revealed one at a time. The banished player reveals whether they were Faithful or a Traitor, until the final five: from then on, roles stay secret until the end.</li>
       <li><b>Night</b>: the phone goes round again. Traitors choose a Faithful to murder; everyone else picks who they suspect, so all turns look alike. At breakfast, players "arrive" one by one, and you find out who's missing.</li>
-      <li><b>Recruiting</b>: after a Traitor is banished, and while more than 6 players remain, the Traitors recruit that night instead of murdering. With two or more Traitors it's a <b>seduction</b>: the Faithful can refuse safely. With only one Traitor left it's <b>blackmail</b>: join, or be murdered.</li>
+      <li><b>Recruiting</b>: after a Traitor is banished, and while more than 6 players remain, the Traitors also recruit that night. With two or more Traitors it's a <b>seduction</b>: the Faithful can refuse safely, and the Traitors still murder someone else. With only one Traitor left it's <b>blackmail</b>: join, or be murdered (and nobody else dies).</li>
       <li><b>The fire pit</b>: once 4 players remain there are no more nights or murders. Everyone votes in secret to end the game or banish again. If everyone votes to end, any Traitor still standing takes the whole pot. Otherwise, banish again (in secret), until everyone agrees or only two are left.</li>
       <li>Nobody is told how many Traitors there are. If the last one is banished before the final five, the Faithful win at once.</li>
     </ul>`;
@@ -755,8 +768,9 @@ document.addEventListener('click', e => {
     case 'choose':
       if (menu === 'peek') { const i = +b.dataset.v; menu = null; S.peekFrom = S.phase; S.pass = newPass('peek', [i]); save(); return render(); }
       if (S.phase === 'mission') { S.mission.shield = S.mission.shield === +b.dataset.v ? null : +b.dataset.v; return render(); }
-      if (S.pass && S.pass.open) { S.pass.choice = +b.dataset.v; const ta = $('#note'), note = ta && ta.value; render(); if (note != null && $('#note')) $('#note').value = note; }
+      if (S.pass && S.pass.open) { S.pass.choice = +b.dataset.v; if (S.pass.choice2 === S.pass.choice) S.pass.choice2 = null; const ta = $('#note'), note = ta && ta.value; render(); if (note != null && $('#note')) $('#note').value = note; }
       return;
+    case 'choose2': if (S.pass && S.pass.open) { S.pass.choice2 = +b.dataset.v; const ta = $('#note'), note = ta && ta.value; render(); if (note != null && $('#note')) $('#note').value = note; } return;
     case 'open': return openTurn();
     case 'done': if (!turnLocked()) doneTurn(); return;
     case 'set': { const k = b.dataset.k, v = b.dataset.v; S.settings[k] = v === 'true' ? true : v === 'false' ? false : +v; break; }
