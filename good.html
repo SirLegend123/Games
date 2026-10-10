@@ -378,6 +378,12 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .matrix tfoot td.multi { color: #1a1408; background: var(--warn); font-weight: 800; }
 .matrix tfoot td.one { color: var(--claim); font-weight: 800; }
 .matrix-note { font-size: .82rem; color: var(--muted); }
+.matrix td.cell.ping:not(.on) button { background: color-mix(in srgb, #7a4fb5 14%, var(--surface)); outline: 1px dotted #7a4fb5; outline-offset: -3px; }
+.matrix td.cell button span.ping { color: #7a4fb5; font-weight: 800; }
+.matrix td.cell button sup.ping { font-size: .62em; color: #5a2f95; background: var(--surface); border-radius: 4px; padding: 0 2px; margin-left: 1px; }
+.matrix td.cell.info { min-width: 34px; padding: 0 4px; white-space: nowrap; font-size: .8rem; }
+.ft-yes { color: var(--evil); } .ft-no { color: var(--good); }
+.legend .ping-k { width: 14px; height: 14px; font-size: .6rem !important; background: color-mix(in srgb, #7a4fb5 14%, var(--surface)); color: #7a4fb5; outline: 1px dotted #7a4fb5; font-style: normal; font-size: .7rem; font-weight: 800; display: inline-grid; place-items: center; }
 
 /* New-game dialog */
 .overlay { position: fixed; inset: 0; background: rgba(8,6,12,.62); display: grid; place-items: center; padding: 16px; z-index: 20; }
@@ -571,11 +577,14 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
       <div class="legend">
         <span><i style="background:var(--claim)"></i>Claimed</span>
         <span><i style="background:var(--warn)"></i>Claimed by 2+ players</span>
+        <span><i class="ping-k">W</i>Shown by info (first letter of the info role)</span>
+        <span><b class="ft-yes">✓</b>/<b class="ft-no">✗</b> Fortune Teller yes / no</span>
+        <span><b>1</b> Empath number</span>
       </div>
       <button class="toggle" id="mxOnly" aria-pressed="false">Only claimed roles</button>
     </div>
     <div class="matrix-wrap"><table class="matrix" id="matrix"></table></div>
-    <span class="matrix-note">Tap a square to add or remove that claim. Tap a name to open that player.</span>
+    <span class="matrix-note">Tap a square to add or remove that claim. Tap a name to open that player. Info you log (yours or another player's) shows up here too: hover or long-press a square to see where it came from.</span>
   </section>
   </div>
 
@@ -2757,19 +2766,44 @@ function renderTips() {
 }
 
 /* ---------- Claim matrix ---------- */
+// The info you've logged, by player, for the claim matrix: character pings, Fortune Teller results and Empath numbers
+function matrixInfo() {
+  const ps = state.players, P = id => ps.find(p => p.id === id);
+  const nm = id => { const p = P(id); return p ? (p.name || `Seat ${ps.indexOf(p) + 1}`) : "someone"; };
+  const ping = {}, ft = {}, emp = {};
+  for (const e of state.myInfo || []) {
+    const role = String(e.role || ""), key = role.toLowerCase(), t = INFO[key], pp = (e.p || []).filter(P);
+    const whose = e.src && P(e.src) ? `${nm(e.src)}'s` : e.src ? "a" : "your";
+    const tail = `${whose} ${role} (night ${e.night})`;
+    if (t && t.r && !e.zero && (e.r || []).some(Boolean)) {
+      for (const id of pp) for (const r of e.r.filter(Boolean)) {
+        const k = r.toLowerCase();
+        ((ping[id] = ping[id] || {})[k] = ping[id][k] || []).push({ l: role.charAt(0).toUpperCase(), why: `Shown as the ${r} by ${tail}` });
+      }
+    } else if (key === "fortune teller" && e.yn != null && pp.length === 2) {
+      pp.forEach(id => (ft[id] = ft[id] || []).push({ yes: e.yn === 0, why: `${e.yn === 0 ? "Yes" : "No"} from ${tail}, with ${nm(pp.find(x => x !== id))}` }));
+    } else if (key === "empath" && e.n != null && pp.length) {
+      pp.forEach(id => (emp[id] = emp[id] || []).push({ num: e.n, why: `${e.n} evil from ${tail}${pp.length > 1 ? `, next to ${nm(pp.find(x => x !== id))}` : ""}` }));
+    }
+  }
+  return { ping, ft, emp };
+}
 function renderMatrix() {
   const only = !!state.matrixClaimedOnly;
+  const info = matrixInfo(), pinged = r => Object.values(info.ping).some(m => m[r.toLowerCase()]);
+  const hasFt = Object.keys(info.ft).length > 0, hasEmp = Object.keys(info.emp).length > 0;
   $("mxOnly").setAttribute("aria-pressed", only);
   const roles = scriptRoles();
   const count = {};
   for (const p of state.players) for (const c of p.claims) { const k = c.toLowerCase(); count[k] = (count[k] || 0) + 1; }
-  const groups = TEAMS.map(t => ({ team: t, roles: roles[t].filter(r => !only || count[r.toLowerCase()]) }));
+  const groups = TEAMS.map(t => ({ team: t, roles: roles[t].filter(r => !only || count[r.toLowerCase()] || pinged(r)) }));
   const inScript = new Set(TEAMS.flatMap(t => roles[t].map(r => r.toLowerCase())));
   const extra = [];
   for (const p of state.players) for (const c of p.claims) if (!inScript.has(c.toLowerCase()) && !extra.some(e => e.toLowerCase() === c.toLowerCase())) extra.push(c);
+  for (const e of state.myInfo || []) for (const r of (INFO[String(e.role || "").toLowerCase()] || {}).r && !e.zero ? (e.r || []).filter(Boolean) : []) if (!inScript.has(r.toLowerCase()) && !extra.some(x => x.toLowerCase() === r.toLowerCase())) extra.push(r);
   if (extra.length) groups.push({ team: "custom", label: "Off script", roles: extra });
   const shown = groups.filter(g => g.roles.length);
-  if (!shown.length) {
+  if (!shown.length && !hasFt && !hasEmp) {
     $("matrix").innerHTML = `<tbody><tr><td class="pcol" style="padding:12px">No claims yet. Turn off "Only claimed roles" to see every role.</td></tr></tbody>`;
     return;
   }
@@ -2777,20 +2811,24 @@ function renderMatrix() {
   const cls = (r, start) => { const n = count[r.toLowerCase()] || 0; return (start ? " team-start" : "") + (n > 1 ? " multi" : n === 1 ? " taken" : ""); };
   $("matrix").innerHTML = `
     <thead>
-      <tr class="band"><th class="corner pcol"></th>${shown.map(g => `<th class="team-start" colspan="${g.roles.length}" style="background:var(--${g.team})">${g.label || TEAM_LABEL[g.team]}</th>`).join("")}</tr>
-      <tr class="roles"><th class="corner pcol">Player</th>${cols.map(c => `<th class="rname${cls(c.role, c.start)}" title="${esc(c.role)}"><span>${esc(c.role)}</span></th>`).join("")}</tr>
+      <tr class="band"><th class="corner pcol"></th>${hasFt || hasEmp ? `<th class="team-start" colspan="${hasFt + hasEmp}" style="background:var(--muted)">Info</th>` : ""}${shown.map(g => `<th class="team-start" colspan="${g.roles.length}" style="background:var(--${g.team})">${g.label || TEAM_LABEL[g.team]}</th>`).join("")}</tr>
+      <tr class="roles"><th class="corner pcol">Player</th>${hasFt ? `<th class="rname team-start" title="Fortune Teller results"><span>FT result</span></th>` : ""}${hasEmp ? `<th class="rname${hasFt ? "" : " team-start"}" title="Empath numbers"><span>Empath</span></th>` : ""}${cols.map(c => `<th class="rname${cls(c.role, c.start)}" title="${esc(c.role)}"><span>${esc(c.role)}</span></th>`).join("")}</tr>
     </thead>
     <tbody>${state.players.map((p, i) => `
       <tr class="${p.dead ? "dead" : ""}${p.id === state.selected ? " sel" : ""}">
         <th class="pcol" scope="row"><button data-open="${p.id}">${i + 1}. ${esc(p.name || "—")}</button></th>
+        ${hasFt ? (() => { const r = info.ft[p.id] || []; return `<td class="cell info team-start"${r.length ? ` title="${esc(r.map(x => x.why).join("; "))}"` : ""}>${r.map(x => x.yes ? '<b class="ft-yes">✓</b>' : '<b class="ft-no">✗</b>').join("")}</td>`; })() : ""}
+        ${hasEmp ? (() => { const r = info.emp[p.id] || []; return `<td class="cell info${hasFt ? "" : " team-start"}"${r.length ? ` title="${esc(r.map(x => x.why).join("; "))}"` : ""}>${r.map(x => `<b class="${x.num ? "ft-yes" : "ft-no"}">${x.num}</b>`).join(" ")}</td>`; })() : ""}
         ${cols.map(c => {
           const on = p.claims.some(x => x.toLowerCase() === c.role.toLowerCase());
           const n = count[c.role.toLowerCase()] || 0;
-          return `<td class="cell${c.start ? " team-start" : ""}${on ? " on" : ""}${on && n > 1 ? " multi" : ""}"><button data-p="${p.id}" data-r="${esc(c.role)}" aria-pressed="${on}" aria-label="${esc(p.name || "Seat " + (i + 1))} claims ${esc(c.role)}">✓</button></td>`;
+          const pg = (info.ping[p.id] || {})[c.role.toLowerCase()] || [], letters = [...new Set(pg.map(x => x.l))].join("");
+          const why = pg.map(x => x.why).join("; ");
+          return `<td class="cell${c.start ? " team-start" : ""}${on ? " on" : ""}${on && n > 1 ? " multi" : ""}${pg.length ? " ping" : ""}"${why ? ` title="${esc(why)}"` : ""}><button data-p="${p.id}" data-r="${esc(c.role)}" aria-pressed="${on}" aria-label="${esc(p.name || "Seat " + (i + 1))} claims ${esc(c.role)}${why ? `. ${esc(why)}` : ""}">${letters ? (on ? `✓<sup class="ping">${letters}</sup>` : `<span class="ping">${letters}</span>`) : "✓"}</button></td>`;
         }).join("")}
       </tr>`).join("")}
     </tbody>
-    <tfoot><tr><th class="pcol">Claims</th>${cols.map(c => { const n = count[c.role.toLowerCase()] || 0; return `<td class="${c.start ? "team-start " : ""}${n > 1 ? "multi" : n ? "one" : ""}">${n || ""}</td>`; }).join("")}</tr></tfoot>`;
+    <tfoot><tr><th class="pcol">Claims</th>${hasFt ? `<td class="team-start"></td>` : ""}${hasEmp ? `<td${hasFt ? "" : ` class="team-start"`}></td>` : ""}${cols.map(c => { const n = count[c.role.toLowerCase()] || 0; return `<td class="${c.start ? "team-start " : ""}${n > 1 ? "multi" : n ? "one" : ""}">${n || ""}</td>`; }).join("")}</tr></tfoot>`;
   $("matrix").querySelectorAll("[data-p]").forEach(b => b.onclick = () => {
     const p = state.players.find(x => x.id === b.dataset.p);
     toggleClaim(p, b.dataset.r);
