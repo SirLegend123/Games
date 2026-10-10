@@ -45,7 +45,7 @@ A player's notebook for *Blood on the Clocktower*. Open `good.html` in any web b
 - Game wrap-up: enter the real Demon and Minions, then everyone's real character (optional, hard claims pre-filled), to see how the evidence held up, which info was right, whose claims were true, how your reads did, and a timeline
 - Empath neighbours: the Demon kills before the Empath wakes, so if you log your Empath number before marking the night's deaths, the app moves that number to your next living neighbour when you mark a neighbour as killed that night, and notes the change in the evidence (the same applies to other players' Empath info)
 - Plan for tomorrow (on World building): flags claims that don't add up (double claims, too many Outsiders, an executed Saint), suggests questions for each player and who to look at
-- Claim matrix (under the circle): players down the side, roles along the top, claimed squares in green and double claims in amber
+- Claim matrix (under the circle): players down the side, roles along the top, claimed squares in green and double claims in amber. Logged info shows too: a purple letter (the first letter of the info role, e.g. W for Washerwoman, I for Investigator, U for Undertaker) in the column of the character a player was shown as, with Info columns beside the names for Fortune Teller results (✓ yes, ✗ no) and Empath numbers. Hover or long-press a square to see whose info it was and which night
 - Trouble Brewing, Bad Moon Rising and Sects & Violets roles, or type in any role
 
 Games are saved in the browser on the device you use. Nothing is uploaded anywhere.
