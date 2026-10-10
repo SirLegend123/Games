@@ -359,7 +359,7 @@ const NAMES = ['Ada', 'Ben', 'Cleo', 'Dev', 'Esme', 'Finn', 'Gus', 'Hana', 'Ivo'
 /* ---------- State ---------- */
 let G = load();
 if (G) {
-  G.whispers = G.whispers || []; G.privFacts = G.privFacts || []; G.callouts = G.callouts || []; G.team = G.team || {}; G.labels = G.labels || {}; G.requests = G.requests || [];
+  G.whispers = G.whispers || []; G.privFacts = G.privFacts || []; G.callouts = G.callouts || []; G.team = G.team || {}; G.labels = G.labels || {}; G.requests = G.requests || []; G.gossip = G.gossip || []; G.relays = G.relays || [];
   G.players.forEach(p => { if (p.bot) { p.bot.heardFacts = p.bot.heardFacts || []; } });
 }
 const PREFS_KEY = 'clocktower-solo-prefs';
@@ -441,7 +441,7 @@ function newGame(opts) {
     log: [], info: {}, inbox: {}, facts: {}, poison: null, bluffs: [], redHerring: null,
     lastExecuted: null, winner: null, announce: null, dayS: null, dawnInfo: {}, diedTonight: [], rkWait: false,
     feed: [], pub: [], deaths: [], virgins: [], nominatedEver: [], shots: [], opinions: [], execs: {}, vote: null, lastVote: null,
-    whispers: [], privFacts: [], callouts: [], team: {}, labels: {}, requests: [],
+    whispers: [], privFacts: [], callouts: [], team: {}, labels: {}, requests: [], gossip: [], relays: [],
   };
   G.players.forEach(p => { G.info[p.id] = []; G.inbox[p.id] = []; G.facts[p.id] = []; });
   const drunk = G.players.find(p => p.role === 'Drunk');
@@ -806,6 +806,7 @@ function startDay() {
   G.lastExecuted = null;
   teamApproach();
   morningTalk();
+  if (G.stage === 'day') botGossip();
   if (G.stage === 'day') botRequests();
   trackDay();
 }
@@ -945,6 +946,16 @@ function computeBelief(key, pcons) {
     }
     // What was said in private
     if (p.id === G.me) G.privFacts.forEach(e => { const fn = factFn(e.f); if (fn) cons = cons.concat([{ src: e.by, fn }]); });
+    // What other players passed on to you: true only if both the teller and the one who said it are good
+    if (p.id === G.me) G.relays.forEach(e => {
+      e.facts.forEach(f => { const fn = factFn(f); if (fn) cons = cons.concat([{ src: e.from, via: e.by, fn }]); });
+      if (claimOf(e.from) && claimOf(e.from) !== e.role) cons = cons.concat([{ src: e.by, fn: ev => ev[e.from] ? 1 : 0.15 }]);
+    });
+    // What other bots told this bot in private
+    if (p.bot && isGood(p)) G.gossip.filter(g => g.to === p.id).forEach(g => {
+      g.facts.forEach(f => { const fn = factFn(f); if (fn) cons = cons.concat([{ src: g.from, fn }]); });
+      if (claimOf(g.from) && claimOf(g.from) !== g.role) cons = cons.concat([{ fn: ev => ev[g.from] ? 1 : 0.15 }]);
+    });
     if (p.bot) {
       p.bot.heardFacts.forEach(f => { const fn = factFn(f); if (fn) cons = cons.concat([{ src: G.me, fn }]); });
       if (p.bot.heardSus != null) cons = cons.concat([{ src: G.me, fn: ev => ev[p.bot.heardSus] ? 1 : 0.75 }]);
@@ -968,6 +979,7 @@ function computeBelief(key, pcons) {
       let w = 1;
       for (const c of cons) {
         let v;
+        if (c.via != null && ev[c.via]) continue;
         if (c.src != null) { if (ev[c.src]) continue; v = Math.max(c.fn(ev, d), FLOOR); }
         else v = c.fn(ev, d);
         w *= v;
@@ -1029,6 +1041,13 @@ function setClaim(p, role) {
   // Someone else already says they're this character
   const rival = G.players.find(q => q.id !== p.id && q.claim === role);
   if (rival && rival.id !== G.me) say(rival.id, pick([`Wait, <b>I'm</b> the ${esc(role)}. One of us is lying, and it isn't me.`, `That's my character! ${Nm(p.id)} ${p.id === G.me ? 'are' : 'is'} lying.`, `No, I'm the ${esc(role)}.`]));
+  // Bots this bot told something different in private
+  if (p.bot) G.gossip.filter(g => g.from === p.id && g.role !== role && P(g.to).alive).forEach(g => {
+    const b = P(g.to);
+    if (G.callouts.some(c => c.x === p.id && c.by === b.id) || !(isGood(b) ? chance(0.85) : chance(0.3))) return;
+    G.callouts.push({ x: p.id, by: b.id });
+    say(b.id, `Hold on. ${Nm(p.id)} told me privately they were the <b>${esc(g.role)}</b>. Now it's the <b>${esc(role)}</b>?`);
+  });
   // Bots you told something different in private
   if (p.id === G.me) bots().forEach(b => {
     const h = b.bot.heard;
@@ -1163,11 +1182,11 @@ function ask(p, q) {
     else { p.bot.refused = G.n; say(p.id, pick(["I'd rather not say just yet. Ask me again later.", "I'm keeping that quiet for now. I'll tell you before the votes.", "Not yet. I don't want the Demon to know."])); }
   } else if (q === 'info') {
     say(G.me, `${esc(p.name)}, what have you learned?`);
-    if (!p.claim) { say(p.id, 'Let me tell you what I am first.'); ask(p, 'role'); return; }
-    const fs = shareable(p);
-    if (!fs.length) { say(p.id, INFO_ROLES.includes(p.claim) ? "Nothing yet." : `As the ${esc(p.claim)}, I don't get any information.`); return; }
-    fs.slice(0, p.bot.sharedN).forEach(f => say(p.id, factText(f)));
-    shareNew(p);
+    if (!p.claim) { say(p.id, 'Let me tell you what I am first.'); ask(p, 'role'); if (!p.claim) return; }
+    const fs = shareable(p), heard = relaysOf(p).length;
+    if (!fs.length) say(p.id, INFO_ROLES.includes(p.claim) ? (heard ? "Nothing from my own ability yet." : "Nothing yet.") : `As the ${esc(p.claim)}, I don't get any information${heard ? ' myself' : ''}.`);
+    else { fs.slice(0, p.bot.sharedN).forEach(f => say(p.id, factText(f))); shareNew(p); }
+    if (heard) { say(p.id, "Here's what I've heard in private chats:"); hearRelays(p, t => say(p.id, t)); }
   } else if (q === 'sus') {
     say(G.me, `${esc(p.name)}, who do you suspect?`);
     opinion(p, true);
@@ -1514,6 +1533,62 @@ function botThree(p) {
   return (p.bot.gave = shuffle([real, ...pool.slice(0, 2)]));
 }
 // A bot tells you its character, and its info, in private
+// Bots talk privately with each other in the morning, swapping characters and info (good bots honestly, evil bots with their bluff)
+function botTells(p) {
+  if (isGood(p)) return { role: believed(p), facts: shareable(p).map(f => ({ ...f })) };
+  p.bot.bluff = p.claim || validBluff(p); ensureFakes(p);
+  return { role: p.bot.bluff, facts: p.bot.fakes.map(f => ({ ...f })) };
+}
+function botGossip() {
+  const free = shuffle(alive().filter(q => q.bot)), pairs = [];
+  const want = Math.max(1, Math.floor(free.length / 4));
+  while (free.length > 1 && pairs.length < want) {
+    const a = free.shift();
+    // Chat with someone they trust, or anyone; evil teammates talk tactics, which nobody passes on
+    const t = trusteeOf(a), b = free.find(q => q.id === t) || free[Math.floor(Math.random() * free.length)];
+    free.splice(free.indexOf(b), 1);
+    pairs.push([a, b]);
+    if (!isGood(a) && !isGood(b) && knownTeam(a).includes(b.id)) continue;
+    [[a, b], [b, a]].forEach(([x, y]) => {
+      const t = botTells(x);
+      G.gossip = G.gossip.filter(g => !(g.from === x.id && g.to === y.id));
+      G.gossip.push({ from: x.id, to: y.id, day: G.n, role: t.role, facts: t.facts });
+      if (!isGood(x)) log(`${esc(x.name)} (${x.role}) privately tells ${esc(y.name)} they are the ${t.role}.`);
+    });
+  }
+  if (pairs.length) sys(`Private chats this morning: ${pairs.map(([a, b]) => `${esc(a.name)} with ${esc(b.name)}`).join(', ')}.`);
+}
+// What a bot passes on from its private chats. Good bots tell it straight; an evil bot may twist it to frame someone
+function relaysOf(p) {
+  const out = G.gossip.filter(g => g.to === p.id && g.from !== G.me && !(!isGood(p) && knownTeam(p).includes(g.from))).map(g => ({ from: g.from, role: g.role, facts: g.facts }));
+  if (!isGood(p)) {
+    if (!p.bot.twist || p.bot.twist.day !== G.n) {
+      const T = frameTarget(p);
+      p.bot.twist = { day: G.n, x: T != null && chance(0.5) ? T : null };
+      if (p.bot.twist.x != null) {
+        const real = out.find(e => e.from === T), cl = claimOf(T);
+        const lie = pick(CLAIMABLE.filter(r => r !== cl && r !== (real && real.role)));
+        p.bot.twist.role = lie;
+        log(`${esc(p.name)} (${p.role}) will lie that ${esc(P(T).name)} privately claimed the ${lie}.`);
+      }
+    }
+    if (p.bot.twist.x != null) { const i = out.findIndex(e => e.from === p.bot.twist.x); const e = { from: p.bot.twist.x, role: p.bot.twist.role, facts: [] }; if (i >= 0) out[i] = e; else out.push(e); }
+  }
+  return out.slice(0, 3);
+}
+function relayText(e) {
+  const cl = claimOf(e.from);
+  return `${Nm(e.from)} told me privately they're the <b>${esc(e.role)}</b>${e.facts.length ? `: “${e.facts.map(f => factText(f)).join(' ')}”` : '.'}${cl && cl !== e.role ? ` But in town they say they're the <b>${esc(cl)}</b>.` : ''}`;
+}
+// You heard it: it becomes evidence in your notes, the Worlds tab and the coach
+function hearRelays(p, say1) {
+  relaysOf(p).forEach(e => {
+    say1(relayText(e));
+    G.relays = G.relays.filter(x => !(x.by === p.id && x.from === e.from));
+    G.relays.push({ by: p.id, from: e.from, role: e.role, facts: e.facts, day: G.n });
+  });
+  bump();
+}
 function privateReveal(p, w) {
   const role = p.claim || (isGood(p) ? believed(p) : (p.bot.bluff = validBluff(p)));
   if (!isGood(p) && !p.claim) { ensureFakes(p); log(`${esc(p.name)} (${p.role}) privately tells you they are the ${role}.`); }
@@ -1523,6 +1598,7 @@ function privateReveal(p, w) {
     if (!G.privFacts.some(e => e.by === p.id && fkey(e.f) === fkey(f))) G.privFacts.push({ by: p.id, f });
     w.lines.push({ who: p.id, text: factText(f) });
   });
+  hearRelays(p, text => w.lines.push({ who: p.id, text }));
   bump();
 }
 function whisper(p, kind, data) {
@@ -1855,6 +1931,7 @@ function howView() {
       <li><b>Talk about the setup:</b> in Say in town, announce things like "I think this is a Baron game", "there's a Drunk" or "the Poisoner is at work". Bots answer with the counts (how many Outsiders have claimed against how many there should be) and what the Librarian saw, and raise it themselves when the Outsider claims don't add up. The middle of the table shows this game's setup: Townsfolk · Outsiders · Minions · Demon, and the same with a Baron.</li>
       <li><b>Speak up:</b> from a player's seat, accuse them (could be evil, or is the Demon) or vouch for them, and pick your reason: a specific piece of evidence, something you learned, their voting, or a hunch. Bots weigh what you say, more for a specific reason, and only as much as they trust you. A couple of them will say whether they agree.</li>
       <li><b>Talk privately:</b> from a player's seat, offer three for three (pick three characters, one of them true), tell them your character one for one, whisper your info (real or made up), or ask what they've learned and who they really suspect. Good bots open up if they trust you; evil bots always answer, with their bluff. The town sees that you talked, not what was said. Bots remember: if your public claim doesn't match what you told someone, they'll say so.</li>
+      <li><b>What they've heard:</b> each morning a few bots chat privately with each other and swap characters and info (the town sees who talked). Ask a bot what they've learned, in town or privately, and they also pass on what others told them. Good bots pass it on honestly; an evil bot may lie about what someone said, to frame them. It all goes in your notes (👂 in Claims and info), the Worlds tab and the coach: it only counts if both the teller and the one who said it are good. If someone says one thing in private and another in town, the bot they told will call it out.</li>
       <li><b>Claims on the table:</b> every hard claim shows on that player's seat. Green is said in town, a blue ★ is proven by the game (a Virgin whose nominator was executed, a Slayer who killed the Demon), and 🤫 is what they told you privately, one for one.</li>
       <li><b>Claim matrix:</b> under the town talk, every player against every character. Green H is a hard claim (🤫 if it was said to you privately), light green S is a soft claim (one of a three for three), a blue star is a character the game has proven (a Virgin whose nominator was executed, a Slayer whose shot killed the Demon), × is an earlier claim, and an amber ring means two or more players hard-claim it.</li>
       <li><b>Worlds:</b> like the Clocktower Notebook's World building. Every way the Demon and Minions could be seated, tested against public info, your own info and what you were told in private, with each player's chance of being the Demon, evil or good, the most likely worlds and what each one needs to be wrong. Tap names to assume someone is the Demon, evil or good. Nominations and votes count as softer clues. If you're evil, it shows how the town sees it.</li>
@@ -2268,6 +2345,8 @@ function solveWorldsRaw() {
   if (!townView) {
     G.facts[G.me].forEach(f => { const key = G.me + fkey(f); if (!seen.has(key)) { seen.add(key); addFact(G.me, f); } });
     G.privFacts.forEach(e => { const key = e.by + fkey(e.f); if (!seen.has(key)) { seen.add(key); addFact(e.by, e.f); } });
+    // Passed on to you: only counts if the teller is good too
+    G.relays.forEach(e => e.facts.forEach(f => { const fn = factFn(f); if (fn) tests.push({ src: e.from, via: e.by, fn, label: `${factLabel(f)} (passed on by ${name(e.by)})` }); }));
   }
   G.shots.forEach(sh => { if (!sh.hit && claimOf(sh.by) === 'Slayer') tests.push({ src: sh.by, fn: (ev, d) => d === sh.t ? 0 : 1, label: `Slayer shot (day ${sh.n})` }); });
   // Two players claiming the same character: only one can be telling the truth
@@ -2278,6 +2357,7 @@ function solveWorldsRaw() {
   const soft = [];
   G.deaths.filter(x => x.how === 'night').forEach(x => soft.push(ev => ev[x.id] ? { f: 0.12, why: `${name(x.id)} died at night, and the Demon rarely kills their own team` } : null));
   G.players.forEach(q => { if (new Set(q.claimHist).size > 1) soft.push(ev => !ev[q.id] ? { f: 0.35, why: `${name(q.id)} changed their story while good` } : null); });
+  if (!townView) G.relays.forEach(e => soft.push(ev => !ev[e.from] && !ev[e.by] && claimOf(e.from) && claimOf(e.from) !== e.role ? { f: 0.15, why: `${name(e.by)} says ${name(e.from)} privately claimed the ${e.role}, but ${name(e.from)} claims the ${claimOf(e.from)} in town` } : null));
   G.callouts.forEach(c => soft.push(ev => !ev[c.x] ? { f: 0.3, why: `${name(c.x)}'s private and public claims don't match` } : null));
   G.deaths.filter(x => x.how === 'execution' && x.claim === 'Saint').forEach(x => soft.push(ev => !ev[x.id] ? { f: 0.1, why: `${name(x.id)} would be a real Saint executed without the game ending` } : null));
   G.virgins.filter(v => !v.fired).forEach(v => soft.push(ev => !ev[v.v] && !ev[v.by] && TF.includes(claimOf(v.by)) ? { f: 0.15, why: `${name(v.by)} nominated the Virgin ${name(v.v)} and nothing happened` } : null));
@@ -2294,7 +2374,7 @@ function solveWorldsRaw() {
       if (mustEvil.some(id => !ev[id])) return;
       if (selfEvil != null && m.role !== 'Imp' && d === G.me) return;
       const bad = new Map();
-      for (const t of tests) { if (ev[t.src]) continue; if (t.fn(ev, d) === 0) (bad.get(t.src) || bad.set(t.src, []).get(t.src)).push(t.label); }
+      for (const t of tests) { if (ev[t.src] || (t.via != null && ev[t.via])) continue; if (t.fn(ev, d) === 0) (bad.get(t.src) || bad.set(t.src, []).get(t.src)).push(t.label); }
       const why = [...bad].map(([src, ls]) => src === G.me ? `Your ${[...new Set(ls)].join(', ')} would be wrong (you'd be drunk or poisoned).` : `${name(src)}'s ${[...new Set(ls)].join(', ')} would be wrong (drunk or poisoned).`);
       let breaks = bad.size;
       for (const [role, ids] of clashes) { const good = ids.filter(id => !ev[id]); if (good.length > 1) { breaks += good.length - 1; why.push(`${list(good.map(name))} would both be good while claiming the ${role} (one would be the Drunk or lying).`); } }
@@ -2398,6 +2478,7 @@ function notesCard() {
       ${G.labels[q.id] ? `<div class="facts"><span>🏷 Your label: <b class="${G.labels[q.id] === 'Good' || (ROLES[G.labels[q.id]] && isGoodType(G.labels[q.id])) ? '' : 'evil-txt'}">${esc(G.labels[q.id])}</b></span></div>` : ''}
       ${q.id !== G.me && G.team[q.id] ? `<div class="facts"><span>🔴 Teammate: really the <b class="evil-txt">${esc(G.team[q.id].role)}</b>${G.team[q.id].bluff ? `, bluffing as the ${esc(G.team[q.id].bluff)}` : ''}</span></div>` : ''}
       ${namedHtml(q.id)}
+      ${G.relays.some(e => e.from === q.id) ? `<div class="facts">${G.relays.filter(e => e.from === q.id).map(e => `<span>👂 Via ${esc(P(e.by).name)}: told them privately they're the <b>${esc(e.role)}</b>${q.claim && q.claim !== e.role ? ' <span class="tag evil">doesn\'t match</span>' : ''}${e.facts.map(f => ` · ${factText(f)}`).join('')}</span>`).join('')}</div>` : ''}
       ${q.bot && q.bot.toldMe ? `<div class="facts"><span>🤫 Told you: ${q.bot.toldMe.roles.length === 1 ? 'the ' + esc(q.bot.toldMe.roles[0]) : 'one of ' + list(q.bot.toldMe.roles.map(esc))}${q.claim && !q.bot.toldMe.roles.includes(q.claim) ? ' <span class="tag evil">doesn\'t match</span>' : ''}</span>${G.privFacts.filter(e => e.by === q.id && !shared.some(x => fkey(x.f) === fkey(e.f))).map(e => `<span>🤫 ${factText(e.f)}</span>`).join('')}</div>` : ''}</td>
       ${prefs.coach ? `<td class="pct">${coachPct(q.id)}%</td>` : ''}</tr>`;
   }).join('');
