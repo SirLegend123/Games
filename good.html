@@ -559,6 +559,12 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     </section>
 
   </div>
+  <section class="card noms-card" aria-labelledby="nomsTitle">
+    <div class="tips-head"><h2 id="nomsTitle">Nominations and votes</h2><button class="btn primary" id="nomAdd">+ Nomination</button></div>
+    <span class="tips-foot">Who nominated whom each day, and who voted. World building uses this: evil players rarely vote to execute their own Demon or nominate a teammate.</span>
+    <div id="nomForm"></div>
+    <div id="nomList"></div>
+  </section>
   <section class="card matrix-card" aria-labelledby="matrixTitle">
     <div class="matrix-head">
       <h2 id="matrixTitle">Claim matrix</h2>
@@ -570,12 +576,6 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
     </div>
     <div class="matrix-wrap"><table class="matrix" id="matrix"></table></div>
     <span class="matrix-note">Tap a square to add or remove that claim. Tap a name to open that player.</span>
-  </section>
-  <section class="card noms-card" aria-labelledby="nomsTitle">
-    <div class="tips-head"><h2 id="nomsTitle">Nominations and votes</h2><button class="btn primary" id="nomAdd">+ Nomination</button></div>
-    <span class="tips-foot">Who nominated whom each day, and who voted. World building uses this: evil players rarely vote to execute their own Demon or nominate a teammate.</span>
-    <div id="nomForm"></div>
-    <div id="nomList"></div>
   </section>
   </div>
 
@@ -673,7 +673,7 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
           <li><b>Changed claims:</b> if a player gives info as one role and later claims another, or swaps a hard claim, the app flags it on World building, rings them amber and stops trusting that info. A real typo can be cleared with <b>Forget this</b> in their panel.</li>
           <li><b>Game wrap-up:</b> when the game ends, enter who was evil, then everyone's real character (or skip that), to see how the evidence held up, which information was right, whose claims were true, how your reads did, and a timeline.</li>
           <li><b>Claim matrix</b> (under the circle): every claim at a glance. Amber means two players claim the same role.</li>
-          <li><b>Nominations and votes</b> (under the claim matrix): tap <b>+ Nomination</b> to log who nominated whom, and tap each player who voted (or just enter the number). Each day's list shows the votes against the number needed and who ended up on the block. World building uses it: a world where an evil player nominated their teammate, or voted to execute their own Demon, counts for less.</li>
+          <li><b>Nominations and votes</b> (above the claim matrix): tap <b>+ Nomination</b> to log who nominated whom, and tap each player who voted (or just enter the number). Each day's list shows the votes against the number needed and who ended up on the block. World building uses it: a world where an evil player nominated their teammate, or voted to execute their own Demon, counts for less.</li>
         </ul>
       </li>
     </ol>
