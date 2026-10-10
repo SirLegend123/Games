@@ -1449,7 +1449,8 @@ function teamWhisper(p, kind, x) {
   } else if (kind === 'bluffs') {
     mine('What are our bluffs?');
     if (p.role === 'Imp') { theirs(`<b>${list(G.bluffs.map(esc))}</b>. I'm the ${esc(p.claim || p.bot.bluff)}.`); tell(G.me, [`Bluffs from ${esc(p.name)}: <b>${G.bluffs.map(esc).join(', ')}</b>.`]); }
-    else theirs(`The Demon has them, not me. I'm going with the ${esc(p.claim || p.bot.bluff)}.`);
+    else if (m.role === 'Imp') theirs(`You're the Demon, you have them: <b>${list(G.bluffs.map(esc))}</b>. I'm going with the ${esc(p.claim || p.bot.bluff || validBluff(p))}.`);
+    else theirs(`The Demon has them, not me. I'm going with the ${esc(p.claim || p.bot.bluff || validBluff(p))}.`);
   } else if (kind === 'give') {
     mine(`Take the <b>${esc(x)}</b>.`);
     if (p.claim && p.claim !== x) theirs(`Too late, I've already claimed the ${esc(p.claim)}.`);
@@ -1966,7 +1967,7 @@ function setupView() {
         <select class="inp" data-pref="n">${counts.map(n => `<option value="${n}" ${prefs.n === n ? 'selected' : ''}>${n} players</option>`).join('')}</select>
       </label>
       <p class="hint">${breakdown(prefs.n)}</p>
-      <div class="setting"><span>Your team</span><div class="seg">${[['random', 'Random'], ['good', 'Good'], ['evil', 'Evil']].map(([v, l]) => `<button data-act="team" data-v="${v}" aria-pressed="${prefs.team === v}">${l}</button>`).join('')}</div></div>
+      <div class="setting"><span>Your team</span><div class="seg">${[['random', 'Random'], ['good', 'Good'], ['evil', 'Evil']].map(([v, l]) => `<button data-act="pick-team" data-v="${v}" aria-pressed="${prefs.team === v}">${l}</button>`).join('')}</div></div>
       <div class="setting"><span>Difficulty</span><div class="seg">${[['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']].map(([v, l]) => `<button data-act="diff" data-v="${v}" aria-pressed="${(prefs.diff || 'normal') === v}">${l}</button>`).join('')}</div></div>
       <p class="hint">${{ easy: 'Easy. If you\'re good: the good bots all say what they are on day 1 and read the evidence well, and the evil bots bluff carelessly and pick targets at random. If you\'re evil: the good bots hide their claims and misread the evidence.', normal: 'Normal: a fair game. Some good bots hold back their claim for a day; evil bots use the Demon\'s bluffs and frame good players.', hard: 'Hard. If you\'re good: the good bots hide their claims and misread the evidence more often. If you\'re evil: the good bots all claim on day 1 and read the evidence well.' }[prefs.diff || 'normal']}</p>
     </div>
@@ -2779,7 +2780,7 @@ document.addEventListener('click', e => {
     case 'how': U.view = 'how'; U.menu = false; return go();
     case 'resume': U.view = 'game'; break;
     case 'setup': U.view = 'setup'; U.menu = false; return go();
-    case 'team': prefs.team = b.dataset.v; savePrefs(); break;
+    case 'pick-team': prefs.team = b.dataset.v; savePrefs(); break;
     case 'diff': prefs.diff = b.dataset.v; savePrefs(); break;
     case 'start':
       newGame({ n: prefs.n, team: prefs.team, name: prefs.name, diff: prefs.diff || 'normal' });
