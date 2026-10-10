@@ -244,6 +244,10 @@ table.matrix { border-collapse: separate; border-spacing: 0; font-size: .85rem; 
 .mx-soft { background: color-mix(in srgb, var(--ok) 20%, var(--surface)) !important; color: var(--ok); outline: 1px dashed var(--ok); outline-offset: -4px; }
 .mx-conf { background: var(--good) !important; color: #fff; }
 .mx-was { background: var(--surface-2) !important; color: var(--muted); }
+.mx-ping, .mx-ping-k { background: color-mix(in srgb, #7a4fb5 14%, var(--surface)) !important; color: #7a4fb5; font-weight: 800; outline: 1px dotted #7a4fb5; outline-offset: -3px; }
+.matrix sup.ping { font-size: .62em; color: #7a4fb5; background: var(--surface); border-radius: 4px; padding: 0 2px; margin-left: 1px; }
+.mx-hard sup.ping, .mx-conf sup.ping { color: #5a2f95; }
+.ft-yes { color: var(--evil); } .ft-no { color: var(--ok); }
 .matrix td.cell.multi { box-shadow: inset 0 0 0 3px var(--warn); }
 .matrix tfoot td, .matrix tfoot th { font-variant-numeric: tabular-nums; text-align: center; font-size: .78rem; color: var(--muted); height: 26px; }
 .matrix tfoot td.multi { color: #1a1408; background: var(--warn); font-weight: 800; }
@@ -1934,7 +1938,7 @@ function howView() {
       <li><b>Talk privately:</b> from a player's seat, offer three for three (pick three characters, one of them true), tell them your character one for one, whisper your info (real or made up), or ask what they've learned and who they really suspect. Good bots open up if they trust you; evil bots always answer, with their bluff. The town sees that you talked, not what was said. Bots remember: if your public claim doesn't match what you told someone, they'll say so.</li>
       <li><b>What they've heard:</b> each morning a few bots chat privately with each other and swap characters and info (the town sees who talked). Ask a bot what they've learned, in town or privately, and they also pass on what others told them. Good bots pass it on honestly; an evil bot may lie about what someone said, to frame them. It all goes in your notes (👂 in Claims and info), the Worlds tab and the coach: it only counts if both the teller and the one who said it are good. If someone says one thing in private and another in town, the bot they told will call it out.</li>
       <li><b>Claims on the table:</b> every hard claim shows on that player's seat. Green is said in town, a blue ★ is proven by the game (a Virgin whose nominator was executed, a Slayer who killed the Demon), and 🤫 is what they told you privately, one for one.</li>
-      <li><b>Claim matrix:</b> under the town talk, every player against every character. Green H is a hard claim (🤫 if it was said to you privately), light green S is a soft claim (one of a three for three), a blue star is a character the game has proven (a Virgin whose nominator was executed, a Slayer whose shot killed the Demon), × is an earlier claim, and an amber ring means two or more players hard-claim it.</li>
+      <li><b>Claim matrix:</b> under the town talk, every player against every character. Green H is a hard claim (🤫 if it was said to you privately), light green S is a soft claim (one of a three for three), a blue star is a character the game has proven (a Virgin whose nominator was executed, a Slayer whose shot killed the Demon), × is an earlier claim, and an amber ring means two or more players hard-claim it. Info shows too: a purple letter is a ping (W Washerwoman, L Librarian, I Investigator, U Undertaker, R Ravenkeeper) in the character's column, including Minions and the Imp, and the Info columns show Fortune Teller results (✓ yes, ✗ no) and the Empath number next to each player. Tap or hover a cell to see who said it.</li>
       <li><b>Worlds:</b> like the Clocktower Notebook's World building. Every way the Demon and Minions could be seated, tested against public info, your own info and what you were told in private, with each player's chance of being the Demon, evil or good, the most likely worlds and what each one needs to be wrong. Tap names to assume someone is the Demon, evil or good. Nominations and votes count as softer clues. If you're evil, it shows how the town sees it.</li>
       <li><b>Nominations and votes:</b> on the Notes tab, who nominated whom each day, how many votes they got against how many were needed, and who voted.</li>
       <li><b>Say in town:</b> claim a character and share your info. You can share what you really learned, or make up info (you'll need to if you're evil).</li>
@@ -2274,34 +2278,62 @@ function seatClaim(q) {
   const r = CLAIMABLE.find(c => { const st = claimState(q, c); return st && st.k === 'hard' && st.priv; });
   return r ? '🤫 ' + short(r) : '';
 }
+// Info you've heard about each player, for the claim matrix: character pings, Fortune Teller results and Empath numbers
+const PING = { Washerwoman: 'W', Librarian: 'L', Investigator: 'I', Undertaker: 'U', Ravenkeeper: 'R' };
+function matrixInfo() {
+  const seen = new Set(), ping = {}, ft = {}, emp = {};
+  const add = (by, f, via) => {
+    const key = by + fkey(f);
+    if (seen.has(key)) return;
+    seen.add(key);
+    const src = f.src || f.role, who = by === G.me ? 'your' : `${P(by).name}'s`, tail = `${src} (night ${f.n})${via != null ? `, passed on by ${P(via).name}` : ''}`;
+    const put = (x, r) => ((ping[x] = ping[x] || {})[r] = ping[x][r] || []).push({ l: PING[src] || '?', why: `Pinged as the ${r} by ${who} ${tail}` });
+    if (f.k === 'pair') { put(f.a, f.char); put(f.b, f.char); }
+    else if (f.k === 'see') put(f.who, f.char);
+    else if (f.k === 'ft') [f.a, f.b].forEach(x => (ft[x] = ft[x] || []).push({ yes: f.yes, why: `${f.yes ? 'Yes' : 'No'} from ${who} ${tail}, with ${P(x === f.a ? f.b : f.a).name}` }));
+    else if (f.k === 'empath') f.nb.forEach(x => (emp[x] = emp[x] || []).push({ num: f.num, why: `${f.num} evil from ${who} ${tail}, next to ${f.nb.filter(y => y !== x).map(y => P(y).name).join(', ') || 'nobody else'}` }));
+  };
+  G.pub.forEach(e => add(e.by, e.f));
+  G.facts[G.me].forEach(f => add(G.me, f));
+  G.privFacts.forEach(e => add(e.by, e.f));
+  (G.relays || []).forEach(e => e.facts.forEach(f => add(e.from, f, e.by)));
+  return { ping, ft, emp };
+}
 function matrixHtml() {
   const only = prefs.mxAll !== true;
-  const ALLC = [...CLAIMABLE, ...MN, 'Imp'];
-  const states = G.players.map(q => ALLC.map(r => MN.includes(r) || r === 'Imp' ? null : claimState(q, r)));
+  const ALLC = [...CLAIMABLE, 'Drunk', ...MN, 'Imp'];
+  const states = G.players.map(q => ALLC.map(r => MN.includes(r) || r === 'Imp' || r === 'Drunk' ? null : claimState(q, r)));
   const hardCount = ALLC.map((r, j) => states.filter(row => row[j] && (row[j].k === 'hard' || row[j].k === 'conf')).length);
-  const anyAt = j => states.some(row => row[j]);
-  const evilLabels = [...MN, 'Imp'].filter(r => Object.values(G.labels).includes(r));
-  const groups = [['townsfolk', 'Townsfolk', TF], ['outsider', 'Outsiders', OS.filter(r => r !== 'Drunk')], ['minion', 'Your evil labels', evilLabels]].map(([team, label, roles]) => ({ team, label, roles: roles.filter(r => !only || anyAt(ALLC.indexOf(r)) || Object.values(G.labels).includes(r)) })).filter(g => g.roles.length);
+  const info = matrixInfo(), pinged = r => G.players.some(q => info.ping[q.id] && info.ping[q.id][r]);
+  const anyAt = j => states.some(row => row[j]) || pinged(ALLC[j]);
+  const labelled = r => Object.values(G.labels).includes(r);
+  const groups = [['townsfolk', 'Townsfolk', TF], ['outsider', 'Outsiders', OS], ['minion', 'Minions and Demon', [...MN, 'Imp']]].map(([team, label, roles]) => ({ team, label, roles: roles.filter(r => anyAt(ALLC.indexOf(r)) || labelled(r) || (!only && team !== 'minion' && r !== 'Drunk')) })).filter(g => g.roles.length);
   const cols = groups.flatMap(g => g.roles.map((r, i) => ({ r, j: ALLC.indexOf(r), start: i === 0 })));
+  const hasFt = Object.keys(info.ft).length, hasEmp = Object.keys(info.emp).length;
   const legend = `<div class="legend">
       <span><i class="mx-hard">H</i>Hard claim</span><span><i class="mx-soft">S</i>Soft (one of three)</span>
       <span><i class="mx-conf">★</i>Confirmed</span><span><i class="mx-was">×</i>Earlier claim</span>
-      <span><i style="box-shadow:inset 0 0 0 3px var(--warn)"></i>Claimed by 2+</span><span>🤫 said privately</span><span><i style="box-shadow:inset 0 0 0 2px var(--brass)">🏷</i>Your label</span></div>`;
+      <span><i style="box-shadow:inset 0 0 0 3px var(--warn)"></i>Claimed by 2+</span><span>🤫 said privately</span><span><i style="box-shadow:inset 0 0 0 2px var(--brass)">🏷</i>Your label</span>
+      <span><i class="mx-ping-k">I</i>Pinged by info: W Washerwoman, L Librarian, I Investigator, U Undertaker, R Ravenkeeper</span><span><b class="ft-yes">✓</b>/<b class="ft-no">✗</b> Fortune Teller yes / no</span><span><b>1</b> Empath number next to them</span></div>`;
   const head = `<div class="matrix-head"><h3>Claim matrix</h3><button class="toggle" data-act="mx-all" aria-pressed="${!only}">Show every character</button></div>${legend}`;
-  if (!cols.length) return `${head}<p class="hint">No claims yet.</p>`;
+  if (!cols.length && !hasFt && !hasEmp) return `${head}<p class="hint">No claims yet.</p>`;
   const mark = { hard: 'H', soft: 'S', conf: '★', was: '×' };
   return `${head}<div class="matrix-wrap"><table class="matrix">
     <thead>
-      <tr class="band"><th class="corner pcol"></th>${groups.map(g => `<th class="team-start" colspan="${g.roles.length}" style="background:var(--${g.team})">${g.label}</th>`).join('')}</tr>
-      <tr><th class="corner pcol">Player</th>${cols.map(c => `<th class="rname${c.start ? ' team-start' : ''}${hardCount[c.j] > 1 ? ' multi' : ''}" title="${esc(c.r)}"><span>${esc(c.r)}</span></th>`).join('')}</tr>
+      <tr class="band"><th class="corner pcol"></th>${groups.map(g => `<th class="team-start" colspan="${g.roles.length}" style="background:var(--${g.team})">${g.label}</th>`).join('')}${hasFt + hasEmp ? `<th class="team-start" colspan="${(hasFt ? 1 : 0) + (hasEmp ? 1 : 0)}" style="background:var(--muted)">Info</th>` : ''}</tr>
+      <tr><th class="corner pcol">Player</th>${cols.map(c => `<th class="rname${c.start ? ' team-start' : ''}${hardCount[c.j] > 1 ? ' multi' : ''}" title="${esc(c.r)}"><span>${esc(c.r)}</span></th>`).join('')}${hasFt ? '<th class="rname team-start" title="Fortune Teller results"><span>FT result</span></th>' : ''}${hasEmp ? `<th class="rname${hasFt ? '' : ' team-start'}" title="Empath numbers"><span>Empath</span></th>` : ''}</tr>
     </thead>
     <tbody>${G.players.map(q => `<tr class="${q.alive ? '' : 'dead'}${U.panel === q.id ? ' sel' : ''}">
       <th class="pcol" scope="row"><button data-act="seat" data-id="${q.id}">${q.id === G.me ? 'You' : esc(q.name)}</button></th>
       ${cols.map(c => { const st = states[q.id][c.j]; const multi = st && (st.k === 'hard' || st.k === 'conf') && hardCount[c.j] > 1, lab = G.labels[q.id] === c.r;
-        const why = [st && st.why, lab && 'Your label'].filter(Boolean).join('; ');
-        return `<td class="cell${c.start ? ' team-start' : ''}${st ? ' mx-' + st.k : ''}${multi ? ' multi' : ''}${lab ? ' mx-lab' : ''}" ${why ? `title="${esc(why)}" aria-label="${esc(q.id === G.me ? 'You' : q.name)}, ${esc(c.r)}: ${esc(why)}"` : ''}>${st ? (st.priv ? '🤫' : mark[st.k]) : lab ? '🏷' : ''}</td>`; }).join('')}
+        const pg = (info.ping[q.id] && info.ping[q.id][c.r]) || [], letters = [...new Set(pg.map(x => x.l))].join('');
+        const why = [st && st.why, lab && 'Your label', ...pg.map(x => x.why)].filter(Boolean).join('; ');
+        const main = st ? (st.priv ? '🤫' : mark[st.k]) : lab ? '🏷' : '';
+        return `<td class="cell${c.start ? ' team-start' : ''}${st ? ' mx-' + st.k : pg.length ? ' mx-ping' : ''}${multi ? ' multi' : ''}${lab ? ' mx-lab' : ''}" ${why ? `title="${esc(why)}" aria-label="${esc(q.id === G.me ? 'You' : q.name)}, ${esc(c.r)}: ${esc(why)}"` : ''}>${main && letters ? `${main}<sup class="ping">${letters}</sup>` : main || letters}</td>`; }).join('')}
+      ${hasFt ? (() => { const r = info.ft[q.id] || []; return `<td class="cell team-start" ${r.length ? `title="${esc(r.map(x => x.why).join('; '))}"` : ''}>${r.map(x => x.yes ? '<b class="ft-yes">✓</b>' : '<b class="ft-no">✗</b>').join('')}</td>`; })() : ''}
+      ${hasEmp ? (() => { const r = info.emp[q.id] || []; return `<td class="cell${hasFt ? '' : ' team-start'}" ${r.length ? `title="${esc(r.map(x => x.why).join('; '))}"` : ''}>${r.map(x => `<b class="${x.num ? 'ft-yes' : 'ft-no'}">${x.num}</b>`).join(' ')}</td>`; })() : ''}
     </tr>`).join('')}</tbody>
-    <tfoot><tr><th class="pcol">Hard claims</th>${cols.map(c => `<td class="${c.start ? 'team-start ' : ''}${hardCount[c.j] > 1 ? 'multi' : hardCount[c.j] ? 'one' : ''}">${hardCount[c.j] || ''}</td>`).join('')}</tr></tfoot>
+    <tfoot><tr><th class="pcol">Hard claims</th>${cols.map(c => `<td class="${c.start ? 'team-start ' : ''}${hardCount[c.j] > 1 ? 'multi' : hardCount[c.j] ? 'one' : ''}">${hardCount[c.j] || ''}</td>`).join('')}${hasFt ? '<td class="team-start"></td>' : ''}${hasEmp ? `<td${hasFt ? '' : ' class="team-start"'}></td>` : ''}</tr></tfoot>
   </table></div>`;
 }
 // The characters players have named this player as (each speaker's latest)
