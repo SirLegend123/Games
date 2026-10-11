@@ -1556,7 +1556,7 @@ function teamWhisper(p, kind, x) {
     mine("What's your plan?");
     const bits = [`I'm ${p.claim ? 'claiming' : 'going to claim'} the <b>${esc(p.claim || p.bot.bluff || validBluff(p))}</b>.`];
     const f = frameTarget(p); if (f != null) bits.push(`I'll push <b>${nm(f)}</b>.`);
-    if (p.role === 'Imp') bits.push(`Tonight I'm thinking of killing <b>${nm(p.bot.killReq && p.bot.killReq.n === G.n + 1 ? p.bot.killReq.x : impTarget(p))}</b>.`);
+    if (p.role === 'Imp') { const k = p.bot.killReq && p.bot.killReq.n === G.n + 1 ? p.bot.killReq.x : impTarget(p); bits.push(k === p.id ? 'Tonight I pass the Demon on: I kill myself.' : `Tonight I'm thinking of killing <b>${nm(k)}</b>${knownTeam(p).includes(k) ? ', as you suggested' : ''}.`); }
     if (p.role === 'Poisoner') bits.push(`I'll poison <b>${nm(p.bot.poisonReq && p.bot.poisonReq.n === G.n + 1 ? p.bot.poisonReq.x : poisonTarget(p))}</b>.`);
     theirs(bits.join(' '));
   } else if (kind === 'bluffs') {
@@ -1569,8 +1569,18 @@ function teamWhisper(p, kind, x) {
     if (p.claim && p.claim !== x) theirs(`Too late, I've already claimed the ${esc(p.claim)}.`);
     else if (G.players.some(q => q.id !== p.id && q.claim === x)) theirs(`Someone's already claimed the ${esc(x)}. I'll stick with the ${esc(p.bot.bluff)}.`);
     else { p.bot.bluff = x; p.bot.gave = null; p.bot.waitBluff = false; G.team[p.id].bluff = x; theirs(`Got it, I'm the <b>${esc(x)}</b>.`); log(`You told ${esc(p.name)} to bluff as the ${x}.`); }
-  } else if (kind === 'kill' || kind === 'poison') {
-    mine(kind === 'kill' ? `Kill <b>${nm(x)}</b> tonight.` : `Poison <b>${nm(x)}</b> tonight.`);
+  } else if (kind === 'kill') {
+    const team = knownTeam(p), minions = alive().filter(q => MN.includes(q.role));
+    mine(x === p.id ? 'Kill yourself tonight and pass the Demon on.' : x === G.me ? 'Kill me tonight.' : `Kill <b>${nm(x)}</b> tonight.`);
+    if (x === p.id && !minions.length) { theirs("There's no Minion left to take over. I'd just die and we'd lose."); bump(); return; }
+    p.bot.killReq = { x, n: G.n + 1 };
+    if (x === p.id) theirs(`A star pass? ${minions.some(q => q.role === 'Scarlet Woman') ? 'Our Scarlet Woman takes over.' : `One of our Minions (${list(minions.map(q => nm(q.id)))}) becomes the Imp.`} The town will think I was good. Risky, but I'll do it.`);
+    else if (x === G.me) theirs(`Kill you? A night death will make you look good, and ${me().claim ? `your ${esc(me().claim)} claim look real` : 'clear your name'}. But we lose your vote. If you're sure, I'll do it.`);
+    else if (team.includes(x)) theirs(`Kill our own ${esc((G.team[x] && G.team[x].role) || P(x).role)}? Clever: a night death makes ${nm(x)} look good${P(x).claim ? `, and their ${esc(P(x).claim)} bluff look real` : ''}. We lose a vote though. Leave it to me.`);
+    else theirs(pick(['Consider it done.', 'Leave it to me.', 'Good choice.']));
+    if (team.includes(x) || x === p.id || x === G.me) log(`You told the Imp (${esc(p.name)}) to kill ${x === p.id ? 'themselves (a star pass)' : x === G.me ? 'you' : `their teammate ${esc(P(x).name)}`} tonight.`);
+  } else if (kind === 'poison') {
+    mine(`Poison <b>${nm(x)}</b> tonight.`);
     if (knownTeam(p).includes(x) && x !== p.id) theirs("They're one of us!");
     else { p.bot[kind === 'kill' ? 'killReq' : 'poisonReq'] = { x, n: G.n + 1 }; theirs(pick(['Consider it done.', 'Leave it to me.', 'Good choice.'])); }
   } else if (kind === 'push') {
@@ -2045,7 +2055,7 @@ function howView() {
       <li><b>The town weighs in:</b> after each nomination and defence, two or three players speak for or against the nominee, citing the evidence (an Investigator ping, a Fortune Teller no, an Empath's 0, a double claim). Evil players defend their teammates. You can speak too, for or against, with a reason. Then the vote starts, and the bots vote with everything said in mind.</li>
       <li><b>On trial:</b> when someone nominates you, you defend yourself before anyone decides their vote: claim your character, share your info, point at someone else, or plead. Your own nominations come with a reason, which the nominee answers.</li>
       <li><b>Labels:</b> on any player's seat, label what you think they are (any character, or just good or evil). Only you see it: it shows on their seat, in Claims and info and in the claim matrix.</li>
-      <li><b>On the evil team</b> (7 or more players): your teammates (🔴 on the table) are honest with you in private. On the first morning Minions tell you, as the Demon, their real character and ask which bluff to take; a Demon tells you, as a Minion, the bluffs and which it's using; a Spy passes on what it saw in the Grimoire each day. From a teammate's seat you can ask their plan or the bluffs, tell them your real character, hand them a bluff, agree who to push, and ask the Imp to kill or the Poisoner to poison someone tonight.</li>
+      <li><b>On the evil team</b> (7 or more players): your teammates (🔴 on the table) are honest with you in private. On the first morning Minions tell you, as the Demon, their real character and ask which bluff to take; a Demon tells you, as a Minion, the bluffs and which it's using; a Spy passes on what it saw in the Grimoire each day. From a teammate's seat you can ask their plan or the bluffs, tell them your real character, hand them a bluff, agree who to push, and ask the Imp to kill or the Poisoner to poison someone tonight. The Imp's list includes the evil team: killing a teammate (or you) at night makes them look good, and telling the Imp to kill themselves passes the Demon to a Minion (a star pass).</li>
       <li><b>Name their character:</b> from a player's seat, say what you think they are, good or evil ("I think Pip is the Poisoner"), with a reason. Naming the Imp counts as a Demon read, a Minion as an evil read, and a good character as a vouch. Bots name characters too, and the Claims and info table shows what each player has been named as.</li>
       <li><b>Talk about the setup:</b> in Say in town, announce things like "I think this is a Baron game", "there's a Drunk" or "the Poisoner is at work". Bots answer with the counts (how many Outsiders have claimed against how many there should be) and what the Librarian saw, and raise it themselves when the Outsider claims don't add up. The middle of the table shows this game's setup: Townsfolk · Outsiders · Minions · Demon, and the same with a Baron.</li>
       <li><b>Speak up:</b> from a player's seat, accuse them (could be evil, or is the Demon) or vouch for them, and pick your reason: a specific piece of evidence, something you learned, their voting, or a hunch. Bots weigh what you say, more for a specific reason, and only as much as they trust you. A couple of them will say whether they agree.</li>
@@ -2321,6 +2331,8 @@ function teamHtml(q) {
   const chats = G.whispers.filter(w => w.with === q.id), m = me(), t = G.team[q.id];
   const opt = (val, l) => `<option value="${esc(val)}">${esc(l)}</option>`;
   const targets = alive().filter(x => x.id !== q.id && x.id !== G.me).map(x => opt(x.id, x.name)).join('');
+  // The Demon can be told to kill anyone: a teammate (a night death makes them look good), you, or itself (a star pass)
+  const team = knownTeam(q), killTargets = alive().map(x => opt(x.id, x.id === q.id ? `${x.name} themselves (star pass to a Minion)` : x.id === G.me ? 'Me' : team.includes(x.id) ? `${x.name} (evil, our ${(G.team[x.id] && G.team[x.id].role) || x.role})` : x.name)).join('');
   const bluffs = m.role === 'Imp' || G.info[G.me].some(e => e.lines.some(l => l.includes('bluffs'))) ? G.bluffs : CLAIMABLE;
   return `<h3>🔴 Your teammate ${esc(q.name)}</h3>
     <p class="hint">${t ? `Really the <b>${esc(t.role)}</b>${t.bluff ? `, bluffing as the <b>${esc(t.bluff)}</b>` : ''}.` : 'You know they are evil.'} Only the two of you hear this.</p>
@@ -2333,8 +2345,10 @@ function teamHtml(q) {
     <div class="row"><select class="inp" id="team-bluff" aria-label="Bluff">${bluffs.map(r => opt(r, r)).join('')}</select><button class="btn sm" data-act="team-sel" data-k="give" data-src="team-bluff" data-id="${q.id}">Tell them to bluff as this</button></div>
     <div class="row"><select class="inp" id="team-x" aria-label="Player">${targets}</select>
       <button class="btn sm" data-act="team-sel" data-k="push" data-src="team-x" data-id="${q.id}">Let's both push them</button>
-      ${q.role === 'Imp' ? `<button class="btn sm" data-act="team-sel" data-k="kill" data-src="team-x" data-id="${q.id}">Kill them tonight</button>` : ''}
-      ${q.role === 'Poisoner' ? `<button class="btn sm" data-act="team-sel" data-k="poison" data-src="team-x" data-id="${q.id}">Poison them tonight</button>` : ''}</div>`;
+      ${q.role === 'Poisoner' ? `<button class="btn sm" data-act="team-sel" data-k="poison" data-src="team-x" data-id="${q.id}">Poison them tonight</button>` : ''}</div>
+    ${q.role === 'Imp' ? `<div class="row"><select class="inp" id="team-kill" aria-label="Who to kill">${killTargets}</select>
+      <button class="btn sm" data-act="team-sel" data-k="kill" data-src="team-kill" data-id="${q.id}">Kill them tonight</button></div>
+      <p class="hint">You can include the evil team: killing a teammate at night makes them look good to the town, and the Imp killing themselves passes the Demon to a Minion.</p>` : ''}`;
 }
 function sayCard() {
   const p = me(), f = U.form;
