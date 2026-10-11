@@ -763,6 +763,29 @@ function adviseShot(p, x, priv) {
   } else theirs("I'm not sure that's how I want to use it.");
   bump();
 }
+// A claimed Virgin was nominated for the first time and nothing happened: the town notices
+function virginReaction(a, b) {
+  const A = P(a), cl = A.claim, tf = cl && TF.includes(cl);
+  const speakers = shuffle(alive().filter(q => q.bot && q.id !== a && q.id !== b));
+  if (!speakers.length) return;
+  sys(`Nothing happens.`);
+  const first = speakers[0];
+  if (!tf) say(first.id, cl
+    ? `Nothing happened, but ${nm(a)} ${a === G.me ? 'claim' : 'claims'} the ${esc(cl)}, an Outsider, so the Virgin wouldn't fire anyway.`
+    : `Nothing happened. ${Nm(a)} ${a === G.me ? "haven't" : "hasn't"} said what ${a === G.me ? 'you are' : 'they are'}: if ${a === G.me ? 'you were' : 'they were'} a Townsfolk, ${a === G.me ? "you'd" : "they'd"} be dead now. So ${a === G.me ? "you're" : "they're"} an Outsider, or evil, or ${nm(b)} isn't the Virgin.`);
+  else {
+    say(first.id, pick([`Nothing happened! ${Nm(a)} ${a === G.me ? 'claim' : 'claims'} the ${esc(cl)}, a Townsfolk. So either ${nm(b)} isn't the real Virgin, or ${nm(a)} ${a === G.me ? "aren't" : "isn't"} really a Townsfolk. Someone's lying, unless one of them is drunk or poisoned.`,
+      `Interesting. If ${nm(b)} were the Virgin and ${nm(a)} really the ${esc(cl)}, ${nm(a)} would be dead. One of those claims is false.`]));
+    // A second voice picks a side, and both go on record as suspicious
+    const sp = speakers[1];
+    if (sp) {
+      const B = belief(isGood(sp) ? sp.id : 'town'), x = isGood(sp) ? (B.pe[a] >= B.pe[b] ? a : b) : (knownTeam(sp).includes(a) ? b : knownTeam(sp).includes(b) ? a : (townRatio(a) >= townRatio(b) ? a : b));
+      say(sp.id, x === b ? `My money's on ${nm(b)}: a fake Virgin claim is an easy evil bluff.` : `I believe the Virgin. ${x === G.me ? "You're" : `${Nm(a)}'s`} the one I'd look at now.`);
+      G.opinions.push({ by: sp.id, x, day: G.n, kind: 'evil', w: 0.75 });
+    }
+  }
+  bump();
+}
 // Returns false if a Virgin ended the day on the spot
 function nominate(a, b, reason) {
   const d = G.dayS, nomr = P(a), nomd = P(b);
@@ -777,12 +800,12 @@ function nominate(a, b, reason) {
     if (sober(nomd) && r.type === 'townsfolk') {
       log(`The Virgin (${esc(nomd.name)}) was nominated by a Townsfolk (${esc(nomr.name)}${r.spoof ? ', the Spy registering as one' : ''}).`);
       G.virgins.push({ v: b, by: a, fired: true });
-      toDusk([`${Nm(a)} nominated ${nm(b)}… and ${nm(a)} ${a === G.me ? 'are' : 'is'} executed immediately! ${Nm(b)} must be the Virgin.`, execute(nomr)]);
+      toDusk([`${Nm(a)} nominated ${nm(b)}… and ${nm(a)} ${a === G.me ? 'are' : 'is'} executed immediately! ${Nm(b)} must be the Virgin.`, execute(scapegoatFor(nomr))]);
       return false;
     }
     log(`The Virgin (${esc(nomd.name)}) was nominated by ${esc(nomr.name)}; nothing happened${sober(nomd) ? '' : ' (the Virgin ' + why(nomd) + ')'}.`);
   }
-  if (first && nomd.claim === 'Virgin') G.virgins.push({ v: b, by: a, fired: false });
+  if (first && nomd.claim === 'Virgin') { G.virgins.push({ v: b, by: a, fired: false }); virginReaction(a, b); }
   if (b !== G.me) defend(nomd, a);
   startVote(a, b, from);
   return true;
@@ -828,7 +851,7 @@ function finishVote() {
   else if (k >= need && k === d.highest) { d.block = null; res = 'That ties the highest vote, so nobody is on the block.'; }
   else if (k < need) res = `Not enough votes (${need} needed).`;
   else res = `Not enough to beat ${d.highest}.`;
-  dayEvent(`${k} ${plural(k, 'vote', 'votes')} to execute ${nm(v.b)}${hands.length ? ' (' + list(hands.map(Nm)) + ')' : ''}. ${res}`);
+  dayEvent(`${k} ${plural(k, 'vote', 'votes')} to execute ${nm(v.b)}${hands.length ? ' (' + list(hands.map(Nm)) + ')' : ''}. ${res}${k !== hands.length ? ` That's ${k} from ${hands.length} ${plural(hands.length, 'hand', 'hands')}: the Bureaucrat or the Thief has changed someone's vote.` : ''}`);
   G.lastVote = { a: v.a, b: v.b, order: v.order, hands, res: res + note };
   (G.voteLog = G.voteLog || []).push({ day: G.n, a: v.a, b: v.b, hands: hands.slice(), count: k, need, block: d.block === v.b });
   G.vote = null;
@@ -970,7 +993,7 @@ function gunslinger(hands) {
 // The Scapegoat: if a player of their alignment is executed, the Storyteller might execute them instead
 function scapegoatFor(q) {
   const sg = G.players.find(x => x.alive && x.role === 'Scapegoat' && sober(x));
-  if (!sg || sg.id === q.id || isGood(sg) !== isGood(q) || !chance(0.5)) return q;
+  if (!sg || sg.id === q.id || isGood(sg) !== isGood(q) || !chance(q.role === 'Imp' ? 0.85 : 0.6)) return q;
   log(`${esc(q.name)} (${isGood(q) ? 'good' : 'evil'}) was due to be executed; the Storyteller executed the Scapegoat (${esc(sg.name)}) instead.`);
   sys(`The Storyteller executes the Scapegoat, ${esc(sg.name)}, instead of ${nm(q.id)}.`);
   return sg;
@@ -1005,7 +1028,7 @@ function finishExile() {
     return travSus(null, e.x) > 0.5 || chance(0.3);
   }).map(p => p.id);
   const k = tally(hands), ok = k >= need;
-  dayEvent(`${k} ${plural(k, 'vote', 'votes')} to exile ${nm(e.x)}${hands.length ? ' (' + list(hands.map(Nm)) + ')' : ''}. ${ok ? `${Nm(e.x)} ${e.x === G.me ? 'are' : 'is'} exiled.` : `Not enough (${need} needed).`}`);
+  dayEvent(`${k} ${plural(k, 'vote', 'votes')}${k !== hands.length ? ` (from ${hands.length} ${plural(hands.length, 'hand', 'hands')})` : ''} to exile ${nm(e.x)}${hands.length ? ' (' + list(hands.map(Nm)) + ')' : ''}. ${ok ? `${Nm(e.x)} ${e.x === G.me ? 'are' : 'is'} exiled.` : `Not enough (${need} needed).`}`);
   (G.voteLog = G.voteLog || []).push({ day: G.n, a: e.by, b: e.x, hands: hands.slice(), count: k, need, block: false, exile: true });
   G.exile = null;
   if (ok) { log(`${esc(q.name)} (the ${q.role}, ${q.align}) was exiled.`); die(q, 'exile'); checkTwoLeft(); if (G.winner) toDusk([`${Nm(e.x)} was exiled.`]); }
@@ -2252,7 +2275,7 @@ function howView() {
       <li><b>Talk about the setup:</b> in Say in town, announce things like "I think this is a Baron game", "there's a Drunk" or "the Poisoner is at work". Bots answer with the counts (how many Outsiders have claimed against how many there should be) and what the Librarian saw, and raise it themselves when the Outsider claims don't add up. The middle of the table shows this game's setup: Townsfolk · Outsiders · Minions · Demon, and the same with a Baron.</li>
       <li><b>Speak up:</b> from a player's seat, accuse them (could be evil, or is the Demon) or vouch for them, and pick your reason: a specific piece of evidence, something you learned, their voting, or a hunch. Bots weigh what you say, more for a specific reason, and only as much as they trust you. A couple of them will say whether they agree.</li>
       <li><b>Talk privately:</b> from a player's seat, offer three for three (pick three characters, one of them true), tell them your character one for one, whisper your info (real or made up), or ask what they've learned and who they really suspect. Good bots open up if they trust you; evil bots always answer, with their bluff. The town sees that you talked, not what was said. Bots remember: if your public claim doesn't match what you told someone, they'll say so.</li>
-      <li><b>Travellers:</b> choose 0 to 5 at setup. They sit among the players as extra seats, on top of the normal setup counts (which ignore them, as does the "two players left" rule). Each traveller announces their character on day 1; the game secretly makes each one good or evil at random, and they win with that team. An evil traveller doesn't learn the evil team, and the evil team doesn't learn them. <b>Scapegoat</b>: if a player of their alignment is executed, they might be executed instead. <b>Gunslinger</b>: after the day's first vote, may shoot someone who voted. <b>Beggar</b>: needs vote tokens to vote; dead players can give theirs (you can too, from the Beggar's seat) and the Beggar learns their alignment. <b>Bureaucrat</b>: each night, someone's vote counts as 3 tomorrow. <b>Thief</b>: each night, someone's vote counts as −1 tomorrow (so vote totals may not match the hands). Anyone can call for a traveller to be <b>exiled</b> from their seat: everyone votes, alive or dead, without using ghost votes. Travellers aren't in the Worlds tab; with Coach on, their seat shows how likely they are to be evil.</li>
+      <li><b>Travellers:</b> choose 0 to 5 at setup. They sit among the players as extra seats, on top of the normal setup counts (which ignore them, as does the "two players left" rule). Each traveller announces their character on day 1; the game secretly makes each one good or evil at random, and they win with that team. An evil traveller doesn't learn the evil team, and the evil team doesn't learn them. <b>Scapegoat</b>: if a player of their alignment is executed (including by the Virgin), they're usually executed instead, very likely when it's the Demon. <b>Gunslinger</b>: after the day's first vote, may shoot someone who voted. <b>Beggar</b>: needs vote tokens to vote; dead players can give theirs (you can too, from the Beggar's seat) and the Beggar learns their alignment. <b>Bureaucrat</b>: each night, someone's vote counts as 3 tomorrow. <b>Thief</b>: each night, someone's vote counts as −1 tomorrow (when a total doesn't match the hands, the town is told a vote was changed). Anyone can call for a traveller to be <b>exiled</b> from their seat: everyone votes, alive or dead, without using ghost votes. Travellers aren't in the Worlds tab; with Coach on, their seat shows how likely they are to be evil.</li>
       <li><b>Advise the Slayer:</b> on the seat of a player who claims the Slayer and hasn't shot, pick who they should shoot and say it in town or whisper it. A real Slayer weighs it against their own suspicions and how much they trust you, and either shoots or tells you who they'd rather shoot. A fake Slayer (evil) may "shoot" to look real; a miss clears whoever they shot.</li>
       <li><b>Theories:</b> bots put theories to the town when info doesn't add up: whose info can't all be right, an Empath whose number changed with the same neighbours, an Undertaker who saw something other than the executed player's claim, a missing Outsider (a possible Drunk) or a Fortune Teller's red herring. Evil bots try to cast doubt on info that points at their team. From a player's seat you can say they were poisoned or might be the Drunk; bots say whether they agree, and if the town agrees, it trusts that player's info less.</li>
       <li><b>What they've heard:</b> each morning a few bots chat privately with each other and swap characters and info (the town sees who talked). Ask a bot what they've learned, in town or privately, and they also pass on what others told them. Good bots pass it on honestly; an evil bot may lie about what someone said, to frame them. It all goes in your notes (👂 in Claims and info), the Worlds tab and the coach: it only counts if both the teller and the one who said it are good. If someone says one thing in private and another in town, the bot they told will call it out.</li>
@@ -2261,6 +2284,7 @@ function howView() {
       <li><b>Worlds:</b> like the Clocktower Notebook's World building. Every way the Demon and Minions could be seated, tested against public info, your own info and what you were told in private, with each player's chance of being the Demon, evil or good, the most likely worlds and what each one needs to be wrong. Tap names to assume someone is the Demon, evil or good. Nominations and votes count as softer clues. If you're evil, it shows how the town sees it.</li>
       <li><b>Nominations and votes:</b> on the Notes tab, who nominated whom each day, how many votes they got against how many were needed, and who voted.</li>
       <li><b>Say in town:</b> claim a character and share your info. You can share what you really learned, or make up info (you'll need to if you're evil).</li>
+      <li><b>Virgin tests:</b> when a claimed Virgin is nominated for the first time and nothing happens, the town says so: if the nominator claims a Townsfolk, one of the two claims must be false (or someone is drunk or poisoned), and a bot says which one it suspects.</li>
       <li><b>Nominations:</b> nominate a player from their seat, or tap <i>Let the town nominate</i> for the bots' turn. Voting goes clockwise from the nominee; you see the votes before yours, then cast your own.</li>
       <li><b>End the day:</b> anyone still keen gets a last nomination, then the player on the block is executed.</li>
     </ul>
