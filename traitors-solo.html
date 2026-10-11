@@ -1367,6 +1367,7 @@ function menuHtml() {
   const inGame = S.phase !== 'setup';
   return `<div class="row"><h2>Menu</h2><button class="btn sm" data-act="close" aria-label="Close">✕</button></div>
     <button class="btn" data-act="rules">How to play</button>
+    ${inGame && S.players.length ? `<h3>Your name</h3><div class="add"><input type="text" id="renameBox" maxlength="20" autocomplete="off" value="${esc(nmPlain(ME))}" aria-label="Your name"><button class="btn" data-act="rename">Change</button></div>` : ''}
     ${inGame && S.players.length ? `<h3>Your role</h3><p>You ${meAlive() ? 'are' : 'were'} <b style="color:var(--${iAmTraitor() ? 'traitor' : 'faithful'})">${iAmTraitor() ? 'a Traitor' : 'Faithful'}</b>.${(S.myClues || []).length ? ` Your Seer's clue${S.myClues.length > 1 ? 's' : ''}: ${S.myClues.map(c => `<b>${esc(c.text)}</b> (day ${c.day})`).join('; ')}.` : ''}${iAmTraitor() ? ` Your team: ${S.players.map((p, i) => i).filter(i => i !== ME && P(i).role === 'traitor').map(i => esc(nmPlain(i)) + (P(i).alive ? '' : ' (out)')).join(', ') || 'just you'}.` : ''}</p>
       <h3>Dossier</h3><p class="hint">What the whole castle knows about each player. The percentage is the castle's read: how likely the bots think that player is a Traitor.</p>
       <ul class="list dossier">${S.players.map((p, i) => i).sort((a, b) => P(b).alive - P(a).alive).map(i => `<li class="${P(i).alive ? '' : 'out'}"><div><b>${nm(i)}</b> ${P(i).alive ? oddsTag(castleRead()[i]) : ''}${P(i).bot ? ` <span class="hint">${PERSONA[P(i).persona].label}</span>` : ''} ${tagFor(i)}${S.facts[i].length ? `<ul>${S.facts[i].slice(-4).map(f => `<li>${esc(f.text)} (day ${f.day})</li>`).join('')}</ul>` : ''}</div></li>`).join('')}</ul>
@@ -1389,7 +1390,16 @@ function render() {
 }
 
 /* ---------- Taps ---------- */
-document.addEventListener('input', e => { if (e.target.id === 'myName') { S.myName = e.target.value.trim(); save(); } });
+document.addEventListener('input', e => { if (e.target.id === 'myName') { e.target.setCustomValidity(''); S.myName = e.target.value.trim(); save(); } });
+// Change your name mid-game: everything already said about you is updated too
+function renameMe(name) {
+  const old = nmPlain(ME), re = new RegExp(`\\b${old.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g');
+  const fix = t => typeof t === 'string' ? t.replace(re, name) : t;
+  S.facts.forEach(fs => fs.forEach(f => { f.text = fix(f.text); }));
+  [S.rt && S.rt.feed, S.bf && S.bf.talk, S.fp && S.fp.feed].forEach(feed => (feed || []).forEach(e => { e.text = fix(e.text); }));
+  (S.myClues || []).forEach(c => { c.text = fix(c.text); });
+  P(ME).name = S.myName = name;
+}
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
@@ -1404,7 +1414,17 @@ document.addEventListener('click', e => {
     case 'quityes': S = fresh(S.settings, S.myName); menu = null; break;
     case 'voice': prefs.voice = !prefs.voice; savePrefs(); if (!prefs.voice && window.speechSynthesis) speechSynthesis.cancel(); return renderMenu();
     case 'set': S.settings[b.dataset.k] = v === 'true' ? true : v === 'false' ? false : isNaN(+v) ? v : +v; top = false; break;
-    case 'start': start(); break;
+    case 'start': {
+      // Read the box directly (autofill and autocorrect don't always send an input event), and insist on a name
+      const box = $('#myName'), name = (box && box.value.trim()) || S.myName;
+      if (!name) { box.setCustomValidity('Type your name so the others can call you by it.'); box.reportValidity(); box.focus(); return; }
+      S.myName = name; start(); break;
+    }
+    case 'rename': {
+      const box = $('#renameBox'), name = box && box.value.trim().replace(/\s+/g, ' ').slice(0, 20);
+      if (!name || name === nmPlain(ME)) return;
+      renameMe(name); save(); render(); return;
+    }
     case 'enter': newDay(); startMission(); break;
     case 'arrive': { const bf = S.bf, i = bf.order[bf.shown++]; say(i === ME ? 'You.' : nmPlain(i) + '.'); if (bf.shown >= bf.order.length) announce(); top = false; break; }
     case 'arriveall': S.bf.shown = S.bf.order.length; announce(); break;
