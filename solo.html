@@ -156,6 +156,7 @@ button.tok:hover { transform: translate(-50%, -50%) scale(1.07); }
 .tok .mark { position: absolute; top: -6%; right: -10%; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 99px; padding: 1px 5px; font-size: max(10px, calc(var(--fs) * .8)); white-space: nowrap; }
 .tok-sub { font-weight: 700; font-size: var(--sfs); color: color-mix(in srgb, var(--parch-ink) 72%, transparent); white-space: nowrap; }
 .tok:has(.tok-sub) { align-content: center; gap: 1px; }
+.tok.trav { border-style: dashed; }
 .tok-sub.claim { color: color-mix(in srgb, var(--ok) 80%, #000); font-weight: 800; }
 .tok-sub.claim.conf { color: var(--good); }
 .tok.flipped { animation: none; border-width: 4px; }
@@ -345,10 +346,17 @@ const ROLES = {
   'Scarlet Woman': { type: 'minion', text: 'If there are 5 or more players alive and the Demon dies, you become the Demon.' },
   'Baron': { type: 'minion', text: 'There are extra Outsiders in play. [+2 Outsiders]' },
   'Imp': { type: 'demon', text: 'Each night except the first, choose a player: they die. If you kill yourself this way, a Minion becomes the Imp.' },
+  // Travellers: their character is public, their alignment secret (the Storyteller decides it)
+  'Scapegoat': { type: 'traveller', text: 'If a player of your alignment is executed, you might be executed instead.' },
+  'Gunslinger': { type: 'traveller', text: 'Each day, after the 1st vote has been tallied, you may choose a player that voted: they die.' },
+  'Beggar': { type: 'traveller', text: 'You must use a vote token to vote. If a dead player gives you theirs, you learn their alignment. You are sober and healthy.' },
+  'Bureaucrat': { type: 'traveller', text: 'Each night, choose a player (not yourself): their vote counts as 3 votes tomorrow.' },
+  'Thief': { type: 'traveller', text: 'Each night, choose a player (not yourself): their vote counts negatively tomorrow.' },
 };
 const TF = Object.keys(ROLES).filter(r => ROLES[r].type === 'townsfolk');
 const OS = Object.keys(ROLES).filter(r => ROLES[r].type === 'outsider');
 const MN = Object.keys(ROLES).filter(r => ROLES[r].type === 'minion');
+const TRAV = Object.keys(ROLES).filter(r => ROLES[r].type === 'traveller');
 const CLAIMABLE = [...TF, ...OS.filter(r => r !== 'Drunk')];
 const INFO_ROLES = ['Washerwoman', 'Librarian', 'Investigator', 'Chef', 'Empath', 'Fortune Teller', 'Undertaker', 'Ravenkeeper', 'Monk'];
 // Townsfolk, Outsiders, Minions, Demons
@@ -391,7 +399,10 @@ const Nm = id => id === G.me ? 'You' : esc(P(id).name);
 const alive = () => G.players.filter(p => p.alive);
 const bots = () => G.players.filter(p => p.id !== G.me);
 const believed = p => p.role === 'Drunk' ? p.fake : p.role;
-const isGood = p => ROLES[p.role].type === 'townsfolk' || ROLES[p.role].type === 'outsider';
+const isGood = p => p.trav ? p.align === 'good' : ROLES[p.role].type === 'townsfolk' || ROLES[p.role].type === 'outsider';
+// The setup counts (and the "two players left" rule) ignore travellers
+const baseN = () => G.players.filter(p => !p.trav).length;
+const aliveBase = () => alive().filter(p => !p.trav);
 const inPlay = r => G.players.some(p => p.role === r);
 const poisonerAlive = () => G.players.some(p => p.alive && p.role === 'Poisoner');
 const poisoned = p => G.poison === p.id && poisonerAlive();
@@ -408,15 +419,15 @@ function tell(id, lines) { G.info[id].push({ when: label(), lines }); }
 function message(id, html) { G.inbox[id].push(html); tell(id, [html]); }
 function win(team, reason) { if (!G.winner) { G.winner = { team, reason }; log(`${team === 'good' ? 'Good' : 'Evil'} wins: ${reason}`); } }
 function checkTwoLeft() {
-  if (!G.winner && alive().length <= 2 && alive().some(p => p.role === 'Imp')) win('evil', 'Only two players are left alive, and one of them is the Demon.');
-  if (!G.winner && !alive().some(isGood) && alive().some(p => p.role === 'Imp')) win('evil', 'Every good player is dead.');
+  if (!G.winner && aliveBase().length <= 2 && alive().some(p => p.role === 'Imp')) win('evil', 'Only two players are left alive (not counting travellers), and one of them is the Demon.');
+  if (!G.winner && !aliveBase().some(isGood) && alive().some(p => p.role === 'Imp')) win('evil', 'Every good player is dead.');
 }
 // Something everyone hears: a player speaking in town, or the Storyteller (who = null)
 function say(who, text) { G.feed.push({ when: label(), who, text }); bump(); }
 function sys(text) { say(null, text); }
 
 function teamWord(r) {
-  return { townsfolk: 'Townsfolk · good', outsider: 'Outsider · good', minion: 'Minion · evil', demon: 'Demon · evil' }[ROLES[r].type];
+  return { townsfolk: 'Townsfolk · good', outsider: 'Outsider · good', minion: 'Minion · evil', demon: 'Demon · evil', traveller: 'Traveller' }[ROLES[r].type];
 }
 function roleCard(r) {
   return `<div class="role-card ${ROLES[r].type}"><div class="role-team">${teamWord(r)}</div><div class="role-name">${esc(r)}</div><div>${esc(ROLES[r].text)}</div></div>`;
@@ -429,19 +440,24 @@ function breakdown(n) {
 
 /* ---------- Setup ---------- */
 function newGame(opts) {
-  const n = opts.n;
+  const n = opts.n, nt = Math.min(opts.trav || 0, TRAV.length);
   let [t, o, m] = COUNTS[n];
   const minions = shuffle(MN).slice(0, m);
   if (minions.includes('Baron')) { t -= 2; o += 2; }
   const dealt = shuffle(['Imp', ...minions, ...shuffle(OS).slice(0, o), ...shuffle(TF).slice(0, t)]);
+  // Travellers sit anywhere around the table
+  shuffle(TRAV).slice(0, nt).forEach(r => dealt.splice(rnd(dealt.length + 1), 0, r));
+  const N = dealt.length, isTrav = r => ROLES[r].type === 'traveller';
   const evilRole = r => ['minion', 'demon'].includes(ROLES[r].type);
-  const seat = opts.team === 'random' ? rnd(n) : pick(dealt.map((r, i) => i).filter(i => evilRole(dealt[i]) === (opts.team === 'evil')));
+  const seats = dealt.map((r, i) => i).filter(i => !isTrav(dealt[i]));
+  const seat = opts.team === 'random' ? pick(seats) : pick(seats.filter(i => evilRole(dealt[i]) === (opts.team === 'evil')));
   const myName = (opts.name || '').trim() || 'You';
-  const names = shuffle(NAMES.filter(x => x.toLowerCase() !== myName.toLowerCase())).slice(0, n - 1);
+  const names = shuffle(NAMES.filter(x => x.toLowerCase() !== myName.toLowerCase())).slice(0, N - 1);
   names.splice(seat, 0, myName);
   G = {
     v: 1, ver: 0, n: 1, time: 'night', stage: 'night', me: seat, opts,
-    players: names.map((name, i) => ({ id: i, name, role: dealt[i], alive: true, ghost: true, used: false, master: null, claim: null, claimHist: [], deadFrom: null })),
+    players: names.map((name, i) => ({ id: i, name, role: dealt[i], alive: true, ghost: true, used: false, master: null, claim: null, claimHist: [], deadFrom: null,
+      ...(isTrav(dealt[i]) ? { trav: true, align: chance(0.5) ? 'good' : 'evil', tokens: 0 } : {}) })),
     log: [], info: {}, inbox: {}, facts: {}, poison: null, bluffs: [], redHerring: null,
     lastExecuted: null, winner: null, announce: null, dayS: null, dawnInfo: {}, diedTonight: [], rkWait: false,
     feed: [], pub: [], deaths: [], virgins: [], nominatedEver: [], shots: [], opinions: [], execs: {}, vote: null, lastVote: null,
@@ -451,15 +467,16 @@ function newGame(opts) {
   const drunk = G.players.find(p => p.role === 'Drunk');
   if (drunk) drunk.fake = pick(TF.filter(r => !inPlay(r)));
   G.bluffs = shuffle([...TF, ...OS].filter(r => r !== 'Drunk' && !inPlay(r) && !(drunk && drunk.fake === r))).slice(0, 3);
-  G.redHerring = pick(G.players.filter(isGood)).id;
+  G.redHerring = pick(G.players.filter(q => isGood(q) && !q.trav)).id;
 
-  log(`Setup for ${n} players: ` + G.players.map(p => `${esc(p.name)}${p.id === G.me ? ' (you)' : ''} is the ${p.role === 'Drunk' ? `Drunk (thinks they're the ${p.fake})` : p.role}`).join('; ') + '.');
+  log(`Setup for ${n} players${nt ? ` and ${nt} ${plural(nt, 'traveller', 'travellers')}` : ''}: ` + G.players.map(p => `${esc(p.name)}${p.id === G.me ? ' (you)' : ''} is the ${p.role === 'Drunk' ? `Drunk (thinks they're the ${p.fake})` : p.role}${p.trav ? ` (${p.align})` : ''}`).join('; ') + '.');
   log(`Demon bluffs: ${G.bluffs.join(', ')}. The Fortune Teller's red herring is ${esc(P(G.redHerring).name)}.`);
 
   const imp = G.players.find(p => p.role === 'Imp');
   const minionPs = G.players.filter(p => MN.includes(p.role));
   G.players.forEach(p => {
     const lines = [roleCard(believed(p))];
+    if (p.trav) { lines.push(`You are a traveller, and you are <b>${p.align}</b>. Everyone knows your character; nobody knows your alignment.`); tell(p.id, lines); return; }
     if (n >= 7) {
       if (MN.includes(p.role)) {
         lines.push(`The Demon is <b>${Nm(imp.id)}</b>.`);
@@ -484,11 +501,12 @@ function newGame(opts) {
   G.duskAlive = alive().map(p => p.id);
 }
 // The Demon learns the bluffs with 7 or more players and shares them with the Minions; the Spy sees them in the Grimoire
-const knowsBluffs = p => !isGood(p) && (G.players.length >= 7 || p.role === 'Spy');
+const knowsBluffs = p => !isGood(p) && !p.trav && (baseN() >= 7 || p.role === 'Spy');
 // The evil players this player knows about (just themselves if they are good, or evil in a small game)
 function knownTeam(p) {
   if (isGood(p)) return [];
-  if (G.players.length >= 7 || p.role === 'Spy') return G.players.filter(q => !isGood(q)).map(q => q.id);
+  if (p.trav) return [p.id];  // an evil traveller doesn't learn the evil team, and they don't learn them
+  if (baseN() >= 7 || p.role === 'Spy') return G.players.filter(q => !isGood(q) && !q.trav).map(q => q.id);
   return [p.id];
 }
 
@@ -559,7 +577,7 @@ function starPass(imp) {
 }
 function die(p, cause, quiet) {
   if (!p.alive) return;
-  const before = alive().length;
+  const before = aliveBase().length;
   p.alive = false;
   p.deadFrom = cause === 'night' ? G.n : G.n + 1;  // the first night they no longer wake
   G.deaths.push({ id: p.id, how: cause, n: G.n, claim: p.claim });
@@ -649,6 +667,12 @@ function resolveNight(c) {
       const r = l ? falseCharacter(q) : reg(q).role;
       const text = `The player executed today, ${Nm(q.id)}, was the <b>${esc(r)}</b>.`;
       learn(p, text, { k: 'see', who: q.id, char: r }); noteInfo(p, text, l);
+    }
+    if ((p.role === 'Bureaucrat' || p.role === 'Thief') && c[p.id] && sober(p)) {
+      const t = c[p.id][0];
+      if (!G.voteMod || G.voteMod.day !== n) G.voteMod = { day: n, w: {} };
+      G.voteMod.w[t] = p.role === 'Bureaucrat' ? 3 : -1;
+      log(`The ${p.role} (${esc(p.name)}, ${p.align}) chose ${esc(P(t).name)}: their vote counts ${p.role === 'Bureaucrat' ? 'as 3' : 'negatively'} tomorrow.`);
     }
     if (p.role === 'Butler' && c[p.id]) { p.master = c[p.id][0]; log(`The Butler (${esc(p.name)}) chose ${esc(P(p.master).name)} as their master.`); }
     if (p.role === 'Spy') learn(p, `You see the Grimoire:${grimoireHtml()}`);
@@ -763,7 +787,7 @@ function nominate(a, b, reason) {
   startVote(a, b, from);
   return true;
 }
-const canVote = q => q.alive || q.ghost;
+const canVote = q => q.role === 'Beggar' && q.trav ? (q.alive && (q.tokens || 0) > 0) : (q.alive || q.ghost);
 function startVote(a, b, from) {
   const N = G.players.length, order = [];
   for (let k = 1; k <= N; k++) { const q = G.players[(b + k) % N]; if (canVote(q)) order.push(q.id); }
@@ -795,28 +819,30 @@ function finishVote() {
     note = ` Your master, ${nm(m.master)}, didn't vote, so as the Butler your vote didn't count.`;
   }
   hands = hands.filter(id => { const q = P(id); return !(id !== G.me && q.role === 'Butler' && q.master === G.me && !v.mine); });
-  hands.forEach(id => { const q = P(id); if (!q.alive) q.ghost = false; });
+  hands.forEach(id => { const q = P(id); if (q.role === 'Beggar' && q.trav) q.tokens = Math.max(0, (q.tokens || 0) - 1); else if (!q.alive) q.ghost = false; });
   if (v.order.includes(G.me)) (G.myVotes = G.myVotes || []).push({ day: G.n, a: v.a, b: v.b, yes: !!v.mine });
-  const k = hands.length;
+  const k = tally(hands), first = !(d.votes > 0);
+  d.votes = (d.votes || 0) + 1;
   let res;
   if (k >= need && k > d.highest) { d.block = v.b; d.highest = k; res = `${Nm(v.b)} ${v.b === G.me ? 'are' : 'is'} on the block.`; }
   else if (k >= need && k === d.highest) { d.block = null; res = 'That ties the highest vote, so nobody is on the block.'; }
   else if (k < need) res = `Not enough votes (${need} needed).`;
   else res = `Not enough to beat ${d.highest}.`;
-  dayEvent(`${k} ${plural(k, 'vote', 'votes')} to execute ${nm(v.b)}${k ? ' (' + list(hands.map(Nm)) + ')' : ''}. ${res}`);
+  dayEvent(`${k} ${plural(k, 'vote', 'votes')} to execute ${nm(v.b)}${hands.length ? ' (' + list(hands.map(Nm)) + ')' : ''}. ${res}`);
   G.lastVote = { a: v.a, b: v.b, order: v.order, hands, res: res + note };
-  (G.voteLog = G.voteLog || []).push({ day: G.n, a: v.a, b: v.b, hands: hands.slice(), need, block: d.block === v.b });
+  (G.voteLog = G.voteLog || []).push({ day: G.n, a: v.a, b: v.b, hands: hands.slice(), count: k, need, block: d.block === v.b });
   G.vote = null;
+  if (first) gunslinger(hands);
 }
 function endDay() {
   const d = G.dayS, lines = [];
   G.dry = d.block != null ? 0 : (G.dry || 0) + 1;
-  G.dryAt3 = d.block == null && alive().length === 3;
-  if (d.block != null) lines.push(execute(P(d.block)));
+  G.dryAt3 = d.block == null && aliveBase().length === 3;
+  if (d.block != null) lines.push(execute(scapegoatFor(P(d.block))));
   else {
     lines.push('Nobody is executed today.'); sys('Nobody was executed.');
     const mayor = G.players.find(q => q.alive && q.role === 'Mayor' && sober(q));
-    if (alive().length === 3 && mayor) win('good', 'Only three players were alive, nobody was executed, and the Mayor was alive.');
+    if (aliveBase().length === 3 && mayor) win('good', 'Only three players were alive, nobody was executed, and the Mayor was alive.');
   }
   toDusk(lines);
 }
@@ -841,6 +867,7 @@ function startDay() {
   G.dayS = { nominators: [], nominees: [], block: null, highest: 0, events: [], botNoms: 0, quiet: false };
   sys(G.diedTonight.length ? G.diedTonight.map(id => `${Nm(id)} died in the night.`).join(' ') : `Day ${G.n} begins. Nobody died in the night.`);
   G.lastExecuted = null;
+  beggarTokens();
   teamApproach();
   morningTalk();
   if (G.stage === 'day') botGossip();
@@ -875,6 +902,126 @@ function factText(f, mine) {
   return '';
 }
 const fkey = f => JSON.stringify([f.k, f.n, f.a, f.b, f.num, f.who, f.char, f.yes]);
+
+/* ---------- Travellers ---------- */
+// How much each player's vote counts today: the Bureaucrat makes it 3, the Thief makes it -1
+const voteWeight = id => (G.voteMod && G.voteMod.day === G.n && G.voteMod.w[id] != null) ? G.voteMod.w[id] : 1;
+const tally = hands => hands.reduce((t, id) => t + voteWeight(id), 0);
+// How likely a player thinks a traveller is evil, from how the traveller has voted, shot and spoken
+function travSus(p, x) {
+  const q = P(x);
+  if (!q || !q.trav) return 0;
+  if (p && p.id === x) return isGood(q) ? 0 : 1;
+  if (p && p.bot && p.bot.align && p.bot.align[x] != null) return p.bot.align[x] ? 0.02 : 0.98;
+  const B = belief(p && p.id !== G.me && isGood(p) ? p.id : 'town');
+  let s = 0.45;
+  (G.voteLog || []).forEach(v => {
+    if (P(v.b).trav || !v.hands.includes(x)) return;
+    if (B.pe[v.b] < 0.2) s += 0.08; else if (B.pe[v.b] > 0.5) s -= 0.06;
+  });
+  (G.gunshots || []).filter(g => g.by === x).forEach(g => { s += B.pe[g.t] < 0.25 ? 0.25 : B.pe[g.t] > 0.5 ? -0.15 : 0; });
+  const latest = {};
+  G.opinions.forEach(o => { if (o.by === x || o.x === x) latest[o.by + ':' + o.x] = o; });
+  Object.values(latest).forEach(o => {
+    if (o.by === x && o.kind !== 'good') s += B.pe[o.x] < 0.2 ? 0.05 : B.pe[o.x] > 0.5 ? -0.05 : 0;
+    if (o.x === x && o.by !== x) s += o.kind === 'good' ? -0.04 : 0.05;
+  });
+  return Math.min(0.95, Math.max(0.05, s));
+}
+// Dead players with a ghost vote may hand it to the Beggar, who learns their alignment
+function beggarTokens() {
+  const bg = G.players.find(q => q.alive && q.role === 'Beggar');
+  if (!bg) return;
+  G.players.filter(q => !q.alive && q.ghost && q.bot && q.id !== bg.id && chance(0.3)).forEach(q => {
+    q.ghost = false; bg.tokens = (bg.tokens || 0) + 1;
+    if (bg.bot) (bg.bot.align = bg.bot.align || {})[q.id] = isGood(q);
+    sys(`${esc(q.name)} gives their vote token to the Beggar, ${esc(bg.name)}.`);
+    log(`${esc(q.name)} gave their vote token to the Beggar (${esc(bg.name)}), who learns they are ${isGood(q) ? 'good' : 'evil'}.`);
+  });
+}
+function giveToken(bgId) {
+  const m = me(), bg = P(bgId);
+  if (m.alive || !m.ghost || bg.role !== 'Beggar') return;
+  m.ghost = false; bg.tokens = (bg.tokens || 0) + 1;
+  if (bg.bot) (bg.bot.align = bg.bot.align || {})[G.me] = isGood(m);
+  say(G.me, `I'm giving my vote token to the Beggar, ${esc(bg.name)}.`);
+  say(bg.id, pick(['Thank you. Now I know which side you\'re on.', 'Much obliged. That tells me a lot.']));
+  log(`You gave your vote token to the Beggar (${esc(bg.name)}), who learns you are ${isGood(m) ? 'good' : 'evil'}.`);
+  bump();
+}
+// The Gunslinger, after the day's first vote: shoot one of the players who voted
+function gunslinger(hands) {
+  const g = G.players.find(q => q.alive && q.role === 'Gunslinger');
+  if (!g || !g.bot || !hands.length || !sober(g)) return;
+  const cands = hands.filter(id => id !== g.id && P(id).alive).map(P);
+  if (!cands.length) return;
+  let t = null;
+  if (isGood(g)) { const B = belief(g.id), best = topBy(cands, q => B.pe[q.id] + 0.3 * B.pd[q.id]); if (best && (B.pe[best.id] > 0.4 || B.pd[best.id] > 0.25)) t = best; }
+  else if (chance(0.45)) t = topBy(cands, q => -townRatio(q.id) + Math.random() * 0.3);
+  if (!t) return;
+  G.gunshots = G.gunshots || []; G.gunshots.push({ by: g.id, t: t.id, n: G.n });
+  say(g.id, `I'm the Gunslinger. ${Nm(t.id)} voted, and I'm shooting ${t.id === G.me ? 'you' : 'them'}.`);
+  dayEvent(`The Gunslinger, ${esc(g.name)}, shoots ${nm(t.id)}. ${Nm(t.id)} ${t.id === G.me ? 'die' : 'dies'}.`);
+  log(`The Gunslinger (${esc(g.name)}, ${g.align}) shot ${esc(t.name)} (${t.role}).`);
+  die(t, 'gunslinger');
+  checkTwoLeft();
+  if (G.winner) toDusk([`The Gunslinger shot ${nm(t.id)}.`]);
+}
+// The Scapegoat: if a player of their alignment is executed, the Storyteller might execute them instead
+function scapegoatFor(q) {
+  const sg = G.players.find(x => x.alive && x.role === 'Scapegoat' && sober(x));
+  if (!sg || sg.id === q.id || isGood(sg) !== isGood(q) || !chance(0.5)) return q;
+  log(`${esc(q.name)} (${isGood(q) ? 'good' : 'evil'}) was due to be executed; the Storyteller executed the Scapegoat (${esc(sg.name)}) instead.`);
+  sys(`The Storyteller executes the Scapegoat, ${esc(sg.name)}, instead of ${nm(q.id)}.`);
+  return sg;
+}
+// Exile: anyone, alive or dead, may call for a traveller to be exiled, and everyone may vote (ghost votes aren't used up)
+function callExile(by, x) {
+  const d = G.dayS;
+  d.exiles = d.exiles || [];
+  d.exiles.push(x);
+  const reason = by === G.me ? '' : ` ${cap(travReason(x))}.`;
+  dayEvent(`${Nm(by)} ${by === G.me ? 'call' : 'calls'} for the ${esc(P(x).role)}, ${nm(x)}, to be exiled.`);
+  if (reason) say(by, `${esc(P(x).name)} should go.${reason}`);
+  if (x !== G.me && P(x).bot) say(x, pick([`I'm on your side! Exiling me wastes a day.`, 'You need my ability. Think about it.', "I've done nothing wrong."]));
+  G.exile = { by, x, mine: by === G.me ? true : null };
+  if (by === G.me) finishExile();
+}
+function travReason(x) {
+  const B = belief('town'), shot = (G.gunshots || []).find(g => g.by === x);
+  if (shot && B.pe[shot.t] < 0.25) return `they shot ${nm(shot.t)}, who looked good`;
+  const bad = (G.voteLog || []).find(v => v.hands.includes(x) && !P(v.b).trav && B.pe[v.b] < 0.2);
+  if (bad) return `they voted to execute ${nm(bad.b)}, who looked good`;
+  return pick(["I don't trust them", 'better safe than sorry', "their vote's been odd"]);
+}
+function finishExile() {
+  const e = G.exile, q = P(e.x), need = votesNeeded();
+  const voters = G.players.filter(p => p.id !== e.x);
+  const hands = voters.filter(p => {
+    if (p.id === G.me) return e.mine;
+    if (p.id === e.by) return true;
+    if (isGood(p)) return travSus(p, e.x) > 0.55;
+    if (p.trav) return chance(0.3);
+    return travSus(null, e.x) > 0.5 || chance(0.3);
+  }).map(p => p.id);
+  const k = tally(hands), ok = k >= need;
+  dayEvent(`${k} ${plural(k, 'vote', 'votes')} to exile ${nm(e.x)}${hands.length ? ' (' + list(hands.map(Nm)) + ')' : ''}. ${ok ? `${Nm(e.x)} ${e.x === G.me ? 'are' : 'is'} exiled.` : `Not enough (${need} needed).`}`);
+  (G.voteLog = G.voteLog || []).push({ day: G.n, a: e.by, b: e.x, hands: hands.slice(), count: k, need, block: false, exile: true });
+  G.exile = null;
+  if (ok) { log(`${esc(q.name)} (the ${q.role}, ${q.align}) was exiled.`); die(q, 'exile'); checkTwoLeft(); if (G.winner) toDusk([`${Nm(e.x)} was exiled.`]); }
+  bump();
+}
+// Now and then a good bot calls for a traveller it suspects to be exiled
+function botExile() {
+  const d = G.dayS;
+  if (d.botExiled) return false;
+  const travs = alive().filter(q => q.trav && !(d.exiles || []).includes(q.id));
+  for (const x of shuffle(travs)) {
+    const caller = topBy(G.players.filter(p => p.bot && p.id !== x.id && isGood(p) && p.alive), p => travSus(p, x.id) + Math.random() * 0.1);
+    if (caller && travSus(caller, x.id) > 0.62) { d.botExiled = true; callExile(caller.id, x.id); return true; }
+  }
+  return false;
+}
 
 /* ---------- The bots' reasoning: every possible evil team, weighed against what's been said ---------- */
 // A small chance that a good player's info is wrong because they are drunk or poisoned
@@ -952,7 +1099,7 @@ function publicCons() {
     else cons.push({ src: o.by, fn: ev => ev[x] ? 1 : w });
   });
   // More good Outsiders than even a Baron allows means some Outsider claims are lies
-  const outCap = COUNTS[G.players.length][1] + 2, outers = G.players.filter(q => ['Saint', 'Recluse', 'Butler'].includes(q.claim)).map(q => q.id);
+  const outCap = COUNTS[baseN()][1] + 2, outers = G.players.filter(q => ['Saint', 'Recluse', 'Butler'].includes(q.claim)).map(q => q.id);
   if (outers.length > outCap) cons.push({ fn: ev => outers.filter(x => !ev[x]).length > outCap ? 0.05 : 1 });
   // Told someone one thing in private and claimed another in public
   G.callouts.forEach(c => cons.push({ fn: ev => ev[c.x] ? 1 : 0.3 }));
@@ -969,13 +1116,13 @@ function exactBelief() {
 }
 // key: a player id (their own view) or 'town' (only what's public)
 function computeBelief(key, pcons) {
-  const N = G.players.length, m = COUNTS[N][2];
+  const N = G.players.length, m = COUNTS[baseN()][2];
   let cons = pcons;
   const fix = {};
   if (key !== 'town') {
     const p = P(key);
     if (!isGood(p) && knownTeam(p).length > 1) return exactBelief();
-    if (isGood(p)) fix.good = p.id; else if (p.role === 'Imp') fix.demon = p.id; else fix.minion = p.id;
+    if (isGood(p)) fix.good = p.id; else if (p.role === 'Imp') fix.demon = p.id; else if (!p.trav) fix.minion = p.id;
     // Their own info that they haven't shared yet (a good player trusts their own info, unless drunk or poisoned)
     if (isGood(p) || p.id === G.me) {
       const shared = new Set(G.pub.filter(e => e.by === p.id).map(e => fkey(e.f)));
@@ -1000,6 +1147,8 @@ function computeBelief(key, pcons) {
       // Difficulty: a daily hunch about one player, mostly right when the good bots are sharp, mostly wrong when dull
       const g = isGood(p) ? hunch(p) : null;
       if (g) cons = cons.concat([{ fn: ev => (!!ev[g.x]) === g.evil ? 1 : 0.35 }]);
+      // A Beggar learns the alignment of whoever gives them a vote token
+      if (p.bot.align) Object.keys(p.bot.align).forEach(id => { const good = p.bot.align[id]; if (!P(+id).trav) cons = cons.concat([{ fn: ev => (!ev[+id]) === good ? 1 : 0.02 }]); });
       // You told a good bot, privately, that you are its own character
       if (isGood(p) && p.bot.heard && p.bot.heard.roles.length === 1 && p.bot.heard.roles[0] === believed(p)) cons = cons.concat([{ fn: ev => ev[G.me] ? 1 : 0.15 }]);
     }
@@ -1008,9 +1157,10 @@ function computeBelief(key, pcons) {
   const pd = new Array(N).fill(0), pe = new Array(N).fill(0), ev = new Uint8Array(N);
   let tot = 0;
   for (const d of fix.demon != null ? [fix.demon] : al) {
-    if (d === fix.good || d === fix.minion) continue;
+    if (d === fix.good || d === fix.minion || P(d).trav) continue;
     const pool = [];
-    for (let i = 0; i < N; i++) if (i !== d && i !== fix.good) pool.push(i);
+    // Travellers aren't Minions or the Demon: their alignment is guessed separately (travSus)
+    for (let i = 0; i < N; i++) if (i !== d && i !== fix.good && !G.players[i].trav) pool.push(i);
     combos(pool, Math.min(m, pool.length), 0, [], mins => {
       if (fix.minion != null && !mins.includes(fix.minion)) return;
       ev.fill(0); ev[d] = 1; for (const x of mins) ev[x] = 1;
@@ -1111,6 +1261,7 @@ function validBluff(p) {
 const shareable = p => isGood(p) ? G.facts[p.id].filter(f => f.src === believed(p)) : p.bot.fakes;
 function botClaim(p) {
   p.bot.waitBluff = false;
+  if (p.trav) { setClaim(p, p.role); say(p.id, `I'm a traveller: the <b>${esc(p.role)}</b>. ${esc(ROLES[p.role].text)}`); return; }
   const role = isGood(p) ? believed(p) : (p.bot.bluff = validBluff(p));
   if (!isGood(p) && !p.claim) log(`${esc(p.name)} (${p.role}) claims to be the ${role}.`);
   setClaim(p, role);
@@ -1199,7 +1350,7 @@ function morningTalk() {
       if (SHARP() === 'sharp' && isGood(p)) open = 1;
       if (believed(p) === 'Saint' && isGood(p)) open = 1;
       if (p.bot.waitBluff && G.n === 1) return;
-      if (G.n >= 2 || chance(open) || (!p.alive && chance(0.6))) botClaim(p);
+      if (p.trav || G.n >= 2 || chance(open) || (!p.alive && chance(0.6))) botClaim(p);
     } else shareNew(p);
   });
   if (G.n >= 2 && !me().claim) { const asker = pick(order.filter(q => q.alive)); if (asker) say(asker.id, pick([`${esc(me().name)}, you still haven't told us your character.`, `What about you, ${esc(me().name)}? What are you?`])); }
@@ -1389,7 +1540,7 @@ const TOPICS = {
 };
 // What the town can count: the setup for this many players, and the Outsiders claimed so far
 function makeup() {
-  const n = G.players.length, [t, o, m] = COUNTS[n];
+  const n = baseN(), [t, o, m] = COUNTS[n];
   const outClaims = G.players.filter(q => ['Saint', 'Recluse', 'Butler'].includes(q.claim)).length;
   const lib = G.pub.find(e => e.f.k === 'noOut' || (e.f.k === 'pair' && e.f.role === 'Librarian'));
   return { n, t, o, m, outClaims, noOut: lib && lib.f.k === 'noOut', libBy: lib && lib.by, libSaw: lib && lib.f.k === 'pair' ? lib.f.char : null };
@@ -1550,7 +1701,7 @@ function humanTheory(x, kind) {
 
 /* ---------- The evil team: honest with each other in private ---------- */
 // With 7 or more players the evil team knows each other, so a teammate bot drops the act with you
-const teammate = p => !!p && p.id !== G.me && !!p.bot && !isGood(p) && !isGood(me()) && G.players.length >= 7;
+const teammate = p => !!p && p.id !== G.me && !!p.bot && !p.trav && !isGood(p) && !isGood(me()) && baseN() >= 7;
 const sayTo = (w, who) => text => w.lines.push({ who, text });
 // On the first morning, your teammates come to you; a Spy teammate also passes on what it saw each day
 function teamApproach() {
@@ -1915,6 +2066,14 @@ function botNight(p) {
   if (br === 'Monk' && n >= 2 && isGood(p)) return [monkTarget(p)];
   if (br === 'Fortune Teller' && isGood(p)) return ftPair(p);
   if (p.role === 'Butler') return [topBy(alive().filter(q => q.id !== p.id), q => -ratio(p, q.id)).id];
+  // Bureaucrat: triple the vote of someone on their side; Thief: turn a likely opponent's vote negative
+  if (p.role === 'Bureaucrat' || p.role === 'Thief') {
+    const c = alive().filter(q => q.id !== p.id);
+    if (!c.length) return null;
+    const B = belief(isGood(p) ? p.id : 'town'), evilish = q => q.trav ? travSus(p, q.id) : B.pe[q.id];
+    const wantGood = (p.role === 'Bureaucrat') === isGood(p);
+    return [topBy(c, q => (wantGood ? -evilish(q) : evilish(q)) + Math.random() * 0.25).id];
+  }
   return null;
 }
 function impTarget(p) {
@@ -1961,7 +2120,7 @@ function mayorTrusted(p) {
   return m && (m.id === p.id ? isGood(p) : ratio(p, m.id) < 0.8);
 }
 // The evil team (as far as it knows itself) can carry a vote on its own
-function evilHasVotes() { return alive().filter(q => !isGood(q)).length >= votesNeeded(); }
+function evilHasVotes() { return alive().filter(q => !isGood(q) && !q.trav).length >= votesNeeded(); }
 function botVote(p, a, b) {
   if (b === p.id) return false;
   const al = alive().length, d = G.dayS, nominee = P(b);
@@ -2093,6 +2252,7 @@ function howView() {
       <li><b>Talk about the setup:</b> in Say in town, announce things like "I think this is a Baron game", "there's a Drunk" or "the Poisoner is at work". Bots answer with the counts (how many Outsiders have claimed against how many there should be) and what the Librarian saw, and raise it themselves when the Outsider claims don't add up. The middle of the table shows this game's setup: Townsfolk · Outsiders · Minions · Demon, and the same with a Baron.</li>
       <li><b>Speak up:</b> from a player's seat, accuse them (could be evil, or is the Demon) or vouch for them, and pick your reason: a specific piece of evidence, something you learned, their voting, or a hunch. Bots weigh what you say, more for a specific reason, and only as much as they trust you. A couple of them will say whether they agree.</li>
       <li><b>Talk privately:</b> from a player's seat, offer three for three (pick three characters, one of them true), tell them your character one for one, whisper your info (real or made up), or ask what they've learned and who they really suspect. Good bots open up if they trust you; evil bots always answer, with their bluff. The town sees that you talked, not what was said. Bots remember: if your public claim doesn't match what you told someone, they'll say so.</li>
+      <li><b>Travellers:</b> choose 0 to 5 at setup. They sit among the players as extra seats, on top of the normal setup counts (which ignore them, as does the "two players left" rule). Each traveller announces their character on day 1; the game secretly makes each one good or evil at random, and they win with that team. An evil traveller doesn't learn the evil team, and the evil team doesn't learn them. <b>Scapegoat</b>: if a player of their alignment is executed, they might be executed instead. <b>Gunslinger</b>: after the day's first vote, may shoot someone who voted. <b>Beggar</b>: needs vote tokens to vote; dead players can give theirs (you can too, from the Beggar's seat) and the Beggar learns their alignment. <b>Bureaucrat</b>: each night, someone's vote counts as 3 tomorrow. <b>Thief</b>: each night, someone's vote counts as −1 tomorrow (so vote totals may not match the hands). Anyone can call for a traveller to be <b>exiled</b> from their seat: everyone votes, alive or dead, without using ghost votes. Travellers aren't in the Worlds tab; with Coach on, their seat shows how likely they are to be evil.</li>
       <li><b>Advise the Slayer:</b> on the seat of a player who claims the Slayer and hasn't shot, pick who they should shoot and say it in town or whisper it. A real Slayer weighs it against their own suspicions and how much they trust you, and either shoots or tells you who they'd rather shoot. A fake Slayer (evil) may "shoot" to look real; a miss clears whoever they shot.</li>
       <li><b>Theories:</b> bots put theories to the town when info doesn't add up: whose info can't all be right, an Empath whose number changed with the same neighbours, an Undertaker who saw something other than the executed player's claim, a missing Outsider (a possible Drunk) or a Fortune Teller's red herring. Evil bots try to cast doubt on info that points at their team. From a player's seat you can say they were poisoned or might be the Drunk; bots say whether they agree, and if the town agrees, it trusts that player's info less.</li>
       <li><b>What they've heard:</b> each morning a few bots chat privately with each other and swap characters and info (the town sees who talked). Ask a bot what they've learned, in town or privately, and they also pass on what others told them. Good bots pass it on honestly; an evil bot may lie about what someone said, to frame them. It all goes in your notes (👂 in Claims and info), the Worlds tab and the coach: it only counts if both the teller and the one who said it are good. If someone says one thing in private and another in town, the bot they told will call it out.</li>
@@ -2130,6 +2290,8 @@ function setupView() {
         <select class="inp" data-pref="n">${counts.map(n => `<option value="${n}" ${prefs.n === n ? 'selected' : ''}>${n} players</option>`).join('')}</select>
       </label>
       <p class="hint">${breakdown(prefs.n)}</p>
+      <div class="setting"><span>Travellers</span><div class="seg">${[0, 1, 2, 3, 4, 5].map(k => `<button data-act="trav" data-v="${k}" aria-pressed="${(prefs.trav || 0) === k}">${k}</button>`).join('')}</div></div>
+      <p class="hint">${prefs.trav ? `${prefs.trav} extra ${plural(prefs.trav, 'seat', 'seats')} for ${plural(prefs.trav, 'a traveller', 'travellers')} (Scapegoat, Gunslinger, Beggar, Bureaucrat, Thief), on top of the ${prefs.n} players. Everyone knows a traveller's character; the game secretly makes each one good or evil at random. Travellers can be exiled.` : 'Travellers join on top of the normal players: everyone knows their character, but not whether they are good or evil.'}</p>
       <div class="setting"><span>Your team</span><div class="seg">${[['random', 'Random'], ['good', 'Good'], ['evil', 'Evil']].map(([v, l]) => `<button data-act="pick-team" data-v="${v}" aria-pressed="${prefs.team === v}">${l}</button>`).join('')}</div></div>
       <div class="setting"><span>Difficulty</span><div class="seg">${[['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']].map(([v, l]) => `<button data-act="diff" data-v="${v}" aria-pressed="${(prefs.diff || 'normal') === v}">${l}</button>`).join('')}</div></div>
       <p class="hint">${{ easy: 'Easy. If you\'re good: the good bots all say what they are on day 1 and read the evidence well, and the evil bots bluff carelessly and pick targets at random. If you\'re evil: the good bots hide their claims and misread the evidence.', normal: 'Normal: a fair game. Some good bots hold back their claim for a day; evil bots use the Demon\'s bluffs and frame good players.', hard: 'Hard. If you\'re good: the good bots hide their claims and misread the evidence more often. If you\'re evil: the good bots all claim on day 1 and read the evidence well.' }[prefs.diff || 'normal']}</p>
@@ -2268,6 +2430,13 @@ function voteCard() {
     ${butler}${!m.alive ? '<p class="hint">You are dead: voting yes uses your one ghost vote.</p>' : ''}
     <div class="row"><button class="btn primary" data-act="vote" data-v="1">Vote to execute</button><button class="btn" data-act="vote" data-v="0">Don't vote</button></div></section>`;
 }
+function exileCard() {
+  const e = G.exile, q = P(e.x);
+  return `<section class="card panel"><h2>${Nm(e.by)} ${e.by === G.me ? 'call' : 'calls'} for ${nm(e.x)} to be exiled</h2>
+    ${feedHtml(G.feed.slice(-3).filter(x => x.who != null))}
+    <p>${esc(q.name)} is a traveller, the <b>${esc(q.role)}</b>. An exile isn't an execution: everyone may vote, alive or dead, and it doesn't use up a ghost vote. ${votesNeeded()} votes needed.</p>
+    <div class="row"><button class="btn primary" data-act="exile-vote" data-v="1">Vote to exile</button><button class="btn" data-act="exile-vote" data-v="0">Don't vote</button></div></section>`;
+}
 function lastVoteCard() {
   const v = G.lastVote;
   const chips = v.order.map(id => `<span class="vote-chip ${v.hands.includes(id) ? 'yes' : 'no'}">${v.hands.includes(id) ? '✋' : '–'} ${id === G.me ? 'You' : esc(P(id).name)}</span>`).join('');
@@ -2297,7 +2466,9 @@ function panelCard(id) {
   const labelRow = labelHtml(q);
   return `<section class="card panel" id="player-panel">
     <div class="panel-head"><h2>${isMe ? 'You' : esc(q.name)}</h2><span class="tag">${q.alive ? 'alive' : q.ghost ? 'dead · ghost vote' : 'dead'}</span>${prefs.coach ? `<span class="tag">${coachKey() === 'town' ? 'town suspicion' : 'Demon'} ${coachPct(id)}%</span>` : ''}</div>
-    <p>${q.claim ? `${isMe ? 'You claim' : 'Claims'} to be the <b>${esc(q.claim)}</b>.` : isMe ? "You haven't claimed a character." : "Hasn't said what they are."}</p>
+    <p>${q.trav ? `A traveller: the <b>${esc(q.role)}</b>. ${esc(ROLES[q.role].text)} Nobody knows if they are good or evil${prefs.coach ? ` (the ${coachKey() === 'town' ? 'town' : 'coach'} guesses ${Math.round(100 * travSus(coachKey() === 'town' ? null : me(), q.id))}% evil)` : ''}.${q.role === 'Beggar' ? ` Vote tokens: ${q.tokens || 0}.` : ''}` : q.claim ? `${isMe ? 'You claim' : 'Claims'} to be the <b>${esc(q.claim)}</b>.` : isMe ? "You haven't claimed a character." : "Hasn't said what they are."}</p>
+    ${q.trav && q.alive && G.stage === 'day' && !G.vote && !G.exile && !((G.dayS && G.dayS.exiles) || []).includes(q.id) ? `<div class="row"><button class="btn sm" data-act="exile-call" data-id="${id}">Call for ${esc(q.name)} to be exiled</button></div><p class="hint">Anyone, alive or dead, can call for a traveller's exile, and everyone may vote. It isn't your nomination for the day.</p>` : ''}
+    ${q.role === 'Beggar' && q.trav && q.alive && !me().alive && me().ghost ? `<div class="row"><button class="btn sm" data-act="give-token" data-id="${id}">Give ${esc(q.name)} my vote token</button></div><p class="hint">You lose your ghost vote, and the Beggar learns whether you are good or evil.</p>` : ''}
     ${hist}
     ${shared.length ? `<div class="hist">${shared.map(e => `<div class="info">${factText(e.f)}</div>`).join('')}</div>` : ''}
     ${askBtns}
@@ -2440,6 +2611,7 @@ function claimState(q, r) {
 }
 // The hard claim to show on a player's seat: said in town (★ if the game proved it), or told to you one for one (🤫)
 function seatClaim(q) {
+  if (q.trav) return '🧳 ' + q.role;
   const short = r => r === 'Fortune Teller' ? 'Fortune T.' : r === 'Scarlet Woman' ? 'Scarlet W.' : r;
   if (q.claim) return (claimState(q, q.claim).k === 'conf' ? '★ ' : '') + short(q.claim);
   const r = CLAIMABLE.find(c => { const st = claimState(q, c); return st && st.k === 'hard' && st.priv; });
@@ -2516,7 +2688,7 @@ function namedHtml(x) {
 /* ---------- World building (as in the Clocktower Notebook): every Demon + Minion seating, tested against what you know ---------- */
 // What's on record for the Demon and Minions, from your seat: public info, your own info, and what you were told in private
 function wbView() {
-  const m = me(), n = G.players.length;
+  const m = me(), n = baseN();
   // As an evil player who knows the team, the worlds show how the town sees it (your own knowledge would leave one world)
   const townView = !isGood(m) && knownTeam(m).length > 1;
   return { townView, k: COUNTS[n][2] };
@@ -2532,7 +2704,7 @@ function solveWorldsRaw(opts = {}) {
   const proven = new Set();
   if (!townView && isGood(m)) proven.add(G.me);
   G.virgins.forEach(v => { if (v.fired) proven.add(v.by); });
-  const pool = G.players.filter(q => !proven.has(q.id) && assume[q.id] !== 'good').map(q => q.id);
+  const pool = G.players.filter(q => !q.trav && !proven.has(q.id) && assume[q.id] !== 'good').map(q => q.id);
   const fixedDemon = Object.keys(assume).find(id => assume[id] === 'demon');
   const selfEvil = !townView && !isGood(m) ? G.me : null;
   const demons = pool.filter(id => P(id).alive && (fixedDemon == null || +fixedDemon === id) && (!selfEvil || m.role !== 'Imp' || id === G.me) && !(selfEvil && m.role !== 'Imp' && id === G.me));
@@ -2630,7 +2802,7 @@ function worldsCard() {
   const wb = solveWorlds(), assume = wbAssume(), fit = wb.worlds.filter(w => w.breaks === wb.best);
   const name = id => id === G.me ? 'You' : esc(P(id).name);
   const pct = x => `${Math.round(x * 100)}%`;
-  const others = G.players.filter(q => wb.townView || q.id !== G.me);
+  const others = G.players.filter(q => !q.trav && (wb.townView || q.id !== G.me));
   const chips = others.map(q => `<button class="wb-chip ${assume[q.id] || ''}" data-act="wb-assume" data-id="${q.id}" aria-label="${name(q.id)}: ${WB_LABEL[assume[q.id]] || 'no assumption'}">${name(q.id)}${q.alive ? '' : ' ☠'}${assume[q.id] ? ` · ${WB_LABEL[assume[q.id]]}` : ''}</button>`).join('');
   const head = !wb.all ? '<p class="wb-head">No world fits your assumptions. Tap a name below to change or clear them.</p>'
     : wb.best === 0 ? `<p class="wb-head"><b>${fit.length}</b> world${fit.length === 1 ? '' : 's'} fit${fit.length === 1 ? 's' : ''} everything ${wb.townView ? 'the town has heard' : "you've heard"}.</p>`
@@ -2654,7 +2826,7 @@ function worldsCard() {
     ${qHtml}
     ${clear.length ? `<p class="hint"><b style="color:var(--good)">Good in every world here:</b> ${clear.map(q => name(q.id)).join(', ')}</p>` : ''}
     ${listHtml ? `<h3>Most likely worlds${wb.worlds.length > 8 ? ` (8 of ${wb.worlds.length})` : ''}</h3><div class="hist">${listHtml}</div>` : ''}
-    <p class="hint">Counts ${wb.k} Minion${wb.k === 1 ? '' : 's'} and one living Demon${wb.proven.size ? `; ${list([...wb.proven].map(name))} ${wb.proven.size === 1 && wb.proven.has(G.me) ? 'are' : 'counted as'} good` : ''}. Worlds needing one more piece of wrong info than the best count for much less. Night deaths, changed stories, and nominations and votes are softer clues: they make a world less likely but don't rule it out. The Spy and Recluse can register falsely and the Demon can pass to a Minion, so treat this as a guide.</p>
+    <p class="hint">Counts ${wb.k} Minion${wb.k === 1 ? '' : 's'} and one living Demon${wb.proven.size ? `; ${list([...wb.proven].map(name))} ${wb.proven.size === 1 && wb.proven.has(G.me) ? 'are' : 'counted as'} good` : ''}. Worlds needing one more piece of wrong info than the best count for much less. Night deaths, changed stories, and nominations and votes are softer clues: they make a world less likely but don't rule it out. The Spy and Recluse can register falsely and the Demon can pass to a Minion, so treat this as a guide.${G.players.some(q => q.trav) ? ' Travellers aren\'t in these worlds: they can\'t be Minions or the Demon, and whether each is good or evil is a separate guess, shown on their seat.' : ''}</p>
   </section>`;
 }
 // Every nomination and vote, day by day (as in the Notebook)
@@ -2663,7 +2835,7 @@ function nomsCard() {
   const name = id => id === G.me ? 'You' : esc(P(id).name);
   const days = [...new Set(log.map(n => n.day))].sort((a, b) => b - a);
   return `<section class="card"><h3>Nominations and votes</h3>
-    ${days.length ? days.map(day => `<div class="hist"><div class="hist-when">Day ${day}</div>${log.filter(n => n.day === day).map(n => `<div class="info"><b>${name(n.a)}</b> → <b>${name(n.b)}</b>: <b>${n.hands.length}</b> of ${n.need} needed${n.block ? ' · <span class="bad-txt">on the block</span>' : ''}<div class="hint">${n.hands.length ? 'Voted: ' + n.hands.map(name).join(', ') : 'Nobody voted'}</div></div>`).join('')}</div>`).join('')
+    ${days.length ? days.map(day => `<div class="hist"><div class="hist-when">Day ${day}</div>${log.filter(n => n.day === day).map(n => `<div class="info"><b>${name(n.a)}</b> → <b>${name(n.b)}</b>${n.exile ? ' (exile)' : ''}: <b>${n.count != null ? n.count : n.hands.length}</b> of ${n.need} needed${n.block ? ' · <span class="bad-txt">on the block</span>' : ''}<div class="hint">${n.hands.length ? 'Voted: ' + n.hands.map(name).join(', ') : 'Nobody voted'}</div></div>`).join('')}</div>`).join('')
       : '<p class="hint">No votes yet. Every nomination and who voted is recorded here, and World building uses it.</p>'}
   </section>`;
 }
@@ -2694,7 +2866,7 @@ function feedHtml(items, tappable) {
 }
 // The setup for this many players, shown in the middle of the table
 function midCounts() {
-  const [t, o, m] = COUNTS[G.players.length];
+  const [t, o, m] = COUNTS[baseN()];
   const row = (t, o) => `<span style="color:var(--townsfolk)">${t}</span>·<span style="color:var(--outsider)">${o}</span>·<span style="color:var(--minion)">${m}</span>·<span style="color:var(--demon)">1</span>`;
   return `<div class="mid-counts" title="${t} Townsfolk, ${o} Outsiders, ${m} Minions, 1 Demon">${row(t, o)}</div><div class="mid-key">Town · Out · Min · Dem</div><div class="mid-key">Baron: ${t - 2}·${o + 2}·${m}·1</div>`;
 }
@@ -2724,11 +2896,11 @@ function dayView() {
   const d = G.dayS, m = me();
   const seats = tableHtml(q => ({
     button: true, attrs: `data-act="seat" data-id="${q.id}" aria-label="${esc(q.name)}"`,
-    cls: 'seat ' + (teammate(q) ? 'mate ' : '') + (q.alive ? '' : 'dead') + (d.block === q.id ? ' block' : '') + (U.panel === q.id ? ' picked' : ''),
+    cls: 'seat ' + (q.trav ? 'trav ' : '') + (teammate(q) ? 'mate ' : '') + (q.alive ? '' : 'dead') + (d.block === q.id ? ' block' : '') + (U.panel === q.id ? ' picked' : ''),
     claim: seatClaim(q), claimConf: claimState(q, q.claim || '') && claimState(q, q.claim).k === 'conf',
-    sub: [q.id === G.me ? 'you' : '', prefs.coach ? `${coachPct(q.id)}%` : ''].filter(Boolean).join(' · '),
+    sub: [q.id === G.me ? 'you' : '', prefs.coach ? (q.trav ? `${Math.round(100 * travSus(coachKey() === 'town' ? null : me(), q.id))}% evil` : `${coachPct(q.id)}%`) : ''].filter(Boolean).join(' · '),
     mark: [teammate(q) ? '🔴' : '', openRequests().some(r => r.by === q.id) ? '✉' : '', q.alive ? '' : q.ghost ? '☠ vote' : '☠'].filter(Boolean).join(' '),
-  }), `<div class="mid-big">${alive().length}</div><div class="mid-sm">alive of ${G.players.length}</div>${midCounts()}${d.block != null ? `<div class="mid-sm" style="color:var(--evil)">${nm(d.block)} on the block</div>` : ''}`);
+  }), `<div class="mid-big">${alive().length}</div><div class="mid-sm">alive of ${G.players.length}${G.players.some(q => q.trav) ? ` (${G.players.filter(q => q.trav).length} 🧳)` : ''}</div>${midCounts()}${d.block != null ? `<div class="mid-sm" style="color:var(--evil)">${nm(d.block)} on the block</div>` : ''}`);
   const today = G.feed.filter(e => e.when === label()), earlier = G.feed.filter(e => e.when !== label());
   const endConfirm = U.confirmEnd ? `<div class="banner">${d.block != null ? `End the day? <b>${nm(d.block)}</b> will be executed.` : 'End the day? Nobody is on the block, so nobody will be executed.'}
       <div class="row" style="margin-top:8px"><button class="btn primary sm" data-act="end-yes">End the day</button><button class="btn sm" data-act="end-no">Not yet</button></div></div>` : '';
@@ -2752,7 +2924,7 @@ function dayView() {
   else if (tab === 'notes') body = notesCard() + nomsCard();
   else if (tab === 'worlds') body = worldsCard();
   else body = myCard(true);
-  return `${G.vote ? voteCard() : ''}${tabs}${body}`;
+  return `${G.exile ? exileCard() : G.vote ? voteCard() : ''}${tabs}${body}`;
 }
 // The fixed bar at the bottom of the day: the two things that move the day on
 function actionBar() {
@@ -2981,8 +3153,9 @@ document.addEventListener('click', e => {
     case 'setup': U.view = 'setup'; U.menu = false; return go();
     case 'pick-team': prefs.team = b.dataset.v; savePrefs(); break;
     case 'diff': prefs.diff = b.dataset.v; savePrefs(); break;
+    case 'trav': prefs.trav = +b.dataset.v; savePrefs(); break;
     case 'start':
-      newGame({ n: prefs.n, team: prefs.team, name: prefs.name, diff: prefs.diff || 'normal' });
+      newGame({ n: prefs.n, team: prefs.team, name: prefs.name, diff: prefs.diff || 'normal', trav: prefs.trav || 0 });
       G.created = Date.now();
       U = { view: 'game', sel: [], need: 0, menu: false, panel: null, confirmEnd: false, form: null, bc: null };
       return go();
@@ -3077,10 +3250,16 @@ document.addEventListener('click', e => {
     case 'vote': G.vote.mine = b.dataset.v === '1'; finishVote(); return go();
     case 'town-nom':
       U.confirmEnd = false;
+      if (G.exile) break;
+      if (chance(0.35) && botExile()) { G.dayS.quiet = false; return go(); }
       if (botNominates()) { G.dayS.quiet = false; return go(); }
       G.dayS.quiet = true; sys('Nobody else wants to nominate.');
       break;
+    case 'exile-vote': G.exile.mine = b.dataset.v === '1'; finishExile(); return go();
+    case 'exile-call': callExile(G.me, id); return go();
+    case 'give-token': giveToken(id); break;
     case 'end':
+      if (G.exile) break;
       // Anyone still keen gets one last nomination first
       if (botNominates()) { sys('Before the day ends…'); return go(); }
       U.confirmEnd = true; break;
