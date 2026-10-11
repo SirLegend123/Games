@@ -887,7 +887,8 @@ function factFn(f) {
 // Everything said in public, as checks on a world. src: whose word it is (it only counts if they're good)
 function publicCons() {
   const cons = [];
-  G.pub.forEach(e => { const fn = factFn(e.f); if (fn) cons.push({ src: e.by, fn }); });
+  G.doubt = G.doubt || {};
+  G.pub.forEach(e => { const fn = factFn(e.f); if (fn) cons.push({ src: e.by, fn, floor: G.doubt[e.by] ? 0.3 : 0 }); });
   // Two players claiming the same character: at most one of them is good
   const by = {};
   G.players.forEach(p => { if (p.claim) (by[p.claim] = by[p.claim] || []).push(p.id); });
@@ -984,7 +985,7 @@ function computeBelief(key, pcons) {
       for (const c of cons) {
         let v;
         if (c.via != null && ev[c.via]) continue;
-        if (c.src != null) { if (ev[c.src]) continue; v = Math.max(c.fn(ev, d), FLOOR); }
+        if (c.src != null) { if (ev[c.src]) continue; v = Math.max(c.fn(ev, d), c.floor || FLOOR); }
         else v = c.fn(ev, d);
         w *= v;
         if (w < 1e-12) return;
@@ -1170,6 +1171,7 @@ function morningTalk() {
   });
   if (G.n >= 2 && !me().claim) { const asker = pick(order.filter(q => q.alive)); if (asker) say(asker.id, pick([`${esc(me().name)}, you still haven't told us your character.`, `What about you, ${esc(me().name)}? What are you?`])); }
   setupTalk();
+  theoryTalk();
   order.forEach(p => { if (chance(p.alive ? 0.55 : 0.2)) opinion(p); });
   const talkers = shuffle(alive().filter(q => q.id !== G.me));
   for (let i = 0; i + 1 < talkers.length && i < 4; i += 2) if (chance(0.5)) sys(`${esc(talkers[i].name)} and ${esc(talkers[i + 1].name)} step aside for a private chat.`);
@@ -1404,6 +1406,113 @@ function setupTalk() {
   if (!al.length) return;
   if (M.outClaims > M.o + 2 && G.saidSetup !== 'over') { G.saidSetup = 'over'; say(al[0].id, `${outsiderLine(M)}. That's more than even a Baron allows: someone claiming an Outsider is lying.`); }
   else if (M.outClaims > M.o && !G.saidSetup) { G.saidSetup = 'baron'; say(al[0].id, `${outsiderLine(M)}. I think this is a Baron game, or an Outsider claim is fake.`); }
+}
+
+/* ---------- Theories: whose info might be wrong (drunk, poisoned or lying) ---------- */
+const infoBy = x => G.pub.filter(e => e.by === x);
+const whose = x => x === G.me ? 'your' : `${esc(P(x).name)}'s`;
+const Whose = x => x === G.me ? 'Your' : `${esc(P(x).name)}'s`;
+// Does this piece of public info point at the speaker's evil team?
+function hurtsTeam(p, f) {
+  const team = knownTeam(p).concat(p.id), imp = G.players.find(q => q.role === 'Imp' && q.alive);
+  if (f.k === 'pair' && f.role === 'Investigator') return team.includes(f.a) || team.includes(f.b);
+  if (f.k === 'ft' && f.yes) return !!imp && team.includes(imp.id) && (f.a === imp.id || f.b === imp.id);
+  if (f.k === 'empath') return f.num > 0 && f.nb.some(x => team.includes(x));
+  if (f.k === 'see') return team.includes(f.who) && (MN.includes(f.char) || f.char === 'Imp');
+  return false;
+}
+// Theories anyone in town could put forward, from what's been said in public
+function theoryCands() {
+  const out = [];
+  // Info that can't all be true, even allowing for liars
+  if (G.pub.length >= 2) {
+    const wb = solveWorldsRaw({ town: true });
+    if (wb.best >= 1 && wb.worlds.length) {
+      const top = wb.worlds.filter(w => w.breaks === wb.best).sort((a, b) => b.p - a.p).slice(0, 3);
+      const srcs = [...new Set(top.flatMap(w => w.bad))];
+      if (srcs.length) out.push({ key: 'contra:' + srcs.slice().sort().join(','), doubt: srcs, text: `Something doesn't add up. ${list(srcs.map(x => `${whose(x)} ${esc(claimOf(x) || '')} info`))} can't all be right, even if someone's lying. ${srcs.length === 1 ? (srcs[0] === G.me ? 'You' : 'They') + ' could be drunk or poisoned' : 'One of them is probably drunk or poisoned'}.` });
+    }
+  }
+  // An Empath whose number changed with the same neighbours
+  G.players.forEach(q => {
+    const em = infoBy(q.id).map(e => e.f).filter(f => f.k === 'empath').sort((a, b) => a.n - b.n);
+    for (let i = 1; i < em.length; i++) if (em[i].num !== em[i - 1].num && em[i].nb.join() === em[i - 1].nb.join())
+      out.push({ key: `emp:${q.id}:${em[i].n}`, doubt: [q.id], text: `${Whose(q.id)} Empath number went from ${em[i - 1].num} to ${em[i].num} with the same neighbours. Nobody changes sides overnight, so ${q.id === G.me ? 'you were' : 'they were'} probably poisoned one of those nights.` });
+  });
+  // The Undertaker saw something other than what the executed player claimed
+  G.pub.filter(e => e.f.k === 'see' && e.f.src === 'Undertaker').forEach(e => {
+    const x = e.f.who, d = G.deaths.find(y => y.id === x), cl = (d && d.claim) || P(x).claimHist[P(x).claimHist.length - 1];
+    if (!cl || cl === e.f.char) return;
+    const text = e.f.char === 'Drunk'
+      ? `${Nm(e.by)} says ${nm(x)} was really the Drunk, not the ${esc(cl)}. If that's true, everything ${nm(x)} told us was false. Unless ${nm(e.by)} is the one who's drunk, poisoned or lying.`
+      : `${Nm(e.by)} says ${nm(x)} was the ${esc(e.f.char)}, but ${nm(x)} claimed the ${esc(cl)}. Either ${nm(x)} was lying, or ${nm(e.by)} was drunk or poisoned.`;
+    out.push({ key: `ut:${e.by}:${x}`, doubt: [], avoid: [e.by, x], text });
+  });
+  // The Librarian saw a Drunk
+  G.pub.filter(e => e.f.k === 'pair' && e.f.char === 'Drunk').forEach(e => out.push({ key: 'libdrunk:' + e.by, doubt: [], avoid: [e.by], text: `${Nm(e.by)} saw a Drunk: one of ${nm(e.f.a)} and ${nm(e.f.b)}. Whichever it is has false info and doesn't know it.` }));
+  // Fewer Outsiders claimed than there should be
+  const M = makeup();
+  if (G.n >= 2 && M.o > 0 && M.outClaims < M.o) {
+    const tf = G.players.filter(q => q.claim && TF.includes(q.claim) && infoBy(q.id).length && q.id !== G.me).slice(0, 2);
+    out.push({ key: 'missing-out', doubt: [], text: `There should be ${M.o} ${plural(M.o, 'Outsider', 'Outsiders')}, but only ${M.outClaims} ${plural(M.outClaims, 'has', 'have')} claimed. One of our Townsfolk might be the Drunk${tf.length ? `, so even ${list(tf.map(q => whose(q.id)))} info could be false` : ''}.` });
+  }
+  // A Fortune Teller yes on someone who looks good: the red herring, or poisoned
+  const B = belief('town');
+  G.pub.filter(e => e.f.k === 'ft' && e.f.yes).forEach(e => {
+    const t = [e.f.a, e.f.b].find(x => x !== e.by && B.pe[x] < 0.12);
+    if (t != null) out.push({ key: `ftrh:${e.by}:${e.f.n}`, doubt: [], avoid: [e.by, t], text: `${Whose(e.by)} yes on ${nm(e.f.a)} and ${nm(e.f.b)}: ${nm(t)} looks good to me, so ${t === G.me ? 'you' : 'they'} could be the red herring. Or ${nm(e.by)} was poisoned that night.` });
+  });
+  return out;
+}
+// Each morning a bot or two put a theory forward; evil bots try to cast doubt on info that points at their team
+function theoryTalk() {
+  G.theories = G.theories || []; G.doubt = G.doubt || {};
+  let said = 0;
+  const good = shuffle(alive().filter(q => q.bot && isGood(q)));
+  for (const t of shuffle(theoryCands())) {
+    if (said >= 2 || G.theories.includes(t.key)) continue;
+    const sp = good.find(q => !t.doubt.includes(q.id) && !(t.avoid || []).includes(q.id));
+    if (!sp || !chance(0.7)) continue;
+    G.theories.push(t.key); said++;
+    say(sp.id, t.text);
+    t.doubt.forEach(x => { if (x !== G.me) G.doubt[x] = true; });
+  }
+  bots().filter(p => p.alive && !isGood(p)).forEach(p => {
+    const e = G.pub.find(e => e.by !== p.id && !knownTeam(p).includes(e.by) && hurtsTeam(p, e.f) && !G.theories.includes('discredit:' + e.by));
+    if (!e || !chance(SLOPPY_EVIL() ? 0.25 : 0.5)) return;
+    G.theories.push('discredit:' + e.by);
+    say(p.id, pick([`I wouldn't build anything on ${whose(e.by)} info. The Poisoner goes after info characters, and ${e.by === G.me ? 'you' : 'they'} could be the Drunk without knowing it.`,
+      `What if ${nm(e.by)} was poisoned? That would explain a lot. I'd be careful trusting ${e.by === G.me ? 'your' : 'their'} info.`,
+      `Has anyone thought that ${nm(e.by)} might be the Drunk? ${e.by === G.me ? 'Your' : 'Their'} info would be worthless then.`]));
+    const r = good.find(q => q.id !== e.by);
+    if (r && chance(0.5)) say(r.id, pick(["Maybe, but you'd say that if their info pointed at you.", "Possible. But nothing else contradicts it yet.", "Let's not throw out info just because we don't like it."]));
+    else if (e.by !== G.me && chance(0.35)) G.doubt[e.by] = true;
+  });
+}
+// You put forward a theory about someone's info
+function humanTheory(x, kind) {
+  G.theories = G.theories || []; G.doubt = G.doubt || {};
+  const q = P(x), mine = infoBy(x);
+  say(G.me, kind === 'drunk' ? `What if ${esc(q.name)} is the Drunk? Then ${q.claim ? `they're not really the ${esc(q.claim)} and ` : ''}their info is false.` : `I think ${esc(q.name)} was poisoned. I don't trust their info.`);
+  const cands = theoryCands(), strong = cands.some(t => t.doubt.includes(x)) || G.pub.some(e => e.f.k === 'see' && e.f.char === 'Drunk' && e.f.who === x);
+  const M = makeup(), missingOut = M.outClaims < M.o;
+  let agreed = 0;
+  shuffle(alive().filter(p => p.bot && p.id !== x)).slice(0, 2).forEach(p => {
+    let line;
+    if (!mine.length) line = q.claim && !INFO_ROLES.includes(q.claim) ? `As the ${esc(q.claim)}, ${esc(q.name)} doesn't get info to be wrong about.` : `${esc(q.name)} hasn't shared any info yet.`;
+    else if (kind === 'drunk' && q.claim && !TF.includes(q.claim)) line = `The Drunk always thinks they're a Townsfolk, and ${esc(q.name)} claims an Outsider. So no.`;
+    else if (!isGood(p)) {
+      const hurt = mine.some(e => hurtsTeam(p, e.f));
+      line = hurt ? pick(['Good point. I never trusted that info.', `That would explain why ${esc(q.name)}'s info doesn't fit.`]) : pick([`Their info looks fine to me.`, `I don't see it. ${esc(q.name)}'s info hangs together.`]);
+      if (hurt) agreed += 0.5;
+    } else if (strong) { line = pick([`I think you're right: ${esc(q.name)}'s info doesn't fit with the rest.`, `That would explain it. ${esc(q.name)}'s info is the odd one out.`]); agreed++; }
+    else if (kind === 'drunk' && missingOut) { line = `Possible. We're short of Outsiders, so someone could be the Drunk. But why ${esc(q.name)}?`; agreed += 0.5; }
+    else if (kind === 'poisoned') line = pick([`Possible, the Poisoner does go after info characters. But ${esc(q.name)}'s info fits with everything else so far.`, `Maybe. What doesn't fit, though?`]);
+    else line = pick([`I don't see why. ${esc(q.name)}'s info fits with everyone else's.`, `Maybe, but there's nothing pointing that way yet.`]);
+    say(p.id, line);
+  });
+  if (agreed >= 1) G.doubt[x] = true;
+  bump();
 }
 
 /* ---------- The evil team: honest with each other in private ---------- */
@@ -1739,7 +1848,12 @@ function fakeFact(p, r, n) {
     case 'Undertaker': {
       const x = G.execs[n - 1];
       if (n < 2 || x == null) return null;
-      return { k: 'see', who: x, char: P(x).claim || pick(TF) };
+      // A teammate: back up their bluff. A good player: lie, making them look evil, or the Drunk so their info is doubted
+      if (team.includes(x)) return { k: 'see', who: x, char: P(x).claim || pick(TF) };
+      const cl = P(x).claim, roll = Math.random();
+      if (roll < 0.55 || !cl) return { k: 'see', who: x, char: pick(MN) };
+      if (roll < 0.85 && TF.includes(cl)) return { k: 'see', who: x, char: 'Drunk' };
+      return { k: 'see', who: x, char: pick(CLAIMABLE.filter(r => r !== cl)) };
     }
     case 'Monk':
       if (n < 2) return null;
@@ -1936,6 +2050,7 @@ function howView() {
       <li><b>Talk about the setup:</b> in Say in town, announce things like "I think this is a Baron game", "there's a Drunk" or "the Poisoner is at work". Bots answer with the counts (how many Outsiders have claimed against how many there should be) and what the Librarian saw, and raise it themselves when the Outsider claims don't add up. The middle of the table shows this game's setup: Townsfolk · Outsiders · Minions · Demon, and the same with a Baron.</li>
       <li><b>Speak up:</b> from a player's seat, accuse them (could be evil, or is the Demon) or vouch for them, and pick your reason: a specific piece of evidence, something you learned, their voting, or a hunch. Bots weigh what you say, more for a specific reason, and only as much as they trust you. A couple of them will say whether they agree.</li>
       <li><b>Talk privately:</b> from a player's seat, offer three for three (pick three characters, one of them true), tell them your character one for one, whisper your info (real or made up), or ask what they've learned and who they really suspect. Good bots open up if they trust you; evil bots always answer, with their bluff. The town sees that you talked, not what was said. Bots remember: if your public claim doesn't match what you told someone, they'll say so.</li>
+      <li><b>Theories:</b> bots put theories to the town when info doesn't add up: whose info can't all be right, an Empath whose number changed with the same neighbours, an Undertaker who saw something other than the executed player's claim, a missing Outsider (a possible Drunk) or a Fortune Teller's red herring. Evil bots try to cast doubt on info that points at their team. From a player's seat you can say they were poisoned or might be the Drunk; bots say whether they agree, and if the town agrees, it trusts that player's info less.</li>
       <li><b>What they've heard:</b> each morning a few bots chat privately with each other and swap characters and info (the town sees who talked). Ask a bot what they've learned, in town or privately, and they also pass on what others told them. Good bots pass it on honestly; an evil bot may lie about what someone said, to frame them. It all goes in your notes (👂 in Claims and info), the Worlds tab and the coach: it only counts if both the teller and the one who said it are good. If someone says one thing in private and another in town, the bot they told will call it out.</li>
       <li><b>Claims on the table:</b> every hard claim shows on that player's seat. Green is said in town, a blue ★ is proven by the game (a Virgin whose nominator was executed, a Slayer who killed the Demon), and 🤫 is what they told you privately, one for one.</li>
       <li><b>Claim matrix:</b> under the town talk, every player against every character. Green H is a hard claim (🤫 if it was said to you privately), light green S is a soft claim (one of a three for three), a blue star is a character the game has proven (a Virgin whose nominator was executed, a Slayer whose shot killed the Demon), × is an earlier claim, and an amber ring means two or more players hard-claim it. Info shows too: a purple letter is a ping (W Washerwoman, L Librarian, I Investigator, U Undertaker, R Ravenkeeper) in the character's column, including Minions and the Imp, and the Info columns show Fortune Teller results (✓ yes, ✗ no) and the Empath number next to each player. Tap or hover a cell to see who said it.</li>
@@ -2130,6 +2245,7 @@ function panelCard(id) {
     <h3>Speak up in town</h3><div class="row">
       ${[['evil', `Accuse ${esc(q.name)}…`], ['good', `Vouch for ${esc(q.name)}…`], ['role', 'Name their character…']].map(([k, l]) => `<button class="btn sm" data-act="say-open" data-k="${k}" data-id="${id}" aria-pressed="${!!(U.sayForm && U.sayForm.x === id && sayGroup(U.sayForm.k) === k)}">${l}</button>`).join('')}</div>
     ${U.sayForm && U.sayForm.x === id ? sayFormHtml(id) : ''}
+    ${infoBy(id).length || (q.claim && TF.includes(q.claim)) ? `<div class="row"><button class="btn sm" data-act="theory" data-k="poisoned" data-id="${id}">“${esc(q.name)} was poisoned”</button><button class="btn sm" data-act="theory" data-k="drunk" data-id="${id}">“${esc(q.name)} might be the Drunk”</button></div>` : ''}
     ${privateHtml(q)}`;
   const labelRow = labelHtml(q);
   return `<section class="card panel" id="player-panel">
@@ -2358,8 +2474,8 @@ const wbAssume = () => (G.wbAssume = G.wbAssume || {});
 const WB_NEXT = { '': 'demon', demon: 'evil', evil: 'good', good: '' };
 const WB_LABEL = { demon: 'Demon', evil: 'Evil', good: 'Good' };
 function factLabel(f) { return `${f.src}${f.n ? ` (night ${f.n})` : ''}`; }
-function solveWorldsRaw() {
-  const N = G.players.length, { townView, k } = wbView(), m = me(), assume = wbAssume();
+function solveWorldsRaw(opts = {}) {
+  const N = G.players.length, v = wbView(), townView = opts.town || v.townView, k = v.k, m = me(), assume = opts.town ? {} : wbAssume();
   const name = id => id === G.me ? 'you' : P(id).name;
   // Proven good: you (unless evil or showing the town's view), and a Townsfolk who died nominating the real Virgin
   const proven = new Set();
@@ -2413,7 +2529,7 @@ function solveWorldsRaw() {
       for (const [role, ids] of clashes) { const good = ids.filter(id => !ev[id]); if (good.length > 1) { breaks += good.length - 1; why.push(`${list(good.map(name))} would both be good while claiming the ${role} (one would be the Drunk or lying).`); } }
       let f = 1; const votes = [];
       for (const c of soft) { const r = c(ev, d); if (r) { f *= r.f; votes.push(r.why); } }
-      worlds.push({ demon: d, minions: mins.slice(), evil: new Set([d, ...mins]), breaks, why, soft: f, notes: votes });
+      worlds.push({ demon: d, minions: mins.slice(), evil: new Set([d, ...mins]), breaks, why, soft: f, notes: votes, bad: [...bad.keys()], badLabels: [...bad.values()] });
     });
   }
   const best = worlds.length ? Math.min(...worlds.map(w => w.breaks)) : 0;
@@ -2853,6 +2969,7 @@ document.addEventListener('click', e => {
     case 'say-reason': U.sayForm.r = +b.dataset.i; break;
     case 'say-cancel': U.sayForm = null; break;
     case 'say-it': humanSay(); break;
+    case 'theory': humanTheory(id, b.dataset.k); break;
     case 'three-pick': {
       const r = b.dataset.r, t = U.three = U.three || [];
       if (t.includes(r)) U.three = t.filter(x => x !== r); else { t.push(r); if (t.length > 3) t.shift(); }
