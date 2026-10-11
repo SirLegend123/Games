@@ -706,6 +706,39 @@ function slayerShot(a, b) {
     if (G.winner) toDusk([`${Nm(a)} shot at ${nm(b)}, and ${nm(b)} ${b === G.me ? 'die' : 'dies'}!`]);
   } else dayEvent(`${Nm(a)} shot at ${nm(b)}. Nothing happens.`);
 }
+// You advise a player who claims the Slayer who to shoot, in town or privately
+function adviseShot(p, x, priv) {
+  const w = priv ? whisperWith(p.id) : null;
+  const mine = text => priv ? w.lines.push({ who: G.me, text }) : say(G.me, text);
+  const theirs = text => priv ? w.lines.push({ who: p.id, text }) : say(p.id, text);
+  const tn = x === G.me ? 'me' : `<b>${esc(P(x).name)}</b>`;
+  mine(`${priv ? 'Y' : `${esc(p.name)}, y`}ou're the Slayer: ${x === G.me ? "if you really suspect me, shoot me. I know I'm not the Demon." : `I think you should shoot ${tn}.`}`);
+  if (!priv && x !== G.me) G.opinions.push({ by: G.me, x, day: G.n, kind: 'demon' });
+  const shoot = lead => {
+    p.bot.shot = true;
+    if (priv) theirs(lead || "You've convinced me. I'll do it now.");
+    say(p.id, `${priv ? '' : (lead ? lead + ' ' : '')}I'm the Slayer, and I'm using my shot on <b>${nm(x)}</b>.`);
+    slayerShot(p.id, x);
+  };
+  const cands = alive().filter(q => q.id !== p.id);
+  if (isGood(p) && believed(p) === 'Slayer') {
+    const B = belief(p.id), top = topBy(cands, q => B.pd[q.id]), trust = ratio(p, G.me);
+    const pd = B.pd[x] || 0, best = top ? B.pd[top.id] : 0, base = 1 / Math.max(2, cands.length);
+    if (x === G.me) { if (pd >= 0.6 * best && trust >= 1.2) shoot("Since you offer: I've had my doubts about you."); else theirs("Shoot you? I don't think you're the Demon. I'll keep my shot."); }
+    else if (pd >= 0.6 * best || (trust < 1 && pd >= 0.8 * base) || (top && top.id === x)) shoot(pick(["That's who I was thinking.", 'Agreed.', "All right, you've convinced me."]));
+    else theirs(`I'm not sure about ${nm(x)}. ${top && top.id !== x ? `If I shoot anyone, it's <b>${nm(top.id)}</b>. ` : ''}${trust > 1.4 ? "And I'm not sure I trust your advice." : "I'll hold my shot for now."}`);
+  } else if (!isGood(p)) {
+    // A pretend Slayer: a "miss" clears whoever they shoot, which suits the Demon
+    const team = knownTeam(p), mate = teammate(p);
+    const demon = G.players.find(q => q.role === 'Imp' && q.alive && q.id !== p.id && team.includes(q.id));
+    // A teammate only drops the act in private
+    if (mate) shoot(!priv ? pick(['Fine, let\'s settle it.', 'Maybe you\'re right.']) : x === (demon && demon.id) ? 'Ha. A miss on our Demon clears them. Good thinking.' : 'If you say so, partner.');
+    else if (demon && x === demon.id) shoot('Fine, let\'s settle it.');
+    else if (chance(0.45)) shoot(pick(['Maybe you\'re right.', 'Let\'s find out.']));
+    else theirs(pick(["Not yet. I'll save it for when we're surer.", "I don't think so. I'm holding my shot."]));
+  } else theirs("I'm not sure that's how I want to use it.");
+  bump();
+}
 // Returns false if a Virgin ended the day on the spot
 function nominate(a, b, reason) {
   const d = G.dayS, nomr = P(a), nomd = P(b);
@@ -2060,6 +2093,7 @@ function howView() {
       <li><b>Talk about the setup:</b> in Say in town, announce things like "I think this is a Baron game", "there's a Drunk" or "the Poisoner is at work". Bots answer with the counts (how many Outsiders have claimed against how many there should be) and what the Librarian saw, and raise it themselves when the Outsider claims don't add up. The middle of the table shows this game's setup: Townsfolk · Outsiders · Minions · Demon, and the same with a Baron.</li>
       <li><b>Speak up:</b> from a player's seat, accuse them (could be evil, or is the Demon) or vouch for them, and pick your reason: a specific piece of evidence, something you learned, their voting, or a hunch. Bots weigh what you say, more for a specific reason, and only as much as they trust you. A couple of them will say whether they agree.</li>
       <li><b>Talk privately:</b> from a player's seat, offer three for three (pick three characters, one of them true), tell them your character one for one, whisper your info (real or made up), or ask what they've learned and who they really suspect. Good bots open up if they trust you; evil bots always answer, with their bluff. The town sees that you talked, not what was said. Bots remember: if your public claim doesn't match what you told someone, they'll say so.</li>
+      <li><b>Advise the Slayer:</b> on the seat of a player who claims the Slayer and hasn't shot, pick who they should shoot and say it in town or whisper it. A real Slayer weighs it against their own suspicions and how much they trust you, and either shoots or tells you who they'd rather shoot. A fake Slayer (evil) may "shoot" to look real; a miss clears whoever they shot.</li>
       <li><b>Theories:</b> bots put theories to the town when info doesn't add up: whose info can't all be right, an Empath whose number changed with the same neighbours, an Undertaker who saw something other than the executed player's claim, a missing Outsider (a possible Drunk) or a Fortune Teller's red herring. Evil bots try to cast doubt on info that points at their team. From a player's seat you can say they were poisoned or might be the Drunk; bots say whether they agree, and if the town agrees, it trusts that player's info less.</li>
       <li><b>What they've heard:</b> each morning a few bots chat privately with each other and swap characters and info (the town sees who talked). Ask a bot what they've learned, in town or privately, and they also pass on what others told them. Good bots pass it on honestly; an evil bot may lie about what someone said, to frame them. It all goes in your notes (👂 in Claims and info), the Worlds tab and the coach: it only counts if both the teller and the one who said it are good. If someone says one thing in private and another in town, the bot they told will call it out.</li>
       <li><b>Claims on the table:</b> every hard claim shows on that player's seat. Green is said in town, a blue ★ is proven by the game (a Virgin whose nominator was executed, a Slayer who killed the Demon), and 🤫 is what they told you privately, one for one.</li>
@@ -2255,6 +2289,9 @@ function panelCard(id) {
     <h3>Speak up in town</h3><div class="row">
       ${[['evil', `Accuse ${esc(q.name)}…`], ['good', `Vouch for ${esc(q.name)}…`], ['role', 'Name their character…']].map(([k, l]) => `<button class="btn sm" data-act="say-open" data-k="${k}" data-id="${id}" aria-pressed="${!!(U.sayForm && U.sayForm.x === id && sayGroup(U.sayForm.k) === k)}">${l}</button>`).join('')}</div>
     ${U.sayForm && U.sayForm.x === id ? sayFormHtml(id) : ''}
+    ${q.claim === 'Slayer' && q.alive && q.bot && !q.bot.shot && !G.vote ? `<h3>Advise the Slayer</h3><div class="row"><select class="inp" id="shot-x-${id}" aria-label="Who to shoot">${alive().filter(x => x.id !== id).map(x => `<option value="${x.id}">${x.id === G.me ? 'Me' : esc(x.name)}${prefs.coach ? ` (${coachPct(x.id)}%)` : ''}</option>`).join('')}</select>
+      <button class="btn sm" data-act="advise-shot" data-id="${id}" data-priv="0">Say it in town</button><button class="btn sm" data-act="advise-shot" data-id="${id}" data-priv="1">🤫 Whisper it</button></div>
+      <p class="hint">${esc(q.name)} claims the Slayer and hasn't used the shot. Suggest who to shoot: they'll weigh it against what they think, and how much they trust you.</p>` : ''}
     ${infoBy(id).length || (q.claim && TF.includes(q.claim)) ? `<div class="row"><button class="btn sm" data-act="theory" data-k="poisoned" data-id="${id}">“${esc(q.name)} was poisoned”</button><button class="btn sm" data-act="theory" data-k="drunk" data-id="${id}">“${esc(q.name)} might be the Drunk”</button></div>` : ''}
     ${privateHtml(q)}`;
   const labelRow = labelHtml(q);
@@ -2993,6 +3030,7 @@ document.addEventListener('click', e => {
     case 'whisper-three': whisper(P(id), 'three', U.three.slice()); U.three = []; U.privOpen = null; break;
     case 'whisper-one': whisper(P(id), 'one', U.three.slice()); U.three = []; U.privOpen = null; break;
     case 'whisper-ask': whisper(P(id), b.dataset.k); break;
+    case 'advise-shot': adviseShot(P(id), +document.getElementById(`shot-x-${id}`).value, b.dataset.priv === '1'); break;
     case 'whisper-fact': whisper(P(id), 'info', G.facts[G.me][+b.dataset.i]); break;
     case 'nominate': U.confirmEnd = false; nominate(G.me, id); return go();
     case 'nom-open': U.nomForm = U.nomForm === id ? null : id; U.nomR = 0; break;
