@@ -189,6 +189,8 @@ let S;
 try { S = JSON.parse(localStorage.getItem(KEY)); } catch (e) { S = null; }
 if (!S || S.v !== 1) S = fresh();
 if (S.pass) S.pass.open = false;
+if (S.shield != null) { S.shields = [S.shield]; S.shield = null; }  // games saved before shared Shields
+if (S.seer && !S.seers) S.seers = [S.seer];
 (S.days || []).forEach(d => { if (!Array.isArray(d.endVotes)) d.endVotes = d.endVotes ? [d.endVotes] : []; });  // games saved before the fire pit  // after a reload, start the turn again from "pass the phone to…"
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
 
@@ -308,7 +310,8 @@ function roleCard(i) {
     </div>`;
 }
 function pickHtml(opts, chosen, sub, act) {
-  return `<div class="pick">${opts.map(i => `<button type="button" data-act="${act || 'choose'}" data-v="${i}" aria-pressed="${chosen === i}">${nm(i)}${sub ? `<small>${sub(i) || '&nbsp;'}</small>` : ''}</button>`).join('')}</div>`;
+  const on = i => Array.isArray(chosen) ? chosen.includes(i) : chosen === i;
+  return `<div class="pick">${opts.map(i => `<button type="button" data-act="${act || 'choose'}" data-v="${i}" aria-pressed="${on(i)}">${nm(i)}${sub ? `<small>${sub(i) || '&nbsp;'}</small>` : ''}</button>`).join('')}</div>`;
 }
 function turnHtml(kind, me) {
   const p = S.pass;
@@ -325,7 +328,7 @@ function turnHtml(kind, me) {
           : black ? 'You are the last Traitor. Choose a Faithful to blackmail: they must join you, or be murdered. Nobody else dies tonight.'
           : 'A Traitor was banished. Choose a Faithful to seduce (they may join you or refuse), and another to murder. If the Traitors disagree, the most popular choices win.'}</p>
         ${earlier.length ? `<p class="hint">Already chosen tonight: ${earlier.map(x => `${nm(+x)} → <b>${nm(p.got[x].choice)}</b>${p.got[x].choice2 != null ? ` (murder <b>${nm(p.got[x].choice2)}</b>)` : ''}`).join(', ')}</p>` : ''}
-        ${S.shield != null && P(S.shield).alive ? `<p class="hint">${nm(S.shield)} holds the Shield tonight: a murder on them will fail.</p>` : ''}
+        ${(S.shields || []).length ? `<p class="hint">${S.shields.map(nm).join(' and ')} ${S.shields.length > 1 ? 'hold Shields' : 'holds the Shield'} tonight: a murder on them will fail.</p>` : ''}
         ${rec && !black ? '<h3 style="margin:0">Seduce</h3>' : ''}
         ${pickHtml(opts, p.choice)}
         ${rec && !black ? `<h3 style="margin:0">Murder</h3>${pickHtml(opts.filter(x => x !== p.choice), p.choice2, null, 'choose2')}` : ''}
@@ -345,8 +348,8 @@ function turnHtml(kind, me) {
         ${p.choice === 1 ? `<p><b>Welcome. Your fellow Traitors: ${traitorsAlive().map(nm).join(', ')}.</b></p>` : ''}`;
     return `<p class="big-news" style="margin:0">No letter for you</p><p class="hint center">Wait for the button, then pass the phone on.</p>`;
   }
-  if (kind === 'seer') return `<div class="role faithful"><p class="kicker" style="color:#fff;opacity:.8">${nm(me)}, you are the Seer</p><div class="rname" style="font-size:2rem">Your clue</div>
-      <p>This is true, and only you have seen it:</p><p><b>${esc(clueText(S.seer.clue))}</b></p></div>
+  if (kind === 'seer') return `<div class="role faithful"><p class="kicker" style="color:#fff;opacity:.8">${nm(me)}, you are ${S.seers.length > 1 ? 'a' : 'the'} Seer</p><div class="rname" style="font-size:2rem">Your clue</div>
+      <p>This is true, and only you have seen it:</p><p><b>${esc(clueText(S.seers.find(x => x.who === me).clue))}</b></p></div>
       <p class="hint center">Share it at the Round Table, or keep it to yourself. Others will have to decide whether to believe you.</p>`;
   if (kind === 'vote') {
     const cands = (S.vote.cands || alive()).filter(x => x !== me);
@@ -464,6 +467,8 @@ function makeClue(w) {
   return { kind: 'one', pair: shuffle(others).slice(0, 2) };
 }
 const clueText = c => c.kind === 'one' ? `At least one of ${P(c.pair[0]).name} and ${P(c.pair[1]).name} is a Traitor.` : `Neither ${P(c.pair[0]).name} nor ${P(c.pair[1]).name} is a Traitor.`;
+// The players tapped as the mission's best (everyone who tied)
+const picks = () => (S.mission && S.mission.picks) || (S.mission && S.mission.shield != null ? [S.mission.shield] : []);
 function startNight() {
   if (alive().length <= SECRET_AT) {
     // The final five: no murder tonight
@@ -501,7 +506,7 @@ function resolveNight(got) {
 function murder(t) { P(t).alive = false; P(t).out = { how: 'murdered', day: S.day + 1 }; S.night.result = 'murder'; S.night.victim = t; }
 function finishNight() {
   const m = S.night.murder;
-  if (m != null && P(m).alive) { if (m === S.shield) { today().saved = true; S.night.result = 'saved'; } else murder(m); }
+  if (m != null && P(m).alive) { if ((S.shields || []).includes(m)) { today().saved = true; S.night.result = 'saved'; } else murder(m); }
   dawn();
 }
 function resolveLetters(got) {
@@ -513,7 +518,7 @@ function resolveLetters(got) {
   finishNight();
 }
 function dawn() {
-  S.shield = null;
+  S.shields = [];
   const victim = S.night.victim != null ? S.night.victim : null;
   newDay();
   today().murdered = victim;
@@ -573,7 +578,7 @@ function setupHtml() {
 }
 
 function playersHtml() {
-  return `<ul class="list">${S.players.map((p, i) => `<li class="${p.alive ? '' : 'out'}"><b>${nm(i)}</b>${p.alive ? (S.shield === i ? '<span class="tag faithful">🛡 Shield</span>' : '') : `${p.out.secret ? '<span class="tag out">role secret</span>' : `<span class="tag ${p.role}">${p.role === 'traitor' ? 'Traitor' : 'Faithful'}</span>`}<span class="tag out">${p.out.how} ${p.out.how === 'banished' ? 'day' : 'night'} ${p.out.how === 'banished' ? p.out.day : p.out.day - 1}</span>`}</li>`).join('')}</ul>`;
+  return `<ul class="list">${S.players.map((p, i) => `<li class="${p.alive ? '' : 'out'}"><b>${nm(i)}</b>${p.alive ? ((S.shields || []).includes(i) ? '<span class="tag faithful">🛡 Shield</span>' : '') : `${p.out.secret ? '<span class="tag out">role secret</span>' : `<span class="tag ${p.role}">${p.role === 'traitor' ? 'Traitor' : 'Faithful'}</span>`}<span class="tag out">${p.out.how} ${p.out.how === 'banished' ? 'day' : 'night'} ${p.out.how === 'banished' ? p.out.day : p.out.day - 1}</span>`}</li>`).join('')}</ul>`;
 }
 function statusHtml() {
   return `<div class="row center hint"><span>${plural(alive().length, 'player')} left</span>·<span>Prize pot <span class="gold">${money(S.pot)}</span></span></div>`;
@@ -599,14 +604,14 @@ function phaseHtml() {
         </section>${statusHtml()}`;
       if (alive().length <= SECRET_AT && alive().length > 2) return `<section class="card">
           <p class="kicker">Day ${S.day} · The Seer</p><h2>${m.ok ? `Success: +${money(S.settings.gold)}` : 'Mission failed'}</h2>
-          <p>There are no more murders, so instead of the Shield, the best player in the mission becomes the <b>Seer</b>: they get a true clue about who is (or isn't) a Traitor. Agree out loud, then tap their name.</p>
-          ${pickHtml(alive(), S.mission.shield)}
-          <button class="btn primary block" data-act="seer" ${S.mission.shield == null ? 'disabled' : ''}>${S.mission.shield != null ? `Pass the phone to ${nm(S.mission.shield)}` : 'Choose the Seer'}</button></section>`;
+          <p>There are no more murders, so instead of the Shield, the best player in the mission becomes the <b>Seer</b>: they get a true clue about who is (or isn't) a Traitor. Agree out loud, then tap their name. If players tied, tap them all: each gets their own clue.</p>
+          ${pickHtml(alive(), picks())}
+          <button class="btn primary block" data-act="seer" ${picks().length ? '' : 'disabled'}>${picks().length ? `Pass the phone to ${picks().map(nm).join(', then ')}` : 'Choose the Seer'}</button></section>`;
       if (S.settings.shields && alive().length > FIRE_PIT) return `<section class="card">
           <p class="kicker">Day ${S.day} · Shield</p><h2>${m.ok ? `Success: +${money(S.settings.gold)}` : 'Mission failed'}</h2>
-          <p>Who played best in the mission? They win the <b>Shield</b> and can't be murdered tonight. Agree out loud, then tap their name.</p>
-          ${pickHtml(alive(), S.mission.shield)}
-          <button class="btn primary block" data-act="shield">${S.mission.shield != null ? `Give ${nm(S.mission.shield)} the Shield` : 'No Shield today'}</button></section>`;
+          <p>Who played best in the mission? They win the <b>Shield</b> and can't be murdered tonight. Agree out loud, then tap their name. If players tied, tap them all: they each get a Shield.</p>
+          ${pickHtml(alive(), picks())}
+          <button class="btn primary block" data-act="shield">${picks().length ? `Give ${picks().map(nm).join(' and ')} ${picks().length > 1 ? 'Shields' : 'the Shield'}` : 'No Shield today'}</button></section>`;
       return '';
     }
     case 'table': {
@@ -701,10 +706,10 @@ function overHtml() {
   const hist = S.days.map(d => {
     const bits = [];
     if (d.murdered != null) bits.push(`<p>☠ ${nm(d.murdered)} was murdered in the night.</p>`);
-    if (d.mission) bits.push(`<p>⚔ Mission ${d.mission.ok ? `succeeded (+${money(S.settings.gold)})` : 'failed'}${d.shield != null ? `; ${nm(d.shield)} won the Shield` : ''}.</p>`);
+    if (d.mission) bits.push(`<p>⚔ Mission ${d.mission.ok ? `succeeded (+${money(S.settings.gold)})` : 'failed'}${(d.shields || (d.shield != null ? [d.shield] : [])).length ? `; ${(d.shields || [d.shield]).map(nm).join(' and ')} won ${(d.shields || [d.shield]).length > 1 ? 'Shields' : 'the Shield'}` : ''}.</p>`);
     d.votes.forEach(v => { bits.push(`<p>🗳 ${v.round > 1 ? 'Revote' : 'Votes'}: ${v.ballots.map(([a, b]) => `${nm(a)}→${nm(b)}`).join(', ')}</p>`); });
     (d.endVotes || []).forEach(ev => bits.push(`<p>🔥 Fire pit vote: ${ev.map(([a, c]) => `${nm(a)} ${c ? 'end' : 'banish'}`).join(', ')}</p>`));
-    if (d.seer) bits.push(`<p>👁 ${nm(d.seer.who)} was the Seer. Their clue: ${esc(clueText(d.seer.clue))}</p>`);
+    (d.seers || (d.seer ? [d.seer] : [])).forEach(x => bits.push(`<p>👁 ${nm(x.who)} was a Seer. Their clue: ${esc(clueText(x.clue))}</p>`));
     if (d.banished) bits.push(`<p>🚪 ${nm(d.banished.who)} was banished${d.banished.secret ? ' (role kept secret)' : ''}: ${d.banished.role === 'traitor' ? '<b style="color:var(--traitor)">Traitor</b>' : 'Faithful'}.</p>`);
     const sus = Object.keys(d.suspects);
     if (sus.length) bits.push(`<p class="hint">Night ${d.day}, the Faithful suspected: ${sus.map(k => `${nm(+k)}→${nm(d.suspects[k])}`).join(', ')}</p>`);
@@ -796,7 +801,7 @@ document.addEventListener('click', e => {
     case 'quityes': S = fresh(S.names, S.settings); menu = null; save(); render(); return;
     case 'choose':
       if (menu === 'peek') { const i = +b.dataset.v; menu = null; S.peekFrom = S.phase; S.pass = newPass('peek', [i]); save(); return render(); }
-      if (S.phase === 'mission') { S.mission.shield = S.mission.shield === +b.dataset.v ? null : +b.dataset.v; return render(); }
+      if (S.phase === 'mission') { const v = +b.dataset.v, ps = picks(); S.mission.picks = ps.includes(v) ? ps.filter(x => x !== v) : ps.concat([v]); return render(); }
       if (S.pass && S.pass.open) { S.pass.choice = +b.dataset.v; if (S.pass.choice2 === S.pass.choice) S.pass.choice2 = null; const ta = $('#note'), note = ta && ta.value; render(); if (note != null && $('#note')) $('#note').value = note; }
       return;
     case 'choose2': if (S.pass && S.pass.open) { S.pass.choice2 = +b.dataset.v; const ta = $('#note'), note = ta && ta.value; render(); if (note != null && $('#note')) $('#note').value = note; } return;
@@ -823,8 +828,8 @@ document.addEventListener('click', e => {
       if (!S.settings.shields || alive().length <= FIRE_PIT) toTable();
       break;
     }
-    case 'seer': { const w = S.mission.shield; if (w == null) return; S.seer = { who: w, clue: makeClue(w) }; today().seer = S.seer; S.pass = newPass('seer', [w]); say(`${P(w).name} is the Seer. Pass them the phone.`); break; }
-    case 'shield': S.shield = S.mission.shield != null ? S.mission.shield : null; today().shield = S.shield; if (S.shield != null) say(`${P(S.shield).name} wins the Shield.`); toTable(); break;
+    case 'seer': { const ws = picks(); if (!ws.length) return; S.seers = ws.map(w => ({ who: w, clue: makeClue(w) })); today().seers = S.seers; S.pass = newPass('seer', ws); say(`${ws.map(w => P(w).name).join(' and ')} ${ws.length > 1 ? 'are Seers' : 'is the Seer'}. Pass the phone to ${P(ws[0]).name}.`); break; }
+    case 'shield': S.shields = picks(); today().shields = S.shields; if (S.shields.length) say(`${S.shields.map(w => P(w).name).join(' and ')} ${S.shields.length > 1 ? 'win Shields' : 'wins the Shield'}.`); toTable(); break;
     case 'vote': T.running = false; startVote(1, null); break;
     case 'revote': startVote(2, S.tie); break;
     case 'showvote': { const v = S.vote, [a, t] = v.ballots[v.shown]; v.shown++; say(`${P(a).name} votes for ${P(t).name}.`); break; }

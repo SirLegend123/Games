@@ -229,6 +229,13 @@ function fresh(settings, me) {
     noise: [], pf: [], herd: [], facts: [], days: [], rt: null, fp: null, vote: null, endVote: null, mission: null, bf: null, ban: null, night: null,
     recruitNext: false, resume: null, outSeen: false, watching: false, winner: null, usedQ: [] };
 }
+// Games saved before ties were shared: one Shield and one winner become lists
+if (S.shield != null) { S.shields = [S.shield]; S.shield = null; }
+if (S.mission && S.mission.result && !S.mission.result.winners) {
+  const r = S.mission.result, w = r.winner;
+  r.winners = w != null ? [w] : []; r.mode = r.choice === 'seer' ? 'seer' : w != null ? 'shield' : null;
+  r.choices = r.choice && r.choice !== 'seer' && w != null ? { [w]: r.choice } : {}; r.seers = r.seer && w != null ? { [w]: r.seer } : {};
+}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
 
 /* ---------- Helpers ---------- */
@@ -524,7 +531,7 @@ function notePatterns(ballots) {
 
 /* ---------- Breakfast ---------- */
 function dawn(victim) {
-  S.shield = null;
+  S.shields = [];
   // Yesterday's Round Table fades a little overnight
   S.herd = S.herd.map(r => r.map(v => v * .6));
   if (victim != null) {
@@ -583,28 +590,28 @@ function resolveMission() {
     if (scores[k] === 0 && avg >= 1.3) addFact(+k, 'got nothing right in a mission', .18);
     if (scores[k] === 3) addFact(+k, 'got every mission question right', -.05);
   });
-  let winner = null;
-  // From the final five there are no more murders, so the top scorer becomes the Seer instead
-  if (alive().length <= SECRET_AT && alive().length > 2) {
-    const top = Math.max(...Object.values(scores));
-    winner = pick(Object.keys(scores).filter(k => scores[k] === top).map(Number));
-    m.result = { scores, gold, shield: null, winner, choice: 'seer', seer: seerClue(winner) };
-    today().mission = { gold, shield: null, scores, seer: winner, clue: m.result.seer.truth };
+  // Everyone who ties for the top score is rewarded
+  const top = Math.max(...Object.values(scores)), winners = top > 0 ? Object.keys(scores).filter(k => scores[k] === top).map(Number) : [];
+  const names = ws => ws.map(w => w === ME ? 'you' : nmPlain(w)).join(' and ');
+  // From the final five there are no more murders, so the top scorers become Seers instead
+  if (alive().length <= SECRET_AT && alive().length > 2 && winners.length) {
+    const seers = {};
+    winners.forEach(w => { seers[w] = seerClue(w); });
+    m.result = { scores, gold, winners, mode: 'seer', seers, choices: {} };
+    today().mission = { gold, scores, shields: [], tookGold: [], seers: winners, clues: Object.fromEntries(winners.map(w => [w, seers[w].truth])) };
     S.phase = 'missionResult';
-    say(`The mission earned ${money(gold)}. ${winner === ME ? 'You are' : nmPlain(winner) + ' is'} the Seer.`);
+    say(`The mission earned ${money(gold)}. ${winners.length > 1 ? `It's a tie: ${names(winners)} each become a Seer.` : `${winners[0] === ME ? 'You are' : nmPlain(winners[0]) + ' is'} the Seer.`}`);
     return;
   }
-  if (S.settings.shields && alive().length > FIRE_PIT) {
-    const top = Math.max(...Object.values(scores));
-    winner = pick(Object.keys(scores).filter(k => scores[k] === top).map(Number));
-  }
-  m.result = { scores, gold, shield: null, winner, choice: null };
-  today().mission = { gold, shield: null, scores };
+  const shieldDay = S.settings.shields && alive().length > FIRE_PIT && winners.length;
+  m.result = { scores, gold, winners: shieldDay ? winners : [], mode: shieldDay ? 'shield' : null, choices: {}, seers: {} };
+  today().mission = { gold, scores, shields: [], tookGold: [] };
   S.phase = 'missionResult';
-  // The top scorer chooses: the Shield, or gold for the pot. Traitors don't need protection, so they take the gold more often.
-  say(`The mission earned ${money(gold)}.${winner === ME ? ' You were the top scorer: Shield, or gold?' : ''}`);
-  if (winner != null && winner !== ME) shieldChoice(chance(P(winner).role === 'traitor' ? .7 : .3) ? 'gold' : 'shield');
+  // Each top scorer chooses: the Shield, or gold for the pot. Traitors don't need protection, so they take the gold more often.
+  say(`The mission earned ${money(gold)}.${shieldDay && winners.length > 1 ? ` A tie at the top: ${names(winners)} each choose the Shield or gold.` : ''}${shieldDay && winners.includes(ME) ? ' You were a top scorer: Shield, or gold?' : ''}`);
+  if (shieldDay) winners.filter(w => w !== ME).forEach(w => shieldChoice(w, chance(P(w).role === 'traitor' ? .7 : .3) ? 'gold' : 'shield'));
 }
+const shielded = i => (S.shields || []).includes(i);
 // The Seer's clue: a true statement about two other players. Bot Seers announce theirs, and a Traitor Seer lies.
 function makeClue(w) {
   const others = alive().filter(i => i !== w), tr = others.filter(i => P(i).role === 'traitor'), fa = others.filter(i => P(i).role !== 'traitor');
@@ -628,13 +635,13 @@ function seerClue(w) {
   said.pair.forEach(x => nudge(x, said.kind === 'one' ? .15 : -.15, w));
   return { truth, said, line: `I'm the Seer. My clue: ${clueText(said)} Make of that what you will.` };
 }
-function shieldChoice(c) {
-  const r = S.mission.result, w = r.winner;
-  r.choice = c;
-  if (c === 'shield') { S.shield = r.shield = w; today().mission.shield = w; }
-  else { S.pot += SHIELD_GOLD; r.gold += SHIELD_GOLD; today().mission.gold += SHIELD_GOLD; today().mission.tookGold = w; addFact(w, 'turned down the Shield for gold', .12); }
-  if (w !== ME) say(c === 'shield' ? `${nmPlain(w)} takes the Shield.` : `${nmPlain(w)} turns down the Shield and adds ${money(SHIELD_GOLD)} to the pot.`);
+function shieldChoice(w, c) {
+  const r = S.mission.result, d = today().mission;
+  r.choices[w] = c;
+  if (c === 'shield') { S.shields = (S.shields || []).concat([w]); d.shields.push(w); }
+  else { S.pot += SHIELD_GOLD; r.gold += SHIELD_GOLD; d.gold += SHIELD_GOLD; d.tookGold.push(w); addFact(w, 'turned down the Shield for gold', .12); }
 }
+const myChoicePending = () => { const r = S.mission && S.mission.result; return !!(r && r.mode === 'shield' && (r.winners || []).includes(ME) && !r.choices[ME]); };
 
 /* ---------- Round Table ---------- */
 function toTable() {
@@ -849,7 +856,7 @@ function murderPick(not) {
   const tr = traitorsAlive();
   let best = null, bv = -1e9;
   faithfulAlive().forEach(f => {
-    if (f === S.shield || f === not) return;
+    if (shielded(f) || f === not) return;
     // The biggest threat: whoever suspects the Traitors most (for you, whoever you've accused)
     let threat = f === ME
       ? S.days.flatMap(d => d.acc).filter(([s, t]) => s === ME && tr.includes(t)).length * .25 - (S.day < 2 ? 9 : .15)
@@ -901,7 +908,7 @@ function resolveLetter(yes) {
 }
 function finishNight() {
   const n = S.night, m = n.murder;
-  if (m != null && P(m).alive) { if (m === S.shield) { n.result = 'saved'; n.saved = m; } else kill(m); }
+  if (m != null && P(m).alive) { if (shielded(m)) { n.result = 'saved'; n.saved = m; } else kill(m); }
   // Nobody, you included, learns who died until breakfast
   dawn(n.victim);
 }
@@ -1103,7 +1110,7 @@ function tagFor(i) {
     if (p.out.secret) bits.push('<span class="tag out">role secret</span>');
     else bits.push(`<span class="tag ${p.role}">${p.role === 'traitor' ? 'Traitor' : 'Faithful'}</span>`);
     bits.push(`<span class="tag out">${p.out.how}</span>`);
-  } else if (S.shield === i) bits.push('<span class="tag faithful">🛡 Shield</span>');
+  } else if (shielded(i)) bits.push('<span class="tag faithful">🛡 Shield</span>');
   return bits.join('');
 }
 function pickHtml(opts, chosen, act) {
@@ -1191,15 +1198,16 @@ function phaseHtml() {
       const r = S.mission.result, rows = Object.keys(r.scores).map(Number).sort((a, b) => r.scores[b] - r.scores[a]);
       return `<section class="card">
           <p class="kicker">Day ${S.day} · Mission results</p><h2>+${money(r.gold)} to the pot</h2>
-          <div class="tally">${rows.map(i => `<div><span>${nm(i)}${r.shield === i ? ' 🛡' : ''}</span><span class="b" style="width:${r.scores[i] / 3 * 100}%"></span><span>${r.scores[i]}/3</span></div>`).join('')}</div>
+          <div class="tally">${rows.map(i => `<div><span>${nm(i)}${r.choices[i] === 'shield' ? ' 🛡' : r.mode === 'seer' && r.winners.includes(i) ? ' 👁' : ''}</span><span class="b" style="width:${r.scores[i] / 3 * 100}%"></span><span>${r.scores[i]}/3</span></div>`).join('')}</div>
           <p class="hint">${MISSION_KINDS[S.mission.kind || 'quiz'].name}</p>
-          ${r.choice === 'seer' ? (r.winner === ME ? `<div class="secret seer"><b>👁 You are the Seer</b><p>From the final five there are no more murders, so instead of the Shield you get a clue. It is true, and only you have seen it:</p><p><b>${esc(clueText(r.seer.truth))}</b></p><p class="hint">Use it at the Round Table and the fire pit. It's kept in the Menu.</p></div>`
-            : `<p>${nm(r.winner)} is the <b>Seer</b> and has seen a clue.</p>${feedHtml([{ who: r.winner, text: r.seer.line }])}<p class="hint">A Faithful Seer tells the truth. A Traitor Seer would lie.</p>`) : ''}
-          ${r.choice === 'seer' ? '' : r.winner === ME && r.choice == null ? `<p><b>You were the top scorer.</b> Take the Shield (safe from murder tonight), or turn it down and add ${money(SHIELD_GOLD)} to the pot? Traitors don't need a Shield, so taking the gold can look suspicious.</p>
-            <div class="pick"><button type="button" data-act="shieldpick" data-v="shield">🛡 Take the Shield</button><button type="button" data-act="shieldpick" data-v="gold">+${money(SHIELD_GOLD)} to the pot</button></div>`
-            : r.winner != null && r.choice !== 'seer' ? `<p>${r.winner === ME ? 'You' : nm(r.winner)} ${r.choice === 'shield' ? `took the <b>Shield</b>: safe from murder tonight.` : `turned down the Shield and added ${money(SHIELD_GOLD)} to the pot.`}</p>` : ''}
-          ${r.choice === 'seer' ? '' : '<p class="hint">A player who gets nothing right might just be unlucky… or sabotaging. And who needs a Shield less than a Traitor?</p>'}
-          <button class="btn primary block" data-act="totable" ${r.winner === ME && r.choice == null ? 'disabled' : ''}>To the Round Table</button>
+          ${r.winners.length > 1 ? `<p><b>A tie at the top:</b> ${r.winners.map(nm).join(', ')} scored ${r.scores[r.winners[0]]}/3, and every one of them is rewarded.</p>` : ''}
+          ${r.mode === 'seer' ? `${r.winners.includes(ME) ? `<div class="secret seer"><b>👁 You are ${r.winners.length > 1 ? 'a' : 'the'} Seer</b><p>From the final five there are no more murders, so instead of the Shield you get a clue. It is true, and only you have seen it:</p><p><b>${esc(clueText(r.seers[ME].truth))}</b></p><p class="hint">Use it at the Round Table and the fire pit. It's kept in the Menu.</p></div>` : ''}
+            ${r.winners.filter(w => w !== ME).length ? `<p>${r.winners.filter(w => w !== ME).map(nm).join(' and ')} ${r.winners.filter(w => w !== ME).length > 1 ? 'are Seers and have each' : 'is the <b>Seer</b> and has'} seen a clue.</p>${feedHtml(r.winners.filter(w => w !== ME).map(w => ({ who: w, text: r.seers[w].line })))}<p class="hint">A Faithful Seer tells the truth. A Traitor Seer would lie.</p>` : ''}` : ''}
+          ${r.mode === 'shield' ? `${myChoicePending() ? `<p><b>You ${r.winners.length > 1 ? 'tied for' : 'got'} the top score.</b> Take the Shield (safe from murder tonight), or turn it down and add ${money(SHIELD_GOLD)} to the pot? Traitors don't need a Shield, so taking the gold can look suspicious.</p>
+            <div class="pick"><button type="button" data-act="shieldpick" data-v="shield">🛡 Take the Shield</button><button type="button" data-act="shieldpick" data-v="gold">+${money(SHIELD_GOLD)} to the pot</button></div>` : ''}
+            ${r.winners.filter(w => r.choices[w]).map(w => `<p>${w === ME ? 'You' : nm(w)} ${r.choices[w] === 'shield' ? 'took the <b>Shield</b>: safe from murder tonight.' : `turned down the Shield and added ${money(SHIELD_GOLD)} to the pot.`}</p>`).join('')}
+            <p class="hint">A player who gets nothing right might just be unlucky… or sabotaging. And who needs a Shield less than a Traitor?</p>` : ''}
+          <button class="btn primary block" data-act="totable" ${myChoicePending() ? 'disabled' : ''}>To the Round Table</button>
         </section>${statusHtml()}`;
     }
     case 'table': {
@@ -1261,9 +1269,9 @@ function phaseHtml() {
             <p class="kicker">Night ${S.day} · The Traitors' meeting</p><h2>Who do you ${verb}?</h2>
             <p>${!n.recruit ? 'Choose a Faithful to murder.' : n.black ? 'You are the last Traitor. Blackmail a Faithful: they join you, or die. Nobody else is murdered tonight.' : 'A Traitor was banished. Seduce a Faithful to join you (they may refuse), and murder another.'}</p>
             ${mates.length && n.sugg != null ? `<p class="hint">${mates.map(i => esc(nmPlain(i))).join(' and ')} suggest${mates.length === 1 ? 's' : ''} <b>${nm(n.sugg)}</b>.</p>` : ''}
-            ${S.shield != null && P(S.shield).alive && !n.recruit ? `<p class="hint">${nm(S.shield)} has the Shield: a murder on them will fail.</p>` : ''}
+            ${(S.shields || []).length && !n.recruit ? `<p class="hint">${S.shields.map(nm).join(' and ')} ${S.shields.length > 1 ? 'have Shields' : 'has the Shield'}: a murder on them will fail.</p>` : ''}
             ${pickHtml(faithfulAlive(), n.choice, 'nightpick')}
-            ${n.recruit && !n.black ? `<h3 style="margin:0">And who do you murder?</h3>${n.msugg != null && mates.length ? `<p class="hint">They suggest <b>${nm(n.msugg)}</b>.</p>` : ''}${S.shield != null && P(S.shield).alive ? `<p class="hint">${nm(S.shield)} has the Shield: a murder on them will fail.</p>` : ''}${pickHtml(faithfulAlive().filter(i => i !== n.choice), n.mchoice, 'nightmurder')}` : ''}
+            ${n.recruit && !n.black ? `<h3 style="margin:0">And who do you murder?</h3>${n.msugg != null && mates.length ? `<p class="hint">They suggest <b>${nm(n.msugg)}</b>.</p>` : ''}${(S.shields || []).length ? `<p class="hint">${S.shields.map(nm).join(' and ')} ${S.shields.length > 1 ? 'have Shields' : 'has the Shield'}: a murder on them will fail.</p>` : ''}${pickHtml(faithfulAlive().filter(i => i !== n.choice), n.mchoice, 'nightmurder')}` : ''}
             <button class="btn primary block" data-act="nightgo" ${n.choice == null || (n.recruit && !n.black && n.mchoice == null) ? 'disabled' : ''}>${n.choice == null ? 'Choose a name' : n.recruit && !n.black ? (n.mchoice == null ? 'Choose who to murder' : `Seduce ${nm(n.choice)}, murder ${nm(n.mchoice)}`) : `${verb[0].toUpperCase() + verb.slice(1)} ${nm(n.choice)}`}</button>
           </section>`;
       }
@@ -1329,8 +1337,12 @@ function overHtml() {
   const hist = S.days.map(d => {
     const bits = [];
     if (d.murdered != null) bits.push(`<p>☠ ${nm(d.murdered)} ${d.murdered === ME ? 'were' : 'was'} murdered in the night.</p>`);
-    if (d.mission) bits.push(`<p>⚔ The mission earned ${money(d.mission.gold)}${d.mission.shield != null ? `; ${nm(d.mission.shield)} took the Shield` : d.mission.tookGold != null ? `; ${nm(d.mission.tookGold)} turned down the Shield for gold` : ''}.</p>`);
-    if (d.mission && d.mission.seer != null) bits.push(`<p>👁 ${nm(d.mission.seer)} became the Seer. The true clue: ${esc(clueText(d.mission.clue))}</p>`);
+    if (d.mission) {
+      const sh = d.mission.shields || (d.mission.shield != null ? [d.mission.shield] : []), gd = Array.isArray(d.mission.tookGold) ? d.mission.tookGold : d.mission.tookGold != null ? [d.mission.tookGold] : [];
+      bits.push(`<p>⚔ The mission earned ${money(d.mission.gold)}${sh.length ? `; ${sh.map(nm).join(' and ')} took the Shield` : ''}${gd.length ? `; ${gd.map(nm).join(' and ')} turned down the Shield for gold` : ''}.</p>`);
+      const seers = d.mission.seers || (d.mission.seer != null ? [d.mission.seer] : []), clues = d.mission.clues || (d.mission.seer != null ? { [d.mission.seer]: d.mission.clue } : {});
+      seers.forEach(w => bits.push(`<p>👁 ${nm(w)} became a Seer. The true clue: ${esc(clueText(clues[w]))}</p>`));
+    }
     if (d.secret) bits.push(`<p>🗡 Secret Traitor mission: ${d.secret.type === 'vote' ? `get ${nm(d.secret.target)} banished` : `say "${esc(d.secret.phrase)}"`}, ${d.secret.win ? `<b>succeeded</b> (+${money(SECRET_GOLD)})` : 'failed'}.</p>`);
     d.votes.forEach(v => bits.push(`<p>🗳 ${v.round > 1 ? 'Revote' : 'Votes'}: ${v.ballots.map(([a, b]) => `${nm(a)}→${nm(b)}`).join(', ')}</p>`));
     d.endVotes.forEach(ev => bits.push(`<p>🔥 Fire pit vote: ${ev.map(([a, c]) => `${nm(a)} ${c ? 'end' : 'banish'}`).join(', ')}</p>`));
@@ -1356,7 +1368,7 @@ function menuHtml() {
   if (menu === 'rules') return `<div class="row"><h2>How to play</h2><button class="btn sm" data-act="menu">‹ Back</button><button class="btn sm" data-act="close" aria-label="Close">✕</button></div>
     <ul>
       <li>You are one of the players in the castle. Everyone else is a bot. Some players are <b>Traitors</b>; nobody is told how many.</li>
-      <li><b>Missions</b>: three rounds of one of four challenges: the Library Quiz, quick sums in the Counting House, anagrams in the Scrambled Scrolls, or a memory test in the Portrait Gallery. Every right answer from anyone adds ${money(GOLD_PER_ANSWER)} to the pot. The top scorer wins the <b>Shield</b> and can't be murdered that night. Traitors sometimes sabotage by answering wrongly.</li>
+      <li><b>Missions</b>: three rounds of one of four challenges: the Library Quiz, quick sums in the Counting House, anagrams in the Scrambled Scrolls, or a memory test in the Portrait Gallery. Every right answer from anyone adds ${money(GOLD_PER_ANSWER)} to the pot. The top scorer chooses the <b>Shield</b> (safe from murder that night) or £2,000 for the pot; if players tie for the top score, every one of them chooses. Traitors sometimes sabotage by answering wrongly.</li>
       <li><b>Round Table</b>: the bots take turns to accuse someone and give a reason. You can accuse someone too, and defend yourself if you're accused. Then everyone votes, and the slates are turned one by one.</li>
       <li>Bots remember what happens. Voting for someone who turns out to be Faithful makes you look suspicious; voting out a Traitor clears you a little. If a murder victim had accused someone, that person looks guilty. The <b>Dossier</b> in this menu shows what the castle knows about each player. The percentage beside each name is the <b>castle's read</b>: the bots' average belief that the player is a Traitor (not the truth).</li>
       <li><b>Night</b>: the Traitors murder a Faithful. If you're a Traitor, you choose who. After a Traitor is banished, and while more than 6 remain, the Traitors also recruit: a <b>seduction</b> (refusing is safe, and they still murder someone else) with two or more Traitors left, or <b>blackmail</b> (join or die, and no other murder) with only one. Who died is only revealed at breakfast, even to you.</li>
@@ -1436,8 +1448,8 @@ document.addEventListener('click', e => {
     case 'answer': { const m = S.mission; if (m.picked != null) return; m.picked = +v; m.mine[m.i] = +v === m.items[m.i].ans; top = false; break; }
     case 'memorised': S.mission.stage = 'ask'; clearTimeout(memoTimer); break;
     case 'nextq': { const m = S.mission; m.picked = null; if (m.i < 2) { m.i++; if (m.kind === 'memory') m.stage = 'show'; } else resolveMission(); break; }
-    case 'shieldpick': shieldChoice(v); top = false; break;
-    case 'totable': if (!(S.mission.result.winner === ME && S.mission.result.choice == null)) toTable(); break;
+    case 'shieldpick': if (myChoicePending()) shieldChoice(ME, v); top = false; break;
+    case 'totable': if (!myChoicePending()) toTable(); break;
     case 'speak': nextSpeaker(); S.ui = null; S.scrollFeed = true; top = false; break;
     case 'speakall': while (S.rt.i < S.rt.order.length) nextSpeaker(); S.ui = null; top = false; break;
     case 'accusemenu': S.ui = S.ui === 'accuse' ? null : 'accuse'; top = false; break;
