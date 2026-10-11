@@ -178,6 +178,9 @@ footer.note { text-align: center; color: var(--muted); font-size: .8rem; }
 .secret { border: 1px solid var(--traitor); border-radius: 12px; padding: 10px 12px; background: color-mix(in srgb, var(--traitor) 10%, var(--surface)); display: grid; gap: 4px; }
 .secret p { margin: 0; }
 .secret label { gap: 8px; font-weight: 700; }
+.secret.seer { border-color: var(--faithful); background: color-mix(in srgb, var(--faithful) 10%, var(--surface)); }
+.gallery { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.gallery li { background: var(--parch, #efe4c9); color: #2a2118; border-radius: 10px; padding: 14px 10px; text-align: center; font-weight: 800; font-family: var(--font-display); font-size: 1.15rem; }
 /* The castle's read */
 .odds { display: inline-block; font-size: .74rem; font-weight: 800; font-variant-numeric: tabular-nums; padding: 1px 6px; border-radius: 99px; background: var(--surface); color: var(--muted); border: 1px solid var(--line); vertical-align: middle; }
 .odds.mid { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); }
@@ -357,7 +360,100 @@ const QUESTIONS = [
   ['How many keys does a standard piano have?', '88', '76', '92', '64'],
   ['Which is the closest star to Earth?', 'The Sun', 'Proxima Centauri', 'Sirius', 'Polaris'],
   ['How many years are there in a century?', '100', '10', '1,000', '50'],
+  ['What is the capital of Japan?', 'Tokyo', 'Kyoto', 'Osaka', 'Hiroshima'],
+  ['How many weeks are there in a year?', '52', '48', '50', '56'],
+  ['Which is the smallest planet in our solar system?', 'Mercury', 'Mars', 'Venus', 'Earth'],
+  ['At what temperature does water freeze?', '0 °C', '10 °C', '-10 °C', '4 °C'],
+  ['Who wrote Pride and Prejudice?', 'Jane Austen', 'Charlotte Brontë', 'George Eliot', 'Mary Shelley'],
+  ['What is the capital of France?', 'Paris', 'Lyon', 'Marseille', 'Nice'],
+  ['What is the largest country in the world by area?', 'Russia', 'Canada', 'China', 'USA'],
+  ['Which metal is liquid at room temperature?', 'Mercury', 'Lead', 'Tin', 'Zinc'],
+  ['Which country is home to the kangaroo?', 'Australia', 'New Zealand', 'South Africa', 'Brazil'],
+  ['What colour are emeralds?', 'Green', 'Red', 'Blue', 'Purple'],
+  ['Who painted The Starry Night?', 'Vincent van Gogh', 'Claude Monet', 'Pablo Picasso', 'Salvador Dalí'],
+  ['What is the main ingredient of guacamole?', 'Avocado', 'Tomato', 'Pea', 'Cucumber'],
+  ['How many zeros are there in one million?', '6', '5', '7', '9'],
+  ['What is the capital of Scotland?', 'Edinburgh', 'Glasgow', 'Aberdeen', 'Inverness'],
+  ['What is the capital of Wales?', 'Cardiff', 'Swansea', 'Newport', 'Bangor'],
+  ['How many players does a rugby union team have on the pitch?', '15', '13', '11', '12'],
+  ['What is the largest planet in our solar system?', 'Jupiter', 'Saturn', 'Neptune', 'Earth'],
+  ['In which city is the Colosseum?', 'Rome', 'Athens', 'Paris', 'Istanbul'],
+  ['Which detective lived at 221B Baker Street?', 'Sherlock Holmes', 'Hercule Poirot', 'Miss Marple', 'Inspector Morse'],
+  ['How many colours are there in a rainbow?', '7', '6', '8', '5'],
+  ['What is the tallest animal?', 'Giraffe', 'Elephant', 'Ostrich', 'Camel'],
+  ['Which planet is closest to the Sun?', 'Mercury', 'Venus', 'Earth', 'Mars'],
+  ['Which is the hottest planet in our solar system?', 'Venus', 'Mercury', 'Mars', 'Jupiter'],
+  ['How many sides does an octagon have?', '8', '6', '10', '12'],
+  ['What is the national animal of Scotland?', 'Unicorn', 'Lion', 'Stag', 'Golden eagle'],
+  ['Which bird is famous for copying human speech?', 'Parrot', 'Owl', 'Pigeon', 'Swan'],
+  ['Who was the first woman to win a Nobel Prize?', 'Marie Curie', 'Rosalind Franklin', 'Ada Lovelace', 'Florence Nightingale'],
+  ['What is the capital of Germany?', 'Berlin', 'Munich', 'Frankfurt', 'Hamburg'],
+  ['In which ocean is Hawaii?', 'Pacific', 'Atlantic', 'Indian', 'Arctic'],
+  ['What is the largest organ of the human body?', 'Skin', 'Liver', 'Heart', 'Brain'],
+  ['How many teeth does an adult human usually have?', '32', '28', '30', '36'],
+  ['What is the name of the fairy in Peter Pan?', 'Tinker Bell', 'Wendy', 'Tiger Lily', 'Silvermist'],
+  ['Which composer wrote The Four Seasons?', 'Vivaldi', 'Mozart', 'Beethoven', 'Bach'],
+  ['What is the capital of Ireland?', 'Dublin', 'Cork', 'Galway', 'Limerick'],
+  ['Which shape has four equal sides and four right angles?', 'Square', 'Rhombus', 'Rectangle', 'Trapezium'],
+  ['What does a thermometer measure?', 'Temperature', 'Pressure', 'Speed', 'Weight'],
+  ['What is the largest land animal?', 'African elephant', 'Hippopotamus', 'Rhinoceros', 'Giraffe'],
+  ['What is the capital of Egypt?', 'Cairo', 'Alexandria', 'Luxor', 'Giza'],
+  ['Who was granted the first patent for the telephone, in 1876?', 'Alexander Graham Bell', 'Thomas Edison', 'Nikola Tesla', 'Guglielmo Marconi'],
+  ['Which is the only mammal that can truly fly?', 'Bat', 'Flying squirrel', 'Sugar glider', 'Colugo'],
+  ['What is the capital of Portugal?', 'Lisbon', 'Porto', 'Faro', 'Braga'],
+  ['How many cards are in a standard deck, without jokers?', '52', '54', '48', '50'],
+  ['What is the main language spoken in Brazil?', 'Portuguese', 'Spanish', 'French', 'Italian'],
+  ['In Harry Potter, what is the name of Harry\'s owl?', 'Hedwig', 'Errol', 'Pigwidgeon', 'Crookshanks'],
+  ['What is the capital of Greece?', 'Athens', 'Sparta', 'Thessaloniki', 'Corinth'],
+  ['Which month has the fewest days?', 'February', 'April', 'June', 'November'],
+  ['How many legs does an insect have?', '6', '8', '4', '10'],
+  ['What is the longest bone in the human body?', 'Femur', 'Tibia', 'Humerus', 'Fibula'],
+  ['Which planet is famous for its Great Red Spot?', 'Jupiter', 'Mars', 'Saturn', 'Neptune'],
+  ['What is a baby kangaroo called?', 'Joey', 'Kid', 'Cub', 'Calf'],
+  ['Which chess piece can jump over other pieces?', 'Knight', 'Bishop', 'Rook', 'King'],
+  ['What is a group of crows called?', 'A murder', 'A pride', 'A pod', 'A gaggle'],
+  ['What colour is a polar bear\'s skin?', 'Black', 'White', 'Pink', 'Grey'],
+  ['Which country is known as the Land of the Rising Sun?', 'Japan', 'China', 'Thailand', 'South Korea'],
+  ['How many strings does a standard guitar have?', '6', '4', '5', '8'],
+  ['What is the capital of Norway?', 'Oslo', 'Bergen', 'Stockholm', 'Copenhagen'],
+  ['Which vegetable is famously said to help you see in the dark?', 'Carrot', 'Broccoli', 'Pea', 'Potato'],
+  ['How many seconds are in a minute?', '60', '100', '30', '90'],
+  ['Which famous clock tower bell is in London?', 'Big Ben', 'Big Tom', 'Great Paul', 'Old Bailey'],
 ];
+// Anagram mission: castle words to unscramble
+const ANAGRAMS = ['CASTLE', 'TRAITOR', 'FAITHFUL', 'DAGGER', 'SHIELD', 'TURRET', 'BANQUET', 'CLOAK', 'MURDER', 'LANTERN', 'GOBLET', 'DUNGEON',
+  'CANDLE', 'TAPESTRY', 'RAVEN', 'POTION', 'THRONE', 'SECRET', 'ALIBI', 'VERDICT', 'CHALICE', 'ARMOUR', 'FORTRESS', 'PORTRAIT'];
+// Memory mission: the portrait gallery
+const GALLERY = ['a red fox', 'a silver key', 'a broken clock', 'a white swan', 'a golden crown', 'an old map', 'a black cat', 'a candle', 'a raven', 'a dagger',
+  'a rose', 'a sailing ship', 'a lantern', 'a chess knight', 'an hourglass', 'a harp', 'an owl', 'a goblet', 'a feather', 'a stag', 'a crescent moon', 'a teapot'];
+const MISSION_KINDS = {
+  quiz: { name: 'The Library Quiz', intro: 'Three questions from the castle library.' },
+  sums: { name: 'The Counting House', intro: 'Three quick sums. Count the gold correctly.' },
+  anagram: { name: 'The Scrambled Scrolls', intro: 'Three scrolls, each with a scrambled castle word. Unscramble them.' },
+  memory: { name: 'The Portrait Gallery', intro: 'Study six portraits, then say which one was never on the wall. Three rounds.' },
+};
+// Four options with the right answer at index `ans`
+function withAnswer(right, wrongs) { const opts = shuffle([right, ...wrongs.slice(0, 3)]); return { opts, ans: opts.indexOf(right) }; }
+function buildMission(kind) {
+  if (kind === 'quiz') {
+    let left = QUESTIONS.map((q, i) => i).filter(i => !S.usedQ.includes(i));
+    if (left.length < 3) { S.usedQ = []; left = QUESTIONS.map((q, i) => i); }
+    return shuffle(left).slice(0, 3).map(i => { S.usedQ.push(i); const q = QUESTIONS[i]; return Object.assign({ q: q[0] }, withAnswer(q[1], q.slice(2))); });
+  }
+  if (kind === 'sums') return [0, 1, 2].map(k => {
+    const mul = k === 2, a = mul ? 3 + rnd(9) : 12 + rnd(70), b = mul ? 3 + rnd(9) : 12 + rnd(70), right = mul ? a * b : a + b;
+    const wr = new Set(); while (wr.size < 3) { const d = (1 + rnd(mul ? 12 : 10)) * (chance(.5) ? 1 : -1); if (right + d > 0) wr.add(right + d); }
+    return Object.assign({ q: `What is ${a} ${mul ? '×' : '+'} ${b}?` }, withAnswer(String(right), [...wr].map(String)));
+  });
+  if (kind === 'anagram') return shuffle(ANAGRAMS).slice(0, 3).map(w => {
+    let sc = w; for (let t = 0; t < 10 && sc === w; t++) sc = shuffle(w.split('')).join('');
+    return Object.assign({ q: `Unscramble: ${sc.split('').join(' ')}` }, withAnswer(w, shuffle(ANAGRAMS.filter(x => x !== w)).slice(0, 3)));
+  });
+  return [0, 1, 2].map(() => {
+    const g = shuffle(GALLERY), shown = g.slice(0, 6), missing = g[6];
+    return Object.assign({ q: 'Which of these was NOT in the gallery?', show: shown }, withAnswer(missing, shuffle(shown).slice(0, 3)));
+  });
+}
 
 /* ---------- Start ---------- */
 function start() {
@@ -442,7 +538,7 @@ function dawn(victim) {
     }
   }
   // Nobody died and no Shield explains it: someone may have been blackmailed into joining
-  if (victim == null && S.night && S.night.result !== 'saved') S.recruitGuess = (S.recruitGuess || 0) + .7;
+  if (victim == null && S.night && S.night.result !== 'saved' && S.night.result !== 'final5') S.recruitGuess = (S.recruitGuess || 0) + .7;
   const secretWin = today() && today().secret && today().secret.win;
   newDay();
   today().murdered = victim;
@@ -466,14 +562,11 @@ function afterBreakfast() {
 /* ---------- Mission: a three-question quiz ---------- */
 function startMission() {
   if (!S.settings.missions) return toTable();
-  let left = QUESTIONS.map((q, i) => i).filter(i => !S.usedQ.includes(i));
-  if (left.length < 3) { S.usedQ = []; left = QUESTIONS.map((q, i) => i); }
-  const qs = shuffle(left).slice(0, 3);
-  S.usedQ.push(...qs);
-  S.mission = { qs, opts: qs.map(() => shuffle([1, 2, 3, 4])), i: 0, mine: [], picked: null, result: null };
+  const kind = pick(Object.keys(MISSION_KINDS));
+  S.mission = { kind, items: buildMission(kind), i: 0, mine: [], picked: null, stage: kind === 'memory' ? 'show' : 'ask', result: null };
   S.phase = 'mission';
   if (!meAlive()) resolveMission();
-  else say('Today\'s mission: three questions. Every right answer adds gold to the prize pot.');
+  else say(`Today's mission: ${MISSION_KINDS[kind].name}. ${MISSION_KINDS[kind].intro} Every right answer adds gold to the pot.`);
 }
 function resolveMission() {
   const m = S.mission, scores = {};
@@ -491,6 +584,16 @@ function resolveMission() {
     if (scores[k] === 3) addFact(+k, 'got every mission question right', -.05);
   });
   let winner = null;
+  // From the final five there are no more murders, so the top scorer becomes the Seer instead
+  if (alive().length <= SECRET_AT && alive().length > 2) {
+    const top = Math.max(...Object.values(scores));
+    winner = pick(Object.keys(scores).filter(k => scores[k] === top).map(Number));
+    m.result = { scores, gold, shield: null, winner, choice: 'seer', seer: seerClue(winner) };
+    today().mission = { gold, shield: null, scores, seer: winner, clue: m.result.seer.truth };
+    S.phase = 'missionResult';
+    say(`The mission earned ${money(gold)}. ${winner === ME ? 'You are' : nmPlain(winner) + ' is'} the Seer.`);
+    return;
+  }
   if (S.settings.shields && alive().length > FIRE_PIT) {
     const top = Math.max(...Object.values(scores));
     winner = pick(Object.keys(scores).filter(k => scores[k] === top).map(Number));
@@ -501,6 +604,29 @@ function resolveMission() {
   // The top scorer chooses: the Shield, or gold for the pot. Traitors don't need protection, so they take the gold more often.
   say(`The mission earned ${money(gold)}.${winner === ME ? ' You were the top scorer: Shield, or gold?' : ''}`);
   if (winner != null && winner !== ME) shieldChoice(chance(P(winner).role === 'traitor' ? .7 : .3) ? 'gold' : 'shield');
+}
+// The Seer's clue: a true statement about two other players. Bot Seers announce theirs, and a Traitor Seer lies.
+function makeClue(w) {
+  const others = alive().filter(i => i !== w), tr = others.filter(i => P(i).role === 'traitor'), fa = others.filter(i => P(i).role !== 'traitor');
+  if (tr.length && (fa.length < 2 || chance(.6))) { const t = pick(tr); return { kind: 'one', pair: shuffle([t, pick(others.filter(i => i !== t))]) }; }
+  if (fa.length >= 2) return { kind: 'none', pair: shuffle(fa).slice(0, 2) };
+  return { kind: 'one', pair: shuffle(others).slice(0, 2) };
+}
+const clueText = c => c.kind === 'one' ? `At least one of ${nmPlain(c.pair[0])} and ${nmPlain(c.pair[1])} is a Traitor.` : `Neither ${nmPlain(c.pair[0])} nor ${nmPlain(c.pair[1])} is a Traitor.`;
+function seerClue(w) {
+  const truth = makeClue(w);
+  if (w === ME) { (S.myClues = S.myClues || []).push({ day: S.day, text: clueText(truth) }); return { truth, said: null }; }
+  let said = truth;
+  if (P(w).role === 'traitor') {
+    // A Traitor Seer frames two Faithful, or vouches for a fellow Traitor
+    const fs = alive().filter(i => i !== w && P(i).role !== 'traitor').sort((a, b) => heat(b) - heat(a));
+    const mate = alive().find(i => i !== w && P(i).role === 'traitor');
+    said = mate != null && fs.length && chance(.5) ? { kind: 'none', pair: shuffle([mate, fs[fs.length - 1]]) } : fs.length >= 2 ? { kind: 'one', pair: fs.slice(0, 2) } : truth;
+  } else {
+    truth.pair.forEach(x => { S.herd[w][x] += truth.kind === 'one' ? .45 : -.6; });
+  }
+  said.pair.forEach(x => nudge(x, said.kind === 'one' ? .15 : -.15, w));
+  return { truth, said, line: `I'm the Seer. My clue: ${clueText(said)} Make of that what you will.` };
 }
 function shieldChoice(c) {
   const r = S.mission.result, w = r.winner;
@@ -740,6 +866,13 @@ function recruitPick() {
   return best;
 }
 function startNight() {
+  if (alive().length <= SECRET_AT) {
+    // The final five: the Traitors may not murder tonight
+    S.night = { final5: true, recruit: false, result: 'final5', victim: null };
+    S.phase = 'night';
+    say('The final five. There will be no murder tonight.');
+    return;
+  }
   const recruit = S.recruitNext && alive().length > RECRUIT_ABOVE && faithfulAlive().length > 0;
   S.recruitNext = false;
   const black = recruit && traitorsAlive().length === 1, sugg = recruit ? recruitPick() : murderPick();
@@ -762,7 +895,7 @@ function resolveNight(target, murder) {
 function kill(t) { P(t).alive = false; P(t).out = { how: 'murdered', day: S.day + 1 }; S.night.victim = t; S.night.result = 'murder'; }
 function resolveLetter(yes) {
   const n = S.night, t = n.target;
-  if (yes) { P(t).role = 'traitor'; n.result = 'recruited'; today().recruited = t; }
+  if (yes) { P(t).role = 'traitor'; n.result = 'recruited'; today().recruited = t; if (t === ME) { S.phase = 'welcome'; return; } }
   else { today().refused = t; today().refusedDied = n.black; if (n.black) kill(t); else n.result = 'refused'; }
   finishNight();
 }
@@ -859,6 +992,8 @@ function breakfastTalk(victim, secretWin) {
       if (t != null) nudge(t, .06, b);
       talk.push({ who: b, text: b === sh ? 'Nobody died… The Shield saved me. They came for me. I must be onto something.' : t != null ? `Everyone's here, so the Traitors must have gone for ${SH}, who had the Shield. ${SH} has been on to ${nmPlain(t)}. That's no coincidence.` : `Everyone's here! They must have tried for ${SH}. The Shield saved a life last night.`, t });
     });
+  } else if (n.result === 'final5') {
+    speakers.slice(0, 2).forEach(b => talk.push({ who: b, text: pick(['The final five. No more murders, so it\'s all down to us now.', 'Five of us left. If there\'s a Traitor at this table, today is the day we find them.', 'No more hiding behind murders. Whoever is left has to face us.']) }));
   } else {
     speakers.slice(0, 3).forEach(b => talk.push({ who: b, text: pick(['Nobody was murdered? That doesn\'t happen. Something else went on in the night.', 'No murder… I don\'t like it. Have the Traitors recruited someone?', 'Everyone came down. Either the Traitors got clever, or somebody here made a deal.']) }));
   }
@@ -866,6 +1001,27 @@ function breakfastTalk(victim, secretWin) {
   const f = talk.find(e => e.t != null && e.kind !== 'defend' && e.kind !== 'notice');
   if (f) today().first.push([f.who, f.t]);
   return talk;
+}
+
+// Your reaction at breakfast: it goes into the conversation, and the castle takes note
+function humanReact(how, t) {
+  const b = S.bf, V = nmPlain(b.victim), add = [];
+  b.myReact = how;
+  if (how === 'mourn') {
+    add.push({ who: ME, text: pick([`I'm gutted about ${V}. They were one of the good ones, and the Traitors will pay for this.`, `${V} didn't deserve that. I'll find whoever did it.`]) });
+    alive().forEach(l => { if (isFaithfulBot(l)) S.herd[l][ME] -= .03; });
+  } else if (how === 'quiet') {
+    add.push({ who: ME, text: 'You say nothing and stare at your plate.', kind: 'notice' });
+    if (chance(.35)) { addFact(ME, 'stayed silent after the murder', .06); const q = pick(alive().filter(i => i !== ME)); if (q != null) add.push({ who: q, text: `You're very quiet this morning, ${nmPlain(ME)}.`, t: ME, kind: 'notice' }); }
+  } else {
+    add.push({ who: ME, text: `${V} was onto someone, and I think it was ${nmPlain(t)}. ${reasonFor(t)}`, t });
+    nudge(t, .1, ME);
+    if (!today().first.length) today().first.push([ME, t]);
+    if (P(t).bot) add.push({ who: t, text: defendLine(t, ME), kind: 'defend' });
+  }
+  b.talk = b.talk.slice(0, b.heard).concat(add, b.talk.slice(b.heard));
+  b.heard += add.length;
+  S.scrollFeed = true;
 }
 
 /* ---------- The fire pit ---------- */
@@ -920,7 +1076,7 @@ function skipToEnd() {
       case 'votereveal': afterVotes(); break;
       case 'tie': startVote(2, S.tie); break;
       case 'banish': if (!S.ban.secret && !S.ban.shown) revealBanished(); afterBanish(); break;
-      case 'night': resolveNight(S.night.sugg, S.night.msugg); break;
+      case 'night': if (S.night.final5) dawn(null); else resolveNight(S.night.sugg, S.night.msugg); break;
       case 'firepit': castEndVotes(null); break;
       case 'endreveal': afterEndVotes(); break;
       default: return;
@@ -994,7 +1150,7 @@ function phaseLabel() {
   if (S.phase === 'setup') return 'Setup';
   if (S.phase === 'over') return 'Game over';
   if (S.phase === 'reveal') return 'Your role';
-  if (S.phase === 'night' || S.phase === 'letter') return `Night ${S.day}`;
+  if (S.phase === 'night' || S.phase === 'letter' || S.phase === 'welcome') return `Night ${S.day}`;
   return `Day ${S.day}`;
 }
 function phaseHtml() {
@@ -1009,20 +1165,26 @@ function phaseHtml() {
           ${!done ? `<div class="row"><button class="btn primary" style="flex:1" data-act="arrive">Next to arrive</button><button class="btn" data-act="arriveall">Everyone</button></div>`
             : b.victim === ME ? `<p class="big-news bad">You never came down.</p><p class="center">The others wait, and wait… The Traitors came for you in the night.</p>`
             : b.victim != null ? `<p class="big-news bad">${nm(b.victim)} never came down.</p><p class="center">${nm(b.victim)} was murdered in the night, and was Faithful.</p>`
-            : `<p class="big-news">Everyone is here!</p><p class="center">${r === 'saved' ? 'The Traitors struck, but their victim held the Shield.' : 'Nobody was murdered last night…'}</p>`}
+            : `<p class="big-news">Everyone is here!</p><p class="center">${r === 'saved' ? 'The Traitors struck, but their victim held the Shield.' : r === 'final5' ? 'The final five were safe last night.' : 'Nobody was murdered last night…'}</p>`}
           ${done && b.talk && b.talk.length ? `<h3>Around the table</h3>${b.heard ? feedHtml(b.talk.slice(0, b.heard)) : ''}${b.heard < b.talk.length ? `<div class="row"><button class="btn" style="flex:1" data-act="talk">${b.heard ? 'Hear more' : 'Hear what they think'}</button><button class="btn" data-act="talkall">Everyone</button></div>` : ''}` : ''}
+          ${done && meAlive() && b.victim != null && !b.myReact ? `<h3>Your reaction</h3><div class="row"><button class="btn" style="flex:1" data-act="react" data-v="mourn">Mourn ${nm(b.victim)}</button><button class="btn" style="flex:1" data-act="react" data-v="theory">Share a theory</button><button class="btn" data-act="react" data-v="quiet">Stay quiet</button></div>
+            ${S.ui === 'theory' ? `<p><b>Who do you think the Traitors were protecting?</b> ${nm(b.victim)} may have been murdered for getting too close to them.</p>${pickHtml(alive().filter(i => i !== ME), null, 'theory')}` : ''}` : ''}
+          ${done && iAmTraitor() && meAlive() && S.days.length > 1 && S.days[S.days.length - 2].recruited != null && S.days[S.days.length - 2].recruited !== ME ? `<div class="secret"><b>🗡 Only you see this</b><p>${nm(S.days[S.days.length - 2].recruited)} accepted the Traitors' offer last night and is now one of you.</p></div>` : ''}
           ${done ? `<button class="btn primary block" data-act="afterbf">${b.victim === ME && !S.outSeen ? 'Continue' : S.settings.missions ? 'To the mission' : 'To the Round Table'}</button>` : ''}
         </section>${statusHtml()}`;
     }
     case 'mission': {
-      const m = S.mission, q = QUESTIONS[m.qs[m.i]], o = m.opts[m.i];
-      const answered = m.picked != null;
-      return `<section class="card">
-          <p class="kicker">Day ${S.day} · Mission · question ${m.i + 1} of 3</p>
-          <h2>${esc(q[0])}</h2>
-          ${iAmTraitor() ? '<p class="hint">You\'re a Traitor: answer wrongly on purpose to sabotage, but a poor score gets noticed.</p>' : ''}
-          <div class="pick">${o.map(k => `<button type="button" data-act="answer" data-v="${k}" ${answered ? 'disabled' : ''} class="${answered && k === 1 ? 'right' : answered && k === m.picked ? 'wrong' : ''}">${esc(q[k])}</button>`).join('')}</div>
-          ${answered ? `<p class="center"><b>${m.picked === 1 ? 'Correct!' : `Wrong: it's ${esc(q[1])}.`}</b></p><button class="btn primary block" data-act="nextq">${m.i < 2 ? 'Next question' : 'See the results'}</button>` : ''}
+      const m = S.mission, it = m.items[m.i], answered = m.picked != null, K = MISSION_KINDS[m.kind];
+      const head = `<p class="kicker">Day ${S.day} · ${K.name} · ${m.i + 1} of 3</p>`;
+      if (m.stage === 'show') return `<section class="card">${head}<h2>Study the portraits</h2>
+          <p class="hint">They'll be covered in a few seconds.</p>
+          <ul class="gallery">${it.show.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+          <button class="btn primary block" data-act="memorised">I've memorised them</button></section>`;
+      return `<section class="card">${head}
+          <h2>${esc(it.q)}</h2>
+          ${iAmTraitor() && m.i === 0 ? '<p class="hint">You\'re a Traitor: answer wrongly on purpose to sabotage, but a poor score gets noticed.</p>' : ''}
+          <div class="pick">${it.opts.map((o, k) => `<button type="button" data-act="answer" data-v="${k}" ${answered ? 'disabled' : ''} class="${answered && k === it.ans ? 'right' : answered && k === m.picked ? 'wrong' : ''}">${esc(o)}</button>`).join('')}</div>
+          ${answered ? `<p class="center"><b>${m.picked === it.ans ? 'Correct!' : `Wrong: it's ${esc(it.opts[it.ans])}.`}</b></p><button class="btn primary block" data-act="nextq">${m.i < 2 ? 'Next' : 'See the results'}</button>` : ''}
         </section>${statusHtml()}`;
     }
     case 'missionResult': {
@@ -1030,10 +1192,13 @@ function phaseHtml() {
       return `<section class="card">
           <p class="kicker">Day ${S.day} · Mission results</p><h2>+${money(r.gold)} to the pot</h2>
           <div class="tally">${rows.map(i => `<div><span>${nm(i)}${r.shield === i ? ' 🛡' : ''}</span><span class="b" style="width:${r.scores[i] / 3 * 100}%"></span><span>${r.scores[i]}/3</span></div>`).join('')}</div>
-          ${r.winner === ME && r.choice == null ? `<p><b>You were the top scorer.</b> Take the Shield (safe from murder tonight), or turn it down and add ${money(SHIELD_GOLD)} to the pot? Traitors don't need a Shield, so taking the gold can look suspicious.</p>
+          <p class="hint">${MISSION_KINDS[S.mission.kind || 'quiz'].name}</p>
+          ${r.choice === 'seer' ? (r.winner === ME ? `<div class="secret seer"><b>👁 You are the Seer</b><p>From the final five there are no more murders, so instead of the Shield you get a clue. It is true, and only you have seen it:</p><p><b>${esc(clueText(r.seer.truth))}</b></p><p class="hint">Use it at the Round Table and the fire pit. It's kept in the Menu.</p></div>`
+            : `<p>${nm(r.winner)} is the <b>Seer</b> and has seen a clue.</p>${feedHtml([{ who: r.winner, text: r.seer.line }])}<p class="hint">A Faithful Seer tells the truth. A Traitor Seer would lie.</p>`) : ''}
+          ${r.choice === 'seer' ? '' : r.winner === ME && r.choice == null ? `<p><b>You were the top scorer.</b> Take the Shield (safe from murder tonight), or turn it down and add ${money(SHIELD_GOLD)} to the pot? Traitors don't need a Shield, so taking the gold can look suspicious.</p>
             <div class="pick"><button type="button" data-act="shieldpick" data-v="shield">🛡 Take the Shield</button><button type="button" data-act="shieldpick" data-v="gold">+${money(SHIELD_GOLD)} to the pot</button></div>`
-            : r.winner != null ? `<p>${r.winner === ME ? 'You' : nm(r.winner)} ${r.choice === 'shield' ? `took the <b>Shield</b>: safe from murder tonight.` : `turned down the Shield and added ${money(SHIELD_GOLD)} to the pot.`}</p>` : ''}
-          <p class="hint">A player who gets nothing right might just be unlucky… or sabotaging. And who needs a Shield less than a Traitor?</p>
+            : r.winner != null && r.choice !== 'seer' ? `<p>${r.winner === ME ? 'You' : nm(r.winner)} ${r.choice === 'shield' ? `took the <b>Shield</b>: safe from murder tonight.` : `turned down the Shield and added ${money(SHIELD_GOLD)} to the pot.`}</p>` : ''}
+          ${r.choice === 'seer' ? '' : '<p class="hint">A player who gets nothing right might just be unlucky… or sabotaging. And who needs a Shield less than a Traitor?</p>'}
           <button class="btn primary block" data-act="totable" ${r.winner === ME && r.choice == null ? 'disabled' : ''}>To the Round Table</button>
         </section>${statusHtml()}`;
     }
@@ -1089,7 +1254,7 @@ function phaseHtml() {
     }
     case 'night': {
       const n = S.night;
-      if (meAlive() && iAmTraitor()) {
+      if (meAlive() && iAmTraitor() && !n.final5) {
         const mates = traitorsAlive().filter(i => i !== ME);
         const verb = !n.recruit ? 'murder' : n.black ? 'blackmail' : 'seduce';
         return `<section class="card">
@@ -1102,16 +1267,27 @@ function phaseHtml() {
             <button class="btn primary block" data-act="nightgo" ${n.choice == null || (n.recruit && !n.black && n.mchoice == null) ? 'disabled' : ''}>${n.choice == null ? 'Choose a name' : n.recruit && !n.black ? (n.mchoice == null ? 'Choose who to murder' : `Seduce ${nm(n.choice)}, murder ${nm(n.mchoice)}`) : `${verb[0].toUpperCase() + verb.slice(1)} ${nm(n.choice)}`}</button>
           </section>`;
       }
+      if (n.final5) return `<section class="card center"><p class="kicker">Night ${S.day}</p><h2>The final five</h2>
+          <p>Five players remain. Tonight, nobody will be murdered. Tomorrow's mission winner becomes the Seer, and the Round Table banishes in secret.</p>
+          <button class="btn primary block" data-act="sleep">Wait for morning</button></section>${statusHtml()}`;
       return `<section class="card center"><p class="kicker">Night ${S.day}</p><h2>Night falls</h2>
           <p>${meAlive() ? 'You lock your door and lie awake in your turret. Somewhere in the castle, the Traitors are meeting.' : 'The castle sleeps. The Traitors meet.'}</p>
           <button class="btn primary block" data-act="sleep">Wait for morning</button></section>${statusHtml()}`;
     }
     case 'letter': {
       const n = S.night;
-      return `<div class="role traitor"><p class="kicker" style="color:#fff;opacity:.8">A letter slides under your door</p>
+      const lone = traitorsAlive()[0];
+      return `<div class="role traitor"><p class="kicker" style="color:#fff;opacity:.8">${n.black ? 'You are taken from your room' : 'A letter slides under your door'}</p>
           <div class="rname" style="font-size:2rem">${n.black ? 'Join us, or die' : 'The Traitors want you'}</div>
-          <p>${n.black ? 'This is blackmail. Join the Traitors, or refuse and be murdered tonight.' : 'Join them and become a Traitor, or refuse and stay Faithful. Nothing happens to you if you refuse.'}</p></div>
+          <p>${n.black ? `In a candlelit room, the last Traitor is waiting for you: <b>${esc(nmPlain(lone))}</b>. This is blackmail. Join, or refuse and be murdered tonight.` : 'Join them and become a Traitor, or refuse and stay Faithful. Nothing happens to you if you refuse. If you join, you\'ll meet the others straight away.'}</p></div>
         <div class="pick"><button type="button" data-act="letter" data-v="1">Join the Traitors</button><button type="button" data-act="letter" data-v="0">Refuse</button></div>`;
+    }
+    case 'welcome': {
+      const mates = traitorsAlive().filter(i => i !== ME), n = S.night;
+      return `<div class="role traitor"><p class="kicker" style="color:#fff;opacity:.8">You accepted</p><div class="rname">You are a Traitor</div>
+          <p>${n.black ? 'You shake hands by candlelight.' : 'You are led to the Traitors\' meeting room, where they are waiting.'} Your fellow Traitor${mates.length === 1 ? ' is' : 's are'}: <b>${mates.map(i => esc(nmPlain(i))).join(', ')}</b>.</p>
+          <p>${n.black ? 'Nobody else dies tonight.' : 'Tonight\'s murder was chosen before you joined.'} From tomorrow night, you choose with them. Win with the Traitors now.</p></div>
+        <button class="btn primary block" data-act="welcomed">Return to your room</button>`;
     }
     case 'out': {
       const how = P(ME).out.how;
@@ -1154,6 +1330,7 @@ function overHtml() {
     const bits = [];
     if (d.murdered != null) bits.push(`<p>☠ ${nm(d.murdered)} ${d.murdered === ME ? 'were' : 'was'} murdered in the night.</p>`);
     if (d.mission) bits.push(`<p>⚔ The mission earned ${money(d.mission.gold)}${d.mission.shield != null ? `; ${nm(d.mission.shield)} took the Shield` : d.mission.tookGold != null ? `; ${nm(d.mission.tookGold)} turned down the Shield for gold` : ''}.</p>`);
+    if (d.mission && d.mission.seer != null) bits.push(`<p>👁 ${nm(d.mission.seer)} became the Seer. The true clue: ${esc(clueText(d.mission.clue))}</p>`);
     if (d.secret) bits.push(`<p>🗡 Secret Traitor mission: ${d.secret.type === 'vote' ? `get ${nm(d.secret.target)} banished` : `say "${esc(d.secret.phrase)}"`}, ${d.secret.win ? `<b>succeeded</b> (+${money(SECRET_GOLD)})` : 'failed'}.</p>`);
     d.votes.forEach(v => bits.push(`<p>🗳 ${v.round > 1 ? 'Revote' : 'Votes'}: ${v.ballots.map(([a, b]) => `${nm(a)}→${nm(b)}`).join(', ')}</p>`));
     d.endVotes.forEach(ev => bits.push(`<p>🔥 Fire pit vote: ${ev.map(([a, c]) => `${nm(a)} ${c ? 'end' : 'banish'}`).join(', ')}</p>`));
@@ -1179,18 +1356,18 @@ function menuHtml() {
   if (menu === 'rules') return `<div class="row"><h2>How to play</h2><button class="btn sm" data-act="menu">‹ Back</button><button class="btn sm" data-act="close" aria-label="Close">✕</button></div>
     <ul>
       <li>You are one of the players in the castle. Everyone else is a bot. Some players are <b>Traitors</b>; nobody is told how many.</li>
-      <li><b>Missions</b>: a three-question quiz. Every right answer from anyone adds ${money(GOLD_PER_ANSWER)} to the pot. The top scorer wins the <b>Shield</b> and can't be murdered that night. Traitors sometimes sabotage by answering wrongly.</li>
+      <li><b>Missions</b>: three rounds of one of four challenges: the Library Quiz, quick sums in the Counting House, anagrams in the Scrambled Scrolls, or a memory test in the Portrait Gallery. Every right answer from anyone adds ${money(GOLD_PER_ANSWER)} to the pot. The top scorer wins the <b>Shield</b> and can't be murdered that night. Traitors sometimes sabotage by answering wrongly.</li>
       <li><b>Round Table</b>: the bots take turns to accuse someone and give a reason. You can accuse someone too, and defend yourself if you're accused. Then everyone votes, and the slates are turned one by one.</li>
       <li>Bots remember what happens. Voting for someone who turns out to be Faithful makes you look suspicious; voting out a Traitor clears you a little. If a murder victim had accused someone, that person looks guilty. The <b>Dossier</b> in this menu shows what the castle knows about each player. The percentage beside each name is the <b>castle's read</b>: the bots' average belief that the player is a Traitor (not the truth).</li>
       <li><b>Night</b>: the Traitors murder a Faithful. If you're a Traitor, you choose who. After a Traitor is banished, and while more than 6 remain, the Traitors also recruit: a <b>seduction</b> (refusing is safe, and they still murder someone else) with two or more Traitors left, or <b>blackmail</b> (join or die, and no other murder) with only one. Who died is only revealed at breakfast, even to you.</li>
-      <li><b>The final five</b>: banished players no longer reveal their role. <b>The fire pit</b>: once 4 remain there are no more murders. Everyone votes to end the game or banish again. Each Faithful bot works out the chance that everyone left is Faithful and votes to end with a probability based on it; nervous bots need more convincing than bold ones. If everyone votes to end with a Traitor still there, the Traitors take the pot.</li>
+      <li><b>The final five</b>: there is no murder on the night five players remain, and from then on the mission's top scorer becomes the <b>Seer</b> instead of winning the Shield: they get a true clue about two players. Bot Seers announce theirs, but a Traitor Seer lies. Banished players no longer reveal their role. <b>The fire pit</b>: once 4 remain there are no more murders. Everyone votes to end the game or banish again. Each Faithful bot works out the chance that everyone left is Faithful and votes to end with a probability based on it; nervous bots need more convincing than bold ones. If everyone votes to end with a Traitor still there, the Traitors take the pot.</li>
       <li><b>Tells</b>: Traitors can give themselves away. Watch for players who never go after each other, people who defend someone later revealed as a Traitor, slips of the tongue at breakfast, anyone oddly calm when a murder is announced, rumours of footsteps in the night, odd phrases at the Round Table (some days the Traitors have a secret mission), a top scorer turning down the Shield for gold, and whoever is first to point the finger at someone who turns out Faithful. None of these is proof: Faithful players trip up too.</li>
       <li>If you're murdered or banished, you can watch the rest or skip to the end. Only players still in the game at the end share the gold.</li>
     </ul>`;
   const inGame = S.phase !== 'setup';
   return `<div class="row"><h2>Menu</h2><button class="btn sm" data-act="close" aria-label="Close">✕</button></div>
     <button class="btn" data-act="rules">How to play</button>
-    ${inGame && S.players.length ? `<h3>Your role</h3><p>You ${meAlive() ? 'are' : 'were'} <b style="color:var(--${iAmTraitor() ? 'traitor' : 'faithful'})">${iAmTraitor() ? 'a Traitor' : 'Faithful'}</b>.${iAmTraitor() ? ` Your team: ${S.players.map((p, i) => i).filter(i => i !== ME && P(i).role === 'traitor').map(i => esc(nmPlain(i)) + (P(i).alive ? '' : ' (out)')).join(', ') || 'just you'}.` : ''}</p>
+    ${inGame && S.players.length ? `<h3>Your role</h3><p>You ${meAlive() ? 'are' : 'were'} <b style="color:var(--${iAmTraitor() ? 'traitor' : 'faithful'})">${iAmTraitor() ? 'a Traitor' : 'Faithful'}</b>.${(S.myClues || []).length ? ` Your Seer's clue${S.myClues.length > 1 ? 's' : ''}: ${S.myClues.map(c => `<b>${esc(c.text)}</b> (day ${c.day})`).join('; ')}.` : ''}${iAmTraitor() ? ` Your team: ${S.players.map((p, i) => i).filter(i => i !== ME && P(i).role === 'traitor').map(i => esc(nmPlain(i)) + (P(i).alive ? '' : ' (out)')).join(', ') || 'just you'}.` : ''}</p>
       <h3>Dossier</h3><p class="hint">What the whole castle knows about each player. The percentage is the castle's read: how likely the bots think that player is a Traitor.</p>
       <ul class="list dossier">${S.players.map((p, i) => i).sort((a, b) => P(b).alive - P(a).alive).map(i => `<li class="${P(i).alive ? '' : 'out'}"><div><b>${nm(i)}</b> ${P(i).alive ? oddsTag(castleRead()[i]) : ''}${P(i).bot ? ` <span class="hint">${PERSONA[P(i).persona].label}</span>` : ''} ${tagFor(i)}${S.facts[i].length ? `<ul>${S.facts[i].slice(-4).map(f => `<li>${esc(f.text)} (day ${f.day})</li>`).join('')}</ul>` : ''}</div></li>`).join('')}</ul>
       <p class="hint">Prize pot: <span class="gold">${money(S.pot)}</span></p>` : ''}
@@ -1200,7 +1377,11 @@ function menuHtml() {
     ${inGame ? `<h3>Game</h3>${menu === 'quit' ? `<p>End this game and go back to the settings?</p><div class="row"><button class="btn danger" data-act="quityes">Yes, end it</button><button class="btn" data-act="menu">Keep playing</button></div>` : `<button class="btn danger" data-act="quit">End this game</button>`}` : ''}`;
 }
 function renderMenu() { $('#sheet').innerHTML = menu ? `<div class="sheet-back" data-act="backdrop"><div class="sheet" role="dialog" aria-modal="true" aria-label="Menu">${menuHtml()}</div></div>` : ''; }
+let memoTimer = null;
 function render() {
+  // The gallery covers itself after a few seconds
+  clearTimeout(memoTimer);
+  if (S.phase === 'mission' && S.mission && S.mission.stage === 'show') memoTimer = setTimeout(() => { if (S.phase === 'mission' && S.mission.stage === 'show') { S.mission.stage = 'ask'; save(); render(); } }, 6000);
   $('#phase').textContent = phaseLabel();
   $('#app').innerHTML = phaseHtml();
   renderMenu();
@@ -1229,9 +1410,12 @@ document.addEventListener('click', e => {
     case 'arriveall': S.bf.shown = S.bf.order.length; announce(); break;
     case 'afterbf': if (S.bf.victim === ME && !S.outSeen) { S.outSeen = true; S.resume = 'breakfast'; S.phase = 'out'; } else afterBreakfast(); break;
     case 'talk': S.bf.heard++; S.scrollFeed = true; top = false; break;
+    case 'react': if (v === 'theory') { S.ui = S.ui === 'theory' ? null : 'theory'; } else humanReact(v); top = false; break;
+    case 'theory': humanReact('theory', +v); S.ui = null; top = false; break;
     case 'talkall': S.bf.heard = S.bf.talk.length; top = false; break;
-    case 'answer': S.mission.picked = +v; S.mission.mine[S.mission.i] = +v === 1; top = false; break;
-    case 'nextq': { const m = S.mission; m.picked = null; if (m.i < 2) m.i++; else resolveMission(); break; }
+    case 'answer': { const m = S.mission; if (m.picked != null) return; m.picked = +v; m.mine[m.i] = +v === m.items[m.i].ans; top = false; break; }
+    case 'memorised': S.mission.stage = 'ask'; clearTimeout(memoTimer); break;
+    case 'nextq': { const m = S.mission; m.picked = null; if (m.i < 2) { m.i++; if (m.kind === 'memory') m.stage = 'show'; } else resolveMission(); break; }
     case 'shieldpick': shieldChoice(v); top = false; break;
     case 'totable': if (!(S.mission.result.winner === ME && S.mission.result.choice == null)) toTable(); break;
     case 'speak': nextSpeaker(); S.ui = null; S.scrollFeed = true; top = false; break;
@@ -1255,8 +1439,9 @@ document.addEventListener('click', e => {
     case 'nightpick': S.night.choice = +v; if (S.night.mchoice === +v) S.night.mchoice = null; top = false; break;
     case 'nightmurder': S.night.mchoice = +v; top = false; break;
     case 'nightgo': if (S.night.choice != null) resolveNight(S.night.choice, S.night.mchoice); break;
-    case 'sleep': resolveNight(S.night.sugg, S.night.msugg); break;
+    case 'sleep': if (S.night.final5) dawn(null); else resolveNight(S.night.sugg, S.night.msugg); break;
     case 'letter': resolveLetter(v === '1'); break;
+    case 'welcomed': finishNight(); break;
     case 'watch': resumeAfterOut(); break;
     case 'skip': skipToEnd(); break;
     case 'fpnext': firepitNext(); top = false; break;

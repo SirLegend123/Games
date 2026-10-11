@@ -246,7 +246,7 @@ const MISSIONS = [
 /* ---------- Pass the phone ---------- */
 // Every private turn: "pass the phone to X", X taps their name, sees their screen, makes any choice and taps Done.
 // Each turn lasts at least a few seconds, so nobody watching can tell who had something to do.
-const MIN_TURN = { reveal: 5, night: 6, letters: 5, vote: 3, endvote: 3, peek: 2 };
+const MIN_TURN = { reveal: 5, night: 6, letters: 5, vote: 3, endvote: 3, peek: 2, seer: 4 };
 let turnAt = 0, turnTimer = null;
 function newPass(kind, order) { return { kind, order, i: 0, open: false, choice: null, note: '', got: {} }; }
 function passTo() { const p = S.pass; return p.order[p.i]; }
@@ -271,7 +271,7 @@ function doneTurn() {
 function passHtml() {
   const p = S.pass, who = passTo();
   const dots = `<div class="dots" aria-hidden="true">${p.order.map((x, k) => `<i class="${k < p.i ? 'done' : k === p.i ? 'now' : ''}"></i>`).join('')}</div>`;
-  const label = { reveal: 'Your secret role', night: 'Night in the castle', letters: 'Letters at dawn', vote: 'Round Table vote', endvote: 'End the game?', peek: 'Check your role' }[p.kind];
+  const label = { reveal: 'Your secret role', night: 'Night in the castle', letters: 'Letters at dawn', vote: 'Round Table vote', endvote: 'End the game?', peek: 'Check your role', seer: 'The Seer\'s clue' }[p.kind];
   if (!p.open) return `<div class="pass">
       <p class="kicker">${label} · ${p.i + 1} of ${p.order.length}</p>
       ${dots}
@@ -340,11 +340,14 @@ function turnHtml(kind, me) {
   if (kind === 'letters') {
     if (S.night.target === me) return `<div class="role traitor"><p class="kicker" style="color:#fff;opacity:.8">A letter for ${nm(me)}</p>
         <div class="rname" style="font-size:2rem">${S.night.black ? 'Join us, or die' : 'The Traitors want you'}</div>
-        <p>${S.night.black ? 'This is blackmail. Join the Traitors, or refuse and be murdered tonight.' : 'Join them and become a Traitor, or refuse and stay Faithful. Nothing happens to you if you refuse.'}</p></div>
+        <p>${S.night.black ? `The last Traitor faces you: <b>${nm(traitorsAlive()[0])}</b>. This is blackmail. Join, or refuse and be murdered tonight.` : 'Join them and become a Traitor, or refuse and stay Faithful. Nothing happens to you if you refuse. If you join, you\'ll see who the Traitors are.'}</p></div>
         <div class="pick"><button type="button" data-act="choose" data-v="1" aria-pressed="${p.choice === 1}">Join the Traitors</button><button type="button" data-act="choose" data-v="0" aria-pressed="${p.choice === 0}">Refuse</button></div>
         ${p.choice === 1 ? `<p><b>Welcome. Your fellow Traitors: ${traitorsAlive().map(nm).join(', ')}.</b></p>` : ''}`;
     return `<p class="big-news" style="margin:0">No letter for you</p><p class="hint center">Wait for the button, then pass the phone on.</p>`;
   }
+  if (kind === 'seer') return `<div class="role faithful"><p class="kicker" style="color:#fff;opacity:.8">${nm(me)}, you are the Seer</p><div class="rname" style="font-size:2rem">Your clue</div>
+      <p>This is true, and only you have seen it:</p><p><b>${esc(clueText(S.seer.clue))}</b></p></div>
+      <p class="hint center">Share it at the Round Table, or keep it to yourself. Others will have to decide whether to believe you.</p>`;
   if (kind === 'vote') {
     const cands = (S.vote.cands || alive()).filter(x => x !== me);
     return `<h3 style="margin:0">${S.vote.round > 1 ? 'Revote' : 'Round Table'}: who do you banish?</h3>
@@ -375,6 +378,7 @@ function newDay() {
 function finishPass(kind, got) {
   if (kind === 'reveal') { newDay(); S.phase = 'dawn'; say('Every player knows their role. The game begins.'); }
   else if (kind === 'peek') S.phase = S.peekFrom || S.phase;
+  else if (kind === 'seer') toTable();
   else if (kind === 'night') resolveNight(got);
   else if (kind === 'letters') resolveLetters(got);
   else if (kind === 'vote') { S.vote.ballots = S.vote.voters.map(v => [v, got[v].choice]); S.vote.shown = 0; S.phase = 'votereveal'; say('The votes are in. Let\'s see them, one at a time.'); }
@@ -452,7 +456,21 @@ function afterBanish() {
   S.phase = 'dusk';
   say('Night falls on the castle.');
 }
+// The Seer's clue (from the final five, instead of the Shield): a true statement about two other players
+function makeClue(w) {
+  const others = alive().filter(i => i !== w), tr = others.filter(i => P(i).role === 'traitor'), fa = others.filter(i => P(i).role !== 'traitor');
+  if (tr.length && (fa.length < 2 || Math.random() < .6)) { const t = pick(tr); return { kind: 'one', pair: shuffle([t, pick(others.filter(i => i !== t))]) }; }
+  if (fa.length >= 2) return { kind: 'none', pair: shuffle(fa).slice(0, 2) };
+  return { kind: 'one', pair: shuffle(others).slice(0, 2) };
+}
+const clueText = c => c.kind === 'one' ? `At least one of ${P(c.pair[0]).name} and ${P(c.pair[1]).name} is a Traitor.` : `Neither ${P(c.pair[0]).name} nor ${P(c.pair[1]).name} is a Traitor.`;
 function startNight() {
+  if (alive().length <= SECRET_AT) {
+    // The final five: no murder tonight
+    S.night = { final5: true, result: 'final5', victim: null, recruit: false };
+    S.recruitNext = false;
+    return dawn();
+  }
   const recruit = S.recruitNext && alive().length > RECRUIT_ABOVE && faithfulAlive().length > 0;
   S.night = { recruit, black: recruit && traitorsAlive().length === 1, target: null, murder: null, victim: null };
   S.recruitNext = false;
@@ -579,6 +597,11 @@ function phaseHtml() {
           <div class="row center"><button class="btn" data-act="timer">${T.running ? 'Pause' : timerLeft() === sec ? 'Start timer' : timerLeft() ? 'Resume' : 'Restart'}</button><button class="btn sm" data-act="newmission">Different mission</button></div>
           <div class="row"><button class="btn primary" style="flex:1" data-act="mission" data-v="1">We did it</button><button class="btn" style="flex:1" data-act="mission" data-v="0">We failed</button></div>
         </section>${statusHtml()}`;
+      if (alive().length <= SECRET_AT && alive().length > 2) return `<section class="card">
+          <p class="kicker">Day ${S.day} · The Seer</p><h2>${m.ok ? `Success: +${money(S.settings.gold)}` : 'Mission failed'}</h2>
+          <p>There are no more murders, so instead of the Shield, the best player in the mission becomes the <b>Seer</b>: they get a true clue about who is (or isn't) a Traitor. Agree out loud, then tap their name.</p>
+          ${pickHtml(alive(), S.mission.shield)}
+          <button class="btn primary block" data-act="seer" ${S.mission.shield == null ? 'disabled' : ''}>${S.mission.shield != null ? `Pass the phone to ${nm(S.mission.shield)}` : 'Choose the Seer'}</button></section>`;
       if (S.settings.shields && alive().length > FIRE_PIT) return `<section class="card">
           <p class="kicker">Day ${S.day} · Shield</p><h2>${m.ok ? `Success: +${money(S.settings.gold)}` : 'Mission failed'}</h2>
           <p>Who played best in the mission? They win the <b>Shield</b> and can't be murdered tonight. Agree out loud, then tap their name.</p>
@@ -645,7 +668,11 @@ function phaseHtml() {
             : `<p class="big-news">${plural(shown.length - ends, 'vote')} to banish again</p><button class="btn primary block" data-act="banishagain">Back to the Round Table</button>`}
         </section>`;
     }
-    case 'dusk': return `<section class="card center">
+    case 'dusk': if (alive().length <= SECRET_AT) return `<section class="card center">
+        <p class="kicker">Night ${S.day}</p><h2>The final five</h2>
+        <p>Five players remain. Tonight, nobody is murdered. Tomorrow's mission winner becomes the Seer, and banished players no longer reveal who they are.</p>
+        <button class="btn primary block" data-act="night">To the morning</button></section>${statusHtml()}`;
+      return `<section class="card center">
         <p class="kicker">Night ${S.day}</p><h2>Night falls</h2>
         <p>Everyone gets a secret turn with the phone, in seating order, while the Traitors make their move.</p>
         <p class="hint">Every turn looks the same and lasts the same time, so watching won't give anyone away.</p>
@@ -659,7 +686,7 @@ function phaseHtml() {
           <ul class="list">${arrived.map((i, k) => `<li class="${k === arrived.length - 1 ? 'new' : ''}"><b>${nm(i)}</b><span class="hint">arrives</span></li>`).join('')}</ul>
           ${!done ? `<div class="row"><button class="btn primary" style="flex:1" data-act="arrive">Next to arrive</button><button class="btn" data-act="arriveall">Everyone</button></div>`
             : b.victim != null ? `<p class="big-news bad">${nm(b.victim)} never came down.</p><p class="center">${nm(b.victim)} was murdered in the night. They were Faithful.</p>`
-            : `<p class="big-news">Everyone is here!</p><p class="center">${r === 'saved' ? 'The Traitors struck, but their victim was protected by the Shield.' : r === 'recruited' || r === 'refused' ? 'Nobody was murdered last night…' : 'Nobody was murdered last night.'}</p>`}
+            : `<p class="big-news">Everyone is here!</p><p class="center">${r === 'saved' ? 'The Traitors struck, but their victim was protected by the Shield.' : r === 'final5' ? 'The final five were safe last night.' : r === 'recruited' || r === 'refused' ? 'Nobody was murdered last night…' : 'Nobody was murdered last night.'}</p>`}
           ${done ? `<button class="btn primary block" data-act="afterbf">Continue</button>` : ''}
         </section>${statusHtml()}`;
     }
@@ -677,6 +704,7 @@ function overHtml() {
     if (d.mission) bits.push(`<p>⚔ Mission ${d.mission.ok ? `succeeded (+${money(S.settings.gold)})` : 'failed'}${d.shield != null ? `; ${nm(d.shield)} won the Shield` : ''}.</p>`);
     d.votes.forEach(v => { bits.push(`<p>🗳 ${v.round > 1 ? 'Revote' : 'Votes'}: ${v.ballots.map(([a, b]) => `${nm(a)}→${nm(b)}`).join(', ')}</p>`); });
     (d.endVotes || []).forEach(ev => bits.push(`<p>🔥 Fire pit vote: ${ev.map(([a, c]) => `${nm(a)} ${c ? 'end' : 'banish'}`).join(', ')}</p>`));
+    if (d.seer) bits.push(`<p>👁 ${nm(d.seer.who)} was the Seer. Their clue: ${esc(clueText(d.seer.clue))}</p>`);
     if (d.banished) bits.push(`<p>🚪 ${nm(d.banished.who)} was banished${d.banished.secret ? ' (role kept secret)' : ''}: ${d.banished.role === 'traitor' ? '<b style="color:var(--traitor)">Traitor</b>' : 'Faithful'}.</p>`);
     const sus = Object.keys(d.suspects);
     if (sus.length) bits.push(`<p class="hint">Night ${d.day}, the Faithful suspected: ${sus.map(k => `${nm(+k)}→${nm(d.suspects[k])}`).join(', ')}</p>`);
@@ -711,6 +739,7 @@ function menuHtml() {
       <li><b>Round Table</b>: talk, accuse and defend. Then the phone goes round and everyone secretly votes to banish someone. Votes are revealed one at a time. The banished player reveals whether they were Faithful or a Traitor, until the final five: from then on, roles stay secret until the end.</li>
       <li><b>Night</b>: the phone goes round again. Traitors choose a Faithful to murder; everyone else picks who they suspect, so all turns look alike. At breakfast, players "arrive" one by one, and you find out who's missing.</li>
       <li><b>Recruiting</b>: after a Traitor is banished, and while more than 6 players remain, the Traitors also recruit that night. With two or more Traitors it's a <b>seduction</b>: the Faithful can refuse safely, and the Traitors still murder someone else. With only one Traitor left it's <b>blackmail</b>: join, or be murdered (and nobody else dies).</li>
+      <li><b>The final five</b>: nobody is murdered on the night five players remain. From then on, the mission's best player becomes the <b>Seer</b> instead of winning the Shield, and privately sees a true clue about two players.</li>
       <li><b>The fire pit</b>: once 4 players remain there are no more nights or murders. Everyone votes in secret to end the game or banish again. If everyone votes to end, any Traitor still standing takes the whole pot. Otherwise, banish again (in secret), until everyone agrees or only two are left.</li>
       <li>Nobody is told how many Traitors there are. If the last one is banished before the final five, the Faithful win at once.</li>
     </ul>`;
@@ -790,9 +819,11 @@ document.addEventListener('click', e => {
       today().mission = { m: S.mission.m, ok };
       say(ok ? `Mission complete. ${money(S.settings.gold)} goes into the pot.` : 'The mission failed. No gold today.');
       T.running = false;
+      if (alive().length <= SECRET_AT && alive().length > 2) break;
       if (!S.settings.shields || alive().length <= FIRE_PIT) toTable();
       break;
     }
+    case 'seer': { const w = S.mission.shield; if (w == null) return; S.seer = { who: w, clue: makeClue(w) }; today().seer = S.seer; S.pass = newPass('seer', [w]); say(`${P(w).name} is the Seer. Pass them the phone.`); break; }
     case 'shield': S.shield = S.mission.shield != null ? S.mission.shield : null; today().shield = S.shield; if (S.shield != null) say(`${P(S.shield).name} wins the Shield.`); toTable(); break;
     case 'vote': T.running = false; startVote(1, null); break;
     case 'revote': startVote(2, S.tie); break;
