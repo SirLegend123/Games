@@ -205,7 +205,7 @@ details.read .tally { margin-top: 6px; }
 'use strict';
 /* ---------- Saved game and preferences ---------- */
 const KEY = 'traitors-solo-v1', PKEY = 'traitors-prefs';
-const DEFAULTS = { players: 12, role: 'random', missions: true, shields: true, recruit: true };
+const DEFAULTS = { players: 12, role: 'random', missions: true, shields: true, recruit: true, secretT: true };
 // The show's endgame, as in the group game: secret banishments from the final five, the fire pit at four
 const SECRET_AT = 5, FIRE_PIT = 4, RECRUIT_ABOVE = 6, GOLD_PER_ANSWER = 500;
 let prefs = { voice: true };
@@ -282,14 +282,23 @@ function topSuspect(a, opts) {
 }
 function traitorTarget(a, opts) {
   // A secret mission to get someone banished overrides everything else
-  if (S.secret && S.secret.type === 'vote' && opts.includes(S.secret.target) && S.secret.target !== a && P(S.secret.target).alive && S.phase !== 'firepit') return S.secret.target;
-  const mates = opts.filter(b => b !== a && P(b).role === 'traitor'), others = opts.filter(b => b !== a && P(b).role !== 'traitor');
+  if (inMeeting(a) && S.secret && S.secret.type === 'vote' && opts.includes(S.secret.target) && S.secret.target !== a && P(S.secret.target).alive && S.phase !== 'firepit') return S.secret.target;
+  const km = knownMates(a), mates = opts.filter(b => km.includes(b)), others = opts.filter(b => b !== a && !km.includes(b));
   let best = null, bv = -1e9;
   others.forEach(b => { const v = heat(b) + (Math.random() - .5) * .3; if (v > bv) { bv = v; best = b; } });
   // A fellow Traitor who is going to be banished anyway: sometimes vote with the crowd to look clean
   mates.forEach(m => { if (heat(m) > bv + .25 && chance(.5)) { best = m; bv = heat(m); } });
   return best != null ? best : mates[0];
 }
+// The Secret Traitor: a Traitor the other Traitors don't know. They know the Traitors, and choose each night's victim
+// from the Traitors' shortlist. Once no ordinary Traitor is left, they act as an ordinary Traitor.
+const isST = i => S.secretT === i;
+const stActive = () => S.secretT != null && P(S.secretT).alive && P(S.secretT).role === 'traitor' && traitorsAlive().some(i => i !== S.secretT);
+const regulars = () => stActive() ? traitorsAlive().filter(i => i !== S.secretT) : traitorsAlive();
+// The Traitors a player knows about (their team as they see it)
+const knownMates = a => P(a).role !== 'traitor' ? [] : stActive() && !isST(a) ? regulars().filter(i => i !== a) : traitorsAlive().filter(i => i !== a);
+// Does this Traitor sit in the Traitors' meeting? (Not the Secret Traitor while it's hidden.)
+const inMeeting = a => P(a).role === 'traitor' && !(stActive() && isST(a));
 const botChoice = (a, opts) => P(a).role === 'traitor' ? traitorTarget(a, opts) : topSuspect(a, opts);
 
 /* ---------- From suspicion to probability ---------- */
@@ -467,11 +476,16 @@ function start() {
   const n = S.settings.players;
   const bots = shuffle(BOTS).slice(0, n - 1);
   S.players = [{ name: S.myName || 'Alex', bot: false, persona: null }].concat(bots.map(([name, persona]) => ({ name, bot: true, persona })));
-  const [lo, hi] = secretRange(n), k = lo + rnd(hi - lo + 1);
-  const role = S.settings.role === 'random' ? (chance(k / n) ? 'traitor' : 'faithful') : S.settings.role;
+  const st = !!S.settings.secretT, [lo, hi] = secretRange(n);
+  // With a Secret Traitor there are always at least two Traitors: one hidden, one or more ordinary
+  const k = Math.max(st ? 2 : 1, lo + rnd(hi - lo + 1));
+  let role = S.settings.role;
+  if (role === 'random') role = chance(k / n) ? (st && chance(1 / k) ? 'secret' : 'traitor') : 'faithful';
+  if (!st && role === 'secret') role = 'traitor';
   const pool = shuffle(S.players.map((p, i) => i).filter(i => i !== ME));
-  const tr = new Set(role === 'traitor' ? [ME, ...pool.slice(0, k - 1)] : pool.slice(0, k));
+  const trList = role !== 'faithful' ? [ME, ...pool.slice(0, k - 1)] : pool.slice(0, k), tr = new Set(trList);
   S.players.forEach((p, i) => { p.role = p.first = tr.has(i) ? 'traitor' : 'faithful'; p.alive = true; p.out = null; });
+  S.secretT = !st ? null : role === 'secret' ? ME : pick(trList.filter(i => i !== ME));
   S.noise = S.players.map(() => S.players.map(() => (Math.random() - .5) * .5));
   S.pf = S.players.map(() => .7 + Math.random() * .6);
   S.herd = S.players.map(() => S.players.map(() => 0));
@@ -493,6 +507,21 @@ const WORDS = [['compass', 'My compass says otherwise.'], ['marmalade', 'Like ma
 const SECRET_GOLD = 3000, SHIELD_GOLD = 2000;
 // Someone at the table may notice an odd phrase
 function noticePhrase(speaker, phrase, feed) {
+  // The same strange phrase twice in one Round Table is no coincidence
+  const rt = S.rt;
+  if (rt) {
+    rt.phraseUsers = (rt.phraseUsers || []).concat(rt.phraseUsers && rt.phraseUsers.includes(speaker) ? [] : [speaker]);
+    if (rt.phraseUsers.length >= 2 && !rt.phraseCaught) {
+      const q = shuffle(alive().filter(l => isFaithfulBot(l) && !rt.phraseUsers.includes(l)))[0];
+      if (q != null && chance(.65)) {
+        rt.phraseCaught = true;
+        const users = rt.phraseUsers.map(u => nmPlain(u));
+        feed.push({ who: q, text: `Stop. That's the second time today someone has said "${phrase.replace(/[.!?]$/, '')}". ${users.join(' and ')}. That's no coincidence. The Traitors have a secret mission, and they're using a code.`, kind: 'notice' });
+        rt.phraseUsers.forEach(u => { addFact(u, `used the same strange phrase as ${users.filter(x => x !== nmPlain(u)).join(' and ')}, like a Traitors' code`, .22); nudge(u, .08, q); });
+        return;
+      }
+    }
+  }
   const noticer = shuffle(alive().filter(l => isFaithfulBot(l) && l !== speaker && (P(l).persona === 'sharp' || P(l).persona === 'calm')))[0];
   if (noticer == null || !chance(.3)) return;
   feed.push({ who: noticer, text: `"${phrase.replace(/[.!?]$/, '')}"? That's an odd thing to say, ${speaker === ME ? nmPlain(ME) : nmPlain(speaker)}.`, kind: 'notice' });
@@ -627,7 +656,7 @@ function seerClue(w) {
   if (P(w).role === 'traitor') {
     // A Traitor Seer frames two Faithful, or vouches for a fellow Traitor
     const fs = alive().filter(i => i !== w && P(i).role !== 'traitor').sort((a, b) => heat(b) - heat(a));
-    const mate = alive().find(i => i !== w && P(i).role === 'traitor');
+    const mate = alive().find(i => knownMates(w).includes(i));
     said = mate != null && fs.length && chance(.5) ? { kind: 'none', pair: shuffle([mate, fs[fs.length - 1]]) } : fs.length >= 2 ? { kind: 'one', pair: fs.slice(0, 2) } : truth;
   } else {
     truth.pair.forEach(x => { S.herd[w][x] += truth.kind === 'one' ? .45 : -.6; });
@@ -719,22 +748,39 @@ function botSpeak(b) {
   const counts = {};
   Object.values(rt.acc).forEach(t => { counts[t] = (counts[t] || 0) + 1; });
   const underFire = Object.keys(counts).map(Number).filter(z => counts[z] >= 2 && z !== b && P(z).alive);
-  const z = underFire.find(z => P(b).role === 'traitor' ? P(z).role === 'traitor' && chance(.45) : sus(b, z) < 0 && chance(.15));
+  const z = underFire.find(z => P(b).role === 'traitor' ? knownMates(b).includes(z) && chance(.45) : sus(b, z) < 0 && chance(.15));
   if (z != null) protect(b, z, rt.feed);
   const t = botChoice(b, alive().filter(x => x !== z));
   if (t == null) return;
   let text = accuseLine(b, t);
   // A Traitor working the secret word into their speech
-  if (P(b).role === 'traitor' && S.secret && S.secret.type === 'word' && chance(.75)) { text += ' ' + S.secret.phrase; S.secret.used = true; }
+  if (inMeeting(b) && S.secret && S.secret.type === 'word' && chance(.75)) { text += ' ' + S.secret.phrase; S.secret.used = true; }
   rt.feed.push({ who: b, text, t });
   if (!Object.keys(rt.acc).length) today().first.push([b, t]);
   accuse(b, t);
+  noticePileOn(t, rt.feed);
   if (text.endsWith(S.secret && S.secret.phrase || '\u0000')) noticePhrase(b, S.secret.phrase, rt.feed);
+}
+// A sudden pile-on with no evidence behind it looks like a Traitors' mission (sometimes it's just a bandwagon)
+function noticePileOn(t, feed) {
+  const rt = S.rt;
+  if (rt.pileCaught || !P(t).alive) return;
+  const accusers = Object.keys(rt.acc).map(Number).filter(s => rt.acc[s] === t);
+  if (accusers.length < 3) return;
+  if ((castleRead()[t] || 0) > .3) return;
+  const q = shuffle(alive().filter(l => isFaithfulBot(l) && l !== t && !accusers.includes(l) && P(l).persona !== 'nervous'))[0];
+  if (q == null || !chance(.55)) return;
+  rt.pileCaught = true;
+  const T = nmPlain(t);
+  feed.push({ who: q, t, kind: 'protect', text: `Hang on. Why is everyone suddenly going after ${T}? There's no evidence. This smells like a Traitor mission to me. Who started this?` });
+  accusers.slice(0, 3).forEach(a => addFact(a, `piled onto ${T} with no evidence, like a Traitors' mission`, .1));
+  nudge(t, -.12, q);
+  if (isFaithfulBot(t)) feed.push({ who: t, text: `Thank you, ${nmPlain(q)}. I've done nothing, and suddenly I'm the target.`, kind: 'defend' });
 }
 function nextSpeaker() { const rt = S.rt; if (rt.i < rt.order.length) botSpeak(rt.order[rt.i++]); }
 // As a Traitor on a secret-word mission, your lines carry the phrase (unless you turn it off)
 function myWord() {
-  if (!(iAmTraitor() && S.secret && S.secret.type === 'word' && S.rt.sayWord)) return '';
+  if (!(inMeeting(ME) && S.secret && S.secret.type === 'word' && S.rt.sayWord)) return '';
   S.secret.used = true;
   return ' ' + S.secret.phrase;
 }
@@ -745,6 +791,7 @@ function humanAccuse(t) {
   S.rt.feed.push({ who: ME, text: `I'm going to say it: ${nmPlain(t)}. ${reasonFor(t)}${w}`, t });
   accuse(ME, t);
   if (w) noticePhrase(ME, S.secret.phrase, S.rt.feed);
+  noticePileOn(t, S.rt.feed);
   if (P(t).bot) { S.rt.feed.push({ who: t, text: defendLine(t, ME), kind: 'defend' }); }
 }
 function humanProtect(z) {
@@ -800,7 +847,8 @@ function banish(i, drawn) {
   const sm = S.secret;
   if (sm && !sm.done) {
     sm.done = true;
-    sm.win = sm.type === 'vote' ? i === sm.target : !!sm.used;
+    // A secret mission only succeeds if the Round Table banishes a Faithful
+    sm.win = P(i).role !== 'traitor' && (sm.type === 'vote' ? i === sm.target : !!sm.used);
     if (sm.win) S.pot += SECRET_GOLD;
   }
   const secret = alive().length <= SECRET_AT;
@@ -841,7 +889,7 @@ function revealBanished() {
     const accusedByTraitor = new Set(S.days.flatMap(x => x.acc).filter(([s]) => s === i).map(([, x]) => x));
     accusedByTraitor.forEach(x => { if (P(x).alive) addFact(x, `was accused by ${nmPlain(i)}, a Traitor`, -.25); });
   }
-  say(i === ME ? (t ? 'You were a Traitor.' : 'You were Faithful.') : t ? `${nmPlain(i)} was a Traitor!` : `${nmPlain(i)} was Faithful.`);
+  say(i === ME ? (t ? 'You were a Traitor.' : 'You were Faithful.') : t ? `${nmPlain(i)} was ${isST(i) ? 'the Secret Traitor' : 'a Traitor'}!` : `${nmPlain(i)} was Faithful.`);
 }
 function afterBanish() {
   if (S.ban.who === ME && !S.outSeen) { S.outSeen = true; S.resume = 'banish'; S.phase = 'out'; return; }
@@ -852,19 +900,23 @@ function afterBanish() {
 }
 
 /* ---------- Night ---------- */
-function murderPick(not) {
-  const tr = traitorsAlive();
-  let best = null, bv = -1e9;
-  faithfulAlive().forEach(f => {
-    if (shielded(f) || f === not) return;
-    // The biggest threat: whoever suspects the Traitors most (for you, whoever you've accused)
-    let threat = f === ME
+// The Traitors' meeting ranks who to murder: the biggest threat is whoever suspects them most (for you, whoever you've
+// accused). They can only rule out the Traitors they know, so a hidden Secret Traitor can end up on the list.
+function murderList(not) {
+  const tr = regulars();
+  return alive().filter(f => !tr.includes(f) && !shielded(f) && f !== not).map(f => {
+    const threat = f === ME
       ? S.days.flatMap(d => d.acc).filter(([s, t]) => s === ME && tr.includes(t)).length * .25 - (S.day < 2 ? 9 : .15)
       : tr.reduce((t, T) => t + sus(f, T), 0) / tr.length;
-    threat += Math.random() * .4;
-    if (threat > bv) { bv = threat; best = f; }
-  });
-  return best;
+    return [f, threat + Math.random() * .4];
+  }).sort((a, b) => b[1] - a[1]).map(x => x[0]);
+}
+const murderPick = not => murderList(not)[0];
+// The Secret Traitor's choice from the shortlist: whoever is most suspicious of them
+function stChoose(short) {
+  const st = S.secretT, opts = short.filter(x => x !== st && P(x).alive);
+  if (!opts.length) return null;
+  return opts.map(x => [x, (x === ME ? .15 : sus(x, st)) + Math.random() * .3]).sort((a, b) => b[1] - a[1])[0][0];
 }
 function recruitPick() {
   const fs = faithfulAlive();
@@ -882,7 +934,7 @@ function startNight() {
   }
   const recruit = S.recruitNext && alive().length > RECRUIT_ABOVE && faithfulAlive().length > 0;
   S.recruitNext = false;
-  const black = recruit && traitorsAlive().length === 1, sugg = recruit ? recruitPick() : murderPick();
+  const black = recruit && regulars().length === 1, sugg = recruit ? recruitPick() : murderPick();
   // A seduction night has a murder too (blackmail doesn't: refusing is the murder)
   const msugg = recruit && !black ? murderPick(sugg) : null;
   S.night = { recruit, black, sugg, msugg, choice: null, mchoice: null, result: null, victim: null };
@@ -895,7 +947,7 @@ function resolveNight(target, murder) {
   n.murder = n.recruit ? (n.black ? null : murder) : target;
   if (n.recruit && target != null) {
     if (target === ME) { S.phase = 'letter'; return; }
-    return resolveLetter(chance(n.black ? .8 : .55));
+    return resolveLetter(P(target).role === 'traitor' || chance(n.black ? .8 : .55));
   }
   finishNight();
 }
@@ -907,7 +959,15 @@ function resolveLetter(yes) {
   finishNight();
 }
 function finishNight() {
-  const n = S.night, m = n.murder;
+  const n = S.night;
+  // With a hidden Secret Traitor, the Traitors' choice is only a shortlist: the Secret Traitor makes the final call
+  if (stActive() && n.murder != null && !n.stDone) {
+    n.short = [...new Set([n.murder, ...murderList(n.target)])].slice(0, 3);
+    n.stDone = true;
+    if (isST(ME) && meAlive()) { n.stChoice = null; S.phase = 'stpick'; return; }
+    n.murder = stChoose(n.short);
+  }
+  const m = n.murder;
   if (m != null && P(m).alive) { if (shielded(m)) { n.result = 'saved'; n.saved = m; } else kill(m); }
   // Nobody, you included, learns who died until breakfast
   dawn(n.victim);
@@ -972,7 +1032,13 @@ function breakfastTalk(victim, secretWin) {
   const n = S.night || {}, speakers = eagerOrder(shuffle(alive().filter(i => i !== ME))).slice(0, Math.min(4, alive().length - 1)), talk = rumour();
   if (secretWin) {
     const b = pick(alive().filter(i => i !== ME));
-    if (b != null) talk.push({ who: b, text: `Has anyone seen the pot? There's ${money(SECRET_GOLD)} more in it than last night. That money didn't come from nowhere. The Traitors were up to something yesterday.` });
+    if (b != null) {
+      const prev = S.days[S.days.length - 2], gone = prev && prev.banished && prev.banished.who;
+      const pusher = prev && gone != null ? (prev.first.find(([, t]) => t === gone) || prev.acc.find(([, t]) => t === gone) || [])[0] : null;
+      const lead = pusher != null && pusher !== b && P(pusher).alive ? pusher : null;
+      talk.push({ who: b, t: lead, text: `Has anyone seen the pot? There's ${money(SECRET_GOLD)} more in it than last night. That money didn't come from nowhere. The Traitors had a secret mission yesterday, and it worked: they got a Faithful banished.${lead != null ? ` And who was first to go after ${nmPlain(gone)}? ${nmPlain(lead)}.` : ''}` });
+      if (lead != null) { addFact(lead, `led the charge against ${nmPlain(gone)}, a Faithful banished on a Traitors' mission`, .15); nudge(lead, .08, b); }
+    }
   }
   if (victim != null) {
     const used = new Set();
@@ -1093,10 +1159,17 @@ function skipToEnd() {
 
 /* ---------- Screens ---------- */
 function roleCard() {
-  const t = iAmTraitor(), mates = S.players.map((p, i) => i).filter(i => i !== ME && P(i).role === 'traitor' && P(i).alive);
+  const t = iAmTraitor(), mates = knownMates(ME), st = t && isST(ME) && stActive();
+  if (st) return `<div class="role traitor">
+      <p class="kicker" style="color:#fff;opacity:.8">${esc(nmPlain(ME))}, you are</p>
+      <div class="rname">the Secret Traitor</div>
+      <p>The other Traitors don't know who you are. You know them: <b>${mates.map(i => esc(nmPlain(i))).join(', ')}</b>.</p>
+      <p>Each night they draw up a shortlist of victims, and you make the final choice. By day they may even suspect you. Win with the Traitors.</p>
+    </div>`;
   return `<div class="role ${t ? 'traitor' : 'faithful'}">
       <p class="kicker" style="color:#fff;opacity:.8">${esc(nmPlain(ME))}, you are</p>
       <div class="rname">${t ? 'a Traitor' : 'Faithful'}</div>
+      ${S.secretT != null ? `<p><b>There is a Secret Traitor.</b> ${t ? 'They know who you are, but you don\'t know them. Each night your shortlist goes to them, and they choose the victim.' : 'Even the other Traitors don\'t know who it is.'}</p>` : ''}
       <p>${t ? 'Each night you and your fellow Traitors murder a Faithful. By day, blend in and steer the votes. Survive to the end to take the gold.'
               : `There are ${S.players.length} players in the castle, and some of them are Traitors. Nobody knows how many. Find them and banish them at the Round Table.`}</p>
       ${t ? `<p><b>${mates.length ? `Your fellow Traitor${mates.length > 1 ? 's' : ''}: ${mates.map(i => esc(nmPlain(i))).join(', ')}` : 'You are the only Traitor.'}</b></p>` : ''}
@@ -1105,7 +1178,7 @@ function roleCard() {
 function tagFor(i) {
   const p = P(i);
   const bits = [];
-  if (i !== ME && iAmTraitor() && p.role === 'traitor' && (p.alive || !p.out || !p.out.secret)) bits.push('<span class="tag traitor">your team</span>');
+  if (i !== ME && knownMates(ME).includes(i)) bits.push('<span class="tag traitor">your team</span>');
   if (!p.alive) {
     if (p.out.secret) bits.push('<span class="tag out">role secret</span>');
     else bits.push(`<span class="tag ${p.role}">${p.role === 'traitor' ? 'Traitor' : 'Faithful'}</span>`);
@@ -1145,7 +1218,8 @@ function setupHtml() {
       <label class="hint" for="myName">Your name</label>
       <input type="text" id="myName" maxlength="20" autocomplete="off" placeholder="Your name" value="${esc(S.myName)}">
       <div class="set"><span>Players<small>Including you</small></span>${seg('players', [[8, '8'], [10, '10'], [12, '12'], [14, '14'], [16, '16']])}</div>
-      <div class="set"><span>Your role<small>The number of Traitors is always secret</small></span>${seg('role', [['random', 'Random'], ['faithful', 'Faithful'], ['traitor', 'Traitor']])}</div>
+      <div class="set"><span>Your role<small>The number of Traitors is always secret</small></span>${seg('role', [['random', 'Random'], ['faithful', 'Faithful'], ['traitor', 'Traitor']].concat(s.secretT ? [['secret', 'Secret Traitor']] : []))}</div>
+      <div class="set"><span>The Secret Traitor<small>One Traitor is hidden even from the other Traitors, and picks each night's victim from their shortlist</small></span>${seg('secretT', [[true, 'On'], [false, 'Off']])}</div>
       <div class="set"><span>Missions<small>A three-question quiz each day; every right answer adds ${money(GOLD_PER_ANSWER)}</small></span>${seg('missions', [[true, 'On'], [false, 'Off']])}</div>
       <div class="set"><span>Shields<small>The mission's top scorer can't be murdered that night</small></span>${seg('shields', [[true, 'On'], [false, 'Off']])}</div>
       <div class="set"><span>Recruiting<small>After a Traitor is banished (while more than 6 remain)</small></span>${seg('recruit', [[true, 'On'], [false, 'Off']])}</div>
@@ -1157,7 +1231,7 @@ function phaseLabel() {
   if (S.phase === 'setup') return 'Setup';
   if (S.phase === 'over') return 'Game over';
   if (S.phase === 'reveal') return 'Your role';
-  if (S.phase === 'night' || S.phase === 'letter' || S.phase === 'welcome') return `Night ${S.day}`;
+  if (S.phase === 'night' || S.phase === 'letter' || S.phase === 'welcome' || S.phase === 'stpick') return `Night ${S.day}`;
   return `Day ${S.day}`;
 }
 function phaseHtml() {
@@ -1176,7 +1250,7 @@ function phaseHtml() {
           ${done && b.talk && b.talk.length ? `<h3>Around the table</h3>${b.heard ? feedHtml(b.talk.slice(0, b.heard)) : ''}${b.heard < b.talk.length ? `<div class="row"><button class="btn" style="flex:1" data-act="talk">${b.heard ? 'Hear more' : 'Hear what they think'}</button><button class="btn" data-act="talkall">Everyone</button></div>` : ''}` : ''}
           ${done && meAlive() && b.victim != null && !b.myReact ? `<h3>Your reaction</h3><div class="row"><button class="btn" style="flex:1" data-act="react" data-v="mourn">Mourn ${nm(b.victim)}</button><button class="btn" style="flex:1" data-act="react" data-v="theory">Share a theory</button><button class="btn" data-act="react" data-v="quiet">Stay quiet</button></div>
             ${S.ui === 'theory' ? `<p><b>Who do you think the Traitors were protecting?</b> ${nm(b.victim)} may have been murdered for getting too close to them.</p>${pickHtml(alive().filter(i => i !== ME), null, 'theory')}` : ''}` : ''}
-          ${done && iAmTraitor() && meAlive() && S.days.length > 1 && S.days[S.days.length - 2].recruited != null && S.days[S.days.length - 2].recruited !== ME ? `<div class="secret"><b>🗡 Only you see this</b><p>${nm(S.days[S.days.length - 2].recruited)} accepted the Traitors' offer last night and is now one of you.</p></div>` : ''}
+          ${done && inMeeting(ME) && meAlive() && S.days.length > 1 && S.days[S.days.length - 2].recruited != null && S.days[S.days.length - 2].recruited !== ME ? `<div class="secret"><b>🗡 Only you see this</b><p>${nm(S.days[S.days.length - 2].recruited)} accepted the Traitors' offer last night and is now one of you.</p></div>` : ''}
           ${done ? `<button class="btn primary block" data-act="afterbf">${b.victim === ME && !S.outSeen ? 'Continue' : S.settings.missions ? 'To the mission' : 'To the Round Table'}</button>` : ''}
         </section>${statusHtml()}`;
     }
@@ -1212,10 +1286,10 @@ function phaseHtml() {
     }
     case 'table': {
       const rt = S.rt, more = rt.i < rt.order.length, canDefend = meAlive() && rt.accusedMe.length && !rt.defended;
-      const sm = S.secret, mine = meAlive() && iAmTraitor() && sm;
+      const sm = S.secret, mine = meAlive() && inMeeting(ME) && sm;
       return `<section class="card">
           <p class="kicker">Day ${S.day} · ${rt.firepit ? 'Fire pit · banish again' : 'Round Table'}</p><h2>Who is a Traitor?</h2>
-          ${mine ? `<div class="secret"><b>🗡 Secret Traitor mission</b><p>${sm.type === 'vote' ? `Get <b>${nm(sm.target)}</b> banished today. Your fellow Traitors will push for it too.` : `Work the phrase <b>"${esc(sm.phrase)}"</b> into the Round Table. Someone sharp might notice.`} Success adds ${money(SECRET_GOLD)} to the pot in secret.</p>
+          ${mine ? `<div class="secret"><b>🗡 Secret Traitor mission</b><p>${sm.type === 'vote' ? `Get <b>${nm(sm.target)}</b> banished today. Your fellow Traitors will push for it too.` : `Work the phrase <b>"${esc(sm.phrase)}"</b> into the Round Table. Someone sharp might notice.`} It only counts if a Faithful is banished today. Success adds ${money(SECRET_GOLD)} to the pot in secret.</p>
             ${sm.type === 'word' ? `<label class="row"><input type="checkbox" id="sayWord" data-act="sayword" ${rt.sayWord ? 'checked' : ''}> Say it when I speak</label>` : ''}</div>` : ''}
           ${rt.feed.length ? feedHtml(rt.feed) : '<p class="hint">The players take their seats. Who will speak first?</p>'}
           ${more ? `<div class="row"><button class="btn primary" style="flex:1" data-act="speak">Next to speak</button><button class="btn" data-act="speakall">Hear everyone</button></div>` : '<p class="hint center">Everyone has had their say.</p>'}
@@ -1251,47 +1325,61 @@ function phaseHtml() {
     case 'banish': {
       const b = S.ban, i = b.who, t = P(i).role === 'traitor';
       if (b.secret) return `<section class="card center"><p class="kicker">Day ${S.day} · Banished</p>${b.drawn ? '<p class="hint">Still tied: the draw chose.</p>' : ''}
+          ${S.secret && S.secret.done && meAlive() && inMeeting(ME) ? `<div class="secret"><b>🗡 Your secret mission ${S.secret.win ? 'succeeded' : 'failed'}</b><p>${S.secret.win ? `A Faithful was banished. ${money(SECRET_GOLD)} has gone into the pot in secret.` : 'It only counts if a Faithful is banished.'}</p></div>` : ''}
           <p class="big-news bad">${nm(i)}</p><p>${i === ME ? 'You have been banished. From the final five, roles stay secret.' : `${nm(i)} has been banished and leaves without revealing who they were. From the final five, roles stay secret until the end.`}</p>
           <button class="btn primary block" data-act="afterban">Continue</button></section>`;
       if (!b.shown) return `<section class="card center"><p class="kicker">Day ${S.day} · Banished</p>${b.drawn ? '<p class="hint">Still tied: the draw chose.</p>' : ''}
           <p class="big-news bad">${nm(i)}</p><p>${i === ME ? 'You have been banished. Tell them who you really are.' : `${nm(i)} stands up: "I am…"`}</p>
           <button class="btn primary block" data-act="reveal">Reveal</button></section>`;
       return `<div class="role ${t ? 'traitor' : 'faithful'}"><p class="kicker" style="color:#fff;opacity:.8">${i === ME ? 'You were' : `${nm(i)} was`}</p><div class="rname">${t ? 'a Traitor' : 'Faithful'}</div>
-          <p>${t ? 'One Traitor caught. Are there more?' : 'The Traitors are still among you.'}</p></div>
+          <p>${t && isST(i) ? 'The Secret Traitor! Even the other Traitors didn\'t know.' : t ? 'One Traitor caught. Are there more?' : 'The Traitors are still among you.'}</p></div>
+        ${S.secret && S.secret.done && meAlive() && inMeeting(ME) ? `<div class="secret"><b>🗡 Your secret mission ${S.secret.win ? 'succeeded' : 'failed'}</b><p>${S.secret.win ? `A Faithful was banished. ${money(SECRET_GOLD)} has gone into the pot in secret.` : 'It only counts if a Faithful is banished.'}</p></div>` : ''}
         <button class="btn primary block" data-act="afterban">Continue</button>`;
     }
     case 'night': {
       const n = S.night;
-      if (meAlive() && iAmTraitor() && !n.final5) {
-        const mates = traitorsAlive().filter(i => i !== ME);
+      if (meAlive() && inMeeting(ME) && !n.final5) {
+        const mates = knownMates(ME), opts = alive().filter(i => i !== ME && !mates.includes(i));
         const verb = !n.recruit ? 'murder' : n.black ? 'blackmail' : 'seduce';
         return `<section class="card">
             <p class="kicker">Night ${S.day} · The Traitors' meeting</p><h2>Who do you ${verb}?</h2>
             <p>${!n.recruit ? 'Choose a Faithful to murder.' : n.black ? 'You are the last Traitor. Blackmail a Faithful: they join you, or die. Nobody else is murdered tonight.' : 'A Traitor was banished. Seduce a Faithful to join you (they may refuse), and murder another.'}</p>
             ${mates.length && n.sugg != null ? `<p class="hint">${mates.map(i => esc(nmPlain(i))).join(' and ')} suggest${mates.length === 1 ? 's' : ''} <b>${nm(n.sugg)}</b>.</p>` : ''}
             ${(S.shields || []).length && !n.recruit ? `<p class="hint">${S.shields.map(nm).join(' and ')} ${S.shields.length > 1 ? 'have Shields' : 'has the Shield'}: a murder on them will fail.</p>` : ''}
-            ${pickHtml(faithfulAlive(), n.choice, 'nightpick')}
-            ${n.recruit && !n.black ? `<h3 style="margin:0">And who do you murder?</h3>${n.msugg != null && mates.length ? `<p class="hint">They suggest <b>${nm(n.msugg)}</b>.</p>` : ''}${(S.shields || []).length ? `<p class="hint">${S.shields.map(nm).join(' and ')} ${S.shields.length > 1 ? 'have Shields' : 'has the Shield'}: a murder on them will fail.</p>` : ''}${pickHtml(faithfulAlive().filter(i => i !== n.choice), n.mchoice, 'nightmurder')}` : ''}
+            ${stActive() && !n.black ? '<p class="hint"><b>The Secret Traitor is watching.</b> Your choice goes on a shortlist, and the Secret Traitor, whoever they are, makes the final choice.</p>' : ''}
+            ${pickHtml(opts, n.choice, 'nightpick')}
+            ${n.recruit && !n.black ? `<h3 style="margin:0">And who do you murder?</h3>${n.msugg != null && mates.length ? `<p class="hint">They suggest <b>${nm(n.msugg)}</b>.</p>` : ''}${(S.shields || []).length ? `<p class="hint">${S.shields.map(nm).join(' and ')} ${S.shields.length > 1 ? 'have Shields' : 'has the Shield'}: a murder on them will fail.</p>` : ''}${pickHtml(opts.filter(i => i !== n.choice), n.mchoice, 'nightmurder')}` : ''}
             <button class="btn primary block" data-act="nightgo" ${n.choice == null || (n.recruit && !n.black && n.mchoice == null) ? 'disabled' : ''}>${n.choice == null ? 'Choose a name' : n.recruit && !n.black ? (n.mchoice == null ? 'Choose who to murder' : `Seduce ${nm(n.choice)}, murder ${nm(n.mchoice)}`) : `${verb[0].toUpperCase() + verb.slice(1)} ${nm(n.choice)}`}</button>
           </section>`;
       }
       if (n.final5) return `<section class="card center"><p class="kicker">Night ${S.day}</p><h2>The final five</h2>
           <p>Five players remain. Tonight, nobody will be murdered. Tomorrow's mission winner becomes the Seer, and the Round Table banishes in secret.</p>
           <button class="btn primary block" data-act="sleep">Wait for morning</button></section>${statusHtml()}`;
+      if (meAlive() && iAmTraitor() && !inMeeting(ME)) return `<section class="card center"><p class="kicker">Night ${S.day}</p><h2>The Traitors are meeting</h2>
+          <p>As the Secret Traitor, you're not in the room. The Traitors are drawing up their shortlist, and soon it will reach you.</p>
+          <button class="btn primary block" data-act="sleep">Wait for the shortlist</button></section>${statusHtml()}`;
       return `<section class="card center"><p class="kicker">Night ${S.day}</p><h2>Night falls</h2>
           <p>${meAlive() ? 'You lock your door and lie awake in your turret. Somewhere in the castle, the Traitors are meeting.' : 'The castle sleeps. The Traitors meet.'}</p>
           <button class="btn primary block" data-act="sleep">Wait for morning</button></section>${statusHtml()}`;
     }
+    case 'stpick': {
+      const n = S.night, opts = n.short.filter(x => x !== ME && P(x).alive);
+      return `<section class="card"><p class="kicker">Night ${S.day} · The Secret Traitor</p><h2>The shortlist</h2>
+          <p>${knownMates(ME).length > 1 ? 'The Traitors' : 'The Traitor'}, ${knownMates(ME).map(i => esc(nmPlain(i))).join(' and ')}, ${knownMates(ME).length > 1 ? 'have' : 'has'} drawn up the list. ${knownMates(ME).length > 1 ? 'They don\'t' : 'They don\'t'} know it's you who decides.${n.short.includes(ME) ? ' <b>Your own name is on it.</b> They have no idea.' : ''}</p>
+          ${(S.shields || []).length ? `<p class="hint">${S.shields.map(nm).join(' and ')} ${S.shields.length > 1 ? 'have Shields' : 'has the Shield'}: a murder on them will fail.</p>` : ''}
+          ${pickHtml(opts, n.stChoice, 'stchoice')}
+          <button class="btn primary block" data-act="stgo" ${n.stChoice == null ? 'disabled' : ''}>${n.stChoice == null ? 'Choose the victim' : `Murder ${nm(n.stChoice)}`}</button></section>`;
+    }
     case 'letter': {
       const n = S.night;
-      const lone = traitorsAlive()[0];
+      const lone = regulars()[0];
       return `<div class="role traitor"><p class="kicker" style="color:#fff;opacity:.8">${n.black ? 'You are taken from your room' : 'A letter slides under your door'}</p>
           <div class="rname" style="font-size:2rem">${n.black ? 'Join us, or die' : 'The Traitors want you'}</div>
           <p>${n.black ? `In a candlelit room, the last Traitor is waiting for you: <b>${esc(nmPlain(lone))}</b>. This is blackmail. Join, or refuse and be murdered tonight.` : 'Join them and become a Traitor, or refuse and stay Faithful. Nothing happens to you if you refuse. If you join, you\'ll meet the others straight away.'}</p></div>
         <div class="pick"><button type="button" data-act="letter" data-v="1">Join the Traitors</button><button type="button" data-act="letter" data-v="0">Refuse</button></div>`;
     }
     case 'welcome': {
-      const mates = traitorsAlive().filter(i => i !== ME), n = S.night;
+      const mates = knownMates(ME), n = S.night;
       return `<div class="role traitor"><p class="kicker" style="color:#fff;opacity:.8">You accepted</p><div class="rname">You are a Traitor</div>
           <p>${n.black ? 'You shake hands by candlelight.' : 'You are led to the Traitors\' meeting room, where they are waiting.'} Your fellow Traitor${mates.length === 1 ? ' is' : 's are'}: <b>${mates.map(i => esc(nmPlain(i))).join(', ')}</b>.</p>
           <p>${n.black ? 'Nobody else dies tonight.' : 'Tonight\'s murder was chosen before you joined.'} From tomorrow night, you choose with them. Win with the Traitors now.</p></div>
@@ -1356,7 +1444,7 @@ function overHtml() {
       <p>${esc(S.winWhy || '')}</p><p><b>${me}</b></p>
       <p>${winners.length ? `${winners.map(nm).join(', ')} ${winners.length === 1 && winners[0] !== ME ? 'takes' : 'share'} ${money(S.pot)}.` : ''}</p></div>
     <section class="card"><h2>Who was who</h2>
-      <ul class="list">${S.players.map((p, i) => `<li class="${p.alive ? '' : 'out'}"><b>${nm(i)}</b>${p.first !== p.role ? '<span class="hint">recruited</span>' : ''}<span class="tag ${p.role}">${p.role === 'traitor' ? 'Traitor' : 'Faithful'}</span>${p.alive ? '' : `<span class="tag out">${p.out.how}</span>`}</li>`).join('')}</ul></section>
+      <ul class="list">${S.players.map((p, i) => `<li class="${p.alive ? '' : 'out'}"><b>${nm(i)}</b>${p.first !== p.role ? '<span class="hint">recruited</span>' : ''}<span class="tag ${p.role}">${isST(i) ? 'Secret Traitor' : p.role === 'traitor' ? 'Traitor' : 'Faithful'}</span>${p.alive ? '' : `<span class="tag out">${p.out.how}</span>`}</li>`).join('')}</ul></section>
     ${reads ? `<section class="card"><h2>The Faithful's final reads</h2><ul class="list">${reads}</ul></section>` : ''}
     <section class="card"><h2>How it happened</h2>${hist}</section>
     <div class="row"><button class="btn primary" style="flex:1" data-act="again">Play again</button><button class="btn" data-act="newgame">Change settings</button></div>`;
@@ -1373,6 +1461,8 @@ function menuHtml() {
       <li>Bots remember what happens. Voting for someone who turns out to be Faithful makes you look suspicious; voting out a Traitor clears you a little. If a murder victim had accused someone, that person looks guilty. The <b>Dossier</b> in this menu shows what the castle knows about each player. The percentage beside each name is the <b>castle's read</b>: the bots' average belief that the player is a Traitor (not the truth).</li>
       <li><b>Night</b>: the Traitors murder a Faithful. If you're a Traitor, you choose who. After a Traitor is banished, and while more than 6 remain, the Traitors also recruit: a <b>seduction</b> (refusing is safe, and they still murder someone else) with two or more Traitors left, or <b>blackmail</b> (join or die, and no other murder) with only one. Who died is only revealed at breakfast, even to you.</li>
       <li><b>The final five</b>: there is no murder on the night five players remain, and from then on the mission's top scorer becomes the <b>Seer</b> instead of winning the Shield: they get a true clue about two players. Bot Seers announce theirs, but a Traitor Seer lies. Banished players no longer reveal their role. <b>The fire pit</b>: once 4 remain there are no more murders. Everyone votes to end the game or banish again. Each Faithful bot works out the chance that everyone left is Faithful and votes to end with a probability based on it; nervous bots need more convincing than bold ones. If everyone votes to end with a Traitor still there, the Traitors take the pot.</li>
+      <li><b>The Secret Traitor</b> (if on): one Traitor is hidden even from the other Traitors. The Secret Traitor knows them, and each night picks the victim from the shortlist the Traitors draw up, which might even include the Secret Traitor's own name. Once every ordinary Traitor is gone, the Secret Traitor carries on alone. You can choose to play as the Secret Traitor.</li>
+      <li><b>Secret Traitor missions</b> only succeed if the Round Table banishes a Faithful. The Faithful may notice: the same odd phrase from two people, or a sudden pile-on with no evidence, and they'll call it out.</li>
       <li><b>Tells</b>: Traitors can give themselves away. Watch for players who never go after each other, people who defend someone later revealed as a Traitor, slips of the tongue at breakfast, anyone oddly calm when a murder is announced, rumours of footsteps in the night, odd phrases at the Round Table (some days the Traitors have a secret mission), a top scorer turning down the Shield for gold, and whoever is first to point the finger at someone who turns out Faithful. None of these is proof: Faithful players trip up too.</li>
       <li>If you're murdered or banished, you can watch the rest or skip to the end. Only players still in the game at the end share the gold.</li>
     </ul>`;
@@ -1380,7 +1470,7 @@ function menuHtml() {
   return `<div class="row"><h2>Menu</h2><button class="btn sm" data-act="close" aria-label="Close">✕</button></div>
     <button class="btn" data-act="rules">How to play</button>
     ${inGame && S.players.length ? `<h3>Your name</h3><div class="add"><input type="text" id="renameBox" maxlength="20" autocomplete="off" value="${esc(nmPlain(ME))}" aria-label="Your name"><button class="btn" data-act="rename">Change</button></div>` : ''}
-    ${inGame && S.players.length ? `<h3>Your role</h3><p>You ${meAlive() ? 'are' : 'were'} <b style="color:var(--${iAmTraitor() ? 'traitor' : 'faithful'})">${iAmTraitor() ? 'a Traitor' : 'Faithful'}</b>.${(S.myClues || []).length ? ` Your Seer's clue${S.myClues.length > 1 ? 's' : ''}: ${S.myClues.map(c => `<b>${esc(c.text)}</b> (day ${c.day})`).join('; ')}.` : ''}${iAmTraitor() ? ` Your team: ${S.players.map((p, i) => i).filter(i => i !== ME && P(i).role === 'traitor').map(i => esc(nmPlain(i)) + (P(i).alive ? '' : ' (out)')).join(', ') || 'just you'}.` : ''}</p>
+    ${inGame && S.players.length ? `<h3>Your role</h3><p>You ${meAlive() ? 'are' : 'were'} <b style="color:var(--${iAmTraitor() ? 'traitor' : 'faithful'})">${iAmTraitor() ? 'a Traitor' : 'Faithful'}</b>.${(S.myClues || []).length ? ` Your Seer's clue${S.myClues.length > 1 ? 's' : ''}: ${S.myClues.map(c => `<b>${esc(c.text)}</b> (day ${c.day})`).join('; ')}.` : ''}${iAmTraitor() ? `${isST(ME) && stActive() ? ' You are the Secret Traitor.' : ''} Your team: ${knownMates(ME).map(i => esc(nmPlain(i))).join(', ') || 'just you'}.${S.secretT != null && !isST(ME) && stActive() ? ' There is also a Secret Traitor you don\'t know.' : ''}` : ''}</p>
       <h3>Dossier</h3><p class="hint">What the whole castle knows about each player. The percentage is the castle's read: how likely the bots think that player is a Traitor.</p>
       <ul class="list dossier">${S.players.map((p, i) => i).sort((a, b) => P(b).alive - P(a).alive).map(i => `<li class="${P(i).alive ? '' : 'out'}"><div><b>${nm(i)}</b> ${P(i).alive ? oddsTag(castleRead()[i]) : ''}${P(i).bot ? ` <span class="hint">${PERSONA[P(i).persona].label}</span>` : ''} ${tagFor(i)}${S.facts[i].length ? `<ul>${S.facts[i].slice(-4).map(f => `<li>${esc(f.text)} (day ${f.day})</li>`).join('')}</ul>` : ''}</div></li>`).join('')}</ul>
       <p class="hint">Prize pot: <span class="gold">${money(S.pot)}</span></p>` : ''}
@@ -1474,6 +1564,8 @@ document.addEventListener('click', e => {
     case 'sleep': if (S.night.final5) dawn(null); else resolveNight(S.night.sugg, S.night.msugg); break;
     case 'letter': resolveLetter(v === '1'); break;
     case 'welcomed': finishNight(); break;
+    case 'stchoice': S.night.stChoice = +v; top = false; break;
+    case 'stgo': if (S.night.stChoice != null) { S.night.murder = S.night.stChoice; finishNight(); } break;
     case 'watch': resumeAfterOut(); break;
     case 'skip': skipToEnd(); break;
     case 'fpnext': firepitNext(); top = false; break;
