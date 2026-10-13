@@ -912,12 +912,7 @@ function murderList(not) {
   }).sort((a, b) => b[1] - a[1]).map(x => x[0]);
 }
 const murderPick = not => murderList(not)[0];
-// The Secret Traitor's choice from the shortlist: whoever is most suspicious of them
-function stChoose(short) {
-  const st = S.secretT, opts = short.filter(x => x !== st && P(x).alive);
-  if (!opts.length) return null;
-  return opts.map(x => [x, (x === ME ? .15 : sus(x, st)) + Math.random() * .3]).sort((a, b) => b[1] - a[1])[0][0];
-}
+
 function recruitPick() {
   const fs = faithfulAlive();
   let best = null, bv = 1e9;
@@ -934,12 +929,44 @@ function startNight() {
   }
   const recruit = S.recruitNext && alive().length > RECRUIT_ABOVE && faithfulAlive().length > 0;
   S.recruitNext = false;
-  const black = recruit && regulars().length === 1, sugg = recruit ? recruitPick() : murderPick();
-  // A seduction night has a murder too (blackmail doesn't: refusing is the murder)
-  const msugg = recruit && !black ? murderPick(sugg) : null;
-  S.night = { recruit, black, sugg, msugg, choice: null, mchoice: null, result: null, victim: null };
+  const black = recruit && regulars().length === 1;
+  S.night = { recruit, black, sugg: null, msugg: null, choice: null, mchoice: null, result: null, victim: null, short: null, rshort: null };
+  // With a hidden Secret Traitor, they draw up the shortlists first; the Traitors then choose from them
+  if (stActive()) {
+    if (isST(ME) && meAlive()) { S.night.sel = { m: [], r: [] }; S.phase = 'stlist'; say('Night falls. The Secret Traitor draws up the shortlist.'); return; }
+    S.night.short = black ? null : stMurderList();
+    S.night.rshort = recruit ? stRecruitList() : null;
+  }
+  traitorsSuggest();
   S.phase = 'night';
   say('Night falls on the castle.');
+}
+// What the Traitors' meeting would choose, kept within the Secret Traitor's shortlists if there are any
+function traitorsSuggest() {
+  const n = S.night, within = (list, xs) => list ? (xs.filter(x => list.includes(x))[0] ?? list[0]) : xs[0];
+  if (n.recruit) {
+    n.sugg = n.rshort ? within(n.rshort, faithfulAlive().sort((a, b) => heat(a) - heat(b))) : recruitPick();
+    n.msugg = n.black ? null : within(n.short && n.short.filter(x => x !== n.sugg), murderList(n.sugg));
+  } else n.sugg = within(n.short, murderList());
+}
+// The Secret Traitor's shortlists: three names each. For murder, whoever suspects them most; for recruiting, the
+// Faithful the castle trusts most. They know every Traitor, so none of them goes on either list.
+const SHORTLIST = 3;
+function stCandidates() { return alive().filter(x => P(x).role !== 'traitor'); }
+function stMurderList() {
+  const st = S.secretT, c = stCandidates(), open = c.filter(x => !shielded(x));
+  return (open.length >= 2 ? open : c).map(x => [x, (x === ME ? .15 : sus(x, st)) + Math.random() * .3]).sort((a, b) => b[1] - a[1]).slice(0, SHORTLIST).map(a => a[0]);
+}
+function stRecruitList() {
+  return stCandidates().map(x => [x, heat(x) + Math.random() * .3]).sort((a, b) => a[1] - b[1]).slice(0, SHORTLIST).map(a => a[0]);
+}
+// Your shortlists as the Secret Traitor are done: the Traitors' meeting chooses from them
+function stListsDone() {
+  const n = S.night;
+  n.short = n.black ? null : n.sel.m.slice();
+  n.rshort = n.recruit ? n.sel.r.slice() : null;
+  traitorsSuggest();
+  resolveNight(n.sugg, n.msugg);
 }
 function resolveNight(target, murder) {
   const n = S.night;
@@ -959,15 +986,7 @@ function resolveLetter(yes) {
   finishNight();
 }
 function finishNight() {
-  const n = S.night;
-  // With a hidden Secret Traitor, the Traitors' choice is only a shortlist: the Secret Traitor makes the final call
-  if (stActive() && n.murder != null && !n.stDone) {
-    n.short = [...new Set([n.murder, ...murderList(n.target)])].slice(0, 3);
-    n.stDone = true;
-    if (isST(ME) && meAlive()) { n.stChoice = null; S.phase = 'stpick'; return; }
-    n.murder = stChoose(n.short);
-  }
-  const m = n.murder;
+  const n = S.night, m = n.murder;
   if (m != null && P(m).alive) { if (shielded(m)) { n.result = 'saved'; n.saved = m; } else kill(m); }
   // Nobody, you included, learns who died until breakfast
   dawn(n.victim);
@@ -1164,12 +1183,12 @@ function roleCard() {
       <p class="kicker" style="color:#fff;opacity:.8">${esc(nmPlain(ME))}, you are</p>
       <div class="rname">the Secret Traitor</div>
       <p>The other Traitors don't know who you are. You know them: <b>${mates.map(i => esc(nmPlain(i))).join(', ')}</b>.</p>
-      <p>Each night they draw up a shortlist of victims, and you make the final choice. By day they may even suspect you. Win with the Traitors.</p>
+      <p>Each night you draw up the shortlists: who can be murdered and, on recruiting nights, who can be recruited. The Traitors choose from your lists without knowing who sent them. By day they may even suspect you. Win with the Traitors.</p>
     </div>`;
   return `<div class="role ${t ? 'traitor' : 'faithful'}">
       <p class="kicker" style="color:#fff;opacity:.8">${esc(nmPlain(ME))}, you are</p>
       <div class="rname">${t ? 'a Traitor' : 'Faithful'}</div>
-      ${S.secretT != null ? `<p><b>There is a Secret Traitor.</b> ${t ? 'They know who you are, but you don\'t know them. Each night your shortlist goes to them, and they choose the victim.' : 'Even the other Traitors don\'t know who it is.'}</p>` : ''}
+      ${S.secretT != null ? `<p><b>There is a Secret Traitor.</b> ${t ? 'They know who you are, but you don\'t know them. Each night they send you a shortlist, and you choose from it.' : 'Even the other Traitors don\'t know who it is.'}</p>` : ''}
       <p>${t ? 'Each night you and your fellow Traitors murder a Faithful. By day, blend in and steer the votes. Survive to the end to take the gold.'
               : `There are ${S.players.length} players in the castle, and some of them are Traitors. Nobody knows how many. Find them and banish them at the Round Table.`}</p>
       ${t ? `<p><b>${mates.length ? `Your fellow Traitor${mates.length > 1 ? 's' : ''}: ${mates.map(i => esc(nmPlain(i))).join(', ')}` : 'You are the only Traitor.'}</b></p>` : ''}
@@ -1188,7 +1207,7 @@ function tagFor(i) {
 }
 function pickHtml(opts, chosen, act) {
   const cr = castleRead();
-  return `<div class="pick">${opts.map(i => `<button type="button" data-act="${act}" data-v="${i}" aria-pressed="${chosen === i}">${nm(i)} ${oddsTag(cr[i])}${tagFor(i) ? `<small>${tagFor(i).replace(/<[^>]+>/g, ' ').trim()}</small>` : ''}</button>`).join('')}</div>`;
+  return `<div class="pick">${opts.map(i => `<button type="button" data-act="${act}" data-v="${i}" aria-pressed="${Array.isArray(chosen) ? chosen.includes(i) : chosen === i}">${nm(i)} ${oddsTag(cr[i])}${tagFor(i) ? `<small>${tagFor(i).replace(/<[^>]+>/g, ' ').trim()}</small>` : ''}</button>`).join('')}</div>`;
 }
 // Every player still in, most suspected first, with the castle's read
 function readHtml(open) {
@@ -1231,7 +1250,7 @@ function phaseLabel() {
   if (S.phase === 'setup') return 'Setup';
   if (S.phase === 'over') return 'Game over';
   if (S.phase === 'reveal') return 'Your role';
-  if (S.phase === 'night' || S.phase === 'letter' || S.phase === 'welcome' || S.phase === 'stpick') return `Night ${S.day}`;
+  if (S.phase === 'night' || S.phase === 'letter' || S.phase === 'welcome' || S.phase === 'stlist') return `Night ${S.day}`;
   return `Day ${S.day}`;
 }
 function phaseHtml() {
@@ -1339,36 +1358,37 @@ function phaseHtml() {
     case 'night': {
       const n = S.night;
       if (meAlive() && inMeeting(ME) && !n.final5) {
-        const mates = knownMates(ME), opts = alive().filter(i => i !== ME && !mates.includes(i));
+        const mates = knownMates(ME), anyone = alive().filter(i => i !== ME && !mates.includes(i));
+        const opts = (n.recruit ? n.rshort : n.short) || anyone, mopts = n.short || anyone;
         const verb = !n.recruit ? 'murder' : n.black ? 'blackmail' : 'seduce';
         return `<section class="card">
             <p class="kicker">Night ${S.day} · The Traitors' meeting</p><h2>Who do you ${verb}?</h2>
             <p>${!n.recruit ? 'Choose a Faithful to murder.' : n.black ? 'You are the last Traitor. Blackmail a Faithful: they join you, or die. Nobody else is murdered tonight.' : 'A Traitor was banished. Seduce a Faithful to join you (they may refuse), and murder another.'}</p>
             ${mates.length && n.sugg != null ? `<p class="hint">${mates.map(i => esc(nmPlain(i))).join(' and ')} suggest${mates.length === 1 ? 's' : ''} <b>${nm(n.sugg)}</b>.</p>` : ''}
             ${(S.shields || []).length && !n.recruit ? `<p class="hint">${S.shields.map(nm).join(' and ')} ${S.shields.length > 1 ? 'have Shields' : 'has the Shield'}: a murder on them will fail.</p>` : ''}
-            ${stActive() && !n.black ? '<p class="hint"><b>The Secret Traitor is watching.</b> Your choice goes on a shortlist, and the Secret Traitor, whoever they are, makes the final choice.</p>' : ''}
+            ${n.short || n.rshort ? '<p class="hint"><b>A note from the Secret Traitor.</b> Whoever they are, they have sent you a shortlist, and you must choose from it.</p>' : ''}
             ${pickHtml(opts, n.choice, 'nightpick')}
-            ${n.recruit && !n.black ? `<h3 style="margin:0">And who do you murder?</h3>${n.msugg != null && mates.length ? `<p class="hint">They suggest <b>${nm(n.msugg)}</b>.</p>` : ''}${(S.shields || []).length ? `<p class="hint">${S.shields.map(nm).join(' and ')} ${S.shields.length > 1 ? 'have Shields' : 'has the Shield'}: a murder on them will fail.</p>` : ''}${pickHtml(opts.filter(i => i !== n.choice), n.mchoice, 'nightmurder')}` : ''}
+            ${n.recruit && !n.black ? `<h3 style="margin:0">And who do you murder?</h3>${n.msugg != null && mates.length ? `<p class="hint">They suggest <b>${nm(n.msugg)}</b>.</p>` : ''}${(S.shields || []).length ? `<p class="hint">${S.shields.map(nm).join(' and ')} ${S.shields.length > 1 ? 'have Shields' : 'has the Shield'}: a murder on them will fail.</p>` : ''}${pickHtml(mopts.filter(i => i !== n.choice), n.mchoice, 'nightmurder')}` : ''}
             <button class="btn primary block" data-act="nightgo" ${n.choice == null || (n.recruit && !n.black && n.mchoice == null) ? 'disabled' : ''}>${n.choice == null ? 'Choose a name' : n.recruit && !n.black ? (n.mchoice == null ? 'Choose who to murder' : `Seduce ${nm(n.choice)}, murder ${nm(n.mchoice)}`) : `${verb[0].toUpperCase() + verb.slice(1)} ${nm(n.choice)}`}</button>
           </section>`;
       }
       if (n.final5) return `<section class="card center"><p class="kicker">Night ${S.day}</p><h2>The final five</h2>
           <p>Five players remain. Tonight, nobody will be murdered. Tomorrow's mission winner becomes the Seer, and the Round Table banishes in secret.</p>
           <button class="btn primary block" data-act="sleep">Wait for morning</button></section>${statusHtml()}`;
-      if (meAlive() && iAmTraitor() && !inMeeting(ME)) return `<section class="card center"><p class="kicker">Night ${S.day}</p><h2>The Traitors are meeting</h2>
-          <p>As the Secret Traitor, you're not in the room. The Traitors are drawing up their shortlist, and soon it will reach you.</p>
-          <button class="btn primary block" data-act="sleep">Wait for the shortlist</button></section>${statusHtml()}`;
+
       return `<section class="card center"><p class="kicker">Night ${S.day}</p><h2>Night falls</h2>
           <p>${meAlive() ? 'You lock your door and lie awake in your turret. Somewhere in the castle, the Traitors are meeting.' : 'The castle sleeps. The Traitors meet.'}</p>
           <button class="btn primary block" data-act="sleep">Wait for morning</button></section>${statusHtml()}`;
     }
-    case 'stpick': {
-      const n = S.night, opts = n.short.filter(x => x !== ME && P(x).alive);
-      return `<section class="card"><p class="kicker">Night ${S.day} · The Secret Traitor</p><h2>The shortlist</h2>
-          <p>${knownMates(ME).length > 1 ? 'The Traitors' : 'The Traitor'}, ${knownMates(ME).map(i => esc(nmPlain(i))).join(' and ')}, ${knownMates(ME).length > 1 ? 'have' : 'has'} drawn up the list. ${knownMates(ME).length > 1 ? 'They don\'t' : 'They don\'t'} know it's you who decides.${n.short.includes(ME) ? ' <b>Your own name is on it.</b> They have no idea.' : ''}</p>
-          ${(S.shields || []).length ? `<p class="hint">${S.shields.map(nm).join(' and ')} ${S.shields.length > 1 ? 'have Shields' : 'has the Shield'}: a murder on them will fail.</p>` : ''}
-          ${pickHtml(opts, n.stChoice, 'stchoice')}
-          <button class="btn primary block" data-act="stgo" ${n.stChoice == null ? 'disabled' : ''}>${n.stChoice == null ? 'Choose the victim' : `Murder ${nm(n.stChoice)}`}</button></section>`;
+    case 'stlist': {
+      const n = S.night, c = stCandidates(), need = Math.min(SHORTLIST, c.length), mates = knownMates(ME);
+      const mNeed = n.black ? 0 : Math.min(SHORTLIST, c.length), rNeed = n.recruit ? need : 0;
+      const ready = n.sel.m.length === mNeed && n.sel.r.length === rNeed && (!n.recruit || n.black || n.sel.r.some(r => !n.sel.m.includes(r)) || n.sel.m.length > 1);
+      return `<section class="card"><p class="kicker">Night ${S.day} · The Secret Traitor</p><h2>Draw up the shortlist</h2>
+          <p>The ${mates.length > 1 ? 'Traitors' : 'Traitor'}, ${mates.map(i => esc(nmPlain(i))).join(' and ')}, will choose from the names you give them. They don't know the list comes from you.</p>
+          ${n.recruit ? `<h3 style="margin:0">${n.black ? 'Who can be blackmailed' : 'Who can be seduced'} (choose ${rNeed})</h3><p class="hint">${n.black ? 'The last ordinary Traitor will give one of them an ultimatum: join, or die.' : 'One of them will be invited to join the Traitors.'}</p>${pickHtml(c, n.sel.r, 'strec')}` : ''}
+          ${mNeed ? `<h3 style="margin:0">Who can be murdered (choose ${mNeed})</h3>${(S.shields || []).length ? `<p class="hint">${S.shields.map(nm).join(' and ')} ${S.shields.length > 1 ? 'have Shields' : 'has the Shield'}: a murder on them will fail.</p>` : ''}${pickHtml(c, n.sel.m, 'stmur')}` : ''}
+          <button class="btn primary block" data-act="stgo" ${ready ? '' : 'disabled'}>${ready ? 'Send the shortlist' : `Choose ${[rNeed ? `${rNeed - n.sel.r.length} more to recruit` : '', mNeed ? `${mNeed - n.sel.m.length} more to murder` : ''].filter(x => !x.startsWith('0')).join(' and ') || 'different names'}`}</button></section>`;
     }
     case 'letter': {
       const n = S.night;
@@ -1461,7 +1481,7 @@ function menuHtml() {
       <li>Bots remember what happens. Voting for someone who turns out to be Faithful makes you look suspicious; voting out a Traitor clears you a little. If a murder victim had accused someone, that person looks guilty. The <b>Dossier</b> in this menu shows what the castle knows about each player. The percentage beside each name is the <b>castle's read</b>: the bots' average belief that the player is a Traitor (not the truth).</li>
       <li><b>Night</b>: the Traitors murder a Faithful. If you're a Traitor, you choose who. After a Traitor is banished, and while more than 6 remain, the Traitors also recruit: a <b>seduction</b> (refusing is safe, and they still murder someone else) with two or more Traitors left, or <b>blackmail</b> (join or die, and no other murder) with only one. Who died is only revealed at breakfast, even to you.</li>
       <li><b>The final five</b>: there is no murder on the night five players remain, and from then on the mission's top scorer becomes the <b>Seer</b> instead of winning the Shield: they get a true clue about two players. Bot Seers announce theirs, but a Traitor Seer lies. Banished players no longer reveal their role. <b>The fire pit</b>: once 4 remain there are no more murders. Everyone votes to end the game or banish again. Each Faithful bot works out the chance that everyone left is Faithful and votes to end with a probability based on it; nervous bots need more convincing than bold ones. If everyone votes to end with a Traitor still there, the Traitors take the pot.</li>
-      <li><b>The Secret Traitor</b> (if on): one Traitor is hidden even from the other Traitors. The Secret Traitor knows them, and each night picks the victim from the shortlist the Traitors draw up, which might even include the Secret Traitor's own name. Once every ordinary Traitor is gone, the Secret Traitor carries on alone. You can choose to play as the Secret Traitor.</li>
+      <li><b>The Secret Traitor</b> (if on): one Traitor is hidden even from the other Traitors. The Secret Traitor knows them, and each night draws up the shortlists the Traitors must choose from: who can be murdered and, on recruiting nights, who can be recruited. Once every ordinary Traitor is gone, the Secret Traitor carries on alone. You can choose to play as the Secret Traitor.</li>
       <li><b>Secret Traitor missions</b> only succeed if the Round Table banishes a Faithful. The Faithful may notice: the same odd phrase from two people, or a sudden pile-on with no evidence, and they'll call it out.</li>
       <li><b>Tells</b>: Traitors can give themselves away. Watch for players who never go after each other, people who defend someone later revealed as a Traitor, slips of the tongue at breakfast, anyone oddly calm when a murder is announced, rumours of footsteps in the night, odd phrases at the Round Table (some days the Traitors have a secret mission), a top scorer turning down the Shield for gold, and whoever is first to point the finger at someone who turns out Faithful. None of these is proof: Faithful players trip up too.</li>
       <li>If you're murdered or banished, you can watch the rest or skip to the end. Only players still in the game at the end share the gold.</li>
@@ -1564,8 +1584,12 @@ document.addEventListener('click', e => {
     case 'sleep': if (S.night.final5) dawn(null); else resolveNight(S.night.sugg, S.night.msugg); break;
     case 'letter': resolveLetter(v === '1'); break;
     case 'welcomed': finishNight(); break;
-    case 'stchoice': S.night.stChoice = +v; top = false; break;
-    case 'stgo': if (S.night.stChoice != null) { S.night.murder = S.night.stChoice; finishNight(); } break;
+    case 'stmur': case 'strec': {
+      const list = S.night.sel[a === 'stmur' ? 'm' : 'r'], x = +v, k = list.indexOf(x);
+      if (k >= 0) list.splice(k, 1); else if (list.length < SHORTLIST) list.push(x);
+      top = false; break;
+    }
+    case 'stgo': if (S.phase === 'stlist') stListsDone(); break;
     case 'watch': resumeAfterOut(); break;
     case 'skip': skipToEnd(); break;
     case 'fpnext': firepitNext(); top = false; break;
