@@ -210,6 +210,16 @@ label.field { display: grid; gap: 6px; }
 .pick small { display: block; font-size: .6em; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; opacity: .85; }
 .pick.ally { border-color: #ff6b81; background: rgba(216,67,90,.45); }
 .pick.ally small { color: #ffd0d7; }
+/* The day timer, readable across a room */
+.draw.timer .draw-inner { width: min(1000px, 100%); gap: 20px; }
+.clock { font-weight: 800; font-variant-numeric: tabular-nums; font-size: clamp(6rem, 30vw, 18rem); line-height: .95; letter-spacing: -.02em; color: var(--fg); }
+.draw.timer .lead { font-size: clamp(1.4rem, 3.4vw, 2rem); }
+.draw.timer .btn.huge { min-width: 120px; min-height: 68px; font-size: clamp(1.2rem, 2.6vw, 1.6rem); }
+.draw.timer.low .clock { color: var(--warn); }
+.draw.timer.up { animation: flash 1s steps(2) 3; background: #5a0f1c; }
+.draw.timer.up .clock, .draw.timer.up #tStatus { color: #ff5c72; }
+@keyframes flash { 50% { background: #a3162d; } }
+@media (prefers-reduced-motion: reduce) { .draw.timer.up { animation: none; } }
 .draw.dawn { background: radial-gradient(circle at 50% 30%, #f3c77a 0%, #b5643a 45%, #3a1f2c 100%); color: #fff8ee; --fg: #fff8ee; --muted: #ffe9cf; --surface: rgba(0,0,0,.3); --line: rgba(255,255,255,.35); --brass: #ffe2a3; --on-brass: #2a1a08; }
 .draw.dawn h1, .draw.dawn .answer.small { color: #fff3d6; text-shadow: 0 2px 10px rgba(0,0,0,.35); }
 .pick { min-height: 60px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); font-weight: 800; font-size: 1.1rem; }
@@ -368,7 +378,7 @@ try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
 if (!S || !S.step) S = fresh();
 if (S.step === "done") S.step = "grim";
 let show = null; // a player looking at their character again, after the draw
-const ui = { sel: null, reveal: false, story: false };
+const ui = { sel: null, reveal: false, story: false, timerOpen: false };
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
 
 /* ---------- Setup counts ---------- */
@@ -1319,7 +1329,7 @@ function dayHtml() {
       ${b.who ? `<p class="notice">On the block: <b>${esc(nameOf(b.who))}</b> with ${plural(b.best, "vote")}.</p>` : b.best ? `<p class="notice">Tied on ${plural(b.best, "vote")}: nobody is on the block.</p>` : ""}
       <h3>Nominations</h3>${nomListHtml()}
       ${(D.shots || []).length ? `<h3>Slayer shots</h3><ol class="log">${shotLines().map((l, k) => `<li>${l} <button class="x-inline" data-act="slay-del" data-i="${k}" aria-label="Undo this shot">×</button></li>`).join("")}</ol>` : ""}
-      <div class="row"><button class="btn primary" data-act="nom-new">+ New nomination</button><button class="btn" data-act="slay-new">🏹 Slayer shot</button><span class="spacer"></span><button class="btn" data-act="day-end">End the day →</button></div>
+      <div class="row"><button class="btn primary" data-act="nom-new">+ New nomination</button><button class="btn" data-act="slay-new">🏹 Slayer shot</button><button class="btn" data-act="timer-open">⏱ Timer${T.end || T.left ? ` <span id="tBadge">${fmtTime(timerLeft())}</span>` : ""}</button><span class="spacer"></span><button class="btn" data-act="day-end">End the day →</button></div>
       ${historyHtml()}
     </section>`;
   } else if (d.stage.startsWith("slayer")) {
@@ -1466,6 +1476,42 @@ function storyStep(r, nm, as) {
 }
 const storyText = () => { const d = document.createElement("div"); d.innerHTML = storyHtml().replace(/<\/(p|h3)>/g, "\n\n"); return d.textContent.trim(); };
 
+/* ---------- Day timer ---------- */
+// end: when it runs out (while running). left: what's left (while paused). total: what it was set to.
+const T = { end: 0, left: 0, total: 0, rang: false };
+const timerLeft = () => T.end ? Math.max(0, T.end - Date.now()) : T.left;
+const fmtTime = ms => { const s = Math.ceil(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+const timerState = () => { const l = timerLeft(); return !T.total ? "" : l === 0 ? "up" : l <= 30000 ? "low" : ""; };
+function timerHtml() {
+  const l = timerLeft(), running = !!T.end;
+  return `<p class="lead">Day ${S.day.n} · ${aliveIds().length} alive</p>
+    <div class="clock" id="tDigits" role="timer" aria-live="off">${T.total ? fmtTime(l) : "0:00"}</div>
+    <p class="lead" id="tStatus">${!T.total ? "Choose how long" : l === 0 ? "Time's up!" : running ? "Discussion time" : "Paused"}</p>
+    <div class="draw-foot">${[1, 2, 3, 5, 8, 10].map(m => `<button class="btn huge" data-act="timer-set" data-v="${m}">${m} min</button>`).join("")}</div>
+    <div class="draw-foot">
+      <button class="btn huge" data-act="timer-add" data-v="-1" ${T.total ? "" : "disabled"}>−1 min</button>
+      <button class="btn primary huge" data-act="timer-go" ${T.total && l ? "" : "disabled"}>${running ? "Pause" : "Start"}</button>
+      <button class="btn huge" data-act="timer-add" data-v="1" ${T.total ? "" : "disabled"}>+1 min</button>
+    </div>
+    <div class="draw-foot"><button class="btn huge" data-act="timer-reset" ${T.total ? "" : "disabled"}>Reset</button><button class="btn huge" data-act="timer-close">Close${running ? " (keeps running)" : ""}</button></div>`;
+}
+// Short beeps when time runs out, where the browser allows sound
+function beep() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    [0, .35, .7].forEach(t => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = 880; g.gain.setValueAtTime(.25, ac.currentTime + t); g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + t + .3); o.connect(g).connect(ac.destination); o.start(ac.currentTime + t); o.stop(ac.currentTime + t + .3); });
+  } catch (e) {}
+  try { navigator.vibrate && navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+}
+setInterval(() => {
+  if (!T.end) return;
+  const l = timerLeft();
+  if (l === 0) { T.left = 0; T.end = 0; if (!T.rang) { T.rang = true; beep(); } render(); return; }
+  const d = $("tDigits"), b = $("tBadge");
+  if (d) { d.textContent = fmtTime(l); $("draw").className = `draw timer ${timerState()}`; }
+  if (b) b.textContent = fmtTime(l);
+}, 250);
+
 /* ---------- Pass and play ---------- */
 function tokenHtml(role, shown) {
   const seen = shown || role, c = CHAR[seen] || { icon: "", text: "", team: "townsfolk" };
@@ -1479,12 +1525,14 @@ function tokenHtml(role, shown) {
 
 function renderDraw() {
   const box = $("draw"), D = S.draw, NP = S.step === "night" && S.night && S.night.view !== "st";
-  if (!D && !show && !NP && !S.announce) { box.hidden = true; box.innerHTML = ""; return; }
+  const TM = ui.timerOpen && S.step === "day" && !NP && !D && !show && !S.announce && !S.over;
+  if (!D && !show && !NP && !S.announce && !TM) { box.hidden = true; box.innerHTML = ""; return; }
   let h;
   // After a player's screen, cover the phone until it's back with the Storyteller
   const handback = (go, again) => `<h1>Close your eyes</h1><p class="lead">Pass the phone back to the Storyteller.</p>
     <button class="btn primary huge" data-act="${go}">I'm the Storyteller</button>${again ? `<button class="link" data-act="${again}">Show them again</button>` : ""}`;
-  if (S.announce && !NP && !D && !show) {
+  if (TM) h = timerHtml();
+  else if (S.announce && !NP && !D && !show) {
     const A = S.announce;
     h = `<p class="lead">Wake up, everyone. It's the dawn of</p><h1>Day ${A.n}</h1>
       ${A.pids.length ? `<p class="lead">In the night…</p><div class="names">${A.pids.map(q => `<span class="nmchip">💀 ${esc(nameOf(q))}</span>`).join("")}</div><p class="lead">${A.pids.length === 1 ? "was" : "were"} found dead.</p>`
@@ -1515,7 +1563,7 @@ function renderDraw() {
       <div class="draw-foot">${D.queue.length > 1 ? `<button class="link" data-act="draw-later">${name} isn't here: draw later</button>` : ""}<button class="link" data-act="draw-stop">Storyteller: stop the draw</button></div>`;
   }
   box.innerHTML = `<div class="draw-inner">${h}</div>`;
-  box.className = "draw" + (NP && S.night.view === "player" ? ` tint-${nightTint()}` : S.announce && !NP && !D && !show ? " dawn" : "");
+  box.className = "draw" + (NP && S.night.view === "player" ? ` tint-${nightTint()}` : S.announce && !NP && !D && !show ? " dawn" : TM ? ` timer ${timerState()}` : "");
   box.hidden = false;
   box.scrollTop = 0;
 }
@@ -1581,6 +1629,12 @@ document.addEventListener("click", ev => {
     case "night-resume": if (S.night.after === "next" && !(S.night.cur && S.night.cur.done && S.night.cur.kills)) nextStep(true); else S.night.view = "st"; break;
     case "night-dawn": { const before = JSON.stringify(S); S.chron = [...(S.chron || []), { type: "night", n: S.n, recs: S.night.recs || [], deaths: S.night.deaths.map(q => ({ pid: q, role: roleOf(q) })) }]; S.history.push({ h: `Night ${S.n}`, lines: [...S.log, S.night.deaths.length ? `${esc(names(S.night.deaths))} died.` : "Nobody died."] }); S.announce = { n: S.n, pids: [...S.night.deaths] }; S.preNight = null; startDay(); checkOver(before, {}); break; }
     case "announce-close": S.announce = null; break;
+    case "timer-open": ui.timerOpen = true; wake(); break;
+    case "timer-close": ui.timerOpen = false; break;
+    case "timer-set": { const ms = Number(el.dataset.v) * 60000; Object.assign(T, { total: ms, left: ms, end: 0, rang: false }); break; }
+    case "timer-add": { const d = Number(el.dataset.v) * 60000, l = Math.max(0, timerLeft() + d); if (T.end) T.end = Date.now() + l; else T.left = l; T.total = Math.max(T.total, l); if (l) T.rang = false; break; }
+    case "timer-go": if (T.end) { T.left = timerLeft(); T.end = 0; } else if (T.left) { T.end = Date.now() + T.left; T.rang = false; } break;
+    case "timer-reset": Object.assign(T, { end: 0, left: T.total, rang: false }); break;
     case "next-night": S.n++; startNight(); wake(); break;
     case "night-apply": nextStep(true); break;
     case "kill-set": S.night.cur.kills[i].dies = el.dataset.v === "1"; break;
@@ -1669,7 +1723,7 @@ document.addEventListener("click", ev => {
     default: return;
   }
   render();
-  if (!["np-pick", "np-char", "num", "truth", "info-toggle", "side", "dead", "unrem", "vote", "reveal", "kill-set", "yn"].includes(el.dataset.act)) window.scrollTo({ top: 0 });
+  if (!["timer-set", "timer-add", "timer-go", "timer-reset", "np-pick", "np-char", "num", "truth", "info-toggle", "side", "dead", "unrem", "vote", "reveal", "kill-set", "yn"].includes(el.dataset.act)) window.scrollTo({ top: 0 });
 });
 document.addEventListener("input", ev => {
   const t = ev.target;
