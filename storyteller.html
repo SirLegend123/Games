@@ -207,6 +207,7 @@ label.field { display: grid; gap: 6px; }
 .draw[class*="tint-"] .tiles.small .tile { font-size: 1.15rem; min-height: 100px; }
 .draw[class*="tint-"] .tiles.small .tile .ico { font-size: 2.4rem; }
 .draw[class*="tint-"] .big-tok { --size: min(340px, 72vw); }
+.pick:disabled { opacity: .45; cursor: not-allowed; }
 .pick small { display: block; font-size: .6em; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; opacity: .85; }
 .pick.ally { border-color: #ff6b81; background: rgba(216,67,90,.45); }
 .pick.ally small { color: #ffd0d7; }
@@ -1262,7 +1263,14 @@ function overHtml() {
 }
 
 /* The Slayer's shot */
-const pickBtns = (ids, act, sel = []) => `<div class="pickgrid">${ids.map(q => `<button class="pick ${S.dead[q] ? "dead" : ""}" data-act="${act}" data-pid="${q}" aria-pressed="${sel.includes(q)}">${esc(nameOf(q))}</button>`).join("")}</div>`;
+// tags: a note under a name. locked: players who can't be picked right now.
+const pickBtns = (ids, act, sel = [], tags = {}, locked = []) => `<div class="pickgrid">${ids.map(q => `<button class="pick ${S.dead[q] ? "dead" : ""}" data-act="${act}" data-pid="${q}" aria-pressed="${sel.includes(q)}" ${locked.includes(q) ? "disabled" : ""}>${esc(nameOf(q))}${tags[q] ? `<small>${esc(tags[q])}</small>` : ""}</button>`).join("")}</div>`;
+// The Butler (alive, sober and healthy) may only vote if their master votes too
+function butlerRule() {
+  const butler = inPlay().find(q => roleOf(q) === "Butler" && alive(q) && !unreliable(q).length);
+  const master = butler && S.players.map(p => p.id).find(q => remsOf(q).includes("Master"));
+  return butler && master ? { butler, master } : null;
+}
 function slayerHtml(d) {
   if (d.stage === "slayer-by") return `<section class="card"><h2>🏹 Slayer shot: who is shooting?</h2><p class="hint">Anyone can claim to be the Slayer. Tap the player who shoots.</p>
     ${pickBtns(aliveIds(), "slay-by")}<div class="row"><button class="btn" data-act="nom-cancel">Cancel</button></div></section>`;
@@ -1358,12 +1366,13 @@ function dayHtml() {
       <p class="hint">Either way, the Virgin's ability is now used up.</p></section>`;
   } else {
     const voters = S.players.map(p => p.id).filter(hasVote), count = d.votes.length;
-    const butler = inPlay().find(q => roleOf(q) === "Butler" && alive(q));
+    const br = butlerRule();
+    const locked = br && !d.votes.includes(br.master) ? [br.butler] : [];
     card = `<section class="card"><h2>Votes for ${esc(nameOf(d.of))}</h2>
       <p class="hint">Nominated by ${esc(nameOf(d.by))}. Tap everyone who raises a hand. Dead players use their ghost vote.</p>
-      ${pickBtns(voters, "vote", d.votes)}
+      ${pickBtns(voters, "vote", d.votes, br ? { [br.butler]: `🔒 after ${nameOf(br.master)}` } : {}, locked)}
       <p class="lead"><b class="bignum">${count}</b> of ${need} needed${onBlock().best ? ` · ${onBlock().best} to beat` : ""}</p>
-      ${butler ? `<p class="hint">The Butler (${esc(nameOf(butler))}) may only vote if their master votes too.</p>` : ""}
+      ${br ? `<p class="hint">🔒 ${esc(nameOf(br.butler))} can only vote once ${esc(nameOf(br.master))} has voted.</p>` : ""}
       <div class="row"><button class="btn" data-act="nom-cancel">Cancel</button><span class="spacer"></span><button class="btn primary" data-act="vote-ok">Count ${plural(count, "vote")}</button></div></section>`;
   }
   if (D.end && !D.done) {
@@ -1705,7 +1714,13 @@ document.addEventListener("click", ev => {
     }
     case "virgin-exec": { const d = S.day.draft; S.day.noms.push({ by: d.by, of: d.of, votes: [], ghosts: [], count: 0, virgin: "executed" }); const before = JSON.stringify(S); execute(d.by, "nominated the Virgin"); checkOver(before, { exec: S.day.exec }); break; }
     case "virgin-no": S.day.draft.virginNothing = true; S.day.draft.stage = "vote"; break;
-    case "vote": { const d = S.day.draft, q = el.dataset.pid; d.votes = d.votes.includes(q) ? d.votes.filter(x => x !== q) : [...d.votes, q]; break; }
+    case "vote": {
+      const d = S.day.draft, q = el.dataset.pid, br = butlerRule();
+      if (br && q === br.butler && !d.votes.includes(q) && !d.votes.includes(br.master)) return; // master hasn't voted
+      d.votes = d.votes.includes(q) ? d.votes.filter(x => x !== q) : [...d.votes, q];
+      if (br && !d.votes.includes(br.master)) d.votes = d.votes.filter(x => x !== br.butler); // master took their vote back
+      break;
+    }
     case "vote-ok": {
       const d = S.day.draft;
       S.day.noms.push({ by: d.by, of: d.of, votes: d.votes, ghosts: d.votes.filter(q => !alive(q)), count: d.votes.length, need: votesNeeded(), ...(d.virginNothing ? { virgin: "nothing" } : {}) });
