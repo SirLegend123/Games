@@ -1,5 +1,7 @@
 # Games
 
+Open `index.html` to choose between the two *Blood on the Clocktower* apps: the **Storyteller** and the **Player**. They share their character list (`characters.js`).
+
 ## Storyteller: face to face
 
 A *Blood on the Clocktower* Storyteller app for games round a real table. Open `storyteller.html` (or `index.html`) in any browser; nothing to install. The game is saved on the device as you go.
@@ -36,3 +38,19 @@ A *Blood on the Clocktower* Storyteller app for games round a real table. Open `
    - **Game over**: the game stops on a **Good wins!** or **Evil wins!** screen, with the reason and the whole Grimoire to reveal, as soon as the Demon is dead (executed, shot or killed at night, with no Scarlet Woman to take over or Mastermind to play on), the Saint or the Evil Twin's good twin is executed, only 2 players are left, nobody is executed while the Vortox lives, or the Mayor survives a day of 3 with no execution. **📜 Read the story** gives the Storyteller's script to read out at the reveal, a paragraph per night and day. It follows the good team: what they did and learnt, who was found dead, and Demon attacks the Monk, Soldier or Tea Lady stopped. Each player's name and character are revealed together only when they die ("Roman was found dead. Roman was the Fortune Teller."); hidden evil players are just "a player", and the Drunk is called by the character they believed they were. When an evil player is unmasked, a flashback tells what they'd been up to ("Looking back, Dad had been busy: they poisoned Sophie on Night 1 and Mum on Night 2."). Repeats are skipped (a Butler keeping the same master, info that hasn't changed) and similar deeds are merged. It ends with who won, the rest of the good team, then the evil team with their flashbacks, saving the Demon for last. **Copy as text** copies it. **Undo: carry on playing** goes back if you made a mistake; **New game** starts again with the same players. Otherwise **Reopen the day** undoes the execution, and **Start Night N** carries on.
 
 *Blood on the Clocktower* and its character names belong to The Pandemonium Institute. This is an unofficial fan-made tool; the character symbols are our own.
+
+## Player's Grimoire
+
+A *Blood on the Clocktower* app for each player at a real table. Open `player.html`. Everything is saved on the device.
+
+1. **Players**: choose the script and add everyone in seat order, clockwise, including yourself (several at once with commas). Tap **Me** next to your own name.
+2. **My token**: once the Storyteller hands you your character, tap it (its ability is shown), then choose your side: **Good** or **Evil**. You can come back and change either later.
+3. **Grimoire** (good players):
+   - **The circle**: every player in their seat, showing the character they claim (with its symbol), your read of them (blue for trust, grey for unsure, red for suspect, a darker red and a **Demon?** badge for your Demon guess), whether they're dead and whether they still have their ghost vote. You're marked ★ with your own character. The middle shows the phase, how many are alive and the votes needed to execute.
+   - **Tap a player** to record what they claim (with that character's ability), set your read, mark them dead or their ghost vote used, and keep notes on what they've said.
+   - **Phase**: ‹ › steps through Night 1, Day 1, Night 2…
+   - **My info**: your character and ability, and a log of what you've learnt, filed under the current night or day.
+   - **Claims**: everyone's claim in one list, with double claims flagged, and how many Outsiders there should be for the number of players.
+   - **New game** keeps the players and clears the rest.
+   The evil player's Grimoire is coming next.
+
