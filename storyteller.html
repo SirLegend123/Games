@@ -155,6 +155,7 @@ details summary { list-style-position: inside; }
 .seat.dead .disc::after { content: ""; position: absolute; left: 50%; top: -6%; width: 34%; height: 46%; transform: translateX(-50%); background: #111; clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
 .role-txt { font-weight: 800; font-size: calc(var(--tok, 70px) * var(--fs, .15)); line-height: 1.05; overflow-wrap: break-word; }
 .role-txt.townsfolk { color: #1f5bb0; } .role-txt.outsider { color: #187789; } .role-txt.minion { color: #b02c42; } .role-txt.demon { color: #85132a; } .role-txt.traveller { color: #6d3d98; } .role-txt.custom { color: #4a4153; }
+.role-txt[data-ico]:not([data-ico=""])::before { content: attr(data-ico); display: block; font-size: calc(var(--tok, 70px) * .26); line-height: 1.15; }
 .role-txt.none { color: #8d826f; font-weight: 500; font-style: italic; }
 .thinks-txt { display: block; font-size: calc(var(--tok, 70px) * .1); font-weight: 600; color: #6b5d48; line-height: 1.1; }
 .vote { position: absolute; right: 4%; bottom: 4%; width: 24%; aspect-ratio: 1; border-radius: 50%; background: #fff; border: 2px solid #111; z-index: 2; }
@@ -279,7 +280,9 @@ details summary { list-style-position: inside; }
 .bag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 14px; width: 100%; }
 .bag-tok { aspect-ratio: 1; border-radius: 50%; border: 3px solid var(--brass); background: radial-gradient(circle at 35% 30%, var(--surface-2), var(--surface) 70%); color: var(--brass); font-family: var(--font-display); font-size: 1.8rem; box-shadow: 0 3px 10px rgba(0,0,0,.35); transition: transform .12s ease; }
 .bag-tok:hover, .bag-tok:focus-visible { transform: scale(1.06); }
-.big-tok { width: min(250px, 72vw); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); border: 9px solid var(--good); display: grid; place-items: center; padding: 14%; font-family: var(--font-display); font-size: clamp(1.5rem, 7vw, 2rem); line-height: 1.1; box-shadow: 0 6px 20px rgba(0,0,0,.45); animation: tokflip .4s ease; overflow-wrap: anywhere; }
+.big-tok { width: min(250px, 72vw); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); border: 9px solid var(--good); display: grid; place-content: center; justify-items: center; gap: 4px; padding: 12%; text-align: center; font-family: var(--font-display); line-height: 1.05; box-shadow: 0 6px 20px rgba(0,0,0,.45); animation: tokflip .4s ease; }
+.tok-ico { font-size: calc(min(250px, 72vw) * .26); line-height: 1.1; }
+.tok-name { font-size: calc(min(250px, 72vw) * var(--fs, .12)); overflow-wrap: normal; hyphens: none; }
 .big-tok.evil { border-color: var(--evil); }
 @keyframes tokflip { from { transform: rotateY(90deg); } to { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .big-tok { animation: none; } }
@@ -432,6 +435,19 @@ const TEAMS = ["townsfolk","outsider","minion","demon","traveller"];
 const TEAM_LABEL = { townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demon", traveller: "Travellers" };
 const TEAM_OF = {};
 for (const s of Object.values(ROLES)) for (const t of TEAMS) for (const r of s[t]) TEAM_OF[r.toLowerCase()] = t;
+// Our own symbol for each character, shown on the tokens
+const ICON = {
+  "Washerwoman":"🧺","Librarian":"📚","Investigator":"🔍","Chef":"🍳","Empath":"💞","Fortune Teller":"🔮","Undertaker":"⚰️","Monk":"🙏","Ravenkeeper":"🪶","Virgin":"🕊️","Slayer":"🏹","Soldier":"🛡️","Mayor":"🎩",
+  "Butler":"🛎️","Drunk":"🍺","Recluse":"🕸️","Saint":"😇","Poisoner":"🧪","Spy":"🕵️","Scarlet Woman":"💋","Baron":"🏰","Imp":"😈",
+  "Scapegoat":"🐐","Gunslinger":"🤠","Beggar":"🥣","Bureaucrat":"📋","Thief":"🦝",
+  "Grandmother":"👵","Sailor":"⚓","Chambermaid":"🧹","Exorcist":"✝️","Innkeeper":"🛏️","Gambler":"🎲","Gossip":"🗣️","Courtier":"🍷","Professor":"🎓","Minstrel":"🎻","Tea Lady":"🫖","Pacifist":"☮️","Fool":"🃏",
+  "Goon":"🥊","Lunatic":"🤪","Tinker":"🔧","Moonchild":"🌙","Godfather":"🌹","Devil's Advocate":"⚖️","Assassin":"🗡️","Mastermind":"♟️","Zombuul":"🧟","Pukka":"🦟","Shabaloth":"👹","Po":"🔥",
+  "Apprentice":"📜","Matron":"🗝️","Judge":"🔨","Bishop":"⛪","Voudon":"💀",
+  "Clockmaker":"🕰️","Dreamer":"💤","Snake Charmer":"🐍","Mathematician":"🧮","Flowergirl":"💐","Town Crier":"📣","Oracle":"👁️","Savant":"🧠","Seamstress":"🧵","Philosopher":"🏛️","Artist":"🎨","Juggler":"🤹","Sage":"🦉",
+  "Mutant":"🧬","Sweetheart":"💘","Barber":"💈","Klutz":"🍌","Evil Twin":"👯","Witch":"🧙","Cerenovus":"🌀","Pit-Hag":"🐸","Fang Gu":"🐉","Vigormortis":"🦴","No Dashii":"🦑","Vortox":"🌪️",
+  "Barista":"☕","Harlot":"💄","Butcher":"🔪","Bone Collector":"☠️","Deviant":"🤡"
+};
+const iconOf = r => ICON[r] || "";
 const teamOf = r => TEAM_OF[String(r || "").toLowerCase()] || "custom";
 const defAlign = r => ["minion","demon"].includes(teamOf(r)) ? "evil" : "good";
 // Townsfolk / Outsider / Minion / Demon by player count (travellers excluded)
@@ -956,11 +972,12 @@ function finishDraw() {
 }
 
 // What the player sees: the Drunk and Lunatic see the character they think they are
+const longWord = r => Math.max(...String(r || "x").split(/\s+/).map(w => w.length));
 function tokenHtml(role, thinks) {
   const seen = thinks || role, team = teamOf(seen), align = thinks ? defAlign(seen) : defAlign(role);
   const ab = window.ccAbility && window.ccAbility(seen);
   return `<p class="lead">You are the</p>
-    <div class="big-tok ${align === "evil" ? "evil" : ""}">${esc(seen)}</div>
+    <div class="big-tok ${align === "evil" ? "evil" : ""}">${iconOf(seen) ? `<span class="tok-ico" aria-hidden="true">${iconOf(seen)}</span>` : ""}<span class="tok-name" style="--fs:${Math.min(.13, .95 / longWord(seen)).toFixed(3)}">${esc(seen)}</span></div>
     <p class="lead"><span class="t-${team}" style="font-weight:800">${esc(TEAM_LABEL[team] ? TEAM_LABEL[team].replace(/s$/, "") : "Character")}</span> · ${align === "evil" ? `<span style="color:var(--evil);font-weight:800">Evil</span>` : `<span style="color:var(--good);font-weight:800">Good</span>`}</p>
     ${ab ? `<p class="ability">${esc(ab.text)}</p>` : ""}`;
 }
@@ -1007,7 +1024,7 @@ function renderGrim() {
     const word = Math.max(...String(s.role || "x").split(/\s+/).map(w => w.length));
     const rems = (R[p.id] || []).map(r => `<span class="rem ${r.cls}">${esc(r.label)}</span>`).join("");
     return `<button class="seat ${s.align === "evil" ? "evil" : ""} ${s.dead ? "dead" : ""} ${ui.sel === p.id ? "sel" : ""}" data-act="sel" data-pid="${p.id}" data-i="${i}" aria-label="Seat ${i + 1}: ${esc(nameOf(p.id))}, ${esc(s.role || "no character")}${s.dead ? ", dead" : ""}">
-      <span class="disc">${s.role ? `<span class="role-txt ${team}" style="--fs:${Math.min(.16, 1.05 / word).toFixed(3)}">${esc(s.role)}${s.thinks ? `<span class="thinks-txt">thinks ${esc(s.thinks)}</span>` : ""}</span>` : `<span class="role-txt none">no character</span>`}
+      <span class="disc">${s.role ? `<span class="role-txt ${team}" data-ico="${iconOf(s.role)}" style="--fs:${Math.min(.16, 1.05 / word).toFixed(3)}">${esc(s.role)}${s.thinks ? `<span class="thinks-txt">thinks ${esc(s.thinks)}</span>` : ""}</span>` : `<span class="role-txt none">no character</span>`}
       ${s.dead && !G.ghost[p.id] ? `<span class="vote" title="Ghost vote available"></span>` : ""}</span>
       <span class="nameplate">${esc(nameOf(p.id))}</span>
       ${rems ? `<span class="rems">${rems}</span>` : ""}
