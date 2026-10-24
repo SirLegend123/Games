@@ -220,8 +220,10 @@ label.field { display: grid; gap: 6px; }
 .draw.timer.up .clock, .draw.timer.up #tStatus { color: #ff5c72; }
 @keyframes flash { 50% { background: #a3162d; } }
 @media (prefers-reduced-motion: reduce) { .draw.timer.up { animation: none; } }
-.draw.dawn { background: radial-gradient(circle at 50% 30%, #f3c77a 0%, #b5643a 45%, #3a1f2c 100%); color: #fff8ee; --fg: #fff8ee; --muted: #ffe9cf; --surface: rgba(0,0,0,.3); --line: rgba(255,255,255,.35); --brass: #ffe2a3; --on-brass: #2a1a08; }
-.draw.dawn h1, .draw.dawn .answer.small { color: #fff3d6; text-shadow: 0 2px 10px rgba(0,0,0,.35); }
+.draw.dawn { background: radial-gradient(circle at 50% 35%, #9b1b2f 0%, #5c0d1a 55%, #2a050c 100%); color: #fff4f4; --fg: #fff4f4; --muted: #ffd9de; --surface: rgba(0,0,0,.3); --line: rgba(255,255,255,.35); --brass: #ffd27a; --on-brass: #2a1a08; }
+.draw.dawn h1, .draw.dawn .answer.small { color: #fff1e0; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
+.draw.dawn .names { flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+.draw.dawn .nmchip { font-size: clamp(3.6rem, 13vw, 9rem); line-height: 1.05; padding: 10px 40px; border-width: 4px; background: rgba(0,0,0,.25); border-color: #ffd27a; max-width: 100%; overflow-wrap: anywhere; }
 .pick { min-height: 60px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); font-weight: 800; font-size: 1.1rem; }
 .pick[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
 .pick.dead { opacity: .6; text-decoration: line-through; }
@@ -1384,54 +1386,76 @@ function dayHtml() {
 }
 
 /* ---------- The Storyteller's script, read out at the end ---------- */
+// It keeps everyone's secret until they die: before that, players are only "the Empath" or "the Imp",
+// and the evil team is unmasked at the very end.
 const STORY_VERB = { Poisoner: "poisoned", Pukka: "poisoned", Monk: "protected", Innkeeper: "protected", Witch: "cursed", "Devil's Advocate": "protected from execution", Sailor: "drank with", Butler: "chose as their master", Exorcist: "tried to exorcise", "Snake Charmer": "charmed", Dreamer: "dreamt about", Seamstress: "compared", Chambermaid: "watched", "Fortune Teller": "looked into the futures of", Ravenkeeper: "pointed at", Professor: "tried to bring back", Assassin: "assassinated", Godfather: "chose", Imp: "attacked", Zombuul: "attacked", Shabaloth: "attacked", Po: "attacked", "Fang Gu": "attacked", "No Dashii": "attacked", Vortox: "attacked", Vigormortis: "attacked" };
 function storyHtml() {
   const out = [], P = t => out.push(`<p>${t}</p>`), H = t => out.push(`<h3>${esc(t)}</h3>`);
+  const shown = new Set(); // players whose character has been revealed
   const nm = q => `<b>${esc(nameOf(q))}</b>`;
-  const as = (q, roles) => `${nm(q)} the ${esc((roles || {})[q] || roleOf(q))}`;
+  // A player as the story may name them: by character only, until they've been revealed
+  const ref = (q, roles) => {
+    const r = roles[q] || roleOf(q);
+    if (shown.has(q)) return `${nm(q)} the ${esc(r)}`;
+    return `the ${esc(r === "Drunk" && S.drawn[q] && S.drawn[q].shown ? S.drawn[q].shown : r)}`; // the Drunk keeps their secret
+  };
+  const known = q => { shown.add(q); return ""; }; // revealed in passing, like a Slayer who hit
+  const reveal = (q, role) => { const first = !shown.has(q); shown.add(q); return first ? ` ${nm(q)} was the <b class="t-${teamOf(role)}">${esc(role)}</b>${S.drawn[q] && S.drawn[q].shown && role === "Drunk" ? `, who believed they were the ${esc(S.drawn[q].shown)}` : ""}${alignOf(role) === "evil" ? "!" : "."}` : ""; };
   const chron = [...(S.chron || [])];
   if (S.step === "day" && S.day && !chron.some(c => c.type === "day" && c.n === S.day.n)) chron.push(dayRecord());
-  P(`Gather round, everyone, and let me tell you what really happened in this game of <i>${esc(SCRIPTS[S.script].name)}</i>.`);
+  P(`Gather round, everyone, and let me tell you what really happened in this game of <i>${esc(SCRIPTS[S.script].name)}</i>. Some of you have been hiding who you really are. Not for much longer.`);
   for (const ph of chron) {
     if (ph.type === "night") {
       H(`Night ${ph.n}`);
       P(ph.n === 1 ? "On the first night, the town closed their eyes, and the Grimoire stirred." : "Night fell, and the town closed their eyes once more.");
-      for (const r of ph.recs) { const t = storyStep(r, nm, as); if (t) P(t); }
-      P(ph.deaths.length ? `When the sun rose, ${listJoin(ph.deaths.map(d => `${nm(d.pid)} the ${esc(d.role)}`))} ${ph.deaths.length === 1 ? "was" : "were"} found dead.` : "When the sun rose, everyone was still alive.");
+      for (const r of ph.recs) { const t = storyStep(r, ref, nm); if (t) P(t); }
+      if (!ph.deaths.length) P("When the sun rose, everyone was still alive.");
+      for (const d of ph.deaths) P(`When the sun rose, ${nm(d.pid)} was found dead.${reveal(d.pid, d.role)}`);
     } else {
       H(`Day ${ph.n}`);
-      for (const x of ph.shots) P(`${nm(x.by)} stood up, claimed to be the Slayer, and shot at ${nm(x.at)}. ${x.died ? `${as(x.at, ph.roles)} fell dead!` : "Nothing happened."}${ph.roles[x.by] === "Slayer" ? ` ${nm(x.by)} really was the Slayer.` : ` But ${nm(x.by)} was the ${esc(ph.roles[x.by])}, not the Slayer.`}`);
-      for (const n of ph.noms) P(n.virgin === "executed" ? `${nm(n.by)} nominated ${nm(n.of)}, the Virgin. ${as(n.by, ph.roles)} was a Townsfolk, so was executed on the spot!` : `${nm(n.by)} nominated ${nm(n.of)}, and ${plural(n.count, "hand")} ${n.count === 1 ? "was" : "were"} raised.${n.virgin === "nothing" ? ` ${nm(n.of)} was the Virgin, but nothing happened.` : ""}`);
+      for (const x of ph.shots) P(`${nm(x.by)} stood up, claimed to be the Slayer, and shot at ${nm(x.at)}.${x.died ? ` ${nm(x.at)} fell dead!${reveal(x.at, ph.roles[x.at])} ${nm(x.by)} really was the Slayer.${known(x.by)}` : " Nothing happened."}`);
+      for (const n of ph.noms) P(n.virgin === "executed" ? `${nm(n.by)} nominated ${nm(n.of)}, who turned out to be the Virgin. ${nm(n.by)} was a Townsfolk, so was executed on the spot!${reveal(n.by, ph.roles[n.by])}${known(n.of)}` : `${nm(n.by)} nominated ${nm(n.of)}, and ${plural(n.count, "hand")} ${n.count === 1 ? "was" : "were"} raised.${n.virgin === "nothing" ? ` ${nm(n.of)} was the Virgin, but nothing happened.` : ""}`);
+      ph.noms.filter(n => n.virgin === "nothing").forEach(n => known(n.of));
       const e = ph.exec;
-      if (e && e.cause !== "nominated the Virgin") P(e.dies ? `The town executed ${as(e.pid, ph.roles)}.` : `The town executed ${as(e.pid, ph.roles)}, but they did not die.`);
+      if (e && e.cause !== "nominated the Virgin") P(e.dies ? `The town executed ${nm(e.pid)}.${reveal(e.pid, ph.roles[e.pid])}` : `The town executed ${nm(e.pid)}, but ${nm(e.pid)} did not die.`);
       else if (!e) P(ph.noms.length ? "In the end, nobody was executed." : "Nobody was nominated, and nobody was executed.");
     }
   }
   const o = S.over;
   if (o) { H("The end"); P(`<b>${o.winner === "good" ? "Good wins!" : "Evil wins!"}</b> ${esc(o.reason)}`); }
-  H("The Grimoire");
-  for (const p of S.players) {
-    const d = S.drawn[p.id];
-    if (!d) continue;
-    const was = S.start && S.start[p.id] && S.start[p.id] !== d.role ? S.start[p.id] : "";
-    P(`${nm(p.id)} ${was ? `started as the <b class="t-${teamOf(was)}">${esc(was)}</b> and ended as` : "was"} the <b class="t-${teamOf(d.role)}">${esc(d.role)}</b>${d.shown ? `, but believed they were the ${esc(d.shown)}` : ""}: ${sideOf(p.id) === "evil" ? "evil" : "good"}${S.dead[p.id] ? ", and died" : ", and survived"}.`);
-  }
+  // The grand reveal: the good survivors first, then the evil team, the Demon last
+  const ids = S.players.map(p => p.id).filter(q => S.drawn[q]);
+  const good = ids.filter(q => sideOf(q) !== "evil" && !shown.has(q));
+  const evil = ids.filter(q => sideOf(q) === "evil");
+  if (good.length) { H("The town"); good.forEach(q => P(`${reveal(q, roleOf(q)).trim()}${S.dead[q] ? "" : " They survived."}`)); }
+  H("And now… the evil team");
+  const evilOrder = [...evil.filter(q => teamOf(roleOf(q)) !== "demon"), ...evil.filter(q => teamOf(roleOf(q)) === "demon")];
+  const lastDemon = [...evilOrder].reverse().find(q => teamOf(roleOf(q)) === "demon" && !shown.has(q));
+  evilOrder.forEach(q => {
+    const was = S.start && S.start[q] && S.start[q] !== roleOf(q) ? `, who started as the ${esc(S.start[q])}` : "";
+    const role = `<b class="t-${teamOf(roleOf(q))}">${esc(roleOf(q))}</b>`;
+    if (shown.has(q)) return P(`${nm(q)} was the ${role}${was}, as we found out.`);
+    P(`${q === lastDemon ? "And the Demon… " : ""}${nm(q)} was the ${role}${was}${q === lastDemon ? "!" : "."}${S.dead[q] ? "" : " They survived."}`);
+  });
   const bl = S.bluffs.filter(Boolean);
   if (bl.length) P(`The Demon's bluffs were the ${esc(listJoin(bl))}.`);
   if (S.redHerring) P(`The Fortune Teller's red herring was ${nm(S.redHerring)}.`);
   P("Thank you for playing!");
   return out.join("");
 }
-function storyStep(r, nm, as) {
+function storyStep(r, ref, nm) {
   const a = (r.n > 1 && ACT_LATER[r.key]) || ACT[r.key] || {}, I = r.info || {}, R = r.roles;
-  const who = r.role === "Drunk" ? `${nm(r.pid)}, who believed they were the ${esc(r.seen)} but was really the Drunk,` : `${nm(r.pid)} the ${esc(r.role)}`;
+  // The Drunk is told in their own words: "the Empath", until their secret is out
+  const who = cap(ref(r.pid, r.role === "Drunk" ? { ...R, [r.pid]: r.seen } : R));
   const past = w => w.replace("they are", "they were").replace("makes", "made");
-  const lie = r.truth === false ? ` But that was false${r.why.length ? `, because ${esc(past(r.why[0]))}` : ""}.` : "";
+  const why = (r.why || []).filter(w => !/Drunk/.test(w));
+  const lie = r.truth === false ? ` But that was false${why.length ? `, because ${esc(past(why[0]))}` : ""}.` : "";
   const chars = rs => listJoin(rs.map(x => `the ${esc(x)}`));
-  if (r.key === "MINION") return `The Minions, ${listJoin(Object.keys(R).filter(q => teamOf(R[q]) === "minion").map(q => as(q, R)))}, opened their eyes and saw their Demon, ${listJoin(Object.keys(R).filter(q => teamOf(R[q]) === "demon").map(q => as(q, R)))}.`;
-  if (r.key === "DEMON") return `${who} learnt who their Minions were, and was given three characters to bluff as: ${chars(S.bluffs.filter(Boolean))}.`;
-  if (r.key === "TOLD") return `${nm(r.pid)}${S.start && S.start[r.pid] && S.start[r.pid] !== (r.now || r.role) ? `, who started as the ${esc(S.start[r.pid])},` : ""} was woken and told they were now the ${esc(r.now || r.role)}.`;
-  if (I && a.info === "lunatic") return `${nm(r.pid)} woke believing they were the ${esc(r.seen)}, and was shown ${listJoin((I.pids || []).map(nm))} as their Minions. But ${nm(r.pid)} was only the Lunatic.`;
+  const refs = qs => listJoin((qs || []).map(q => ref(q, R)));
+  if (r.key === "MINION") return "The Minions opened their eyes, and saw who their Demon was.";
+  if (r.key === "DEMON") return `The Demon learnt who their Minions were, and was given three characters to bluff as: ${chars(S.bluffs.filter(Boolean))}.`;
+  if (r.key === "TOLD") return `In the dark, ${ref(r.pid, { ...R, [r.pid]: S.start && S.start[r.pid] || r.role })} was woken and told they were now the ${esc(r.now || r.role)}.`;
+  if (a.info === "lunatic") return `${cap(ref(r.pid, { ...R, [r.pid]: r.seen }))} woke, and was shown their Minions and their bluffs.`;
   if (a.info === "number") {
     const n = I.n, say = { chef: `learnt there ${n === 1 ? "was 1 pair" : `were ${n} pairs`} of evil players sitting together`, empath: `learnt that ${n} of their living neighbours ${n === 1 ? "was" : "were"} evil`,
       clock: `learnt the Demon was ${plural(n, "step")} from its nearest Minion`, oracle: `learnt that ${n} of the dead ${n === 1 ? "was" : "were"} evil`,
@@ -1440,37 +1464,39 @@ function storyStep(r, nm, as) {
   }
   if (a.info === "yesno") return `${who} asked, “${esc(sayOf(a))}” and was told ${I.yes ? "Yes" : "No"}.${lie}`;
   if (a.info === "undertaker") return `${who} learnt that the player executed that day was the ${esc(I.role)}.${lie}`;
-  if (a.info === "sage") return `${who}, killed by the Demon, learnt it was one of ${listJoin((I.pids || []).map(nm))}.${lie}`;
-  if (a.info === "pair") return I.none ? `${who} learnt there were no Outsiders in play.${lie}` : `${who} was shown ${listJoin((I.pids || []).map(nm))}: one of them the ${esc(I.role)}.${lie}`;
+  if (a.info === "sage") return `${who}, killed by the Demon, learnt it was one of two players.${lie}`;
+  if (a.info === "pair") return I.none ? `${who} learnt there were no Outsiders in play.${lie}` : `${who} was shown two players, and learnt that one of them was the ${esc(I.role)}.${lie}`;
   if (a.info === "outsiders") return `${who} learnt which Outsiders were in play: ${I.roles && I.roles.length ? chars(I.roles) : "none"}.${lie}`;
-  if (a.info === "grandchild") return `${who} met their grandchild, ${nm(I.pid)} the ${esc(I.role)}.${lie}`;
-  if (a.info === "twin") return `${who} and ${as(I.pid, R)} learnt they were twins.`;
+  if (a.info === "grandchild") return `${who} met their grandchild, ${ref(I.pid, R)}.${lie}`;
+  if (a.info === "twin") return `${who} and their twin, ${ref(I.pid, R)}, learnt who each other were.`;
   if (a.info === "grim") return `${who} crept a look at the Grimoire.`;
-  if (a.st) return r.stKilled ? `${as(r.stKilled, R)} died${a.st === "gossip" ? ", because the Gossip's words that day had been true" : ": the Tinker's luck ran out"}.` : "";
+  if (a.st) return r.stKilled ? `${cap(ref(r.stKilled, R))} died${a.st === "gossip" ? ", because the Gossip's words that day had been true" : ": the Tinker's luck ran out"}.` : "";
   if (r.skipped) return a.kill ? `${who} chose to kill no-one.` : `${who} chose not to use their ability.`;
-  if (a.fake) return `${nm(r.pid)}, believing they were the ${esc(r.seen)}, chose to kill ${listJoin(r.picks.map(nm))}. But they were only the Lunatic, so nothing happened.`;
+  if (a.fake) return `${who} chose to kill ${refs(r.picks)}… but nothing happened.`;
   const verb = STORY_VERB[r.role === "Drunk" ? r.seen : r.role] || "chose";
-  let t = r.key === "Cerenovus" ? `${who} made ${nm(r.picks[0])} mad about being the ${esc(r.char)}`
-    : r.key === "Pit-Hag" ? `${who} turned ${nm(r.picks[0])} into the ${esc(r.char)}`
-    : r.key === "Gambler" ? `${who} gambled that ${nm(r.picks[0])} was the ${esc(r.char)}`
+  let t = r.key === "Cerenovus" ? `${who} made ${ref(r.picks[0], R)} mad about being the ${esc(r.char)}`
+    : r.key === "Pit-Hag" ? `${who} turned ${ref(r.picks[0], R)} into the ${esc(r.char)}`
+    : r.key === "Gambler" ? `${who} gambled that ${ref(r.picks[0], R)} was the ${esc(r.char)}`
     : r.key === "Philosopher" ? `${who} chose to gain the ability of the ${esc(r.char)}`
     : r.key === "Courtier" ? `${who} chose the ${esc(r.char)}, to make them drunk`
-    : `${who} ${verb} ${listJoin(r.picks.map(nm))}`;
+    : r.key === "Ravenkeeper" ? `${who} pointed at a player`
+    : r.key === "Butler" ? `${who} chose ${refs(r.picks)} as their master`
+    : `${who} ${verb} ${refs(r.picks)}`;
   if (a.result === "ft") t += `, and was told ${r.answer ? "Yes: one of them was the Demon" : "No"}`;
   if (a.result === "seam") t += `, and learnt they were ${r.answer ? "the same alignment" : "different alignments"}`;
   if (a.result === "chamber") t += `, and learnt ${r.answer} of them had woken that night`;
   if (a.result === "raven") t += `, and learnt they were the ${esc(r.answer)}`;
   if (a.result === "dream") t += `, and was shown ${chars(r.answer || [])}`;
-  if (a.result === "snake" && r.answer) t += `. They had found the Demon! They swapped: ${nm(r.pid)} became the ${esc(r.answer)}, and ${nm(r.picks[0])} the Snake Charmer`;
+  if (a.result === "snake" && r.answer) t += `. They had found the Demon! The two of them swapped characters`;
   t += ".";
-  if (a.rem && r.why.length && !a.kill) t += ` But ${nm(r.pid)} ${esc(past(r.why[0]).replace(/^they were /, "was ").replace(/^the /, "was affected: the "))}, so it had no effect.`;
+  if (a.rem && why.length && !a.kill) t += ` But they ${esc(past(why[0]).replace(/^they /, ""))}, so it had no effect.`;
   if (a.result && !["gamble", "pithag", "professor", "exorcist"].includes(a.result)) t += lie;
   for (const k of r.kills || []) {
-    if (k.jump) t += ` ${as(k.pid, R)} was an Outsider: the Fang Gu jumped into them, and ${nm(r.pid)} died in their place.`;
-    else if (k.died && k.pid === r.pid && r.starpass) t += ` The Imp died by their own hand, and ${as(r.starpass, R)} rose as the new Imp.`;
-    else if (k.died && k.instead) t += ` But the Mayor's luck held: ${as(k.instead, R)} died instead.`;
-    else if (k.died) t += r.key === "Gambler" ? ` They guessed wrong, and died.` : ` ${r.key === "Pukka" ? `The poison took ${as(k.pid, R)}, who` : as(k.pid, R)} died.`;
-    else if (k.why) t += ` But ${nm(k.pid)} survived: ${esc(k.why)}.`;
+    if (k.jump) t += ` ${cap(ref(k.pid, R))} was an Outsider: the Fang Gu jumped into them, and the old Fang Gu died in their place.`;
+    else if (k.died && k.pid === r.pid && r.starpass) t += " The Imp died by their own hand, and a Minion rose as the new Imp.";
+    else if (k.died && k.instead) t += ` But the Mayor's luck held, and ${ref(k.instead, R)} died instead.`;
+    else if (k.died) t += r.key === "Gambler" ? " They guessed wrong, and died." : ` ${r.key === "Pukka" ? `The poison took ${ref(k.pid, R)}` : `${cap(ref(k.pid, R))} died`}.`;
+    else if (k.why) t += ` But ${ref(k.pid, R)} survived: ${esc(k.why)}.`;
   }
   return t;
 }
