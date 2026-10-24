@@ -123,6 +123,56 @@ label.field { display: grid; gap: 6px; }
 .wrow .n { color: var(--muted); font-weight: 800; text-align: right; }
 .wrow .ico { font-size: 1.6rem; text-align: center; }
 .wrow .thinks { color: var(--muted); font-size: .9rem; }
+/* Grimoire circle */
+.grim-wrap { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 900px) { .grim-wrap { grid-template-columns: minmax(0, 1.2fr) minmax(320px, 1fr); } }
+.side { display: grid; gap: 16px; }
+.circle { position: relative; width: 100%; max-width: 640px; margin: 0 auto; aspect-ratio: 1; container-type: inline-size; border-radius: 50%; background: var(--felt); border: 1px solid var(--line); }
+.seat { position: absolute; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 2px; background: none; border: 0; padding: 0; width: var(--tok); color: inherit; z-index: 1; }
+.disc { width: var(--tok); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); border: 4px solid var(--good); display: grid; place-content: center; justify-items: center; text-align: center; padding: 6%; box-shadow: 0 2px 6px rgba(0,0,0,.35); overflow: hidden; font-family: var(--font-display); line-height: 1.02; }
+.seat.evil .disc { border-color: var(--evil); }
+.seat.sel .disc { outline: 4px solid var(--brass); outline-offset: 2px; }
+.seat.dead .disc { filter: grayscale(1) brightness(.65); }
+.disc .ico { font-size: calc(var(--tok) * .3); line-height: 1.1; }
+.disc .nm { font-family: var(--font-body); font-weight: 800; font-size: calc(var(--tok) * var(--fs)); }
+.disc .th { font-family: var(--font-body); font-weight: 700; font-size: calc(var(--tok) * .12); color: #6b5d48; }
+.plate { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; font-weight: 800; font-size: clamp(.7rem, 2.6cqi, .9rem); max-width: calc(var(--tok) * 1.5); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat.dead .plate { text-decoration: line-through; color: var(--muted); }
+.rems { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; width: calc(var(--tok) * 1.6); }
+.rem { font-size: clamp(.6rem, 2.1cqi, .72rem); font-weight: 800; border-radius: 999px; padding: 0 6px; background: var(--evil); color: #fff; white-space: nowrap; }
+.rem.info { background: #6c6278; } .rem.safe { background: var(--good); }
+.rem.big { font-size: .85rem; padding: 4px 6px 4px 10px; display: inline-flex; align-items: center; gap: 4px; }
+.rem .x { background: none; border: 0; color: #fff; font-weight: 800; padding: 0 4px; }
+.center { position: absolute; inset: 30%; display: grid; place-content: center; justify-items: center; text-align: center; gap: 4px; }
+.center .ph { font-family: var(--font-display); color: var(--brass); font-size: clamp(1.2rem, 6cqi, 2.2rem); }
+.bluff-icons { font-size: clamp(1.1rem, 5cqi, 1.8rem); display: flex; gap: 6px; }
+.bluffs { display: grid; gap: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 520px) { .grid3 { grid-template-columns: minmax(0, 1fr); } }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface-2); padding: 8px 16px; min-height: 44px; font-weight: 800; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); }
+.seg button.g[aria-pressed="true"] { background: var(--good); color: #fff; } .seg button.e[aria-pressed="true"] { background: var(--evil); color: #fff; }
+.bignum { font-size: 1.8rem; font-weight: 800; min-width: 1.5em; text-align: center; }
+.tiles.small { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.tiles.small .tile { min-height: 70px; font-size: .82rem; }
+.log { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; }
+
+/* What the woken player sees */
+.answer { font-weight: 800; font-size: clamp(4rem, 18vw, 7rem); line-height: 1; color: var(--brass); }
+.answer.small { font-family: var(--font-display); font-weight: 400; font-size: clamp(2rem, 9vw, 3.2rem); }
+.answer.evil-t { color: var(--evil); }
+.names, .chars { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.nmchip { font-family: var(--font-display); font-size: clamp(1.6rem, 6vw, 2.4rem); background: var(--surface); border: 2px solid var(--brass); border-radius: 14px; padding: 6px 18px; }
+.charchip { display: grid; justify-items: center; gap: 2px; background: var(--parch); color: var(--parch-ink); border-radius: 14px; padding: 10px 16px; font-weight: 800; font-size: 1.1rem; min-width: 110px; }
+.charchip .ico { font-size: 2.4rem; line-height: 1.1; }
+.pickgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; width: 100%; }
+.pick { min-height: 60px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); font-weight: 800; font-size: 1.1rem; }
+.pick[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
+.pick.dead { opacity: .6; text-decoration: line-through; }
+.spy { width: 100%; }
 footer { color: var(--muted); font-size: .8rem; text-align: center; }
 </style>
 </head>
@@ -273,7 +323,9 @@ const fresh = () => ({ step: "players", script: "tb", players: [], bag: [], draw
 let S;
 try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
 if (!S || !S.step) S = fresh();
+if (S.step === "done") S.step = "grim";
 let show = null; // a player looking at their character again, after the draw
+const ui = { sel: null };
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
 
 /* ---------- Setup counts ---------- */
@@ -329,9 +381,10 @@ function fixShown(bag) {
 
 /* ---------- Screens ---------- */
 function render() {
-  const steps = [["players", "Players"], ["bag", "Bag"], ["draw", "Draw"], ["done", "Grimoire"]];
-  $("steps").innerHTML = steps.map(([k, l]) => `<span class="${S.step === k || (k === "draw" && S.draw) ? "on" : ""}">${l}</span>`).join("");
-  $("app").innerHTML = S.step === "players" ? playersHtml() : S.step === "bag" ? bagHtml() : doneHtml();
+  const steps = [["players", "Players"], ["bag", "Bag"], ["draw", "Draw"], ["grim", "Grimoire"], ["night", "Night 1"]];
+  $("steps").innerHTML = steps.map(([k, l]) => `<span class="${(S.draw ? k === "draw" : S.step === k) ? "on" : ""}">${l}</span>`).join("");
+  if (S.step === "grim" || S.step === "night") setupGrim();
+  $("app").innerHTML = S.step === "players" ? playersHtml() : S.step === "bag" ? bagHtml() : S.step === "night" ? nightHtml() : grimHtml();
   renderDraw();
   save();
 }
@@ -398,29 +451,414 @@ function bagHtml() {
   </section>`;
 }
 
-function doneHtml() {
-  const rows = S.players.map((p, i) => {
-    const d = S.drawn[p.id];
-    if (!d) return `<div class="wrow"><span class="n">${i + 1}</span><span></span><span><b>${esc(nameOf(p.id))}</b> <span class="thinks">hasn't drawn</span></span><span></span></div>`;
-    const c = CHAR[d.role] || { icon: "", team: "townsfolk" };
-    return `<div class="wrow ${alignOf(d.role)}">
-      <span class="n">${i + 1}</span>
-      <span class="ico" aria-hidden="true">${c.icon}</span>
-      <span><b>${esc(nameOf(p.id))}</b>: <span class="t-${c.team}" style="font-weight:800">${esc(d.role)}</span>${d.shown ? ` <span class="thinks">thinks they are the ${esc(d.shown)}</span>` : ""}</span>
-      <button class="btn" data-act="show-again" data-pid="${p.id}">Show them</button>
-    </div>`;
+/* ---------- The Grimoire ---------- */
+const roleOf = pid => (S.drawn[pid] || {}).role || "";
+const shownOf = pid => (S.drawn[pid] || {}).shown || "";
+const sideOf = pid => (S.drawn[pid] || {}).align || alignOf(roleOf(pid));
+const seatNo = pid => S.players.findIndex(p => p.id === pid) + 1;
+const inPlay = () => S.players.map(p => p.id).filter(pid => roleOf(pid));
+const remsOf = pid => S.rem[pid] || [];
+const addRem = (pid, r) => { S.rem[pid] = [...new Set([...remsOf(pid), r])]; };
+const alive = pid => !S.dead[pid];
+const scriptChars = (teams = TEAMS) => teams.flatMap(t => SCRIPTS[S.script].roles[t].map(x => x[0]));
+const listJoin = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+const names = pids => listJoin(pids.map(nameOf));
+const pickOne = a => a.length ? a[rnd(a.length)] : "";
+const REM_CLS = { Poisoned: "", Drunk: "", Cursed: "", Mad: "", Dead: "", Safe: "safe", Protected: "safe", Master: "info", "Red herring": "info", Grandchild: "info", Twin: "info" };
+const REM_ALL = ["Poisoned", "Drunk", "Protected", "Safe", "Cursed", "Mad", "Master", "Red herring", "Grandchild", "Twin"];
+
+// Good characters not in play, and not what the Drunk thinks they are
+function freeGood() {
+  const used = new Set(inPlay().flatMap(pid => [roleOf(pid), shownOf(pid)]));
+  return scriptChars(["townsfolk", "outsider"]).filter(r => !used.has(r));
+}
+function autoBluffs() {
+  const free = freeGood().filter(r => !S.bluffs.includes(r));
+  const tf = shuffle(free.filter(r => teamOf(r) === "townsfolk")), out = shuffle(free.filter(r => teamOf(r) === "outsider"));
+  S.bluffs = S.bluffs.map(b => b || tf.shift() || out.shift() || "");
+}
+const ftInPlay = () => inPlay().some(pid => roleOf(pid) === "Fortune Teller" || shownOf(pid) === "Fortune Teller");
+function autoRedHerring() {
+  if (!ftInPlay() || S.redHerring) return;
+  S.redHerring = pickOne(inPlay().filter(pid => sideOf(pid) === "good"));
+}
+// Get the Grimoire ready the first time the Storyteller sees it
+function setupGrim() {
+  S.bluffs = S.bluffs || ["", "", ""];
+  S.rem = S.rem || {}; S.dead = S.dead || {}; S.log = S.log || [];
+  for (const pid of inPlay()) if (!S.drawn[pid].align) S.drawn[pid].align = alignOf(roleOf(pid));
+  autoBluffs(); autoRedHerring();
+}
+
+function tokenSize(n) { return n <= 7 ? 19 : n <= 10 ? 16.5 : n <= 13 ? 14 : 12.5; }
+function circleHtml(opts = {}) {
+  const n = S.players.length, tok = tokenSize(n);
+  const seats = S.players.map((p, i) => {
+    const a = (i / n) * 2 * Math.PI - Math.PI / 2, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
+    const role = roleOf(p.id), c = CHAR[role] || { icon: "" };
+    const word = Math.max(...(role || "x").split(/\s+/).map(w => w.length));
+    const rems = [...(p.id === S.redHerring ? ["Red herring"] : []), ...remsOf(p.id)];
+    const hl = opts.hl && opts.hl.includes(p.id);
+    return `<button class="seat ${sideOf(p.id)} ${S.dead[p.id] ? "dead" : ""} ${ui.sel === p.id || hl ? "sel" : ""}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" data-act="sel" data-pid="${p.id}" aria-label="Seat ${i + 1}: ${esc(nameOf(p.id))}, ${esc(role || "no character")}">
+      <span class="disc">${role ? `<span class="ico" aria-hidden="true">${c.icon}</span><span class="nm" style="--fs:${Math.min(.17, 1.45 / word).toFixed(3)}">${esc(role)}</span>${shownOf(p.id) ? `<span class="th">${esc(shownOf(p.id))}</span>` : ""}` : `<span class="nm" style="--fs:.12">?</span>`}</span>
+      <span class="plate">${esc(nameOf(p.id))}</span>
+      ${rems.length ? `<span class="rems">${rems.map(r => `<span class="rem ${REM_CLS[r] ?? "info"}">${esc(r)}</span>`).join("")}</span>` : ""}
+    </button>`;
   }).join("");
-  return `<section class="card">
-    <h2>The Grimoire</h2>
-    <p class="hint">Who drew what, in seat order. Blue is good, red is evil. Use Show them if a player needs to see their character again.</p>
-    ${countsHtml(S.players.length, Object.values(S.drawn).map(d => d.role))}
-    <div class="who">${rows}</div>
-    <div class="row">
-      <button class="btn" data-act="redraw">Draw again</button>
-      <span class="spacer"></span>
-      <button class="btn danger" data-act="new-game">New game</button>
+  const label = S.step === "night" ? "Night 1" : S.phase === "day1" ? "Day 1" : "Setup";
+  return `<div class="circle" style="--tok:min(96px, ${tok}cqi)">
+    ${seats}
+    <div class="center"><span class="ph">${label}</span>
+      ${S.bluffs.some(Boolean) ? `<span class="hint">Bluffs</span><span class="bluff-icons">${S.bluffs.filter(Boolean).map(b => `<span title="${esc(b)}">${(CHAR[b] || {}).icon || "?"}</span>`).join("")}</span>` : ""}
     </div>
+  </div>`;
+}
+
+function playerPanel(pid) {
+  const role = roleOf(pid), R = scriptChars();
+  return `<section class="card">
+    <div class="row"><h2 style="margin-right:auto">${seatNo(pid)}. ${esc(nameOf(pid))}</h2><button class="icon" data-act="sel" data-pid="${pid}" aria-label="Close">×</button></div>
+    <label class="field"><span class="label">Character</span><select data-setrole="${pid}">${R.map(r => `<option ${r === role ? "selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
+    ${SHOWN[role] ? `<label class="field"><span class="label">Thinks they are the</span><select data-setshown="${pid}">${scriptChars([SHOWN[role]]).map(r => `<option ${r === shownOf(pid) ? "selected" : ""}>${esc(r)}</option>`).join("")}</select></label>` : ""}
+    <div class="row">
+      <span class="seg"><button class="g" data-act="side" data-pid="${pid}" data-v="good" aria-pressed="${sideOf(pid) === "good"}">Good</button><button class="e" data-act="side" data-pid="${pid}" data-v="evil" aria-pressed="${sideOf(pid) === "evil"}">Evil</button></span>
+      <button class="btn" data-act="dead" data-pid="${pid}">${S.dead[pid] ? "Bring back to life" : "Mark dead"}</button>
+    </div>
+    <div class="field"><span class="label">Reminders</span>
+      <div class="row">${remsOf(pid).map(r => `<span class="rem big ${REM_CLS[r] ?? "info"}">${esc(r)} <button class="x" data-act="unrem" data-pid="${pid}" data-r="${esc(r)}" aria-label="Remove ${esc(r)}">×</button></span>`).join("") || `<span class="hint">None</span>`}</div>
+      <select data-addrem="${pid}"><option value="">+ Add a reminder</option>${REM_ALL.filter(r => !remsOf(pid).includes(r)).map(r => `<option>${r}</option>`).join("")}</select>
+    </div>
+    <button class="btn" data-act="show-again" data-pid="${pid}">Show them their character</button>
   </section>`;
+}
+
+function grimHtml() {
+  const bluffSel = i => {
+    const free = new Set(freeGood());
+    const opts = scriptChars(["townsfolk", "outsider"]).filter(r => r === S.bluffs[i] || (free.has(r) && !S.bluffs.includes(r)));
+    return `<select data-bluff="${i}" aria-label="Bluff ${i + 1}"><option value="">Bluff ${i + 1}</option>${opts.map(r => `<option value="${esc(r)}" ${r === S.bluffs[i] ? "selected" : ""}>${esc((CHAR[r] || {}).icon || "")} ${esc(r)}</option>`).join("")}</select>`;
+  };
+  const side = ui.sel ? playerPanel(ui.sel) : "";
+  const setup = S.phase !== "day1" ? `
+    <section class="card">
+      <h2>Demon bluffs</h2>
+      <p class="hint">3 good characters not in play. The Demon is shown these on Night 1.</p>
+      <div class="bluffs">${[0, 1, 2].map(bluffSel).join("")}</div>
+      <div class="row"><button class="btn" data-act="bluffs-random">🎲 Pick for me</button></div>
+    </section>
+    ${ftInPlay() ? `<section class="card">
+      <h2>Red herring</h2>
+      <p class="hint">A good player who registers as a Demon to the Fortune Teller.</p>
+      <select data-redherring><option value="">None</option>${inPlay().filter(pid => sideOf(pid) === "good").map(pid => `<option value="${pid}" ${pid === S.redHerring ? "selected" : ""}>${esc(nameOf(pid))} (${esc(roleOf(pid))})</option>`).join("")}</select>
+    </section>` : ""}
+    <section class="card">
+      <h2>Ready?</h2>
+      <p class="hint">Night 1 takes you through everyone who wakes, in order. For each one you'll check their info, then show them the phone.</p>
+      <div class="row"><button class="btn" data-act="redraw">Draw again</button><span class="spacer"></span><button class="btn primary" data-act="start-night">Start Night 1 →</button></div>
+    </section>` : `
+    <section class="card"><h2>Night 1</h2>${logHtml()}</section>
+    <section class="card"><div class="row"><button class="btn danger" data-act="new-game">New game</button></div></section>`;
+  return `<div class="grim-wrap">
+    <div>${circleHtml()}<p class="hint" style="text-align:center">Tap a player to change their character, reminders or alive/dead.</p></div>
+    <div class="side">${side}${setup}</div>
+  </div>`;
+}
+const logHtml = () => S.log.length ? `<ol class="log">${S.log.map(l => `<li>${l}</li>`).join("")}</ol>` : `<p class="hint">Nothing logged.</p>`;
+
+/* ---------- Night 1 ---------- */
+// First night wake order. MINION and DEMON are the evil team's info (7 or more players).
+const FIRST_NIGHT = ["Philosopher", "MINION", "Lunatic", "DEMON", "Sailor", "Courtier", "Poisoner", "Snake Charmer", "Godfather", "Devil's Advocate", "Evil Twin", "Witch", "Cerenovus", "Pukka", "Washerwoman", "Librarian", "Investigator", "Chef", "Empath", "Fortune Teller", "Butler", "Grandmother", "Clockmaker", "Dreamer", "Seamstress", "Spy", "Chambermaid", "Mathematician"];
+// pick: how many players they choose. chars: they choose a character too. rem: the reminder their choice gets.
+const ACT = {
+  Philosopher: { pick: 0, chars: ["townsfolk", "outsider"], optional: true, say: "Choose a good character to gain their ability, or keep your ability for another night." },
+  Sailor: { pick: 1, say: "Choose a player: either you or they are drunk until dusk." },
+  Courtier: { pick: 0, chars: TEAMS, optional: true, say: "Choose a character: they are drunk for 3 nights & 3 days. Or keep your ability for another night." },
+  Poisoner: { pick: 1, rem: "Poisoned", say: "Choose a player to poison." },
+  "Snake Charmer": { pick: 1, result: "snake", say: "Choose a player. If they are the Demon, you swap characters and alignments." },
+  Godfather: { info: "outsiders" },
+  "Devil's Advocate": { pick: 1, rem: "Safe", say: "Choose a player: if they are executed tomorrow, they don't die." },
+  "Evil Twin": { info: "twin" },
+  Witch: { pick: 1, rem: "Cursed", say: "Choose a player to curse: if they nominate tomorrow, they die." },
+  Cerenovus: { pick: 1, chars: ["townsfolk", "outsider"], rem: "Mad", say: "Choose a player and a good character: tomorrow they must be mad that they are this character." },
+  Pukka: { pick: 1, rem: "Poisoned", say: "Choose a player to poison." },
+  Washerwoman: { info: "pair", team: "townsfolk" },
+  Librarian: { info: "pair", team: "outsider" },
+  Investigator: { info: "pair", team: "minion" },
+  Chef: { info: "number", calc: "chef", say: "Pairs of evil players sitting next to each other" },
+  Empath: { info: "number", calc: "empath", say: "Evil players among your 2 alive neighbours" },
+  "Fortune Teller": { pick: 2, result: "ft", say: "Choose 2 players: you learn if either is the Demon." },
+  Butler: { pick: 1, notSelf: true, rem: "Master", say: "Choose your master (not yourself): tomorrow, you may only vote if they are voting too." },
+  Grandmother: { info: "grandchild" },
+  Clockmaker: { info: "number", calc: "clock", say: "Steps from the Demon to its nearest Minion" },
+  Dreamer: { pick: 1, notSelf: true, result: "dream", say: "Choose a player: you learn 1 good and 1 evil character, 1 of which is theirs." },
+  Seamstress: { pick: 2, notSelf: true, optional: true, result: "seam", say: "You may choose 2 players (not yourself): you learn if they are the same alignment. Once per game." },
+  Spy: { info: "grim" },
+  Chambermaid: { pick: 2, notSelf: true, result: "chamber", say: "Choose 2 players (not yourself): you learn how many of them woke tonight because of their own ability." },
+  Mathematician: { info: "number", calc: "math", say: "Players whose abilities worked abnormally tonight" },
+  MINION: { info: "minion" }, DEMON: { info: "demon" }, Lunatic: { info: "lunatic" }
+};
+const wakesAs = pid => roleOf(pid) === "Drunk" ? shownOf(pid) : roleOf(pid);
+const minions = () => inPlay().filter(pid => teamOf(roleOf(pid)) === "minion");
+const demons = () => inPlay().filter(pid => teamOf(roleOf(pid)) === "demon");
+
+function buildNight(after = -1) {
+  const evilInfo = S.players.length >= 7, steps = [];
+  FIRST_NIGHT.forEach((k, ki) => {
+    if (ki <= after) return;
+    if (k === "MINION") { if (evilInfo && minions().length) steps.push({ key: k, pid: minions()[0] }); return; }
+    if (k === "DEMON") { if (evilInfo && demons().length) steps.push({ key: k, pid: demons()[0] }); return; }
+    if (k === "Lunatic" && !evilInfo) return;
+    for (const pid of inPlay()) if (wakesAs(pid) === k) steps.push({ key: k, pid });
+  });
+  return steps;
+}
+
+// Why this player's info might be wrong tonight
+function unreliable(pid) {
+  const why = [], role = roleOf(pid);
+  if (role === "Drunk") why.push("they are the Drunk");
+  if (remsOf(pid).includes("Poisoned")) why.push("they are poisoned");
+  if (remsOf(pid).includes("Drunk")) why.push("they are drunk");
+  if (teamOf(wakesAs(pid)) === "townsfolk" && inPlay().some(p => roleOf(p) === "Vortox")) why.push("the Vortox makes Townsfolk info false");
+  const nd = inPlay().find(p => roleOf(p) === "No Dashii");
+  if (nd && teamOf(role) === "townsfolk" && nearTownsfolk(nd).includes(pid)) why.push("they are next to the No Dashii");
+  return why;
+}
+// The nearest Townsfolk each side of a player
+function nearTownsfolk(pid) {
+  const ids = S.players.map(p => p.id), n = ids.length, i = ids.indexOf(pid), out = [];
+  for (const dir of [1, -1]) for (let k = 1; k < n; k++) { const q = ids[(i + dir * k + n * n) % n]; if (teamOf(roleOf(q)) === "townsfolk") { out.push(q); break; } }
+  return out;
+}
+const neighbours = pid => {
+  const ids = S.players.map(p => p.id).filter(q => q === pid || alive(q)), n = ids.length, i = ids.indexOf(pid);
+  return n < 3 ? ids.filter(q => q !== pid) : [ids[(i + n - 1) % n], ids[(i + 1) % n]];
+};
+
+function trueNumber(calc, pid) {
+  const ids = S.players.map(p => p.id), n = ids.length, evil = q => sideOf(q) === "evil";
+  if (calc === "chef") return ids.filter((q, i) => evil(q) && evil(ids[(i + 1) % n])).length;
+  if (calc === "empath") return neighbours(pid).filter(evil).length;
+  if (calc === "clock") {
+    const d = ids.indexOf(demons()[0]);
+    const ds = minions().map(m => { const k = Math.abs(ids.indexOf(m) - d); return Math.min(k, n - k); });
+    return ds.length ? Math.min(...ds) : 0;
+  }
+  return 0;
+}
+const others = pid => S.players.map(p => p.id).filter(q => q !== pid);
+// Info for a step, true or false
+function makeInfo(st, truth) {
+  const a = ACT[st.key], pid = st.pid;
+  if (a.info === "number") { const t = trueNumber(a.calc, pid); return { n: truth ? t : Math.max(0, t + (t === 0 || rnd(2) ? 1 : -1)) }; }
+  if (a.info === "pair") {
+    const team = a.team, holders = others(pid).filter(q => teamOf(roleOf(q)) === team);
+    if (truth) {
+      if (!holders.length) return team === "outsider" ? { none: true } : { pids: [], role: "" };
+      const h = pickOne(holders), o = pickOne(others(pid).filter(q => q !== h));
+      return { pids: shuffle([h, o]), role: roleOf(h) };
+    }
+    const two = shuffle(others(pid)).slice(0, 2);
+    const role = pickOne(scriptChars([team]).filter(r => !two.some(q => roleOf(q) === r)));
+    return { pids: two, role };
+  }
+  if (a.info === "outsiders") {
+    const real = [...new Set(inPlay().map(roleOf).filter(r => teamOf(r) === "outsider"))];
+    return { roles: truth ? real : shuffle(scriptChars(["outsider"])).slice(0, Math.max(0, real.length + (real.length && rnd(2) ? -1 : 1))) };
+  }
+  if (a.info === "grandchild") {
+    const good = others(pid).filter(q => sideOf(q) === "good"), g = pickOne(good);
+    return { pid: g, role: truth ? roleOf(g) : pickOne(scriptChars(["townsfolk", "outsider"]).filter(r => r !== roleOf(g))) };
+  }
+  if (a.info === "twin") return { pid: pickOne(others(pid).filter(q => sideOf(q) === "good")) };
+  if (a.info === "lunatic") return { pids: shuffle(others(pid).filter(q => teamOf(roleOf(q)) !== "demon")).slice(0, Math.max(1, minions().length)) };
+  return {};
+}
+function stepStart() {
+  const N = S.night, st = N.steps[N.i];
+  if (!st) return;
+  const why = unreliable(st.pid);
+  N.cur = { truth: !why.length, picks: [], char: "", done: false, info: makeInfo(st, !why.length) };
+}
+function startNight() {
+  S.preNight = JSON.stringify({ drawn: S.drawn, rem: S.rem });
+  S.log = [];
+  S.night = { steps: buildNight(), i: -1, view: "st", cur: null };
+  S.step = "night"; ui.sel = null;
+}
+
+// What the Storyteller sees for each step
+function nightHtml() {
+  const N = S.night, st = N.steps[N.i];
+  let card;
+  if (N.i < 0) card = `<section class="card"><p class="hint">Night 1 · ${plural(N.steps.length, "wake-up")}</p><h2>Dusk</h2>
+      <p class="lead">Ask everyone to close their eyes.</p>
+      <div class="row"><button class="btn" data-act="night-cancel">← Grimoire</button><span class="spacer"></span><button class="btn primary" data-act="night-next">Everyone's eyes are closed →</button></div></section>`;
+  else if (!st) card = `<section class="card"><h2>Dawn</h2><p class="lead">Night 1 is over. Wake everyone up.</p>${logHtml()}
+      <div class="row"><button class="btn" data-act="night-back">← Back</button><span class="spacer"></span><button class="btn primary" data-act="night-dawn">Start Day 1 →</button></div></section>`;
+  else {
+    const a = ACT[st.key], why = unreliable(st.pid), c = N.cur, name = esc(nameOf(st.pid));
+    const who = st.key === "MINION" ? `the Minions: ${esc(names(minions()))}` : st.key === "DEMON" ? `${name}, the Demon` : `${name}, the ${esc(wakesAs(st.pid))}${roleOf(st.pid) === "Drunk" ? " (really the Drunk)" : ""}`;
+    const truthSeg = (a.info && !["minion", "demon", "lunatic", "grim", "twin"].includes(a.info)) || a.result ? `<div class="field"><span class="label">Their info</span>
+        <span class="seg"><button data-act="truth" data-v="1" aria-pressed="${c.truth}">True</button><button data-act="truth" data-v="0" aria-pressed="${!c.truth}">False</button></span></div>` : "";
+    card = `<section class="card">
+      <p class="hint">Night 1 · ${N.i + 1} of ${N.steps.length}</p>
+      <h2>Wake ${who}</h2>
+      ${why.length ? `<p class="warn">⚠ ${esc(cap(listJoin(why)))}: you may give them false info.</p>` : ""}
+      ${S.dead[st.pid] && st.key !== "MINION" ? `<p class="warn">They are dead. Skip them unless their ability still works.</p>` : ""}
+      <p>${stNote(st)}</p>
+      ${truthSeg}
+      ${stControls(st)}
+      <div class="row"><button class="btn" data-act="night-back">← Back</button><button class="btn" data-act="night-next">Skip</button><span class="spacer"></span><button class="btn primary" data-act="night-show">Show ${st.key === "MINION" ? "the Minions" : name} →</button></div>
+    </section>`;
+  }
+  const hl = st ? (st.key === "MINION" ? minions() : [st.pid]) : [];
+  return `<div class="grim-wrap"><div>${card}</div><div>${circleHtml({ hl })}</div></div>`;
+}
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+function stNote(st) {
+  const a = ACT[st.key], i = st.pid;
+  if (a.info === "minion") return `They open their eyes together. The phone shows them who the Demon is and who the other Minions are.`;
+  if (a.info === "demon") return `The phone shows them their Minions and the 3 bluffs${inPlay().some(p => roleOf(p) === "Lunatic") ? ", and who the Lunatic is" : ""}.`;
+  if (a.info === "lunatic") return `The Lunatic thinks they are the ${esc(shownOf(i))}. Show them fake Minions and the bluffs, just as if they were the Demon.`;
+  if (a.info === "twin") return `Wake the Evil Twin and their good twin together, so they see each other.`;
+  if (a.info === "grim") return `The phone shows them the whole Grimoire. Give them time to look.`;
+  if (a.info) return `Check the info below, then show them.`;
+  return `They choose on the phone: “${esc(a.say)}”${a.result ? " The phone then gives them their answer." : ""}`;
+}
+function playerSel(attr, val, ids, label) {
+  return `<select ${attr} aria-label="${label}">${ids.map(q => `<option value="${q}" ${q === val ? "selected" : ""}>${esc(nameOf(q))} (${esc(roleOf(q))})</option>`).join("")}</select>`;
+}
+function charSel(attr, val, teams, label) {
+  return `<select ${attr} aria-label="${label}">${scriptChars(teams).map(r => `<option ${r === val ? "selected" : ""}>${esc(r)}</option>`).join("")}</select>`;
+}
+function stControls(st) {
+  const a = ACT[st.key], I = S.night.cur.info, o = others(st.pid);
+  if (a.info === "number") return `<div class="row"><span class="label">${esc(a.say)}</span><button class="icon" data-act="num" data-v="-1" aria-label="Less">−</button><span class="bignum">${I.n}</span><button class="icon" data-act="num" data-v="1" aria-label="More">+</button></div>`;
+  if (a.info === "pair") return `${a.team === "outsider" ? `<label class="row"><input type="checkbox" data-info-none ${I.none ? "checked" : ""}> Show “zero Outsiders in play”</label>` : ""}
+    ${I.none ? "" : `<div class="grid3">${playerSel('data-info-pid="0"', I.pids[0], o, "First player")}${playerSel('data-info-pid="1"', I.pids[1], o, "Second player")}${charSel('data-info-role', I.role, [a.team], "Character")}</div>`}`;
+  if (a.info === "outsiders") return `<div class="tiles small">${scriptChars(["outsider"]).map(r => `<button class="tile outsider" data-act="info-toggle" data-role="${esc(r)}" aria-pressed="${I.roles.includes(r)}"><span class="ico">${CHAR[r].icon}</span>${esc(r)}</button>`).join("")}</div>`;
+  if (a.info === "grandchild") return `<div class="grid2">${playerSel('data-info-pid="g"', I.pid, o, "Grandchild")}${charSel('data-info-role', I.role, ["townsfolk", "outsider"], "Their character")}</div>`;
+  if (a.info === "twin") return `<label class="field"><span class="label">Good twin</span>${playerSel('data-info-pid="g"', I.pid, o.filter(q => sideOf(q) === "good"), "Good twin")}</label>`;
+  if (a.info === "lunatic") return `<div class="grid3">${I.pids.map((q, k) => playerSel(`data-info-pid="${k}"`, q, o, `Fake Minion ${k + 1}`)).join("")}</div>`;
+  if (a.info === "demon" && S.bluffs.filter(Boolean).length < 3) return `<p class="warn">Only ${S.bluffs.filter(Boolean).length} bluffs chosen. Go back to the Grimoire to add them.</p>`;
+  return "";
+}
+
+/* What the woken player sees */
+function nightPlayerHtml() {
+  const N = S.night, st = N.steps[N.i], a = ACT[st.key], c = N.cur, I = c.info;
+  const seen = st.key === "MINION" ? "" : roleOf(st.pid) === "Lunatic" ? shownOf(st.pid) : wakesAs(st.pid), ch = CHAR[seen] || { icon: "" };
+  const head = st.key === "MINION" ? `<h1>Minions</h1><p class="lead">Open your eyes, ${esc(names(minions()))}</p>`
+    : `<p class="lead">${esc(nameOf(st.pid))}${st.key === "Evil Twin" ? ` and ${esc(nameOf(I.pid))}` : ""}</p><h1>${ch.icon} ${esc(seen)}</h1>`;
+  const nameList = pids => `<div class="names">${pids.map(q => `<span class="nmchip">${esc(nameOf(q))}</span>`).join("")}</div>`;
+  const chars = rs => `<div class="chars">${rs.map(r => `<span class="charchip t-${teamOf(r)}"><span class="ico">${(CHAR[r] || {}).icon || ""}</span>${esc(r)}</span>`).join("")}</div>`;
+  const done = `<button class="btn primary huge" data-act="night-done">Close your eyes</button>`;
+  let body;
+  if (a.info === "number") body = `<p class="lead">${esc(a.say)}:</p><div class="answer">${I.n}</div>${done}`;
+  else if (a.info === "pair") body = I.none ? `<p class="lead">There are</p><div class="answer small">no Outsiders</div><p class="lead">in play.</p>${done}`
+    : `<p class="lead">One of these players is the</p>${chars([I.role])}${nameList(I.pids)}${done}`;
+  else if (a.info === "outsiders") body = I.roles.length ? `<p class="lead">These Outsiders are in play:</p>${chars(I.roles)}${done}` : `<p class="lead">There are</p><div class="answer small">no Outsiders</div><p class="lead">in play.</p>${done}`;
+  else if (a.info === "grandchild") body = `<p class="lead">Your grandchild is</p>${nameList([I.pid])}<p class="lead">the</p>${chars([I.role])}${done}`;
+  else if (a.info === "twin") body = `<p class="lead">${esc(nameOf(st.pid))} is the Evil Twin.<br>${esc(nameOf(I.pid))} is their good twin, the ${esc(roleOf(I.pid))}.</p>${chars(["Evil Twin", roleOf(I.pid)])}${done}`;
+  else if (a.info === "minion") body = `<p class="lead">The Demon is</p>${nameList(demons())}${minions().length > 1 ? `<p class="lead">The Minions are</p>${nameList(minions())}` : ""}${done}`;
+  else if (a.info === "demon" || a.info === "lunatic") {
+    const ms = a.info === "demon" ? minions() : I.pids, lun = inPlay().find(p => roleOf(p) === "Lunatic");
+    body = `<p class="lead">${ms.length === 1 ? "Your Minion is" : "Your Minions are"}</p>${nameList(ms)}
+      <p class="lead">These characters are not in play:</p>${chars(S.bluffs.filter(Boolean))}
+      ${a.info === "demon" && lun ? `<p class="lead">The Lunatic is</p>${nameList([lun])}` : ""}${done}`;
+  }
+  else if (a.info === "grim") body = `<p class="lead">The Grimoire</p><div class="spy">${circleHtml()}</div>${done}`;
+  else if (c.done) body = resultHtml(st, c) + done;
+  else {
+    const self = st.pid, ids = S.players.map(p => p.id).filter(q => !(a.notSelf && q === self));
+    const ready = c.picks.length === a.pick && (!a.chars || c.char);
+    body = `<p class="lead">${esc(a.say)}</p>
+      ${a.pick ? `<div class="pickgrid">${ids.map(q => `<button class="pick ${S.dead[q] ? "dead" : ""}" data-act="np-pick" data-pid="${q}" aria-pressed="${c.picks.includes(q)}">${esc(nameOf(q))}</button>`).join("")}</div>` : ""}
+      ${a.chars ? `<div class="tiles small">${scriptChars(a.chars).map(r => `<button class="tile ${teamOf(r)}" data-act="np-char" data-role="${esc(r)}" aria-pressed="${c.char === r}"><span class="ico">${CHAR[r].icon}</span>${esc(r)}</button>`).join("")}</div>` : ""}
+      <div class="draw-foot"><button class="btn primary huge" data-act="np-ok" ${ready ? "" : "disabled"}>Confirm</button>${a.optional ? `<button class="btn huge" data-act="np-skip">Not tonight</button>` : ""}</div>`;
+  }
+  return `${head}${body}<button class="link" data-act="night-hide">Storyteller: back</button>`;
+}
+// The answer a choosing character gets, worked out once when they confirm
+function workResult(st, c) {
+  const a = ACT[st.key], t = c.truth, P = c.picks;
+  if (a.result === "ft") { const yes = P.some(q => teamOf(roleOf(q)) === "demon" || q === S.redHerring); c.answer = t ? yes : !yes; }
+  if (a.result === "seam") { const same = sideOf(P[0]) === sideOf(P[1]); c.answer = t ? same : !same; }
+  if (a.result === "chamber") { const woke = new Set(S.night.steps.filter(s => !["MINION", "DEMON"].includes(s.key)).map(s => s.pid)); const n = P.filter(q => woke.has(q)).length; c.answer = t ? n : (n + 1) % 3; }
+  if (a.result === "dream") {
+    const r = roleOf(P[0]), mine = sideOf(P[0]);
+    const goodC = scriptChars(["townsfolk", "outsider"]), evilC = scriptChars(["minion", "demon"]);
+    const fake = pickOne((mine === "good" ? evilC : goodC).filter(x => x !== r));
+    c.answer = t ? shuffle([r, fake]) : shuffle([pickOne(goodC.filter(x => x !== r)), pickOne(evilC.filter(x => x !== r))]);
+  }
+  if (a.result === "snake") {
+    const target = P[0], hit = teamOf(roleOf(target)) === "demon" && t;
+    c.answer = hit ? roleOf(target) : "";
+    if (hit) {
+      const me = st.pid, dr = roleOf(target);
+      S.drawn[me] = { role: dr, shown: "", align: "evil" };
+      S.drawn[target] = { role: "Snake Charmer", shown: "", align: "good" };
+      addRem(target, "Poisoned");
+      const ki = FIRST_NIGHT.indexOf(st.key);
+      S.night.steps = [...S.night.steps.slice(0, S.night.i + 1), ...buildNight(ki)];
+    }
+  }
+}
+function resultHtml(st, c) {
+  const a = ACT[st.key];
+  if (a.result === "ft") return `<div class="answer ${c.answer ? "evil-t" : ""}">${c.answer ? "Yes" : "No"}</div><p class="lead">${c.answer ? "One of them is the Demon." : "Neither of them is the Demon."}</p>`;
+  if (a.result === "seam") return `<div class="answer">${c.answer ? "Same" : "Different"}</div><p class="lead">${c.answer ? "They are the same alignment." : "They are different alignments."}</p>`;
+  if (a.result === "chamber") return `<div class="answer">${c.answer}</div><p class="lead">of them woke tonight because of their own ability.</p>`;
+  if (a.result === "dream") return `<p class="lead">One of these is ${esc(nameOf(c.picks[0]))}'s character:</p><div class="chars">${c.answer.map(r => `<span class="charchip t-${teamOf(r)}"><span class="ico">${CHAR[r].icon}</span>${esc(r)}</span>`).join("")}</div>`;
+  if (a.result === "snake") return c.answer ? `<p class="lead">You chose the Demon. You are now the</p><div class="chars"><span class="charchip t-demon"><span class="ico">${CHAR[c.answer].icon}</span>${esc(c.answer)}</span></div><p class="lead"><span class="al-evil">You are evil.</span></p>` : `<p class="lead">Nothing happens.</p>`;
+  return `<p class="lead">Thank you.</p>`;
+}
+// One line for the night's log
+function logLine(st, c) {
+  const a = ACT[st.key], I = c.info, who = `<b>${esc(nameOf(st.pid))}</b> (${esc(wakesAs(st.pid) || roleOf(st.pid))})`, lie = c.truth ? "" : ` <span class="warn">false info</span>`;
+  if (a.info === "minion") return `The Minions (${esc(names(minions()))}) learnt the Demon is ${esc(names(demons()))}.`;
+  if (a.info === "demon") return `${who} learnt their Minions and the bluffs: ${esc(listJoin(S.bluffs.filter(Boolean)))}.`;
+  if (a.info === "lunatic") return `${who} was shown ${esc(names(I.pids))} as their Minions.`;
+  if (a.info === "number") return `${who} was shown ${I.n}.${lie}`;
+  if (a.info === "pair") return I.none ? `${who} was shown zero Outsiders.${lie}` : `${who} was shown ${esc(names(I.pids))} as the ${esc(I.role)}.${lie}`;
+  if (a.info === "outsiders") return `${who} was shown ${I.roles.length ? esc(listJoin(I.roles)) : "no Outsiders"}.${lie}`;
+  if (a.info === "grandchild") return `${who} was shown ${esc(nameOf(I.pid))} as their grandchild, the ${esc(I.role)}.${lie}`;
+  if (a.info === "twin") return `${who} and ${esc(nameOf(I.pid))} learnt they are twins.`;
+  if (a.info === "grim") return `${who} saw the Grimoire.`;
+  if (c.skipped) return `${who} chose not to use their ability.`;
+  const chose = [c.picks.length ? esc(names(c.picks)) : "", c.char ? `the ${esc(c.char)}` : ""].filter(Boolean).join(" and ");
+  let res = "";
+  if (a.result === "ft" || a.result === "seam") res = ` Answer: ${c.answer ? "Yes" : "No"}.`;
+  if (a.result === "chamber") res = ` Answer: ${c.answer}.`;
+  if (a.result === "dream") res = ` Shown: ${esc(listJoin(c.answer))}.`;
+  if (a.result === "snake") res = c.answer ? ` <b>They swapped</b>: ${esc(nameOf(c.picks[0]))} is now the Snake Charmer (good, poisoned). Wake them and tell them.` : "";
+  return `${who} chose ${chose}.${res}${a.result ? lie : ""}`;
+}
+// Reminders and drunkenness that follow from a choice
+function applyChoice(st, c) {
+  const a = ACT[st.key];
+  if (c.skipped) return;
+  if (a.rem) c.picks.forEach(q => addRem(q, a.rem));
+  if ((st.key === "Courtier" || st.key === "Philosopher") && c.char) inPlay().filter(q => roleOf(q) === c.char).forEach(q => addRem(q, "Drunk"));
+  if (st.key === "Grandmother") addRem(c.info.pid, "Grandchild");
+  if (st.key === "Evil Twin") { addRem(st.pid, "Twin"); addRem(c.info.pid, "Twin"); }
+}
+// Move on. A snapshot lets Back undo the step, reminders and log included.
+function nextStep(logIt) {
+  const N = S.night, st = N.steps[N.i], c = N.cur;
+  N.snaps = N.snaps || [];
+  N.snaps.push(JSON.stringify({ drawn: S.drawn, rem: S.rem, log: S.log, steps: N.steps, cur: N.cur, i: N.i }));
+  if (logIt && st && c) { applyChoice(st, c); S.log.push(logLine(st, c)); }
+  N.view = "st"; N.i++; stepStart();
+}
+function prevStep() {
+  const N = S.night, snap = N.snaps && N.snaps.pop();
+  if (!snap) return;
+  const o = JSON.parse(snap);
+  Object.assign(S, { drawn: o.drawn, rem: o.rem, log: o.log });
+  Object.assign(N, { steps: o.steps, cur: o.cur, i: o.i, view: "st" });
+  if (N.cur) N.cur.done = false;
 }
 
 /* ---------- Pass and play ---------- */
@@ -435,10 +873,11 @@ function tokenHtml(role, shown) {
 }
 
 function renderDraw() {
-  const box = $("draw"), D = S.draw;
-  if (!D && !show) { box.hidden = true; box.innerHTML = ""; return; }
+  const box = $("draw"), D = S.draw, NP = S.step === "night" && S.night && S.night.view === "player";
+  if (!D && !show && !NP) { box.hidden = true; box.innerHTML = ""; return; }
   let h;
-  if (show) {
+  if (NP) h = nightPlayerHtml();
+  else if (show) {
     h = show.step === "ready"
       ? `<p class="lead">Pass the phone to</p><h1>${esc(nameOf(show.pid))}</h1>
         <button class="btn primary huge" data-act="show-reveal">I'm ${esc(nameOf(show.pid))}: show my character</button>
@@ -506,17 +945,43 @@ document.addEventListener("click", ev => {
     case "draw-reshow": D.step = "show"; break;
     case "draw-hide": D.queue.shift(); D.step = D.queue.length ? "pass" : "done"; break;
     case "draw-stop": D.step = "stop"; break;
-    case "draw-stop-yes": S.draw = null; S.step = "done"; break;
-    case "draw-finish": S.draw = null; S.step = "done"; break;
+    case "draw-stop-yes": S.draw = null; S.step = "grim"; break;
+    case "draw-finish": S.draw = null; S.step = "grim"; Object.assign(S, { bluffs: ["", "", ""], redHerring: "", rem: {}, dead: {}, log: [], phase: "", night: null }); break;
+    case "sel": ui.sel = ui.sel === el.dataset.pid ? null : el.dataset.pid; render(); return;
+    case "side": S.drawn[el.dataset.pid].align = el.dataset.v; break;
+    case "dead": S.dead[el.dataset.pid] = !S.dead[el.dataset.pid]; break;
+    case "unrem": S.rem[el.dataset.pid] = remsOf(el.dataset.pid).filter(r => r !== el.dataset.r); break;
+    case "bluffs-random": S.bluffs = ["", "", ""]; autoBluffs(); break;
+    case "start-night":
+      if (S.bluffs.filter(Boolean).length < 3 && S.players.length >= 7 && !confirm("You haven't chosen 3 bluffs for the Demon. Start anyway?")) return;
+      startNight(); wake(); break;
+    case "night-cancel": if (S.preNight) Object.assign(S, JSON.parse(S.preNight)); S.night = null; S.log = []; S.step = "grim"; break;
+    case "night-next": nextStep(false); break;
+    case "night-back": prevStep(); break;
+    case "night-show": S.night.view = "player"; break;
+    case "night-hide": S.night.view = "st"; break;
+    case "night-done": nextStep(true); break;
+    case "night-dawn": S.step = "grim"; S.phase = "day1"; S.night = null; break;
+    case "truth": { const N = S.night, st = N.steps[N.i]; N.cur.truth = el.dataset.v === "1"; if (ACT[st.key].info) N.cur.info = makeInfo(st, N.cur.truth); break; }
+    case "num": S.night.cur.info.n = Math.max(0, S.night.cur.info.n + Number(el.dataset.v)); break;
+    case "info-toggle": { const I = S.night.cur.info, r = el.dataset.role; I.roles = I.roles.includes(r) ? I.roles.filter(x => x !== r) : [...I.roles, r]; break; }
+    case "np-pick": {
+      const c = S.night.cur, a = ACT[S.night.steps[S.night.i].key], q = el.dataset.pid;
+      c.picks = c.picks.includes(q) ? c.picks.filter(x => x !== q) : [...c.picks, q].slice(-a.pick);
+      break;
+    }
+    case "np-char": S.night.cur.char = el.dataset.role; break;
+    case "np-ok": { const N = S.night, st = N.steps[N.i]; workResult(st, N.cur); N.cur.done = true; break; }
+    case "np-skip": S.night.cur.skipped = true; nextStep(true); break;
     case "show-again": show = { pid: el.dataset.pid, step: "ready" }; break;
     case "show-reveal": show.step = "show"; break;
     case "show-close": show = null; break;
-    case "redraw": if (!confirm("Clear everyone's characters and go back to the bag?")) return; S.drawn = {}; S.step = "bag"; break;
+    case "redraw": if (!confirm("Clear everyone's characters and go back to the bag?")) return; S.drawn = {}; S.step = "bag"; ui.sel = null; break;
     case "new-game": if (!confirm("Start a new game? The players stay; the bag and characters are cleared.")) return; S = { ...fresh(), script: S.script, players: S.players }; break;
     default: return;
   }
   render();
-  window.scrollTo({ top: 0 });
+  if (!["np-pick", "np-char", "num", "truth", "info-toggle", "side", "dead", "unrem"].includes(el.dataset.act)) window.scrollTo({ top: 0 });
 });
 document.addEventListener("input", ev => {
   const t = ev.target;
@@ -526,13 +991,22 @@ document.addEventListener("change", ev => {
   const t = ev.target;
   if (t.dataset.script !== undefined) { if (S.bag.length && !confirm("Changing the script empties the bag. Change it?")) { t.value = S.script; return; } S.script = t.value; S.bag = []; render(); }
   if (t.dataset.shown !== undefined) { S.bag[Number(t.dataset.shown)].shown = t.value; render(); }
+  if (t.dataset.bluff !== undefined) { S.bluffs[Number(t.dataset.bluff)] = t.value; render(); }
+  if (t.dataset.redherring !== undefined) { S.redHerring = t.value; render(); }
+  if (t.dataset.setrole) { const d = S.drawn[t.dataset.setrole]; d.role = t.value; d.align = alignOf(t.value); d.shown = ""; if (SHOWN[t.value]) d.shown = pickOne(scriptChars([SHOWN[t.value]]).filter(r => !inPlay().some(q => roleOf(q) === r))); render(); }
+  if (t.dataset.setshown) { S.drawn[t.dataset.setshown].shown = t.value; render(); }
+  if (t.dataset.addrem && t.value) { addRem(t.dataset.addrem, t.value); render(); }
+  const I = S.night && S.night.cur && S.night.cur.info;
+  if (I && t.dataset.infoPid !== undefined) { const k = t.dataset.infoPid; if (k === "g") I.pid = t.value; else I.pids[Number(k)] = t.value; render(); }
+  if (I && t.dataset.infoRole !== undefined) { I.role = t.value; render(); }
+  if (I && t.dataset.infoNone !== undefined) { I.none = t.checked; if (!t.checked && !I.pids) Object.assign(I, makeInfo({ ...S.night.steps[S.night.i] }, false), { none: false }); render(); }
 });
 document.addEventListener("keydown", ev => { if (ev.key === "Enter" && ev.target.id === "newName") { ev.preventDefault(); addNames(); } });
 
 // Keep the screen on while the phone is passed round, where the browser allows it
 let lock = null;
 async function wake() { try { if (navigator.wakeLock && !lock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => (lock = null)); } } catch (e) {} }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.draw) wake(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && (S.draw || S.step === "night")) wake(); });
 
 // A draw in progress picks up where it left off, without showing the last token to whoever holds the phone
 if (S.draw && S.draw.step === "show") S.draw.step = "ready";
