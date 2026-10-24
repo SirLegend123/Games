@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#15121b">
+<title>Storyteller: Face to Face</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+:root {
+  --bg: #15121b; --surface: #211c29; --surface-2: #2b2534; --line: #3b3346;
+  --fg: #ece6f2; --muted: #a69cb3; --brass: #d4ab55; --on-brass: #1a1408;
+  --parch: #efe4c9; --parch-ink: #2a2118;
+  --good: #4c8ce4; --evil: #d8435a;
+  --townsfolk: #3e7fd6; --outsider: #3aa0b5; --minion: #d4485e; --demon: #b0263d;
+  --warn: #e3a53c;
+  --felt: radial-gradient(circle at 50% 40%, #2c2436 0%, #1b1622 62%, #15121b 100%);
+  --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+    --fg: #231d2b; --muted: #6c6278; --brass: #94701f; --on-brass: #fff;
+    --good: #2463c2; --evil: #be2a42;
+    --townsfolk: #2463c2; --outsider: #1f8296; --minion: #c0344b; --demon: #8a1428; --warn: #b7791f;
+    --felt: radial-gradient(circle at 50% 40%, #ffffff 0%, #ebe5f0 70%, #e2dbe9 100%);
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+.wrap { max-width: 920px; margin: 0 auto; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(40px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 16px; }
+header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+header h1 { margin: 0 auto 0 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.6rem; }
+.steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.steps span { font-size: .8rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); }
+.steps span.on { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 14px; min-width: 0; }
+.card h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.4rem; color: var(--brass); }
+.card h3 { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; }
+.hint { color: var(--muted); font-size: .92rem; margin: 0; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.spacer { flex: 1; }
+
+.btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 10px 16px; min-height: 46px; font-weight: 800; }
+.btn:hover:not(:disabled) { border-color: var(--brass); }
+.btn.primary { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
+.btn.danger { color: var(--evil); }
+.btn.evil { background: var(--evil); border-color: var(--evil); color: #fff; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.huge { font-size: 1.15rem; min-height: 58px; padding: 12px 26px; }
+.icon { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); display: inline-grid; place-items: center; font-size: 1rem; }
+.icon:disabled { opacity: .3; cursor: default; }
+.link { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 10px; }
+
+input[type=text], select, textarea { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 46px; }
+textarea { resize: vertical; }
+label.field { display: grid; gap: 6px; }
+.label { font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; color: var(--muted); }
+
+/* Players */
+.players { display: grid; gap: 8px; }
+.prow { display: grid; grid-template-columns: 2em minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.prow .n { color: var(--muted); font-weight: 800; text-align: right; }
+.prow .btns { display: flex; gap: 4px; }
+.add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+
+/* Counts */
+.counts { display: flex; flex-wrap: wrap; gap: 8px; }
+.count { border-radius: 999px; padding: 4px 12px; font-weight: 800; font-size: .9rem; color: #fff; border: 2px solid transparent; }
+.count.townsfolk { background: var(--townsfolk); } .count.outsider { background: var(--outsider); } .count.minion { background: var(--minion); } .count.demon { background: var(--demon); }
+.count.off { border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn); }
+.warn { color: var(--warn); font-weight: 700; }
+
+/* Bag */
+.team-h { display: flex; align-items: baseline; gap: 8px; }
+.team-h .hint { font-size: .85rem; }
+.t-townsfolk { color: var(--townsfolk); } .t-outsider { color: var(--outsider); } .t-minion { color: var(--minion); } .t-demon { color: var(--demon); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; }
+.tile { display: grid; justify-items: center; gap: 2px; padding: 10px 6px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface-2); text-align: center; font-weight: 700; font-size: .9rem; line-height: 1.15; min-height: 84px; align-content: center; }
+.tile .ico { font-size: 1.7rem; line-height: 1.2; }
+.tile[aria-pressed="true"] { background: var(--parch); color: var(--parch-ink); }
+.tile.townsfolk[aria-pressed="true"] { border-color: var(--townsfolk); } .tile.outsider[aria-pressed="true"] { border-color: var(--outsider); }
+.tile.minion[aria-pressed="true"] { border-color: var(--minion); } .tile.demon[aria-pressed="true"] { border-color: var(--demon); }
+.tile[aria-pressed="false"] .ico { filter: grayscale(.6); opacity: .75; }
+.sticky { position: sticky; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); z-index: 5; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+
+/* Pass and play: a full-screen cover */
+.draw { position: fixed; inset: 0; z-index: 50; overflow-y: auto; background: var(--felt); background-color: var(--bg); display: grid; place-items: center; padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
+.draw-inner { width: min(620px, 100%); display: grid; gap: 18px; text-align: center; justify-items: center; }
+.draw h1 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: clamp(2.2rem, 8vw, 3.2rem); line-height: 1.1; overflow-wrap: break-word; max-width: 100%; }
+.draw p { margin: 0; }
+.lead { font-size: 1.15rem; }
+.draw-foot { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: center; }
+.bag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 14px; width: 100%; }
+.bag-tok { aspect-ratio: 1; border-radius: 50%; border: 3px solid var(--brass); background: radial-gradient(circle at 35% 30%, var(--surface-2), var(--surface) 70%); color: var(--brass); font-family: var(--font-display); font-size: 2rem; box-shadow: 0 3px 10px rgba(0,0,0,.35); transition: transform .12s ease; }
+.bag-tok:hover, .bag-tok:focus-visible { transform: scale(1.06); }
+.big-tok { --size: min(270px, 72vw); width: var(--size); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); border: 10px solid var(--good); display: grid; place-content: center; justify-items: center; gap: 4px; padding: 12%; text-align: center; font-family: var(--font-display); line-height: 1.05; box-shadow: 0 6px 22px rgba(0,0,0,.45); animation: flip .4s ease; }
+.big-tok.evil { border-color: var(--evil); }
+.big-tok .ico { font-size: calc(var(--size) * .27); line-height: 1.1; }
+.big-tok .nm { font-size: calc(var(--size) * var(--fs, .12)); }
+@keyframes flip { from { transform: rotateY(90deg); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .big-tok { animation: none; } }
+.ability { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; max-width: 460px; font-size: 1.05rem; }
+.ability small { display: block; color: var(--muted); margin-top: 6px; font-size: .85rem; }
+.al-good { color: var(--good); font-weight: 800; } .al-evil { color: var(--evil); font-weight: 800; }
+
+/* Storyteller's list */
+.who { display: grid; gap: 8px; }
+.wrow { display: grid; grid-template-columns: 2em 2.4em minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: var(--surface-2); border-left: 5px solid var(--good); }
+.wrow.evil { border-left-color: var(--evil); }
+.wrow .n { color: var(--muted); font-weight: 800; text-align: right; }
+.wrow .ico { font-size: 1.6rem; text-align: center; }
+.wrow .thinks { color: var(--muted); font-size: .9rem; }
+footer { color: var(--muted); font-size: .8rem; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Storyteller</h1>
+    <nav class="steps" id="steps" aria-label="Steps"></nav>
+  </header>
+  <main id="app"></main>
+  <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
+</div>
+<div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
+
+<script>
+/* ---------- Characters ---------- */
+// [name, symbol, ability]. A * after "night" means not the first night.
+const SCRIPTS = {
+  tb: { name: "Trouble Brewing", roles: {
+    townsfolk: [
+      ["Washerwoman", "🧺", "You start knowing that 1 of 2 players is a particular Townsfolk."],
+      ["Librarian", "📚", "You start knowing that 1 of 2 players is a particular Outsider. (Or that zero are in play.)"],
+      ["Investigator", "🔍", "You start knowing that 1 of 2 players is a particular Minion."],
+      ["Chef", "🍳", "You start knowing how many pairs of evil players there are."],
+      ["Empath", "💞", "Each night, you learn how many of your 2 alive neighbours are evil."],
+      ["Fortune Teller", "🔮", "Each night, choose 2 players: you learn if either is a Demon. There is a good player that registers as a Demon to you."],
+      ["Undertaker", "⚰️", "Each night*, you learn which character died by execution today."],
+      ["Monk", "🙏", "Each night*, choose a player (not yourself): they are safe from the Demon tonight."],
+      ["Ravenkeeper", "🪶", "If you die at night, you are woken to choose a player: you learn their character."],
+      ["Virgin", "🕊️", "The 1st time you are nominated, if the nominator is a Townsfolk, they are executed immediately."],
+      ["Slayer", "🏹", "Once per game, during the day, publicly choose a player: if they are the Demon, they die."],
+      ["Soldier", "🛡️", "You are safe from the Demon."],
+      ["Mayor", "🎩", "If only 3 players live & no execution occurs, your team wins. If you die at night, another player might die instead."]
+    ],
+    outsider: [
+      ["Butler", "🛎️", "Each night, choose a player (not yourself): tomorrow, you may only vote if they are voting too."],
+      ["Drunk", "🍺", "You do not know you are the Drunk. You think you are a Townsfolk character, but you are not."],
+      ["Recluse", "🕸️", "You might register as evil & as a Minion or Demon, even if dead."],
+      ["Saint", "😇", "If you die by execution, your team loses."]
+    ],
+    minion: [
+      ["Poisoner", "🧪", "Each night, choose a player: they are poisoned tonight and tomorrow day."],
+      ["Spy", "🕵️", "Each night, you see the Grimoire. You might register as good & as a Townsfolk or Outsider, even if dead."],
+      ["Scarlet Woman", "💋", "If there are 5 or more players alive & the Demon dies, you become the Demon. (Travellers don't count.)"],
+      ["Baron", "🏰", "There are extra Outsiders in play. [+2 Outsiders]"]
+    ],
+    demon: [
+      ["Imp", "😈", "Each night*, choose a player: they die. If you kill yourself this way, a Minion becomes the Imp."]
+    ]
+  } },
+  bmr: { name: "Bad Moon Rising", roles: {
+    townsfolk: [
+      ["Grandmother", "👵", "You start knowing a good player & their character. If the Demon kills them, you die too."],
+      ["Sailor", "⚓", "Each night, choose an alive player: either you or they are drunk until dusk. You can't die."],
+      ["Chambermaid", "🧹", "Each night, choose 2 alive players (not yourself): you learn how many woke tonight due to their ability."],
+      ["Exorcist", "✝️", "Each night*, choose a player (different to last night): the Demon, if chosen, learns who you are then doesn't wake tonight."],
+      ["Innkeeper", "🛏️", "Each night*, choose 2 players: they can't die tonight, but 1 is drunk until dusk."],
+      ["Gambler", "🎲", "Each night*, choose a player & guess their character: if you guess wrong, you die."],
+      ["Gossip", "🗣️", "Each day, you may make a public statement. Tonight, if it was true, a player dies."],
+      ["Courtier", "🍷", "Once per game, at night, choose a character: they are drunk for 3 nights & 3 days."],
+      ["Professor", "🎓", "Once per game, at night*, choose a dead player: if they are a Townsfolk, they are resurrected."],
+      ["Minstrel", "🎻", "When a Minion dies by execution, all other players (except Travellers) are drunk until dusk tomorrow."],
+      ["Tea Lady", "🫖", "If both your alive neighbours are good, they can't die."],
+      ["Pacifist", "☮️", "Executed good players might not die."],
+      ["Fool", "🃏", "The first time you die, you don't."]
+    ],
+    outsider: [
+      ["Goon", "🥊", "Each night, the 1st player to choose you with their ability is drunk until dusk. You become their alignment."],
+      ["Lunatic", "🤪", "You think you are a Demon, but you are not. The Demon knows who you are & who you choose at night."],
+      ["Tinker", "🔧", "You might die at any time."],
+      ["Moonchild", "🌙", "When you learn that you died, publicly choose 1 alive player. Tonight, if it was a good player, they die."]
+    ],
+    minion: [
+      ["Godfather", "🌹", "You start knowing which Outsiders are in play. If 1 died today, choose a player tonight: they die. [−1 or +1 Outsider]"],
+      ["Devil's Advocate", "⚖️", "Each night, choose a living player (different to last night): if executed tomorrow, they don't die."],
+      ["Assassin", "🗡️", "Once per game, at night*, choose a player: they die, even if for some reason they could not."],
+      ["Mastermind", "♟️", "If the Demon dies by execution (ending the game), play for 1 more day. If a player is then executed, their team loses."]
+    ],
+    demon: [
+      ["Zombuul", "🧟", "Each night*, if no-one died today, choose a player: they die. The 1st time you die, you live but register as dead."],
+      ["Pukka", "🦟", "Each night, choose a player: they are poisoned. The previously poisoned player dies then becomes healthy."],
+      ["Shabaloth", "👹", "Each night*, choose 2 players: they die. A dead player you chose last night might be regurgitated."],
+      ["Po", "🔥", "Each night*, you may choose a player: they die. If your last choice was no-one, choose 3 players tonight."]
+    ]
+  } },
+  snv: { name: "Sects & Violets", roles: {
+    townsfolk: [
+      ["Clockmaker", "🕰️", "You start knowing how many steps from the Demon to its nearest Minion."],
+      ["Dreamer", "💤", "Each night, choose a player (not yourself or Travellers): you learn 1 good & 1 evil character, 1 of which is correct."],
+      ["Snake Charmer", "🐍", "Each night, choose an alive player: a chosen Demon swaps characters & alignments with you & is then poisoned."],
+      ["Mathematician", "🧮", "Each night, you learn how many players' abilities worked abnormally (since dawn) due to another character's ability."],
+      ["Flowergirl", "💐", "Each night*, you learn if a Demon voted today."],
+      ["Town Crier", "📣", "Each night*, you learn if a Minion nominated today."],
+      ["Oracle", "👁️", "Each night*, you learn how many dead players are evil."],
+      ["Savant", "🧠", "Each day, you may visit the Storyteller to learn 2 things in private: 1 is true & 1 is false."],
+      ["Seamstress", "🧵", "Once per game, at night, choose 2 players (not yourself): you learn if they are the same alignment."],
+      ["Philosopher", "🏛️", "Once per game, at night, choose a good character: gain that ability. If this character is in play, they are drunk."],
+      ["Artist", "🎨", "Once per game, during the day, privately ask the Storyteller any yes/no question."],
+      ["Juggler", "🤹", "On your 1st day, publicly guess up to 5 players' characters. That night, you learn how many you got correct."],
+      ["Sage", "🦉", "If the Demon kills you, you learn that it is 1 of 2 players."]
+    ],
+    outsider: [
+      ["Mutant", "🧬", "If you are \"mad\" about being an Outsider, you might be executed."],
+      ["Sweetheart", "💘", "When you die, 1 player is drunk from now on."],
+      ["Barber", "💈", "If you died today or tonight, the Demon may choose 2 players (not another Demon) to swap characters."],
+      ["Klutz", "🍌", "When you learn that you died, publicly choose 1 alive player: if they are evil, your team loses."]
+    ],
+    minion: [
+      ["Evil Twin", "👯", "You & an opposing player know each other. If the good player is executed, evil wins. Good can't win if you both live."],
+      ["Witch", "🧙", "Each night, choose a player: if they nominate tomorrow, they die. If just 3 players live, you lose this ability."],
+      ["Cerenovus", "🌀", "Each night, choose a player & a good character: they are \"mad\" they are this character tomorrow, or might be executed."],
+      ["Pit-Hag", "🐸", "Each night*, choose a player & a character they become (if not in play). If a Demon is made, deaths tonight are arbitrary."]
+    ],
+    demon: [
+      ["Fang Gu", "🐉", "Each night*, choose a player: they die. The 1st Outsider this kills becomes an evil Fang Gu & you die instead. [+1 Outsider]"],
+      ["Vigormortis", "🦴", "Each night*, choose a player: they die. Minions you kill keep their ability & poison 1 Townsfolk neighbour. [−1 Outsider]"],
+      ["No Dashii", "🦑", "Each night*, choose a player: they die. Your 2 Townsfolk neighbours are poisoned."],
+      ["Vortox", "🌪️", "Each night*, choose a player: they die. Townsfolk abilities yield false info. Each day, if no-one is executed, evil wins."]
+    ]
+  } }
+};
+const TEAMS = ["townsfolk", "outsider", "minion", "demon"];
+const TEAM_LABEL = { townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demon" };
+const TEAM_ONE = { townsfolk: "Townsfolk", outsider: "Outsider", minion: "Minion", demon: "Demon" };
+const CHAR = {};
+for (const sc of Object.values(SCRIPTS)) for (const t of TEAMS) for (const [name, icon, text] of sc.roles[t]) CHAR[name] = { name, icon, text, team: t };
+const teamOf = r => (CHAR[r] || {}).team || "townsfolk";
+const alignOf = r => ["minion", "demon"].includes(teamOf(r)) ? "evil" : "good";
+// Townsfolk / Outsiders / Minions / Demon by player count
+const COMP = { 5: [3,0,1,1], 6: [3,1,1,1], 7: [5,0,1,1], 8: [5,1,1,1], 9: [5,2,1,1], 10: [7,0,2,1], 11: [7,1,2,1], 12: [7,2,2,1], 13: [9,0,3,1], 14: [9,1,3,1], 15: [9,2,3,1] };
+// Characters who are shown something else when they draw
+const SHOWN = { Drunk: "townsfolk", Lunatic: "demon" };
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => Math.random().toString(36).slice(2, 10);
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+// Fair randomness for the draw
+const rnd = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const byTeam = (a, b) => TEAMS.indexOf(teamOf(a.role)) - TEAMS.indexOf(teamOf(b.role)) || a.role.localeCompare(b.role);
+const nameOf = pid => { const i = S.players.findIndex(p => p.id === pid); return i < 0 ? "someone" : (S.players[i].name.trim() || `Seat ${i + 1}`); };
+
+/* ---------- State ---------- */
+const LS = "botc-storyteller-ftf-v1";
+const fresh = () => ({ step: "players", script: "tb", players: [], bag: [], draw: null, drawn: {} });
+let S;
+try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
+if (!S || !S.step) S = fresh();
+let show = null; // a player looking at their character again, after the draw
+const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
+
+/* ---------- Setup counts ---------- */
+// What the setup should be for these characters, after Baron, Godfather, Fang Gu and Vigormortis
+function expected(n, roles) {
+  if (!COMP[n]) return null;
+  const c = [...COMP[n]], notes = [];
+  if (roles.includes("Baron")) { c[0] -= 2; c[1] += 2; notes.push("Baron +2 Outsiders"); }
+  if (roles.includes("Fang Gu")) { c[0] -= 1; c[1] += 1; notes.push("Fang Gu +1 Outsider"); }
+  if (roles.includes("Vigormortis") && c[1] > 0) { c[0] += 1; c[1] -= 1; notes.push("Vigormortis −1 Outsider"); }
+  return { c, notes, godfather: roles.includes("Godfather") };
+}
+// Each team's count, and whether it matches. The Godfather allows one more or one fewer Outsider
+function teamCheck(n, roles) {
+  const ex = expected(n, roles);
+  const have = TEAMS.map(t => roles.filter(r => teamOf(r) === t).length);
+  const gf = ex && ex.godfather && Math.abs(have[1] - ex.c[1]) === 1 && have[0] + have[1] === ex.c[0] + ex.c[1];
+  const ok = TEAMS.map((t, i) => !ex || have[i] === ex.c[i] || (gf && i < 2));
+  return { ex, have, ok };
+}
+function countsHtml(n, roles) {
+  const { ex, have, ok } = teamCheck(n, roles);
+  return `<div class="counts">${TEAMS.map((t, i) => `<span class="count ${t}${ok[i] ? "" : " off"}">${have[i]}${ex ? " / " + ex.c[i] : ""} ${TEAM_LABEL[t]}</span>`).join("")}</div>
+    ${ex && (ex.notes.length || ex.godfather) ? `<p class="hint">${[...ex.notes, ex.godfather ? "Godfather ±1 Outsider" : ""].filter(Boolean).join(" · ")}</p>` : ""}`;
+}
+const countsOk = (n, roles) => teamCheck(n, roles).ok.every(Boolean);
+
+/* ---------- The bag ---------- */
+function randomBag(n) {
+  const R = SCRIPTS[S.script].roles;
+  const take = (list, k) => shuffle(list.map(x => x[0])).slice(0, Math.max(0, k));
+  const evil = [...take(R.demon, 1), ...take(R.minion, COMP[n][2])];
+  const c = expected(n, evil).c;
+  if (evil.includes("Godfather")) { const d = c[1] > 0 && rnd(2) ? -1 : 1; c[0] -= d; c[1] += d; }
+  const short = Math.max(0, c[1] - R.outsider.length);
+  c[1] -= short; c[0] += short;
+  return fixShown([...evil, ...take(R.outsider, c[1]), ...take(R.townsfolk, c[0])].map(role => ({ role, shown: "" }))).sort(byTeam);
+}
+// The Drunk is shown a Townsfolk that isn't in the bag; the Lunatic is shown a Demon
+function fixShown(bag) {
+  const R = SCRIPTS[S.script].roles;
+  const used = new Set(bag.flatMap(b => [b.role, b.shown]).filter(Boolean));
+  for (const b of bag) {
+    if (!SHOWN[b.role]) { b.shown = ""; continue; }
+    if (b.shown) continue;
+    const demon = bag.find(x => teamOf(x.role) === "demon");
+    const pool = b.role === "Lunatic" ? (demon ? [demon.role] : R.demon.map(x => x[0])) : R.townsfolk.map(x => x[0]).filter(r => !used.has(r));
+    b.shown = pool.length ? pool[rnd(pool.length)] : "";
+    used.add(b.shown);
+  }
+  return bag;
+}
+
+/* ---------- Screens ---------- */
+function render() {
+  const steps = [["players", "Players"], ["bag", "Bag"], ["draw", "Draw"], ["done", "Grimoire"]];
+  $("steps").innerHTML = steps.map(([k, l]) => `<span class="${S.step === k || (k === "draw" && S.draw) ? "on" : ""}">${l}</span>`).join("");
+  $("app").innerHTML = S.step === "players" ? playersHtml() : S.step === "bag" ? bagHtml() : doneHtml();
+  renderDraw();
+  save();
+}
+
+function playersHtml() {
+  const n = S.players.length;
+  const rows = S.players.map((p, i) => `<div class="prow" data-i="${i}">
+      <span class="n">${i + 1}</span>
+      <input type="text" data-name="${i}" value="${esc(p.name)}" placeholder="Player name" aria-label="Seat ${i + 1} name" autocomplete="off">
+      <span class="btns">
+        <button class="icon" data-act="up" data-i="${i}" aria-label="Move up" ${i === 0 ? "disabled" : ""}>↑</button>
+        <button class="icon" data-act="down" data-i="${i}" aria-label="Move down" ${i === n - 1 ? "disabled" : ""}>↓</button>
+        <button class="icon" data-act="del" data-i="${i}" aria-label="Remove">×</button>
+      </span>
+    </div>`).join("");
+  const ex = expected(n, []);
+  return `<section class="card">
+    <h2>Who's playing?</h2>
+    <label class="field"><span class="label">Script</span>
+      <select data-script>${Object.entries(SCRIPTS).map(([k, v]) => `<option value="${k}" ${S.script === k ? "selected" : ""}>${v.name}</option>`).join("")}</select>
+    </label>
+    <p class="hint">Add everyone in seat order, going clockwise round the table. You can type several names separated by commas.</p>
+    <div class="add">
+      <input type="text" id="newName" placeholder="Name" autocomplete="off" enterkeyhint="done" aria-label="New player's name">
+      <button class="btn primary" data-act="add">Add</button>
+    </div>
+    ${n ? `<div class="players">${rows}</div>` : ""}
+    <p class="hint">${n < 5 ? `${plural(n, "player")}. You need at least 5.` : n > 15 ? `${n} players. The most is 15.` : `${plural(n, "player")}: ${ex.c.map((x, i) => `${x} ${i === 3 ? "Demon" : TEAM_LABEL[TEAMS[i]]}`).join(", ")}.`}</p>
+    <div class="row">
+      ${n ? `<button class="btn danger" data-act="clear-players">Clear all</button>` : ""}
+      <span class="spacer"></span>
+      <button class="btn primary" data-act="to-bag" ${COMP[n] ? "" : "disabled"}>Build the bag →</button>
+    </div>
+  </section>`;
+}
+
+function bagHtml() {
+  const n = S.players.length, R = SCRIPTS[S.script].roles;
+  const inBag = new Set(S.bag.map(b => b.role)), roles = S.bag.map(b => b.role);
+  const shownSel = S.bag.map((b, i) => {
+    if (!SHOWN[b.role]) return "";
+    const pool = R[SHOWN[b.role]].map(x => x[0]).filter(r => b.role === "Lunatic" || !inBag.has(r));
+    return `<label class="field"><span class="label">The ${esc(b.role)} will see</span><select data-shown="${i}">${pool.map(r => `<option ${r === b.shown ? "selected" : ""}>${esc(r)}</option>`).join("")}</select></label>`;
+  }).join("");
+  const size = S.bag.length;
+  return `<section class="card">
+    <h2>Build the bag</h2>
+    <p class="hint">Tap characters to put them in the bag, or pick a random setup and adjust it. You need ${plural(n, "character")} for ${plural(n, "player")}.</p>
+    <div class="row"><button class="btn" data-act="random">🎲 Random setup</button><button class="btn" data-act="empty-bag" ${size ? "" : "disabled"}>Empty the bag</button></div>
+    ${countsHtml(n, roles)}
+    ${shownSel}
+  </section>
+  ${TEAMS.map(t => `<section class="card">
+    <div class="team-h"><h3 class="t-${t}">${TEAM_LABEL[t]}</h3><span class="hint">${S.bag.filter(b => teamOf(b.role) === t).length} in the bag</span></div>
+    <div class="tiles">${R[t].map(([name, icon]) => `<button class="tile ${t}" data-act="toggle" data-role="${esc(name)}" aria-pressed="${inBag.has(name)}"><span class="ico" aria-hidden="true">${icon}</span>${esc(name)}</button>`).join("")}</div>
+  </section>`).join("")}
+  <section class="card sticky">
+    <div class="row">
+      <button class="btn" data-act="to-players">← Players</button>
+      <span class="spacer"></span>
+      <span class="${size === n ? "hint" : "warn"}">${size} of ${n} in the bag</span>
+      <button class="btn primary" data-act="start-draw" ${size === n ? "" : "disabled"}>Start the draw →</button>
+    </div>
+  </section>`;
+}
+
+function doneHtml() {
+  const rows = S.players.map((p, i) => {
+    const d = S.drawn[p.id];
+    if (!d) return `<div class="wrow"><span class="n">${i + 1}</span><span></span><span><b>${esc(nameOf(p.id))}</b> <span class="thinks">hasn't drawn</span></span><span></span></div>`;
+    const c = CHAR[d.role] || { icon: "", team: "townsfolk" };
+    return `<div class="wrow ${alignOf(d.role)}">
+      <span class="n">${i + 1}</span>
+      <span class="ico" aria-hidden="true">${c.icon}</span>
+      <span><b>${esc(nameOf(p.id))}</b>: <span class="t-${c.team}" style="font-weight:800">${esc(d.role)}</span>${d.shown ? ` <span class="thinks">thinks they are the ${esc(d.shown)}</span>` : ""}</span>
+      <button class="btn" data-act="show-again" data-pid="${p.id}">Show them</button>
+    </div>`;
+  }).join("");
+  return `<section class="card">
+    <h2>The Grimoire</h2>
+    <p class="hint">Who drew what, in seat order. Blue is good, red is evil. Use Show them if a player needs to see their character again.</p>
+    ${countsHtml(S.players.length, Object.values(S.drawn).map(d => d.role))}
+    <div class="who">${rows}</div>
+    <div class="row">
+      <button class="btn" data-act="redraw">Draw again</button>
+      <span class="spacer"></span>
+      <button class="btn danger" data-act="new-game">New game</button>
+    </div>
+  </section>`;
+}
+
+/* ---------- Pass and play ---------- */
+function tokenHtml(role, shown) {
+  const seen = shown || role, c = CHAR[seen] || { icon: "", text: "", team: "townsfolk" };
+  const align = alignOf(seen);
+  const word = Math.max(...seen.split(/\s+/).map(w => w.length));
+  return `<p class="lead">You are the</p>
+    <div class="big-tok ${align}"><span class="ico" aria-hidden="true">${c.icon}</span><span class="nm" style="--fs:${Math.min(.13, .95 / word).toFixed(3)}">${esc(seen)}</span></div>
+    <p class="lead"><span class="t-${c.team}" style="font-weight:800">${TEAM_ONE[c.team]}</span> · <span class="al-${align}">${align === "evil" ? "Evil" : "Good"}</span></p>
+    ${c.text ? `<p class="ability">${esc(c.text)}${c.text.includes("night*") ? "<small>* not the first night</small>" : ""}</p>` : ""}`;
+}
+
+function renderDraw() {
+  const box = $("draw"), D = S.draw;
+  if (!D && !show) { box.hidden = true; box.innerHTML = ""; return; }
+  let h;
+  if (show) {
+    h = show.step === "ready"
+      ? `<p class="lead">Pass the phone to</p><h1>${esc(nameOf(show.pid))}</h1>
+        <button class="btn primary huge" data-act="show-reveal">I'm ${esc(nameOf(show.pid))}: show my character</button>
+        <button class="link" data-act="show-close">Cancel</button>`
+      : `${tokenHtml(S.drawn[show.pid].role, S.drawn[show.pid].shown)}<button class="btn primary huge" data-act="show-close">Hide it</button>`;
+  } else {
+    const pid = D.queue[0], name = pid ? esc(nameOf(pid)) : "", total = S.players.length;
+    if (D.step === "stop") h = `<h1>Stop the draw?</h1><p class="lead">Players who have drawn keep their characters.</p>
+      <div class="draw-foot"><button class="btn huge" data-act="draw-back">Keep drawing</button><button class="btn evil huge" data-act="draw-stop-yes">Stop</button></div>`;
+    else if (D.step === "done") h = `<h1>Everyone has a character</h1><p class="lead">Hand the phone back to the Storyteller.</p>
+      <button class="btn primary huge" data-act="draw-finish">I'm the Storyteller: open the Grimoire</button>`;
+    else if (D.step === "pick") h = `<p class="lead">${name}, tap a token to draw it</p>
+      <div class="bag-grid">${D.left.map((_, i) => `<button class="bag-tok" data-act="draw-pick" data-i="${i}" aria-label="Token ${i + 1}">?</button>`).join("")}</div>
+      <button class="link" data-act="draw-back">Not ${name}? Go back</button>`;
+    else if (D.step === "show") { const d = S.drawn[pid]; h = `${tokenHtml(d.role, d.shown)}<p class="hint">Remember it, then hide it before you pass the phone on.</p><button class="btn primary huge" data-act="draw-hide">Got it: hide it</button>`; }
+    else if (D.step === "ready") h = `<p class="lead">${name}, you've drawn your character</p><button class="btn primary huge" data-act="draw-reshow">Show it again</button>`;
+    else h = `<p class="hint">${total - D.queue.length} of ${total} drawn</p><p class="lead">Pass the phone to</p><h1>${name}</h1>
+      <button class="btn primary huge" data-act="draw-me">I'm ${name}: draw my character</button>
+      <div class="draw-foot">${D.queue.length > 1 ? `<button class="link" data-act="draw-later">${name} isn't here: draw later</button>` : ""}<button class="link" data-act="draw-stop">Storyteller: stop the draw</button></div>`;
+  }
+  box.innerHTML = `<div class="draw-inner">${h}</div>`;
+  box.hidden = false;
+  box.scrollTop = 0;
+}
+
+/* ---------- Actions ---------- */
+function addNames() {
+  const el = $("newName");
+  const names = el.value.split(/[,\n;]+/).map(s => s.trim()).filter(Boolean);
+  if (!names.length) return;
+  for (const name of names) S.players.push({ id: uid(), name });
+  render();
+  $("newName").focus();
+}
+
+document.addEventListener("click", ev => {
+  const el = ev.target.closest("[data-act]");
+  if (!el) return;
+  const i = Number(el.dataset.i), D = S.draw;
+  switch (el.dataset.act) {
+    case "add": return addNames();
+    case "up": case "down": { const j = el.dataset.act === "up" ? i - 1 : i + 1; [S.players[i], S.players[j]] = [S.players[j], S.players[i]]; break; }
+    case "del": S.players.splice(i, 1); break;
+    case "clear-players": if (!confirm("Remove every player?")) return; S.players = []; break;
+    case "to-bag": S.step = "bag"; break;
+    case "to-players": S.step = "players"; break;
+    case "random": S.bag = randomBag(S.players.length); break;
+    case "empty-bag": S.bag = []; break;
+    case "toggle": {
+      const r = el.dataset.role;
+      S.bag = S.bag.some(b => b.role === r) ? S.bag.filter(b => b.role !== r) : [...S.bag, { role: r, shown: "" }].sort(byTeam);
+      fixShown(S.bag);
+      break;
+    }
+    case "start-draw":
+      if (!countsOk(S.players.length, S.bag.map(b => b.role)) && !confirm("The bag doesn't match the usual setup for this many players. Draw anyway?")) return;
+      S.drawn = {};
+      S.draw = { left: shuffle(S.bag.map(b => ({ ...b }))), queue: S.players.map(p => p.id), step: "pass" };
+      wake();
+      break;
+    case "draw-me": D.step = "pick"; break;
+    case "draw-back": D.step = "pass"; break;
+    case "draw-later": D.queue.push(D.queue.shift()); break;
+    case "draw-pick": { const b = D.left.splice(i, 1)[0]; if (!b) return; S.drawn[D.queue[0]] = b; D.step = "show"; break; }
+    case "draw-reshow": D.step = "show"; break;
+    case "draw-hide": D.queue.shift(); D.step = D.queue.length ? "pass" : "done"; break;
+    case "draw-stop": D.step = "stop"; break;
+    case "draw-stop-yes": S.draw = null; S.step = "done"; break;
+    case "draw-finish": S.draw = null; S.step = "done"; break;
+    case "show-again": show = { pid: el.dataset.pid, step: "ready" }; break;
+    case "show-reveal": show.step = "show"; break;
+    case "show-close": show = null; break;
+    case "redraw": if (!confirm("Clear everyone's characters and go back to the bag?")) return; S.drawn = {}; S.step = "bag"; break;
+    case "new-game": if (!confirm("Start a new game? The players stay; the bag and characters are cleared.")) return; S = { ...fresh(), script: S.script, players: S.players }; break;
+    default: return;
+  }
+  render();
+  window.scrollTo({ top: 0 });
+});
+document.addEventListener("input", ev => {
+  const t = ev.target;
+  if (t.dataset.name !== undefined) { S.players[Number(t.dataset.name)].name = t.value; save(); }
+});
+document.addEventListener("change", ev => {
+  const t = ev.target;
+  if (t.dataset.script !== undefined) { if (S.bag.length && !confirm("Changing the script empties the bag. Change it?")) { t.value = S.script; return; } S.script = t.value; S.bag = []; render(); }
+  if (t.dataset.shown !== undefined) { S.bag[Number(t.dataset.shown)].shown = t.value; render(); }
+});
+document.addEventListener("keydown", ev => { if (ev.key === "Enter" && ev.target.id === "newName") { ev.preventDefault(); addNames(); } });
+
+// Keep the screen on while the phone is passed round, where the browser allows it
+let lock = null;
+async function wake() { try { if (navigator.wakeLock && !lock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => (lock = null)); } } catch (e) {} }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.draw) wake(); });
+
+// A draw in progress picks up where it left off, without showing the last token to whoever holds the phone
+if (S.draw && S.draw.step === "show") S.draw.step = "ready";
+render();
+</script>
+</body>
+</html>
