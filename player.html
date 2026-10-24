@@ -134,6 +134,20 @@ label.field, .field { display: grid; gap: 6px; }
 .claims { display: grid; gap: 6px; }
 .claim { display: flex; gap: 8px; align-items: center; }
 .claim .ico { width: 1.6em; text-align: center; }
+/* Evil Grimoire */
+.seat.team .disc { border-color: var(--evil); border-width: 6px; }
+.seat.t-low .disc { border-color: var(--unsure); }
+.seat.t-watch .disc { border-color: var(--brass); }
+.seat.t-threat .disc { border-color: var(--warn); border-width: 6px; }
+.seat.t-target .disc { border-color: var(--demon); border-width: 7px; }
+.seg button.th-low[aria-pressed="true"] { background: var(--unsure); color: #fff; }
+.seg button.th-watch[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); }
+.seg button.th-threat[aria-pressed="true"] { background: var(--warn); color: #1a1408; }
+.seg button.th-target[aria-pressed="true"] { background: var(--demon); color: #fff; }
+.btn.evil-on { background: var(--evil); border-color: var(--evil); color: #fff; }
+.pill { font-size: .78rem; font-weight: 800; border-radius: 999px; padding: 2px 10px; background: var(--surface-2); border: 1px solid var(--line); white-space: nowrap; }
+.pill.th-target { background: var(--demon); color: #fff; border-color: var(--demon); } .pill.th-threat { background: var(--warn); color: #1a1408; border-color: var(--warn); } .pill.th-watch { border-color: var(--brass); color: var(--brass); }
+.log li.cover { border-left: 4px solid var(--brass); }
 footer { color: var(--muted); font-size: .8rem; text-align: center; }
 </style>
 </head>
@@ -161,11 +175,12 @@ const phaseName = ph => `${ph % 2 ? "Day" : "Night"} ${Math.floor(ph / 2) + 1}`;
 
 /* ---------- State ---------- */
 const LS = "botc-player-v1";
-const fresh = () => ({ step: "players", script: "tb", players: [], me: "", role: "", side: "", ph: 0, P: {}, info: [] });
+const fresh = () => ({ step: "players", script: "tb", players: [], me: "", role: "", side: "", ph: 0, P: {}, info: [], bluffs: ["", "", ""], myBluff: "" });
 let S;
 try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
 if (!S || !S.step) S = fresh();
-const ui = { sel: null };
+S.bluffs = S.bluffs || ["", "", ""]; S.myBluff = S.myBluff || "";
+const ui = { sel: null, kind: "real" };
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
 const nameOf = pid => { const i = S.players.findIndex(p => p.id === pid); return i < 0 ? "someone" : (S.players[i].name.trim() || `Seat ${i + 1}`); };
 // What I know about each player
@@ -176,7 +191,7 @@ const aliveIds = () => S.players.map(p => p.id).filter(q => !about(q).dead);
 function render() {
   const steps = [["players", "Players"], ["token", "My token"], ["grim", S.side === "evil" ? "Evil" : "Grimoire"]];
   $("steps").innerHTML = steps.map(([k, l]) => `<span class="${S.step === k ? "on" : ""}">${l}</span>`).join("");
-  $("app").innerHTML = S.step === "players" ? playersHtml() : S.step === "token" ? tokenHtml() : S.side === "evil" ? evilHtml() : grimHtml();
+  $("app").innerHTML = S.step === "players" ? playersHtml() : S.step === "token" ? tokenHtml() : S.side === "evil" ? evilGrimHtml() : grimHtml();
   save();
 }
 
@@ -231,14 +246,6 @@ function tokenHtml() {
       <button class="side-btn evil" data-act="side" data-v="evil" aria-pressed="${S.side === "evil"}">Evil</button>
     </div>
     <div class="row"><button class="btn" data-act="to-players">← Players</button><span class="spacer"></span><button class="btn primary" data-act="to-grim" ${S.side ? "" : "disabled"}>Open my Grimoire →</button></div>
-  </section>`;
-}
-
-function evilHtml() {
-  return `<section class="card">
-    <h2>The evil Grimoire</h2>
-    <p class="lead">You're on the evil team. The evil player's Grimoire is coming next.</p>
-    <div class="row"><button class="btn" data-act="to-token">← My token</button></div>
   </section>`;
 }
 
@@ -327,6 +334,145 @@ function grimHtml() {
   </div>`;
 }
 
+/* The evil player's Grimoire */
+const THREATS = [["low", "Harmless"], ["watch", "Watch"], ["threat", "Threat"], ["target", "🎯 Target"]];
+const onTeam = pid => pid === S.me || !!about(pid).team;
+const team = () => S.players.map(p => p.id).filter(onTeam);
+const realOf = pid => pid === S.me ? S.role : about(pid).real;
+// What each player says they are: my bluff for me, their claim for everyone else
+const claimOf = pid => pid === S.me ? S.myBluff || "" : about(pid).claim;
+// Who claims each character
+function claimants() {
+  const by = {};
+  for (const p of S.players) { const r = claimOf(p.id); if (r) (by[r] = by[r] || []).push(p.id); }
+  return by;
+}
+
+function evilCircle() {
+  const n = S.players.length, tok = n <= 7 ? 19 : n <= 10 ? 16.5 : n <= 13 ? 14 : 12.5;
+  const seats = S.players.map((p, i) => {
+    const a = (i / n) * 2 * Math.PI - Math.PI / 2, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
+    const me = p.id === S.me, A = about(p.id), mate = onTeam(p.id);
+    const role = mate ? realOf(p.id) : A.claim, c = CHAR[role];
+    const word = Math.max(...(role || "x").split(/\s+/).map(w => w.length));
+    const cls = mate ? "team" : `t-${A.threat || "none"}`;
+    const badge = mate && claimOf(p.id) ? `<span class="badge">as ${esc(claimOf(p.id))}</span>` : !mate && A.threat === "target" ? `<span class="badge demon">🎯 Target</span>` : A.dead && !A.ghost ? `<span class="badge">👻 vote</span>` : "";
+    return `<button class="seat ${cls} ${me ? "me" : ""} ${A.dead ? "dead" : ""} ${ui.sel === p.id ? "sel" : ""}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" data-act="sel" data-pid="${p.id}" aria-label="Seat ${i + 1}: ${esc(nameOf(p.id))}${mate ? ", on your team" : ""}${role ? `, ${esc(role)}` : ""}">
+      <span class="disc">${c ? `<span class="ico" aria-hidden="true">${c.icon}</span><span class="nm" style="--fs:${Math.min(.17, 1.45 / word).toFixed(3)}">${esc(role)}</span>` : `<span class="q">${mate ? "😈" : "?"}</span>`}</span>
+      <span class="plate">${me ? "★ " : ""}${esc(nameOf(p.id))}</span>
+      ${badge}
+    </button>`;
+  }).join("");
+  const alive = aliveIds().length;
+  return `<div class="circle" style="--tok:min(96px, ${tok}cqi)">${seats}
+    <div class="center"><span class="ph">${phaseName(S.ph)}</span><span class="hint">${alive} alive · ${Math.ceil(alive / 2)} votes to execute</span></div>
+  </div>`;
+}
+
+const charOpts = (teams, val, blank) => `<option value="">${blank}</option>${teams.map(t => `<optgroup label="${TEAM_LABEL[t]}">${scriptChars([t]).map(r => `<option ${r === val ? "selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>`).join("")}`;
+function evilPanel(pid) {
+  const A = about(pid), mate = !!A.team, c = CHAR[A.claim];
+  const others = (claimants()[A.claim] || []).filter(q => q !== pid);
+  return `<section class="card">
+    <div class="row"><h2 style="margin-right:auto">${S.players.findIndex(p => p.id === pid) + 1}. ${esc(nameOf(pid))}</h2><button class="icon" data-act="sel" data-pid="${pid}" aria-label="Close">×</button></div>
+    <div class="row"><button class="btn ${mate ? "evil-on" : ""}" data-act="team" data-pid="${pid}">${mate ? "😈 On my team" : "Mark as on my team"}</button></div>
+    ${mate ? `<label class="field"><span class="label">Their real character</span><select data-real="${pid}">${charOpts(["minion", "demon", "townsfolk", "outsider"], A.real, "Not sure")}</select></label>` : ""}
+    <label class="field"><span class="label">${mate ? "They're bluffing as" : "They claim to be"}</span><select data-claim="${pid}">${charOpts(TEAMS, A.claim, "No claim yet")}</select></label>
+    ${c && !mate ? `<p class="ability"><b>${c.icon} ${esc(c.name)}</b>: ${esc(c.text)}</p>` : ""}
+    ${others.length ? `<p class="warn">⚠ ${esc(listJoin(others.map(nameOf)))} also ${others.length > 1 ? "claim" : "claims"} the ${esc(A.claim)}.</p>` : ""}
+    ${!mate && S.bluffs.includes(A.claim) && A.claim ? `<p class="warn">⚠ They claim one of your bluffs, the ${esc(A.claim)}.</p>` : ""}
+    ${mate ? "" : `<div class="field"><span class="label">How dangerous are they?</span>
+      <span class="seg">${THREATS.map(([v, l]) => `<button class="th-${v}" data-act="threat" data-pid="${pid}" data-v="${v}" aria-pressed="${(A.threat || "") === v}">${l}</button>`).join("")}</span></div>`}
+    <div class="row">
+      <button class="btn" data-act="dead" data-pid="${pid}">${A.dead ? "Bring back to life" : "Mark dead"}</button>
+      ${A.dead ? `<button class="btn" data-act="ghost" data-pid="${pid}">${A.ghost ? "Ghost vote used ✓" : "Ghost vote unused"}</button>` : ""}
+    </div>
+    <label class="field"><span class="label">Notes</span><textarea data-notes="${pid}" placeholder="What they've said, what they might know, how they've voted…">${esc(A.notes)}</textarea></label>
+  </section>`;
+}
+
+function teamCard() {
+  const ids = team(), c = CHAR[S.role];
+  return `<section class="card">
+    <h2>My team</h2>
+    ${c ? `<div class="mine"><span class="big" aria-hidden="true">${c.icon}</span><div><b>${esc(c.name)}</b> · <span class="t-demon" style="font-weight:800">Evil</span><p class="hint">${esc(c.text)}</p></div></div>` : ""}
+    <div class="claims">${ids.map(q => { const r = realOf(q), cc = CHAR[r]; return `<div class="claim"><span class="ico">${cc ? cc.icon : "😈"}</span><span style="flex:1"><b>${esc(nameOf(q))}</b>${q === S.me ? " (you)" : ""}: ${r ? `<span class="t-${teamOf(r)}" style="font-weight:800">${esc(r)}</span>` : `<span class="hint">character unknown</span>`}${claimOf(q) ? ` <span class="hint">· bluffing as the ${esc(claimOf(q))}</span>` : ""}${about(q).dead ? ` <span class="hint">(dead)</span>` : ""}</span></div>`; }).join("")}</div>
+    ${ids.length < 2 ? `<p class="hint">Tap your teammates on the circle and mark them as on your team.</p>` : ""}
+  </section>`;
+}
+
+function bluffCard() {
+  const cl = claimants();
+  // Whether a bluff is still free, used by our own team, or claimed by the town
+  const status = r => {
+    if (!r) return "";
+    const who = cl[r] || [], town = who.filter(q => !onTeam(q)), ours = who.filter(onTeam);
+    if (town.length) return `<span class="warn">claimed by ${esc(listJoin(town.map(nameOf)))}</span>`;
+    if (ours.length) return `<span class="hint">used by ${esc(listJoin(ours.map(q => q === S.me ? "you" : nameOf(q))))}</span>`;
+    return `<span class="hint">free</span>`;
+  };
+  const mine = S.myBluff, mineTaken = mine && (cl[mine] || []).some(q => q !== S.me);
+  const tm = team().filter(q => q !== S.me);
+  const teamClash = Object.entries(cl).filter(([r, ids]) => ids.length > 1 && ids.every(onTeam));
+  return `<section class="card">
+    <h2>Bluffs</h2>
+    <div class="field"><span class="label">The Demon's bluffs (characters not in play)</span>
+      ${[0, 1, 2].map(i => `<div class="row" style="flex-wrap:nowrap"><select data-bluff="${i}" style="flex:1">${charOpts(["townsfolk", "outsider"], S.bluffs[i], `Bluff ${i + 1}`)}</select>${status(S.bluffs[i])}</div>`).join("")}
+    </div>
+    <label class="field"><span class="label">I'm claiming to be</span><select data-mybluff>${charOpts(["townsfolk", "outsider"], mine, "Not decided")}</select></label>
+    ${mine && CHAR[mine] ? `<p class="ability"><b>${CHAR[mine].icon} ${esc(mine)}</b>: ${esc(CHAR[mine].text)}</p>` : ""}
+    ${mineTaken ? `<p class="warn">⚠ ${esc(listJoin(cl[mine].filter(q => q !== S.me).map(nameOf)))} also ${cl[mine].filter(q => q !== S.me).length > 1 ? "claim" : "claims"} the ${esc(mine)}. Someone may out you.</p>` : ""}
+    ${teamClash.length ? `<p class="warn">⚠ Two of your team are bluffing as the same character: the ${esc(teamClash.map(([r]) => r).join(", the "))}.</p>` : ""}
+    ${tm.length ? `<p class="hint">Set each teammate's bluff by tapping them on the circle.</p>` : ""}
+  </section>`;
+}
+
+function coverCard() {
+  const kind = ui.kind || "real";
+  const list = S.info.slice().sort((a, b) => a.ph - b.ph);
+  return `<section class="card">
+    <h2>My cover story</h2>
+    <p class="hint">Keep what really happened apart from what you'll say, so your story stays the same every time you tell it.</p>
+    <span class="seg"><button data-act="kind" data-v="real" aria-pressed="${kind === "real"}">What really happened</button><button data-act="kind" data-v="cover" aria-pressed="${kind === "cover"}">What I'll say</button></span>
+    <div class="add"><input type="text" id="newInfo" placeholder="${kind === "real" ? `What happened on ${phaseName(S.ph)}?` : `What will you say about ${phaseName(S.ph)}?`}" autocomplete="off" enterkeyhint="done" aria-label="New entry"><button class="btn primary" data-act="info-add">Add</button></div>
+    ${list.length ? `<ul class="log">${list.map(e => `<li class="${e.kind === "cover" ? "cover" : ""}"><span class="ph">${phaseName(e.ph)}</span><span class="t">${e.kind === "cover" ? "🗣️ " : ""}${esc(e.text)}</span><button class="x" data-act="info-del" data-id="${e.id}" aria-label="Delete">×</button></li>`).join("")}</ul>` : ""}
+  </section>`;
+}
+
+function killCard() {
+  if (teamOf(S.role) !== "demon") return "";
+  const order = { target: 0, threat: 1, watch: 2, low: 4 };
+  const ids = aliveIds().filter(q => !onTeam(q)).sort((a, b) => (order[about(a).threat] ?? 3) - (order[about(b).threat] ?? 3));
+  return `<section class="card">
+    <h2>Who to kill</h2>
+    <p class="hint">Living players not on your team, most dangerous first. Set how dangerous each one is by tapping them.</p>
+    <div class="claims">${ids.map(q => { const A = about(q), c = CHAR[A.claim]; return `<div class="claim"><span class="ico">${c ? c.icon : "·"}</span><span style="flex:1"><b>${esc(nameOf(q))}</b>${A.claim ? `: ${esc(A.claim)}` : ""}</span><span class="pill th-${A.threat || "none"}">${(THREATS.find(t => t[0] === A.threat) || [, "Not rated"])[1]}</span></div>`; }).join("")}</div>
+  </section>`;
+}
+
+function evilClaimsCard() {
+  const cl = claimants();
+  const rows = S.players.filter(p => !onTeam(p.id)).map(p => {
+    const A = about(p.id), c = CHAR[A.claim], dbl = A.claim && cl[A.claim].length > 1, bl = A.claim && S.bluffs.includes(A.claim);
+    return `<div class="claim"><span class="ico">${c ? c.icon : "·"}</span><span style="flex:1"><b>${esc(nameOf(p.id))}</b>${A.claim ? `: ${esc(A.claim)}` : ` <span class="hint">no claim</span>`}${A.dead ? ` <span class="hint">(dead)</span>` : ""}</span>${dbl ? `<span class="warn">⚠ double claim</span>` : bl ? `<span class="warn">⚠ one of your bluffs</span>` : ""}</div>`;
+  }).join("");
+  return `<section class="card"><h2>What the town claims</h2><div class="claims">${rows}</div><p class="hint">A double claim with one of your team means one of you will be called out. A good player claiming one of your bluffs may be lying, or may be the Drunk.</p></section>`;
+}
+
+function evilGrimHtml() {
+  const sel = ui.sel && ui.sel !== S.me ? evilPanel(ui.sel) : "";
+  return `<div class="grim-wrap">
+    <div>
+      <div class="phase row" style="justify-content:center;margin-bottom:10px"><button class="icon" data-act="ph" data-v="-1" aria-label="Previous phase" ${S.ph ? "" : "disabled"}>‹</button><b>${phaseName(S.ph)}</b><button class="icon" data-act="ph" data-v="1" aria-label="Next phase">›</button></div>
+      ${evilCircle()}
+      <p class="hint" style="text-align:center">Red: your team. Tap a player to mark a teammate, rate how dangerous they are, or note their claim.</p>
+    </div>
+    <div class="side">${sel}${teamCard()}${bluffCard()}${killCard()}${coverCard()}${evilClaimsCard()}
+      <section class="card"><div class="row"><button class="btn" data-act="to-token">← My token</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
+    </div>
+  </div>`;
+}
+
 /* ---------- Actions ---------- */
 function addNames() {
   const names = $("newName").value.split(/[,\n;]+/).map(s => s.trim()).filter(Boolean);
@@ -338,7 +484,7 @@ function addNames() {
 function addInfo() {
   const t = $("newInfo").value.trim();
   if (!t) return;
-  S.info.push({ id: uid(), ph: S.ph, text: t });
+  S.info.push({ id: uid(), ph: S.ph, text: t, kind: S.side === "evil" ? ui.kind : "real" });
   render();
   $("newInfo").focus();
 }
@@ -360,6 +506,9 @@ document.addEventListener("click", ev => {
     case "to-grim": S.step = "grim"; break;
     case "sel": ui.sel = ui.sel === pid || pid === S.me ? null : pid; render(); return;
     case "read": about(pid).read = el.dataset.v; break;
+    case "team": { const A = about(pid); A.team = !A.team; break; }
+    case "threat": { const A = about(pid); A.threat = A.threat === el.dataset.v ? "" : el.dataset.v; break; }
+    case "kind": ui.kind = el.dataset.v; break;
     case "dead": { const A = about(pid); A.dead = !A.dead; if (!A.dead) A.ghost = false; break; }
     case "ghost": about(pid).ghost = !about(pid).ghost; break;
     case "ph": S.ph = Math.max(0, S.ph + Number(el.dataset.v)); break;
@@ -369,7 +518,7 @@ document.addEventListener("click", ev => {
     default: return;
   }
   render();
-  if (!["sel", "read", "dead", "ghost", "me", "role", "side", "info-del"].includes(el.dataset.act)) window.scrollTo({ top: 0 });
+  if (!["sel", "read", "dead", "ghost", "me", "role", "side", "info-del", "team", "threat", "kind"].includes(el.dataset.act)) window.scrollTo({ top: 0 });
 });
 document.addEventListener("input", ev => {
   const t = ev.target;
@@ -380,6 +529,9 @@ document.addEventListener("change", ev => {
   const t = ev.target;
   if (t.dataset.script !== undefined) { S.script = t.value; if (S.role && !scriptChars().includes(S.role)) S.role = ""; render(); }
   if (t.dataset.claim !== undefined) { about(t.dataset.claim).claim = t.value; render(); }
+  if (t.dataset.real !== undefined) { about(t.dataset.real).real = t.value; render(); }
+  if (t.dataset.bluff !== undefined) { S.bluffs[Number(t.dataset.bluff)] = t.value; render(); }
+  if (t.dataset.mybluff !== undefined) { S.myBluff = t.value; render(); }
   if (t.dataset.name !== undefined) render();
 });
 document.addEventListener("keydown", ev => {
