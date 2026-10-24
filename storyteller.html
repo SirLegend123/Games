@@ -778,7 +778,7 @@ function nightPlayerHtml() {
       ${a.chars ? `<div class="tiles small">${scriptChars(a.chars).map(r => `<button class="tile ${teamOf(r)}" data-act="np-char" data-role="${esc(r)}" aria-pressed="${c.char === r}"><span class="ico">${CHAR[r].icon}</span>${esc(r)}</button>`).join("")}</div>` : ""}
       <div class="draw-foot"><button class="btn primary huge" data-act="np-ok" ${ready ? "" : "disabled"}>Confirm</button>${a.optional ? `<button class="btn huge" data-act="np-skip">Not tonight</button>` : ""}</div>`;
   }
-  return `${head}${body}<button class="link" data-act="night-hide">Storyteller: back</button>`;
+  return `${head}${body}<button class="link" data-act="night-hide">Storyteller: go back</button>`;
 }
 // The answer a choosing character gets, worked out once when they confirm
 function workResult(st, c) {
@@ -873,16 +873,20 @@ function tokenHtml(role, shown) {
 }
 
 function renderDraw() {
-  const box = $("draw"), D = S.draw, NP = S.step === "night" && S.night && S.night.view === "player";
+  const box = $("draw"), D = S.draw, NP = S.step === "night" && S.night && S.night.view !== "st";
   if (!D && !show && !NP) { box.hidden = true; box.innerHTML = ""; return; }
   let h;
-  if (NP) h = nightPlayerHtml();
+  // After a player's screen, cover the phone until it's back with the Storyteller
+  const handback = (go, again) => `<h1>Close your eyes</h1><p class="lead">Pass the phone back to the Storyteller.</p>
+    <button class="btn primary huge" data-act="${go}">I'm the Storyteller</button>${again ? `<button class="link" data-act="${again}">Show them again</button>` : ""}`;
+  if (NP) h = S.night.view === "handback" ? handback("night-resume", "night-show") : nightPlayerHtml();
   else if (show) {
     h = show.step === "ready"
       ? `<p class="lead">Pass the phone to</p><h1>${esc(nameOf(show.pid))}</h1>
         <button class="btn primary huge" data-act="show-reveal">I'm ${esc(nameOf(show.pid))}: show my character</button>
         <button class="link" data-act="show-close">Cancel</button>`
-      : `${tokenHtml(S.drawn[show.pid].role, S.drawn[show.pid].shown)}<button class="btn primary huge" data-act="show-close">Hide it</button>`;
+      : show.step === "handback" ? handback("show-close", "show-reveal")
+      : `${tokenHtml(S.drawn[show.pid].role, S.drawn[show.pid].shown)}<button class="btn primary huge" data-act="show-hide">Hide it</button>`;
   } else {
     const pid = D.queue[0], name = pid ? esc(nameOf(pid)) : "", total = S.players.length;
     if (D.step === "stop") h = `<h1>Stop the draw?</h1><p class="lead">Players who have drawn keep their characters.</p>
@@ -958,9 +962,10 @@ document.addEventListener("click", ev => {
     case "night-cancel": if (S.preNight) Object.assign(S, JSON.parse(S.preNight)); S.night = null; S.log = []; S.step = "grim"; break;
     case "night-next": nextStep(false); break;
     case "night-back": prevStep(); break;
-    case "night-show": S.night.view = "player"; break;
-    case "night-hide": S.night.view = "st"; break;
-    case "night-done": nextStep(true); break;
+    case "night-show": S.night.view = "player"; S.night.cur.skipped = false; break;
+    case "night-hide": S.night.view = "handback"; S.night.after = "st"; break;
+    case "night-done": S.night.view = "handback"; S.night.after = "next"; break;
+    case "night-resume": if (S.night.after === "next") nextStep(true); else S.night.view = "st"; break;
     case "night-dawn": S.step = "grim"; S.phase = "day1"; S.night = null; break;
     case "truth": { const N = S.night, st = N.steps[N.i]; N.cur.truth = el.dataset.v === "1"; if (ACT[st.key].info) N.cur.info = makeInfo(st, N.cur.truth); break; }
     case "num": S.night.cur.info.n = Math.max(0, S.night.cur.info.n + Number(el.dataset.v)); break;
@@ -972,9 +977,10 @@ document.addEventListener("click", ev => {
     }
     case "np-char": S.night.cur.char = el.dataset.role; break;
     case "np-ok": { const N = S.night, st = N.steps[N.i]; workResult(st, N.cur); N.cur.done = true; break; }
-    case "np-skip": S.night.cur.skipped = true; nextStep(true); break;
+    case "np-skip": S.night.cur.skipped = true; S.night.view = "handback"; S.night.after = "next"; break;
     case "show-again": show = { pid: el.dataset.pid, step: "ready" }; break;
     case "show-reveal": show.step = "show"; break;
+    case "show-hide": show.step = "handback"; break;
     case "show-close": show = null; break;
     case "redraw": if (!confirm("Clear everyone's characters and go back to the bag?")) return; S.drawn = {}; S.step = "bag"; ui.sel = null; break;
     case "new-game": if (!confirm("Start a new game? The players stay; the bag and characters are cleared.")) return; S = { ...fresh(), script: S.script, players: S.players }; break;
