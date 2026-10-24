@@ -161,6 +161,9 @@ label.field { display: grid; gap: 6px; }
 .notice { margin: 0; background: var(--surface-2); border-left: 4px solid var(--brass); border-radius: 8px; padding: 10px 12px; }
 .x-inline { background: none; border: 0; color: var(--muted); font-weight: 800; padding: 0 6px; }
 .seat.town .disc { border-color: var(--brass); }
+.over h1 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(2.4rem, 8vw, 3.6rem); line-height: 1.1; }
+.over.good h1 { color: var(--good); } .over.evil h1 { color: var(--evil); }
+.over.good { border-color: var(--good); } .over.evil { border-color: var(--evil); }
 .kill { display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
 .history summary { cursor: pointer; padding: 6px 0; }
 .history h3 { margin-top: 10px; }
@@ -387,11 +390,11 @@ function fixShown(bag) {
 
 /* ---------- Screens ---------- */
 function render() {
-  const steps = [["players", "Players"], ["bag", "Bag"], ["draw", "Draw"], ["grim", "Grimoire"], ["night", `Night ${S.n || 1}`], ["day", `Day ${S.n || 1}`]];
-  $("steps").innerHTML = steps.map(([k, l]) => `<span class="${(S.draw ? k === "draw" : S.step === k) ? "on" : ""}">${l}</span>`).join("");
+  const steps = [["players", "Players"], ["bag", "Bag"], ["draw", "Draw"], ["grim", "Grimoire"], ["night", `Night ${S.n || 1}`], ["day", `Day ${S.n || 1}`], ...(S.over ? [["over", "Game over"]] : [])];
+  $("steps").innerHTML = steps.map(([k, l]) => `<span class="${(S.draw ? k === "draw" : S.over ? k === "over" : S.step === k) ? "on" : ""}">${l}</span>`).join("");
   if (["grim", "night", "day"].includes(S.step)) setupGrim();
   if (S.step === "grim" && S.phase === "day1") startDay(); // games saved before the day was built
-  $("app").innerHTML = S.step === "players" ? playersHtml() : S.step === "bag" ? bagHtml() : S.step === "night" ? nightHtml() : S.step === "day" ? dayHtml() : grimHtml();
+  $("app").innerHTML = S.over ? overHtml() : S.step === "players" ? playersHtml() : S.step === "bag" ? bagHtml() : S.step === "night" ? nightHtml() : S.step === "day" ? dayHtml() : grimHtml();
   renderDraw();
   save();
 }
@@ -776,7 +779,7 @@ function startNight() {
   if (S.n > 1) {
     // Bring today into the night: who died, who was executed, what was said
     const D = S.day, e = D.exec;
-    S.today = { exec: e && e.dies ? e.pid : null, deaths: e && e.dies ? [e.pid] : [], noms: D.noms };
+    S.today = { exec: e && e.dies ? e.pid : null, deaths: [...(e && e.dies ? [e.pid] : []), ...(D.shots || []).filter(x => x.died).map(x => x.at)], noms: D.noms };
     S.ghostSpent = [...ghostSpent()];
     if (D.noms.some(n => n.virgin)) S.virginUsed = true;
     S.history.push({ h: `Day ${D.n}`, lines: dayLines() });
@@ -1021,10 +1024,12 @@ function logLine(st, c) {
   if (c.kills) res += c.kills.length ? " " + c.kills.map(k => k.jump ? `${esc(nameOf(k.pid))} became the Fang Gu.` : k.dies ? `${esc(nameOf(k.instead || k.pid))} died${k.instead ? " instead (the Mayor)" : ""}.` : `${esc(nameOf(k.pid))} survived${k.why ? ` (${esc(k.why)})` : ""}.`).join(" ") : (a.kill === "pukka" ? "" : " Nobody died.");
   return `${who} chose ${chose}.${res}${a.result && !["gamble", "pithag", "professor", "exorcist"].includes(a.result) ? lie : ""}`;
 }
-function die(pid, cause, byDemon) {
+// passOn: the Demon's own self-kill or jump, where the new Demon is chosen another way
+function die(pid, cause, byDemon, passOn) {
   if (S.dead[pid]) return;
   S.dead[pid] = true; S.deathCause[pid] = cause;
   S.night.deaths.push(pid);
+  if (teamOf(roleOf(pid)) === "demon" && !passOn) scarletTakeover(pid);
   if (byDemon) S.night.demonKills.push(pid);
 }
 // What follows from a choice: reminders, deaths, changed characters
@@ -1049,13 +1054,13 @@ function applyChoice(st, c) {
     if (k.jump && k.dies) {
       S.fangJumped = true;
       S.drawn[k.pid] = { role: "Fang Gu", shown: "", align: "evil" };
-      die(st.pid, "the Fang Gu jumped", true);
+      die(st.pid, "the Fang Gu jumped", true, true);
       tell(k.pid);
       continue;
     }
     if (!k.dies) { if (k.why.startsWith("the Fool")) S.used[k.pid] = true; continue; }
     const v = k.instead || k.pid;
-    die(v, a.result === "gamble" ? "guessed wrong" : byDemon ? "killed by the Demon" : `killed by the ${roleOf(st.pid)}`, byDemon);
+    die(v, a.result === "gamble" ? "guessed wrong" : byDemon ? "killed by the Demon" : `killed by the ${roleOf(st.pid)}`, byDemon, v === st.pid && byDemon);
     if (byDemon && remsOf(v).includes("Grandchild")) inPlay().filter(q => roleOf(q) === "Grandmother" && alive(q)).forEach(g => die(g, "their grandchild was killed", false));
     if (v === st.pid && roleOf(st.pid) === "Imp" && c.starpass) { S.drawn[c.starpass] = { ...S.drawn[c.starpass], role: "Imp" }; tell(c.starpass); }
   }
@@ -1084,9 +1089,9 @@ function gameNotes() {
   else if (live.length <= 2) notes.push("Only 2 players are left alive: <b>evil wins</b>.");
   return notes;
 }
-const dayLines = () => [...S.day.noms.map(n => `<b>${esc(nameOf(n.by))}</b> nominated <b>${esc(nameOf(n.of))}</b>: ${n.virgin === "executed" ? "the Virgin's ability executed the nominator" : plural(n.count, "vote")}.`),
+const dayLines = () => [...shotLines(), ...S.day.noms.map(n => `<b>${esc(nameOf(n.by))}</b> nominated <b>${esc(nameOf(n.of))}</b>: ${n.virgin === "executed" ? "the Virgin's ability executed the nominator" : plural(n.count, "vote")}.`),
   S.day.exec ? `<b>${esc(nameOf(S.day.exec.pid))}</b> was executed${S.day.exec.dies ? "" : " but didn't die"}.` : "Nobody was executed."];
-const historyHtml = () => S.history.length ? `<details class="history"><summary class="label">The game so far</summary>${S.history.map(h => `<h3>${esc(h.h)}</h3><ol class="log">${h.lines.map(l => `<li>${l}</li>`).join("")}</ol>`).join("")}</details>` : "";
+const historyHtml = (open = false) => (S.history || []).length ? `<details class="history" ${open ? "open" : ""}><summary class="label">The game so far</summary>${S.history.map(h => `<h3>${esc(h.h)}</h3><ol class="log">${h.lines.map(l => `<li>${l}</li>`).join("")}</ol>`).join("")}</details>` : "";
 
 /* ---------- Day ---------- */
 const aliveIds = () => S.players.map(p => p.id).filter(alive);
@@ -1127,18 +1132,79 @@ function endNotes(pid, died) {
   if (remsOf(pid).includes("Twin") && sideOf(pid) === "good" && died) notes.push("The Evil Twin's good twin was executed: <b>evil wins</b>.");
   return notes;
 }
+// When the Demon dies with 5 or more alive, the Scarlet Woman becomes the Demon and is told at night
+function scarletTakeover(demon) {
+  const sw = inPlay().find(q => roleOf(q) === "Scarlet Woman" && alive(q) && !unreliable(q).length);
+  if (!sw || teamOf(roleOf(demon)) !== "demon" || aliveIds().length + 1 < 5) return "";
+  S.drawn[sw] = { ...S.drawn[sw], role: roleOf(demon) };
+  tell(sw);
+  return sw;
+}
 function execute(pid, cause, dies = true) {
   if (dies) { S.dead[pid] = true; S.deathCause = { ...(S.deathCause || {}), [pid]: cause }; }
   S.day.exec = { pid, cause, dies, notes: endNotes(pid, dies) };
-  // The Scarlet Woman becomes the Demon, and is told tonight
-  const sw = inPlay().find(q => roleOf(q) === "Scarlet Woman" && alive(q) && !unreliable(q).length);
-  if (dies && teamOf(roleOf(pid)) === "demon" && sw && aliveIds().length + 1 >= 5) {
-    S.drawn[sw] = { ...S.drawn[sw], role: roleOf(pid) };
-    S.toTell = [...new Set([...(S.toTell || []), sw])];
-    S.day.exec.sw = sw;
-  }
+  if (dies) S.day.exec.sw = scarletTakeover(pid);
   S.day.done = true; S.day.draft = null;
 }
+
+// Whether the game is over, and who won. ctx says what just happened.
+function winCheck(ctx = {}) {
+  const live = aliveIds(), e = ctx.exec;
+  if (e && e.dies && roleOf(e.pid) === "Saint" && !unreliable(e.pid).length) return { winner: "evil", reason: `${nameOf(e.pid)}, the Saint, was executed.` };
+  if (e && e.dies && remsOf(e.pid).includes("Twin") && sideOf(e.pid) === "good") return { winner: "evil", reason: `${nameOf(e.pid)}, the Evil Twin's good twin, was executed.` };
+  if (!demons().some(alive)) {
+    if (e && e.dies && teamOf(roleOf(e.pid)) === "demon" && inPlay().some(q => roleOf(q) === "Mastermind" && alive(q))) return null;
+    const d = demons()[0];
+    return { winner: "good", reason: d ? `The Demon, ${nameOf(d)} the ${roleOf(d)}, is dead.` : "No Demon is alive." };
+  }
+  if (live.length <= 2) return { winner: "evil", reason: "Only 2 players are left alive." };
+  if (ctx.noExec && inPlay().some(q => roleOf(q) === "Vortox" && alive(q))) return { winner: "evil", reason: "Nobody was executed while the Vortox is alive." };
+  if (ctx.noExec && live.length === 3 && live.some(q => roleOf(q) === "Mayor" && !unreliable(q).length)) return { winner: "good", reason: "Only 3 players are alive, nobody was executed, and the Mayor is alive." };
+  return null;
+}
+// Stop the game when someone has won. before is the state to go back to.
+function checkOver(before, ctx) {
+  const w = winCheck(ctx);
+  if (w) { S.over = { ...w, before }; ui.sel = null; }
+}
+function overHtml() {
+  const o = S.over;
+  return `<div class="grim-wrap">
+    <div><section class="card over ${o.winner}">
+      <h1>${o.winner === "good" ? "Good wins!" : "Evil wins!"}</h1>
+      <p class="lead">${esc(o.reason)}</p>
+      <p class="hint">Reveal the Grimoire: everyone's character is on the circle.</p>
+      <div class="row"><button class="btn" data-act="over-undo">← Undo: carry on playing</button><span class="spacer"></span><button class="btn primary" data-act="new-game">New game</button></div>
+      ${historyHtml(true)}
+    </section></div>
+    <div>${circleHtml()}</div>
+  </div>`;
+}
+
+/* The Slayer's shot */
+const pickBtns = (ids, act, sel = []) => `<div class="pickgrid">${ids.map(q => `<button class="pick ${S.dead[q] ? "dead" : ""}" data-act="${act}" data-pid="${q}" aria-pressed="${sel.includes(q)}">${esc(nameOf(q))}</button>`).join("")}</div>`;
+function slayerHtml(d) {
+  if (d.stage === "slayer-by") return `<section class="card"><h2>🏹 Slayer shot: who is shooting?</h2><p class="hint">Anyone can claim to be the Slayer. Tap the player who shoots.</p>
+    ${pickBtns(aliveIds(), "slay-by")}<div class="row"><button class="btn" data-act="nom-cancel">Cancel</button></div></section>`;
+  if (d.stage === "slayer-at") return `<section class="card"><h2>🏹 ${esc(nameOf(d.by))} shoots…</h2>
+    ${pickBtns(S.players.map(p => p.id).filter(q => q !== d.by), "slay-at")}<div class="row"><button class="btn" data-act="nom-cancel">Cancel</button></div></section>`;
+  const r = slayerResult(d.by, d.at);
+  return `<section class="card"><h2>🏹 ${esc(nameOf(d.by))} shoots ${esc(nameOf(d.at))}</h2>
+    <p><b>${esc(nameOf(d.by))}</b> is the <b>${esc(roleOf(d.by))}</b>. <b>${esc(nameOf(d.at))}</b> is the <b>${esc(roleOf(d.at))}</b>.</p>
+    <p class="notice">${esc(r.why)}</p>
+    ${roleOf(d.at) === "Recluse" && r.real ? `<p class="hint">The Recluse might register as the Demon: you can choose that they die.</p>` : ""}
+    <div class="row"><button class="btn ${r.hit ? "evil" : ""}" data-act="slay-ok" data-v="1">${esc(nameOf(d.at))} dies</button><button class="btn ${r.hit ? "" : "primary"}" data-act="slay-ok" data-v="0">Nothing happens</button><span class="spacer"></span><button class="btn" data-act="nom-cancel">Cancel</button></div>
+    ${r.real ? `<p class="hint">Either way, the Slayer's ability is now used up.</p>` : ""}</section>`;
+}
+function slayerResult(by, at) {
+  const real = roleOf(by) === "Slayer", demon = teamOf(roleOf(at)) === "demon";
+  if (!real) return { real, hit: false, why: `${nameOf(by)} isn't the Slayer, so nothing happens.` };
+  if (S.used[by]) return { real, hit: false, why: "The Slayer has already used their ability, so nothing happens." };
+  const bad = unreliable(by);
+  if (bad.length) return { real, hit: false, why: `The Slayer's ability doesn't work (${bad[0]}), so nothing happens.` };
+  return demon ? { real, hit: true, why: `${nameOf(at)} is the Demon: they die.` } : { real, hit: false, why: `${nameOf(at)} isn't the Demon, so nothing happens.` };
+}
+const shotLines = () => (S.day.shots || []).map(x => `🏹 <b>${esc(nameOf(x.by))}</b> shot <b>${esc(nameOf(x.at))}</b>: ${x.died ? `${esc(nameOf(x.at))} died` : "nothing happened"}.`);
 
 function townCircle(hl = []) {
   const n = S.players.length, tok = tokenSize(n), spent = ghostSpent();
@@ -1167,7 +1233,6 @@ function nomListHtml() {
 
 function dayHtml() {
   const D = S.day, d = D.draft, need = votesNeeded();
-  const pickBtns = (ids, act, sel = []) => `<div class="pickgrid">${ids.map(q => `<button class="pick ${S.dead[q] ? "dead" : ""}" data-act="${act}" data-pid="${q}" aria-pressed="${sel.includes(q)}">${esc(nameOf(q))}</button>`).join("")}</div>`;
   let card;
   if (D.done) {
     const e = D.exec;
@@ -1175,6 +1240,7 @@ function dayHtml() {
       ${e ? `<p class="lead">${e.dies ? `<b>${esc(nameOf(e.pid))}</b> was executed${e.cause === "executed" ? "" : ` (${esc(e.cause)})`} and died.` : `<b>${esc(nameOf(e.pid))}</b> was executed but did not die.`}</p>` : `<p class="lead">Nobody was executed.</p>`}
       ${e && e.notes.length ? e.notes.map(t => `<p class="notice">${t}</p>`).join("") : ""}
       <h3>Nominations</h3>${nomListHtml()}
+      ${(D.shots || []).length ? `<h3>Slayer shots</h3><ol class="log">${shotLines().map(l => `<li>${l}</li>`).join("")}</ol>` : ""}
       <div class="row"><button class="btn" data-act="day-reopen">← Reopen the day</button><span class="spacer"></span><button class="btn primary" data-act="next-night">Start Night ${D.n + 1} →</button></div>
       ${historyHtml()}
     </section>`;
@@ -1184,9 +1250,12 @@ function dayHtml() {
       <p class="lead">${aliveIds().length} alive · <b>${need}</b> votes needed to execute.</p>
       ${b.who ? `<p class="notice">On the block: <b>${esc(nameOf(b.who))}</b> with ${plural(b.best, "vote")}.</p>` : b.best ? `<p class="notice">Tied on ${plural(b.best, "vote")}: nobody is on the block.</p>` : ""}
       <h3>Nominations</h3>${nomListHtml()}
-      <div class="row"><button class="btn primary" data-act="nom-new">+ New nomination</button><span class="spacer"></span><button class="btn" data-act="day-end">End the day →</button></div>
+      ${(D.shots || []).length ? `<h3>Slayer shots</h3><ol class="log">${shotLines().map((l, k) => `<li>${l} <button class="x-inline" data-act="slay-del" data-i="${k}" aria-label="Undo this shot">×</button></li>`).join("")}</ol>` : ""}
+      <div class="row"><button class="btn primary" data-act="nom-new">+ New nomination</button><button class="btn" data-act="slay-new">🏹 Slayer shot</button><span class="spacer"></span><button class="btn" data-act="day-end">End the day →</button></div>
       ${historyHtml()}
     </section>`;
+  } else if (d.stage.startsWith("slayer")) {
+    card = slayerHtml(d);
   } else if (d.stage === "by") {
     const ids = aliveIds().filter(q => !nominators().has(q));
     card = `<section class="card"><h2>Who is nominating?</h2><p class="hint">Alive players who haven't nominated today.</p>
@@ -1341,7 +1410,7 @@ document.addEventListener("click", ev => {
     case "night-hide": S.night.view = "handback"; S.night.after = "st"; break;
     case "night-done": S.night.view = "handback"; S.night.after = "next"; break;
     case "night-resume": if (S.night.after === "next" && !(S.night.cur && S.night.cur.done && S.night.cur.kills)) nextStep(true); else S.night.view = "st"; break;
-    case "night-dawn": S.history.push({ h: `Night ${S.n}`, lines: [...S.log, S.night.deaths.length ? `${esc(names(S.night.deaths))} died.` : "Nobody died."] }); S.preNight = null; startDay(); break;
+    case "night-dawn": { const before = JSON.stringify(S); S.history.push({ h: `Night ${S.n}`, lines: [...S.log, S.night.deaths.length ? `${esc(names(S.night.deaths))} died.` : "Nobody died."] }); S.preNight = null; startDay(); checkOver(before, {}); break; }
     case "next-night": S.n++; startNight(); wake(); break;
     case "night-apply": nextStep(true); break;
     case "kill-set": S.night.cur.kills[i].dies = el.dataset.v === "1"; break;
@@ -1356,7 +1425,7 @@ document.addEventListener("click", ev => {
       d.stage = virginIn(d.of) && !S.virginUsed && !S.day.noms.some(n => n.virgin) ? "virgin" : "vote";
       break;
     }
-    case "virgin-exec": { const d = S.day.draft; S.day.noms.push({ by: d.by, of: d.of, votes: [], ghosts: [], count: 0, virgin: "executed" }); execute(d.by, "nominated the Virgin"); break; }
+    case "virgin-exec": { const d = S.day.draft; S.day.noms.push({ by: d.by, of: d.of, votes: [], ghosts: [], count: 0, virgin: "executed" }); const before = JSON.stringify(S); execute(d.by, "nominated the Virgin"); checkOver(before, { exec: S.day.exec }); break; }
     case "virgin-no": S.day.draft.virginNothing = true; S.day.draft.stage = "vote"; break;
     case "vote": { const d = S.day.draft, q = el.dataset.pid; d.votes = d.votes.includes(q) ? d.votes.filter(x => x !== q) : [...d.votes, q]; break; }
     case "vote-ok": {
@@ -1372,9 +1441,31 @@ document.addEventListener("click", ev => {
     }
     case "day-end": S.day.end = true; break;
     case "day-end-back": S.day.end = false; break;
-    case "exec": execute(el.dataset.pid, "executed"); S.day.end = false; break;
+    case "exec": { const before = JSON.stringify(S); execute(el.dataset.pid, "executed"); S.day.end = false; checkOver(before, { exec: S.day.exec }); break; }
     case "exec-live": execute(el.dataset.pid, "executed", false); S.day.end = false; break;
-    case "exec-none": S.day.exec = null; S.day.done = true; S.day.end = false; break;
+    case "exec-none": { const before = JSON.stringify(S); S.day.exec = null; S.day.done = true; S.day.end = false; checkOver(before, { noExec: true }); break; }
+    case "slay-new": S.day.draft = { stage: "slayer-by" }; break;
+    case "slay-by": S.day.draft.by = el.dataset.pid; S.day.draft.stage = "slayer-at"; break;
+    case "slay-at": S.day.draft.at = el.dataset.pid; S.day.draft.stage = "slayer-res"; break;
+    case "slay-ok": {
+      const before = JSON.stringify(S), d = S.day.draft, died = el.dataset.v === "1", real = roleOf(d.by) === "Slayer";
+      const shot = { by: d.by, at: d.at, died, used: real && !S.used[d.by] };
+      if (shot.used) S.used[d.by] = true;
+      if (died) { S.dead[d.at] = true; S.deathCause[d.at] = "shot by the Slayer"; shot.sw = scarletTakeover(d.at); }
+      S.day.shots = [...(S.day.shots || []), shot];
+      S.day.draft = null;
+      if (died) checkOver(before, {});
+      break;
+    }
+    case "slay-del": {
+      if (!confirm("Undo this Slayer shot?")) return;
+      const [x] = S.day.shots.splice(i, 1);
+      if (x.used) S.used[x.by] = false;
+      if (x.died) S.dead[x.at] = false;
+      if (x.sw) { S.drawn[x.sw] = { ...S.drawn[x.sw], role: "Scarlet Woman" }; S.toTell = (S.toTell || []).filter(q => q !== x.sw); }
+      break;
+    }
+    case "over-undo": S = JSON.parse(S.over.before); break;
     case "day-reopen": {
       const e = S.day.exec;
       if (e && e.dies) S.dead[e.pid] = false;
