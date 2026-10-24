@@ -2,11 +2,54 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="0; url=storyteller.html">
-<title>Games</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#15121b">
+<title>Clocktower Apps</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+:root {
+  --bg: #15121b; --surface: #211c29; --line: #3b3346; --fg: #ece6f2; --muted: #a69cb3; --brass: #d4ab55;
+  --felt: radial-gradient(circle at 50% 30%, #2c2436 0%, #1b1622 62%, #15121b 100%);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #f1eef4; --surface: #ffffff; --line: #dcd4e3; --fg: #231d2b; --muted: #6c6278; --brass: #94701f; --felt: radial-gradient(circle at 50% 30%, #ffffff 0%, #ebe5f0 70%, #e2dbe9 100%); color-scheme: light; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--felt); background-color: var(--bg); color: var(--fg); font-family: "Alegreya Sans", "Segoe UI", system-ui, sans-serif; display: grid; place-items: center; padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
+main { width: min(720px, 100%); display: grid; gap: 22px; text-align: center; }
+h1 { margin: 0; font-family: "IM Fell English SC", Georgia, serif; font-weight: 400; color: var(--brass); font-size: clamp(2.2rem, 7vw, 3.2rem); }
+p { margin: 0; color: var(--muted); }
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+a.choice { display: grid; gap: 8px; text-align: left; text-decoration: none; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+a.choice:hover, a.choice:focus-visible { border-color: var(--brass); outline: none; }
+.choice .ico { font-size: 2.4rem; }
+.choice h2 { margin: 0; font-family: "IM Fell English SC", Georgia, serif; font-weight: 400; font-size: 1.6rem; color: var(--brass); }
+.choice span.go { font-weight: 800; color: var(--brass); }
+footer { color: var(--muted); font-size: .8rem; }
+</style>
 </head>
 <body>
-<p><a href="storyteller.html">Storyteller: face to face</a></p>
+<main>
+  <h1>Clocktower Apps</h1>
+  <p>Tools for playing <i>Blood on the Clocktower</i> round a real table.</p>
+  <div class="choices">
+    <a class="choice" href="storyteller.html">
+      <span class="ico" aria-hidden="true">📜</span>
+      <h2>Storyteller</h2>
+      <p>Set up the bag, let players draw in secret, then run the Grimoire, the nights and the days.</p>
+      <span class="go">Open →</span>
+    </a>
+    <a class="choice" href="player.html">
+      <span class="ico" aria-hidden="true">🕯️</span>
+      <h2>Player</h2>
+      <p>Your own Grimoire: who's sitting where, what they claim, who you trust, and what you've learnt.</p>
+      <span class="go">Open →</span>
+    </a>
+  </div>
+  <footer><i>Blood on the Clocktower</i> belongs to The Pandemonium Institute. Unofficial fan-made tools.</footer>
+</main>
 </body>
 </html>

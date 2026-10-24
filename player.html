@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#15121b">
+<title>Player's Grimoire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+:root {
+  --bg: #15121b; --surface: #211c29; --surface-2: #2b2534; --line: #3b3346;
+  --fg: #ece6f2; --muted: #a69cb3; --brass: #d4ab55; --on-brass: #1a1408;
+  --parch: #efe4c9; --parch-ink: #2a2118;
+  --good: #4c8ce4; --evil: #d8435a; --unsure: #8d8299;
+  --townsfolk: #3e7fd6; --outsider: #5cb8ec; --minion: #d4485e; --demon: #b0263d;
+  --warn: #e3a53c;
+  --felt: radial-gradient(circle at 50% 45%, #2c2436 0%, #1b1622 62%, #15121b 100%);
+  --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+    --fg: #231d2b; --muted: #6c6278; --brass: #94701f; --on-brass: #fff;
+    --good: #2463c2; --evil: #be2a42; --unsure: #8a8095;
+    --townsfolk: #2463c2; --outsider: #2a92cc; --minion: #c0344b; --demon: #8a1428; --warn: #b7791f;
+    --felt: radial-gradient(circle at 50% 45%, #ffffff 0%, #ebe5f0 70%, #e2dbe9 100%);
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(40px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 16px; }
+header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+header h1 { margin: 0 auto 0 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.6rem; }
+.home { text-decoration: none; color: var(--muted); font-size: 1.3rem; }
+.steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.steps span { font-size: .8rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); }
+.steps span.on { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 14px; min-width: 0; align-content: start; }
+.card h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.4rem; color: var(--brass); }
+.card h3 { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; color: var(--muted); }
+.hint { color: var(--muted); font-size: .92rem; margin: 0; }
+.lead { font-size: 1.1rem; margin: 0; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.spacer { flex: 1; }
+.warn { color: var(--warn); font-weight: 700; margin: 0; }
+
+.btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 10px 16px; min-height: 46px; font-weight: 800; }
+.btn:hover:not(:disabled) { border-color: var(--brass); }
+.btn.primary { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
+.btn.danger { color: var(--evil); }
+.btn:disabled { opacity: .45; cursor: default; }
+.icon { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); display: inline-grid; place-items: center; }
+.icon:disabled { opacity: .3; cursor: default; }
+input[type=text], select, textarea { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 46px; }
+textarea { resize: vertical; min-height: 90px; }
+label.field, .field { display: grid; gap: 6px; }
+.label { font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; color: var(--muted); }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex-wrap: wrap; }
+.seg button { border: 0; background: var(--surface-2); padding: 8px 14px; min-height: 44px; font-weight: 800; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); }
+.seg button.r-trust[aria-pressed="true"], .seg button.g[aria-pressed="true"] { background: var(--good); color: #fff; }
+.seg button.r-suspect[aria-pressed="true"], .seg button.e[aria-pressed="true"] { background: var(--evil); color: #fff; }
+.seg button.r-demon[aria-pressed="true"] { background: var(--demon); color: #fff; }
+.seg button.r-unsure[aria-pressed="true"] { background: var(--unsure); color: #fff; }
+
+/* Players */
+.players { display: grid; gap: 8px; }
+.prow { display: grid; grid-template-columns: 2em minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+.prow .n { color: var(--muted); font-weight: 800; text-align: right; }
+.prow .btns { display: flex; gap: 4px; }
+.me-btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; min-height: 40px; padding: 0 12px; font-weight: 800; color: var(--muted); }
+.me-btn[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
+.add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+
+/* Token */
+.t-townsfolk { color: var(--townsfolk); } .t-outsider { color: var(--outsider); } .t-minion { color: var(--minion); } .t-demon { color: var(--demon); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 8px; }
+.tile { display: grid; justify-items: center; gap: 2px; padding: 10px 6px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface-2); text-align: center; font-weight: 700; font-size: .9rem; line-height: 1.15; min-height: 84px; align-content: center; }
+.tile .ico { font-size: 1.7rem; line-height: 1.2; }
+.tile[aria-pressed="true"] { background: var(--parch); color: var(--parch-ink); }
+.tile.townsfolk[aria-pressed="true"] { border-color: var(--townsfolk); } .tile.outsider[aria-pressed="true"] { border-color: var(--outsider); }
+.tile.minion[aria-pressed="true"] { border-color: var(--minion); } .tile.demon[aria-pressed="true"] { border-color: var(--demon); }
+.side-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.side-btn { min-height: 110px; border-radius: 16px; border: 3px solid var(--line); background: var(--surface-2); font-family: var(--font-display); font-size: 2rem; }
+.side-btn.good[aria-pressed="true"] { background: var(--good); border-color: var(--good); color: #fff; }
+.side-btn.evil[aria-pressed="true"] { background: var(--evil); border-color: var(--evil); color: #fff; }
+
+/* Grimoire circle */
+.grim-wrap { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 900px) { .grim-wrap { grid-template-columns: minmax(0, 1.15fr) minmax(330px, 1fr); } }
+.side { display: grid; gap: 16px; }
+.circle { position: relative; width: 100%; max-width: 640px; margin: 0 auto; aspect-ratio: 1; container-type: inline-size; border-radius: 50%; background: var(--felt); border: 1px solid var(--line); }
+.seat { position: absolute; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 2px; background: none; border: 0; padding: 0; width: var(--tok); color: inherit; }
+.disc { width: var(--tok); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); border: 4px solid var(--unsure); display: grid; place-content: center; justify-items: center; text-align: center; padding: 6%; box-shadow: 0 2px 6px rgba(0,0,0,.35); overflow: hidden; line-height: 1.02; }
+.seat.trust .disc { border-color: var(--good); } .seat.suspect .disc { border-color: var(--evil); } .seat.demon .disc { border-color: var(--demon); border-width: 6px; }
+.seat.me .disc { outline: 4px solid var(--brass); outline-offset: 2px; }
+.seat.sel .disc { box-shadow: 0 0 0 4px var(--fg); }
+.seat.dead .disc { filter: grayscale(1) brightness(.65); }
+.disc .ico { font-size: calc(var(--tok) * .3); line-height: 1.1; }
+.disc .nm { font-weight: 800; font-size: calc(var(--tok) * var(--fs)); }
+.disc .q { font-family: var(--font-display); font-size: calc(var(--tok) * .34); color: #8d826f; }
+.plate { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; font-weight: 800; font-size: clamp(.7rem, 2.6cqi, .95rem); max-width: calc(var(--tok) * 1.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat.dead .plate { text-decoration: line-through; color: var(--muted); }
+.badge { font-size: clamp(.6rem, 2.1cqi, .72rem); font-weight: 800; border-radius: 999px; padding: 0 6px; background: var(--surface-2); border: 1px solid var(--line); white-space: nowrap; }
+.badge.demon { background: var(--demon); color: #fff; border-color: var(--demon); }
+.center { position: absolute; inset: 30%; display: grid; place-content: center; justify-items: center; text-align: center; gap: 6px; }
+.center .ph { font-family: var(--font-display); color: var(--brass); font-size: clamp(1.2rem, 6cqi, 2.2rem); }
+.phase { display: flex; align-items: center; gap: 8px; }
+.phase b { font-family: var(--font-display); font-weight: 400; font-size: 1.3rem; color: var(--brass); min-width: 5.5em; text-align: center; }
+
+.ability { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; margin: 0; }
+.ability small { display: block; color: var(--muted); margin-top: 4px; }
+.mine { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; }
+.mine .big { font-size: 2.6rem; }
+.log { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.log li { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; display: flex; gap: 8px; align-items: baseline; }
+.log li .ph { color: var(--brass); font-weight: 800; font-size: .85rem; white-space: nowrap; }
+.log li .t { flex: 1; overflow-wrap: anywhere; }
+.x { background: none; border: 0; color: var(--muted); font-weight: 800; padding: 0 4px; }
+.claims { display: grid; gap: 6px; }
+.claim { display: flex; gap: 8px; align-items: center; }
+.claim .ico { width: 1.6em; text-align: center; }
+footer { color: var(--muted); font-size: .8rem; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="home" href="index.html" aria-label="All apps">⌂</a>
+    <h1>Player's Grimoire</h1>
+    <nav class="steps" id="steps" aria-label="Steps"></nav>
+  </header>
+  <main id="app"></main>
+  <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
+</div>
+<script src="characters.js"></script>
+<script>
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => Math.random().toString(36).slice(2, 10);
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+const listJoin = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+const scriptChars = (teams = TEAMS) => teams.flatMap(t => SCRIPTS[S.script].roles[t].map(x => x[0]));
+// Phases: 0 is Night 1, 1 is Day 1, 2 is Night 2…
+const phaseName = ph => `${ph % 2 ? "Day" : "Night"} ${Math.floor(ph / 2) + 1}`;
+
+/* ---------- State ---------- */
+const LS = "botc-player-v1";
+const fresh = () => ({ step: "players", script: "tb", players: [], me: "", role: "", side: "", ph: 0, P: {}, info: [] });
+let S;
+try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
+if (!S || !S.step) S = fresh();
+const ui = { sel: null };
+const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
+const nameOf = pid => { const i = S.players.findIndex(p => p.id === pid); return i < 0 ? "someone" : (S.players[i].name.trim() || `Seat ${i + 1}`); };
+// What I know about each player
+const about = pid => (S.P[pid] = S.P[pid] || { claim: "", read: "unsure", dead: false, ghost: false, notes: "" });
+const aliveIds = () => S.players.map(p => p.id).filter(q => !about(q).dead);
+
+/* ---------- Screens ---------- */
+function render() {
+  const steps = [["players", "Players"], ["token", "My token"], ["grim", S.side === "evil" ? "Evil" : "Grimoire"]];
+  $("steps").innerHTML = steps.map(([k, l]) => `<span class="${S.step === k ? "on" : ""}">${l}</span>`).join("");
+  $("app").innerHTML = S.step === "players" ? playersHtml() : S.step === "token" ? tokenHtml() : S.side === "evil" ? evilHtml() : grimHtml();
+  save();
+}
+
+function playersHtml() {
+  const n = S.players.length;
+  const rows = S.players.map((p, i) => `<div class="prow">
+      <span class="n">${i + 1}</span>
+      <input type="text" data-name="${i}" value="${esc(p.name)}" placeholder="Player name" aria-label="Seat ${i + 1} name" autocomplete="off">
+      <button class="me-btn" data-act="me" data-pid="${p.id}" aria-pressed="${S.me === p.id}">${S.me === p.id ? "★ Me" : "Me"}</button>
+      <span class="btns">
+        <button class="icon" data-act="up" data-i="${i}" aria-label="Move up" ${i === 0 ? "disabled" : ""}>↑</button>
+        <button class="icon" data-act="down" data-i="${i}" aria-label="Move down" ${i === n - 1 ? "disabled" : ""}>↓</button>
+        <button class="icon" data-act="del" data-i="${i}" aria-label="Remove">×</button>
+      </span>
+    </div>`).join("");
+  const ready = n >= 5 && S.me;
+  return `<section class="card">
+    <h2>Who's playing?</h2>
+    <label class="field"><span class="label">Script</span>
+      <select data-script>${Object.entries(SCRIPTS).map(([k, v]) => `<option value="${k}" ${S.script === k ? "selected" : ""}>${v.name}</option>`).join("")}</select>
+    </label>
+    <p class="hint">Add everyone in seat order, going clockwise round the table, including yourself. You can type several names separated by commas. Then tap <b>Me</b> next to your own name.</p>
+    <div class="add">
+      <input type="text" id="newName" placeholder="Name" autocomplete="off" enterkeyhint="done" aria-label="New player's name">
+      <button class="btn primary" data-act="add">Add</button>
+    </div>
+    ${n ? `<div class="players">${rows}</div>` : ""}
+    <p class="hint">${n < 5 ? `${plural(n, "player")}. You need at least 5.` : !S.me ? "Tap Me next to your own name." : `${plural(n, "player")}, and you're ${esc(nameOf(S.me))}.`}</p>
+    <div class="row">
+      ${n ? `<button class="btn danger" data-act="clear-players">Clear all</button>` : ""}
+      <span class="spacer"></span>
+      <button class="btn primary" data-act="to-token" ${ready ? "" : "disabled"}>I've got my token →</button>
+    </div>
+  </section>`;
+}
+
+function tokenHtml() {
+  const R = SCRIPTS[S.script].roles;
+  const c = CHAR[S.role];
+  return `<section class="card">
+    <h2>Your token</h2>
+    <p class="hint">Which character did the Storyteller give you? You can change it later.</p>
+    ${TEAMS.map(t => `<h3 class="t-${t}">${TEAM_LABEL[t]}</h3>
+      <div class="tiles">${R[t].map(([name, icon]) => `<button class="tile ${t}" data-act="role" data-role="${esc(name)}" aria-pressed="${S.role === name}"><span class="ico" aria-hidden="true">${icon}</span>${esc(name)}</button>`).join("")}</div>`).join("")}
+    ${c ? `<p class="ability"><b>${c.icon} ${esc(c.name)}</b>: ${esc(c.text)}${c.text.includes("night*") ? "<small>* not the first night</small>" : ""}</p>` : ""}
+  </section>
+  <section class="card">
+    <h2>Which side are you on?</h2>
+    <p class="hint">Townsfolk and Outsiders are usually good, Minions and Demons evil, but some characters can change sides.</p>
+    <div class="side-pick">
+      <button class="side-btn good" data-act="side" data-v="good" aria-pressed="${S.side === "good"}">Good</button>
+      <button class="side-btn evil" data-act="side" data-v="evil" aria-pressed="${S.side === "evil"}">Evil</button>
+    </div>
+    <div class="row"><button class="btn" data-act="to-players">← Players</button><span class="spacer"></span><button class="btn primary" data-act="to-grim" ${S.side ? "" : "disabled"}>Open my Grimoire →</button></div>
+  </section>`;
+}
+
+function evilHtml() {
+  return `<section class="card">
+    <h2>The evil Grimoire</h2>
+    <p class="lead">You're on the evil team. The evil player's Grimoire is coming next.</p>
+    <div class="row"><button class="btn" data-act="to-token">← My token</button></div>
+  </section>`;
+}
+
+/* The good player's Grimoire */
+const READS = [["trust", "Trust"], ["unsure", "Unsure"], ["suspect", "Suspect"], ["demon", "Demon?"]];
+function circleHtml() {
+  const n = S.players.length, tok = n <= 7 ? 19 : n <= 10 ? 16.5 : n <= 13 ? 14 : 12.5;
+  const seats = S.players.map((p, i) => {
+    const a = (i / n) * 2 * Math.PI - Math.PI / 2, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
+    const me = p.id === S.me, A = about(p.id), role = me ? S.role : A.claim, c = CHAR[role];
+    const word = Math.max(...(role || "x").split(/\s+/).map(w => w.length));
+    const read = me ? (S.side === "evil" ? "suspect" : "trust") : A.read;
+    return `<button class="seat ${read} ${me ? "me" : ""} ${A.dead ? "dead" : ""} ${ui.sel === p.id ? "sel" : ""}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" data-act="sel" data-pid="${p.id}" aria-label="Seat ${i + 1}: ${esc(nameOf(p.id))}${role ? `, ${me ? "you are" : "claims"} the ${esc(role)}` : ""}">
+      <span class="disc">${c ? `<span class="ico" aria-hidden="true">${c.icon}</span><span class="nm" style="--fs:${Math.min(.17, 1.45 / word).toFixed(3)}">${esc(role)}</span>` : `<span class="q">?</span>`}</span>
+      <span class="plate">${me ? "★ " : ""}${esc(nameOf(p.id))}</span>
+      ${A.read === "demon" && !me ? `<span class="badge demon">Demon?</span>` : A.dead && !A.ghost ? `<span class="badge">👻 vote</span>` : ""}
+    </button>`;
+  }).join("");
+  const alive = aliveIds().length;
+  return `<div class="circle" style="--tok:min(96px, ${tok}cqi)">${seats}
+    <div class="center"><span class="ph">${phaseName(S.ph)}</span><span class="hint">${alive} alive · ${Math.ceil(alive / 2)} votes to execute</span></div>
+  </div>`;
+}
+
+function playerPanel(pid) {
+  const A = about(pid), c = CHAR[A.claim];
+  const opts = TEAMS.map(t => `<optgroup label="${TEAM_LABEL[t]}">${scriptChars([t]).map(r => `<option ${r === A.claim ? "selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>`).join("");
+  return `<section class="card">
+    <div class="row"><h2 style="margin-right:auto">${S.players.findIndex(p => p.id === pid) + 1}. ${esc(nameOf(pid))}</h2><button class="icon" data-act="sel" data-pid="${pid}" aria-label="Close">×</button></div>
+    <label class="field"><span class="label">They claim to be</span><select data-claim="${pid}"><option value="">No claim yet</option>${opts}</select></label>
+    ${c ? `<p class="ability"><b>${c.icon} ${esc(c.name)}</b>: ${esc(c.text)}</p>` : ""}
+    ${dupes()[A.claim] ? `<p class="warn">⚠ ${esc(listJoin(dupes()[A.claim].filter(q => q !== pid).map(nameOf)))} also ${dupes()[A.claim].length > 2 ? "claim" : "claims"} the ${esc(A.claim)}.</p>` : ""}
+    <div class="field"><span class="label">My read</span>
+      <span class="seg">${READS.map(([v, l]) => `<button class="r-${v}" data-act="read" data-pid="${pid}" data-v="${v}" aria-pressed="${A.read === v}">${l}</button>`).join("")}</span></div>
+    <div class="row">
+      <button class="btn" data-act="dead" data-pid="${pid}">${A.dead ? "Bring back to life" : "Mark dead"}</button>
+      ${A.dead ? `<button class="btn" data-act="ghost" data-pid="${pid}">${A.ghost ? "Ghost vote used ✓" : "Ghost vote unused"}</button>` : ""}
+    </div>
+    <label class="field"><span class="label">Notes</span><textarea data-notes="${pid}" placeholder="What they've said, who they've talked to, how they've voted…">${esc(A.notes)}</textarea></label>
+  </section>`;
+}
+
+// Characters claimed by more than one player
+function dupes() {
+  const by = {};
+  for (const p of S.players) { const r = p.id === S.me ? S.role : about(p.id).claim; if (r) (by[r] = by[r] || []).push(p.id); }
+  return Object.fromEntries(Object.entries(by).filter(([, ids]) => ids.length > 1));
+}
+
+function myCard() {
+  const c = CHAR[S.role];
+  const mine = S.info.slice().sort((a, b) => a.ph - b.ph);
+  return `<section class="card">
+    <h2>My info</h2>
+    ${c ? `<div class="mine"><span class="big" aria-hidden="true">${c.icon}</span><div><b>${esc(c.name)}</b> · <span class="${S.side === "evil" ? "t-demon" : "t-townsfolk"}" style="font-weight:800">${S.side === "evil" ? "Evil" : "Good"}</span><p class="hint">${esc(c.text)}</p></div></div>` : `<p class="hint">You haven't picked your character.</p>`}
+    <div class="add"><input type="text" id="newInfo" placeholder="What did you learn on ${phaseName(S.ph)}?" autocomplete="off" enterkeyhint="done" aria-label="New info"><button class="btn primary" data-act="info-add">Add</button></div>
+    ${mine.length ? `<ul class="log">${mine.map(e => `<li><span class="ph">${phaseName(e.ph)}</span><span class="t">${esc(e.text)}</span><button class="x" data-act="info-del" data-id="${e.id}" aria-label="Delete">×</button></li>`).join("")}</ul>` : `<p class="hint">Write down what you learn each night, so you can share it, or keep it to yourself.</p>`}
+  </section>`;
+}
+
+function claimsCard() {
+  const d = dupes();
+  const rows = S.players.filter(p => p.id !== S.me).map(p => {
+    const A = about(p.id), c = CHAR[A.claim];
+    return `<div class="claim"><span class="ico">${c ? c.icon : "·"}</span><span style="flex:1"><b>${esc(nameOf(p.id))}</b>${A.claim ? `: ${esc(A.claim)}` : ` <span class="hint">no claim</span>`}${A.dead ? ` <span class="hint">(dead)</span>` : ""}</span>${d[A.claim] ? `<span class="warn">⚠ double claim</span>` : ""}</div>`;
+  }).join("");
+  const outs = S.players.filter(p => teamOf(p.id === S.me ? S.role : about(p.id).claim) === "outsider" && (p.id === S.me ? S.role : about(p.id).claim)).length;
+  const comp = COMP[S.players.length];
+  return `<section class="card">
+    <h2>Claims</h2>
+    <div class="claims">${rows}</div>
+    ${comp ? `<p class="hint">With ${S.players.length} players there should be ${comp[1]} Outsider${comp[1] === 1 ? "" : "s"} (or more with a Baron). ${outs ? `${plural(outs, "Outsider")} claimed so far.` : ""}</p>` : ""}
+  </section>`;
+}
+
+function grimHtml() {
+  return `<div class="grim-wrap">
+    <div>
+      <div class="phase row" style="justify-content:center;margin-bottom:10px"><button class="icon" data-act="ph" data-v="-1" aria-label="Previous phase" ${S.ph ? "" : "disabled"}>‹</button><b>${phaseName(S.ph)}</b><button class="icon" data-act="ph" data-v="1" aria-label="Next phase">›</button></div>
+      ${circleHtml()}
+      <p class="hint" style="text-align:center">Tap a player to note their claim, your read and whether they've died. Blue: you trust them. Red: you suspect them.</p>
+    </div>
+    <div class="side">${ui.sel && ui.sel !== S.me ? playerPanel(ui.sel) : ""}${myCard()}${claimsCard()}
+      <section class="card"><div class="row"><button class="btn" data-act="to-token">← My token</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
+    </div>
+  </div>`;
+}
+
+/* ---------- Actions ---------- */
+function addNames() {
+  const names = $("newName").value.split(/[,\n;]+/).map(s => s.trim()).filter(Boolean);
+  if (!names.length) return;
+  for (const name of names) S.players.push({ id: uid(), name });
+  render();
+  $("newName").focus();
+}
+function addInfo() {
+  const t = $("newInfo").value.trim();
+  if (!t) return;
+  S.info.push({ id: uid(), ph: S.ph, text: t });
+  render();
+  $("newInfo").focus();
+}
+
+document.addEventListener("click", ev => {
+  const el = ev.target.closest("[data-act]");
+  if (!el) return;
+  const i = Number(el.dataset.i), pid = el.dataset.pid;
+  switch (el.dataset.act) {
+    case "add": return addNames();
+    case "up": case "down": { const j = el.dataset.act === "up" ? i - 1 : i + 1; [S.players[i], S.players[j]] = [S.players[j], S.players[i]]; break; }
+    case "del": if (S.players[i].id === S.me) S.me = ""; S.players.splice(i, 1); break;
+    case "me": S.me = pid; break;
+    case "clear-players": if (!confirm("Remove every player?")) return; S.players = []; S.me = ""; break;
+    case "to-players": S.step = "players"; break;
+    case "to-token": S.step = "token"; break;
+    case "role": S.role = el.dataset.role; break;
+    case "side": S.side = el.dataset.v; break;
+    case "to-grim": S.step = "grim"; break;
+    case "sel": ui.sel = ui.sel === pid || pid === S.me ? null : pid; render(); return;
+    case "read": about(pid).read = el.dataset.v; break;
+    case "dead": { const A = about(pid); A.dead = !A.dead; if (!A.dead) A.ghost = false; break; }
+    case "ghost": about(pid).ghost = !about(pid).ghost; break;
+    case "ph": S.ph = Math.max(0, S.ph + Number(el.dataset.v)); break;
+    case "info-add": return addInfo();
+    case "info-del": S.info = S.info.filter(e => e.id !== el.dataset.id); break;
+    case "new-game": if (!confirm("Start a new game? The players stay; your notes, character and side are cleared.")) return; S = { ...fresh(), script: S.script, players: S.players, me: S.me, step: "token" }; ui.sel = null; break;
+    default: return;
+  }
+  render();
+  if (!["sel", "read", "dead", "ghost", "me", "role", "side", "info-del"].includes(el.dataset.act)) window.scrollTo({ top: 0 });
+});
+document.addEventListener("input", ev => {
+  const t = ev.target;
+  if (t.dataset.name !== undefined) { S.players[Number(t.dataset.name)].name = t.value; save(); }
+  if (t.dataset.notes !== undefined) { about(t.dataset.notes).notes = t.value; save(); }
+});
+document.addEventListener("change", ev => {
+  const t = ev.target;
+  if (t.dataset.script !== undefined) { S.script = t.value; if (S.role && !scriptChars().includes(S.role)) S.role = ""; render(); }
+  if (t.dataset.claim !== undefined) { about(t.dataset.claim).claim = t.value; render(); }
+  if (t.dataset.name !== undefined) render();
+});
+document.addEventListener("keydown", ev => {
+  if (ev.key !== "Enter") return;
+  if (ev.target.id === "newName") { ev.preventDefault(); addNames(); }
+  if (ev.target.id === "newInfo") { ev.preventDefault(); addInfo(); }
+});
+
+render();
+</script>
+</body>
+</html>
