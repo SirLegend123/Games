@@ -52,5 +52,12 @@ A *Blood on the Clocktower* app for each player at a real table. Open `player.ht
    - **My info**: your character and ability, and a log of what you've learnt, filed under the current night or day.
    - **Claims**: everyone's claim in one list, with double claims flagged, and how many Outsiders there should be for the number of players.
    - **New game** keeps the players and clears the rest.
-   The evil player's Grimoire is coming next.
+4. **Grimoire** (evil players):
+   - **The circle**: your teammates in red with their real characters (and an "as …" tag for their bluff), everyone else with what they claim and how dangerous you rate them (Harmless, Watch, Threat or 🎯 Target). You're shown with your real character and your bluff.
+   - **Tap a player** to mark them as on your team (and their real character), set their claim or bluff, rate how dangerous they are, mark deaths and ghost votes, and keep notes.
+   - **My team**: you and your teammates with their characters and bluffs.
+   - **Bluffs**: the Demon's three bluffs, each marked free, used by your team or claimed by the town; the character you're claiming, with its ability and a warning if anyone else claims it; and a warning if two of your team bluff as the same character.
+   - **Who to kill** (Demons): living players not on your team, most dangerous first.
+   - **My cover story**: a log by night and day of what really happened and, kept apart, what you'll say (🗣️), so your story stays the same.
+   - **What the town claims**: every good player's claim, with double claims and claims of your bluffs flagged.
 
