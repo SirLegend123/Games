@@ -190,6 +190,28 @@ label.field { display: grid; gap: 6px; }
 .draw[class*="tint-"] .t-townsfolk, .draw[class*="tint-"] .t-outsider, .draw[class*="tint-"] .t-minion, .draw[class*="tint-"] .t-demon { color: inherit; }
 .draw[class*="tint-"] .charchip { color: var(--parch-ink); }
 .pickgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; width: 100%; }
+/* Night screens are read across a table: make everything big */
+.draw[class*="tint-"] .draw-inner, .draw.dawn .draw-inner { width: min(900px, 100%); gap: 22px; }
+.draw[class*="tint-"] .lead, .draw.dawn .lead { font-size: clamp(1.5rem, 3.6vw, 2.1rem); line-height: 1.3; }
+.draw[class*="tint-"] h1, .draw.dawn h1 { font-size: clamp(2.8rem, 9vw, 4.4rem); }
+.draw[class*="tint-"] .nmchip, .draw.dawn .nmchip { font-size: clamp(2.2rem, 7vw, 3.4rem); padding: 8px 24px; border-width: 3px; }
+.draw[class*="tint-"] .charchip { font-size: clamp(1.4rem, 3.4vw, 1.9rem); min-width: 170px; padding: 14px 22px; }
+.draw[class*="tint-"] .charchip .ico { font-size: clamp(3rem, 8vw, 4.4rem); }
+.draw[class*="tint-"] .pickgrid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+.draw[class*="tint-"] .pick { min-height: 90px; font-size: clamp(1.5rem, 3.6vw, 2rem); }
+.draw[class*="tint-"] .answer { font-size: clamp(6rem, 24vw, 10rem); }
+.draw[class*="tint-"] .answer.small, .draw.dawn .answer.small { font-size: clamp(2.6rem, 10vw, 4rem); }
+.draw[class*="tint-"] .ability { font-size: clamp(1.3rem, 3vw, 1.6rem); max-width: 640px; }
+.draw[class*="tint-"] .btn.huge, .draw.dawn .btn.huge { font-size: clamp(1.4rem, 3vw, 1.7rem); min-height: 72px; padding: 14px 34px; }
+.draw[class*="tint-"] .tiles.small { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.draw[class*="tint-"] .tiles.small .tile { font-size: 1.15rem; min-height: 100px; }
+.draw[class*="tint-"] .tiles.small .tile .ico { font-size: 2.4rem; }
+.draw[class*="tint-"] .big-tok { --size: min(340px, 72vw); }
+.pick small { display: block; font-size: .6em; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; opacity: .85; }
+.pick.ally { border-color: #ff6b81; background: rgba(216,67,90,.45); }
+.pick.ally small { color: #ffd0d7; }
+.draw.dawn { background: radial-gradient(circle at 50% 30%, #f3c77a 0%, #b5643a 45%, #3a1f2c 100%); color: #fff8ee; --fg: #fff8ee; --muted: #ffe9cf; --surface: rgba(0,0,0,.3); --line: rgba(255,255,255,.35); --brass: #ffe2a3; --on-brass: #2a1a08; }
+.draw.dawn h1, .draw.dawn .answer.small { color: #fff3d6; text-shadow: 0 2px 10px rgba(0,0,0,.35); }
 .pick { min-height: 60px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); font-weight: 800; font-size: 1.1rem; }
 .pick[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
 .pick.dead { opacity: .6; text-decoration: line-through; }
@@ -909,6 +931,11 @@ function stControls(st) {
 }
 
 /* What the woken player sees */
+// The Minions a Demon was shown (fake ones for the Lunatic), so they don't kill their own team by mistake
+function knownMinions(pid) {
+  if (roleOf(pid) === "Lunatic") return S.lunaticFake || [];
+  return teamOf(roleOf(pid)) === "demon" && S.players.length >= 7 ? minions() : [];
+}
 // The colour of the team the woken player believes they're on
 function nightTint() {
   const st = S.night.steps[S.night.i];
@@ -952,7 +979,7 @@ function nightPlayerHtml() {
     const ids = S.players.map(p => p.id).filter(q => !(a.notSelf && q === self) && (!a.deadOnly || S.dead[q]));
     const ready = c.picks.length === n && (!a.chars || c.char);
     body = `<p class="lead">${esc(sayOf(a))}</p>
-      ${n ? `<div class="pickgrid">${ids.map(q => `<button class="pick ${S.dead[q] ? "dead" : ""}" data-act="np-pick" data-pid="${q}" aria-pressed="${c.picks.includes(q)}">${esc(nameOf(q))}</button>`).join("")}</div>` : ""}
+      ${n ? `<div class="pickgrid">${ids.map(q => { const tag = q === self ? "You" : (a.kill === "demon" || a.fake) && knownMinions(self).includes(q) ? "Minion" : ""; return `<button class="pick ${S.dead[q] ? "dead" : ""} ${tag === "Minion" ? "ally" : ""}" data-act="np-pick" data-pid="${q}" aria-pressed="${c.picks.includes(q)}">${esc(nameOf(q))}${tag ? `<small>${tag}</small>` : ""}</button>`; }).join("")}</div>` : ""}
       ${a.chars ? `<div class="tiles small">${scriptChars(a.chars).map(r => `<button class="tile ${teamOf(r)}" data-act="np-char" data-role="${esc(r)}" aria-pressed="${c.char === r}"><span class="ico">${CHAR[r].icon}</span>${esc(r)}</button>`).join("")}</div>` : ""}
       <div class="draw-foot"><button class="btn primary huge" data-act="np-ok" ${ready ? "" : "disabled"}>Confirm</button>${a.optional ? `<button class="btn huge" data-act="np-skip">${a.kill ? "No-one" : "Not tonight"}</button>` : ""}</div>`;
   }
@@ -1060,6 +1087,7 @@ function applyChoice(st, c) {
   if (st.key === "Po") S.poCharged = !!c.skipped;
   if (c.skipped) return;
   if (a.once) S.used[st.pid] = true;
+  if (a.info === "lunatic") S.lunaticFake = c.info.pids;
   if (a.fake) return;
   if (N.exorcised === st.pid && a.kill) return;
   // A drunk or poisoned player's choice has no effect (the Poisoner's own poison aside, which they choose while healthy)
@@ -1451,12 +1479,19 @@ function tokenHtml(role, shown) {
 
 function renderDraw() {
   const box = $("draw"), D = S.draw, NP = S.step === "night" && S.night && S.night.view !== "st";
-  if (!D && !show && !NP) { box.hidden = true; box.innerHTML = ""; return; }
+  if (!D && !show && !NP && !S.announce) { box.hidden = true; box.innerHTML = ""; return; }
   let h;
   // After a player's screen, cover the phone until it's back with the Storyteller
   const handback = (go, again) => `<h1>Close your eyes</h1><p class="lead">Pass the phone back to the Storyteller.</p>
     <button class="btn primary huge" data-act="${go}">I'm the Storyteller</button>${again ? `<button class="link" data-act="${again}">Show them again</button>` : ""}`;
-  if (NP) h = S.night.view === "handback" ? handback("night-resume", "night-show") : nightPlayerHtml();
+  if (S.announce && !NP && !D && !show) {
+    const A = S.announce;
+    h = `<p class="lead">Wake up, everyone. It's the dawn of</p><h1>Day ${A.n}</h1>
+      ${A.pids.length ? `<p class="lead">In the night…</p><div class="names">${A.pids.map(q => `<span class="nmchip">💀 ${esc(nameOf(q))}</span>`).join("")}</div><p class="lead">${A.pids.length === 1 ? "was" : "were"} found dead.</p>`
+        : `<div class="answer small">Nobody died</div><p class="lead">The whole town survived the night.</p>`}
+      <button class="btn primary huge" data-act="announce-close">Start the day</button>`;
+  }
+  else if (NP) h = S.night.view === "handback" ? handback("night-resume", "night-show") : nightPlayerHtml();
   else if (show) {
     h = show.step === "ready"
       ? `<p class="lead">Pass the phone to</p><h1>${esc(nameOf(show.pid))}</h1>
@@ -1480,7 +1515,7 @@ function renderDraw() {
       <div class="draw-foot">${D.queue.length > 1 ? `<button class="link" data-act="draw-later">${name} isn't here: draw later</button>` : ""}<button class="link" data-act="draw-stop">Storyteller: stop the draw</button></div>`;
   }
   box.innerHTML = `<div class="draw-inner">${h}</div>`;
-  box.className = "draw" + (NP && S.night.view === "player" ? ` tint-${nightTint()}` : "");
+  box.className = "draw" + (NP && S.night.view === "player" ? ` tint-${nightTint()}` : S.announce && !NP && !D && !show ? " dawn" : "");
   box.hidden = false;
   box.scrollTop = 0;
 }
@@ -1544,7 +1579,8 @@ document.addEventListener("click", ev => {
     case "night-hide": S.night.view = "handback"; S.night.after = "st"; break;
     case "night-done": S.night.view = "handback"; S.night.after = "next"; break;
     case "night-resume": if (S.night.after === "next" && !(S.night.cur && S.night.cur.done && S.night.cur.kills)) nextStep(true); else S.night.view = "st"; break;
-    case "night-dawn": { const before = JSON.stringify(S); S.chron = [...(S.chron || []), { type: "night", n: S.n, recs: S.night.recs || [], deaths: S.night.deaths.map(q => ({ pid: q, role: roleOf(q) })) }]; S.history.push({ h: `Night ${S.n}`, lines: [...S.log, S.night.deaths.length ? `${esc(names(S.night.deaths))} died.` : "Nobody died."] }); S.preNight = null; startDay(); checkOver(before, {}); break; }
+    case "night-dawn": { const before = JSON.stringify(S); S.chron = [...(S.chron || []), { type: "night", n: S.n, recs: S.night.recs || [], deaths: S.night.deaths.map(q => ({ pid: q, role: roleOf(q) })) }]; S.history.push({ h: `Night ${S.n}`, lines: [...S.log, S.night.deaths.length ? `${esc(names(S.night.deaths))} died.` : "Nobody died."] }); S.announce = { n: S.n, pids: [...S.night.deaths] }; S.preNight = null; startDay(); checkOver(before, {}); break; }
+    case "announce-close": S.announce = null; break;
     case "next-night": S.n++; startNight(); wake(); break;
     case "night-apply": nextStep(true); break;
     case "kill-set": S.night.cur.kills[i].dies = el.dataset.v === "1"; break;
