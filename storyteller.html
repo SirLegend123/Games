@@ -267,6 +267,25 @@ details summary { list-style-position: inside; }
 .foot a { color: inherit; }
 
 /* Welcome / how to use */
+/* Drawing characters: a full-screen cover the players pass round */
+.draw { position: fixed; inset: 0; z-index: 90; overflow-y: auto; background: var(--felt); background-color: var(--bg); display: grid; place-items: center; padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
+.draw-inner { width: min(560px, 100%); display: grid; gap: 18px; text-align: center; justify-items: center; }
+.draw h1 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: clamp(2rem, 8vw, 2.8rem); line-height: 1.1; overflow-wrap: anywhere; }
+.draw p { margin: 0; }
+.draw .lead { font-size: 1.1rem; }
+.draw .btn.huge { font-size: 1.15rem; min-height: 56px; padding: 12px 24px; }
+.draw-foot { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.draw-small { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 8px; }
+.bag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 14px; width: 100%; }
+.bag-tok { aspect-ratio: 1; border-radius: 50%; border: 3px solid var(--brass); background: radial-gradient(circle at 35% 30%, var(--surface-2), var(--surface) 70%); color: var(--brass); font-family: var(--font-display); font-size: 1.8rem; box-shadow: 0 3px 10px rgba(0,0,0,.35); transition: transform .12s ease; }
+.bag-tok:hover, .bag-tok:focus-visible { transform: scale(1.06); }
+.big-tok { width: min(250px, 72vw); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); border: 9px solid var(--good); display: grid; place-items: center; padding: 14%; font-family: var(--font-display); font-size: clamp(1.5rem, 7vw, 2rem); line-height: 1.1; box-shadow: 0 6px 20px rgba(0,0,0,.45); animation: tokflip .4s ease; overflow-wrap: anywhere; }
+.big-tok.evil { border-color: var(--evil); }
+@keyframes tokflip { from { transform: rotateY(90deg); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .big-tok { animation: none; } }
+.ability { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; max-width: 440px; }
+.bag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.bag-chips .chip { display: inline-flex; align-items: center; gap: 4px; }
 .welcome { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: var(--bg); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 .welcome-inner { max-width: 880px; margin: 0 auto; padding-inline: 16px; padding-block: 36px 48px; display: grid; gap: 28px; }
 .welcome-head { display: grid; gap: 10px; text-align: center; justify-items: center; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
@@ -376,6 +395,7 @@ details summary { list-style-position: inside; }
   </div>
 </section>
 <div id="modal"></div>
+<div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 <datalist id="roleList"></datalist>
 <datalist id="saveList"><option value="protected by the Monk"><option value="the Soldier can't die to the Demon"><option value="protected by the Innkeeper"><option value="the Tea Lady protected them"><option value="the Sailor can't die"><option value="the Mayor bounced the kill"><option value="the Demon was poisoned"><option value="Storyteller's choice"></datalist>
 <datalist id="causeList"><option value="Slayer shot"><option value="nominated the Virgin"><option value="killed by the Assassin"><option value="killed by the Godfather"><option value="Witch curse"><option value="Gossip"><option value="Tinker"><option value="Moonchild"><option value="Storyteller's choice"></datalist>
@@ -751,6 +771,7 @@ function render() {
   v.innerHTML = (G.example ? `<div class="banner" style="margin-bottom:14px"><span>This is an example game so you can see how it works, including the review. Start a new game to run your own.</span><button class="btn sm primary" data-act="new-game">Start a game</button></div>` : "") + views[ui.tab]();
   fillRoleList();
   if (ui.tab === "grim") layoutCircle();
+  renderDraw();
   try { localStorage.setItem(LS + "-tab", ui.tab); } catch (e) {}
   save();
 }
@@ -785,21 +806,7 @@ function renderSetup() {
       ${THINKS.includes(p.role) ? `<label class="thinks">Thinks they are ${roleSelect(`data-f="thinks"`, p.thinks, taken, "", p.role === "Lunatic" ? ["demon"] : ["townsfolk"], "Choose")}</label>` : ""}
     </div>`).join("");
 
-  const counts = { townsfolk: 0, outsider: 0, minion: 0, demon: 0, traveller: 0, custom: 0 };
-  for (const p of G.players) if (p.role) counts[teamOf(p.role)]++;
-  const n = G.players.filter(p => teamOf(p.role) !== "traveller").length;
-  let comp = COMP[n] ? [...COMP[n]] : null;
-  const has = r => G.players.some(p => p.role === r);
-  const mods = [];
-  if (comp) {
-    if (has("Baron")) { comp[0] -= 2; comp[1] += 2; mods.push("Baron: +2 Outsiders"); }
-    if (has("Fang Gu")) { comp[0] -= 1; comp[1] += 1; mods.push("Fang Gu: +1 Outsider"); }
-    if (has("Vigormortis")) { comp[0] += 1; comp[1] -= 1; mods.push("Vigormortis: −1 Outsider"); }
-    if (has("Godfather")) mods.push("Godfather: ±1 Outsider");
-  }
-  const have = [counts.townsfolk, counts.outsider, counts.minion, counts.demon];
-  const compHtml = `<div class="comp">${["c-t","c-o","c-m","c-d"].map((c, i) => `<span class="${c}${comp && comp[i] !== have[i] ? " off" : ""}">${have[i]}${comp ? " / " + comp[i] : ""} ${["Townsfolk","Outsiders","Minions","Demon"][i]}</span>`).join("")}${counts.traveller ? `<span class="c-x">${counts.traveller} Travellers</span>` : ""}</div>
-    <p class="hint">${comp ? `Expected for ${n} players${mods.length ? " (" + mods.join(", ") + ")" : ""}. Amber means it doesn't match.` : n < 5 ? "Add at least 5 players." : "More than 15 players: no standard setup."}${counts.custom ? ` ${plural(counts.custom, "character")} not on the script.` : ""}</p>`;
+  const compHtml = compHtmlFor(G.players.map(p => p.role));
 
   const ft = G.players.some(p => ["Fortune Teller"].includes(p.role) || p.thinks === "Fortune Teller");
   const past = store.archive.slice().reverse();
@@ -812,7 +819,7 @@ function renderSetup() {
       </div>
       ${G.players.length ? `
       <h2>Players and characters</h2>
-      <p class="hint">Once the tokens are handed out, pick each player's character. Good or evil fills in by itself.</p>
+      <p class="hint">Once the tokens are handed out, pick each player's character, or let everyone draw one on this phone (Draw from the bag). Good or evil fills in by itself.</p>
       ${compHtml}
       <div>${rows}</div>
       <details>
@@ -828,6 +835,7 @@ function renderSetup() {
       <div class="row"><button class="btn primary" data-act="bulk">Add players</button></div>`}
     </section>
     <div class="side">
+      ${G.players.length && !G.started ? bagCard() : ""}
       <section class="card">
         <h2>Setup details</h2>
         <div class="field"><span class="label">Demon bluffs</span>
@@ -844,6 +852,146 @@ function renderSetup() {
       </section>
     </div>
   </div>`;
+}
+
+// The Townsfolk / Outsider / Minion / Demon counts for a list of characters, against what's expected
+function compHtmlFor(roles) {
+  const counts = { townsfolk: 0, outsider: 0, minion: 0, demon: 0, traveller: 0, custom: 0 };
+  for (const r of roles) if (r) counts[teamOf(r)]++;
+  const n = roles.filter(r => teamOf(r) !== "traveller").length;
+  let comp = COMP[n] ? [...COMP[n]] : null;
+  const has = r => roles.includes(r);
+  const mods = [];
+  if (comp) {
+    if (has("Baron")) { comp[0] -= 2; comp[1] += 2; mods.push("Baron: +2 Outsiders"); }
+    if (has("Fang Gu")) { comp[0] -= 1; comp[1] += 1; mods.push("Fang Gu: +1 Outsider"); }
+    if (has("Vigormortis")) { comp[0] += 1; comp[1] -= 1; mods.push("Vigormortis: −1 Outsider"); }
+    if (has("Godfather")) mods.push("Godfather: ±1 Outsider");
+  }
+  const have = [counts.townsfolk, counts.outsider, counts.minion, counts.demon];
+  return `<div class="comp">${["c-t","c-o","c-m","c-d"].map((c, i) => `<span class="${c}${comp && comp[i] !== have[i] ? " off" : ""}">${have[i]}${comp ? " / " + comp[i] : ""} ${["Townsfolk","Outsiders","Minions","Demon"][i]}</span>`).join("")}${counts.traveller ? `<span class="c-x">${counts.traveller} Travellers</span>` : ""}</div>
+    <p class="hint">${comp ? `Expected for ${n} players${mods.length ? " (" + mods.join(", ") + ")" : ""}. Amber means it doesn't match.` : n < 5 ? "Add at least 5 players." : "More than 15 players: no standard setup."}${counts.custom ? ` ${plural(counts.custom, "character")} not on the script.` : ""}</p>`;
+}
+
+/* Drawing characters from the bag */
+// Fair randomness for the draw
+const rnd = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const byTeam = (a, b) => TEAMS.indexOf(teamOf(a.role)) - TEAMS.indexOf(teamOf(b.role)) || a.role.localeCompare(b.role);
+
+// A legal random setup for n players on the current script
+function randomBag(n) {
+  const R = scriptRoles(G.script);
+  const take = (list, k) => shuffle(list.slice()).slice(0, Math.max(0, k));
+  const comp = [...COMP[n]];
+  const evil = [...take(R.demon, 1), ...take(R.minion, comp[2])];
+  if (evil.includes("Baron")) { comp[0] -= 2; comp[1] += 2; }
+  if (evil.includes("Fang Gu")) { comp[0] -= 1; comp[1] += 1; }
+  if (evil.includes("Vigormortis") && comp[1] > 0) { comp[0] += 1; comp[1] -= 1; }
+  if (evil.includes("Godfather")) { const d = comp[1] > 0 && rnd(2) ? -1 : 1; comp[0] -= d; comp[1] += d; }
+  const short = Math.max(0, comp[1] - R.outsider.length);
+  comp[1] -= short; comp[0] += short;
+  const bag = [...evil, ...take(R.outsider, comp[1]), ...take(R.townsfolk, comp[0])].map(role => ({ role, thinks: "" }));
+  return fixThinks(bag).sort(byTeam);
+}
+// The Drunk is shown a Townsfolk that isn't in play; the Lunatic is shown the Demon
+function fixThinks(bag) {
+  const R = scriptRoles(G.script);
+  const used = new Set(bag.flatMap(b => [b.role, b.thinks]).filter(Boolean));
+  for (const b of bag) {
+    if (!THINKS.includes(b.role)) { b.thinks = ""; continue; }
+    if (b.thinks) continue;
+    const demon = bag.find(x => teamOf(x.role) === "demon");
+    const pool = b.role === "Lunatic" ? (demon ? [demon.role] : R.demon) : R.townsfolk.filter(r => !used.has(r));
+    b.thinks = pool.length ? pool[rnd(pool.length)] : "";
+    used.add(b.thinks);
+  }
+  return bag;
+}
+
+function bagCard() {
+  const n = G.players.length, bag = G.bag || [];
+  const can = !!COMP[n];
+  if (!bag.length) return `<section class="card">
+    <h2>Draw from the bag</h2>
+    <p class="hint">Let everyone draw a character in secret on this phone. Pick a random setup for ${plural(n, "player")}, check it, then pass the phone round the table. You see the whole Grimoire afterwards.</p>
+    ${can ? `<button class="btn primary" data-act="bag-random">Pick a random setup</button>` : `<p class="empty">${n < 5 ? "Add at least 5 players first." : "Random setups go up to 15 players."}</p>`}
+  </section>`;
+  const inBag = new Set(bag.map(b => b.role));
+  const R = scriptRoles(G.script);
+  return `<section class="card">
+    <h2>Draw from the bag</h2>
+    ${compHtmlFor(bag.map(b => b.role))}
+    <div class="bag-chips">${bag.map((b, i) => `<span class="chip ${teamOf(b.role)}">${esc(b.role)}<button class="icon" style="color:#fff;width:20px;height:20px" data-act="bag-del" data-i="${i}" aria-label="Take the ${esc(b.role)} out">×</button></span>`).join("")}</div>
+    ${bag.map((b, i) => THINKS.includes(b.role) ? `<label class="field"><span class="label">The ${esc(b.role)} will be shown</span>${roleSelect(`data-bag-thinks="${i}"`, b.thinks, new Set([...inBag, ...bag.map(x => x.thinks).filter(t => t && t !== b.thinks)]), "", b.role === "Lunatic" ? ["demon"] : ["townsfolk"], "Choose")}</label>` : "").join("")}
+    ${roleSelect(`data-bag-add="1" aria-label="Add a character to the bag"`, "", inBag, "", TEAMS.filter(t => t !== "traveller" && R[t].length), "+ Add a character")}
+    <p class="hint">${bag.length === n ? `${plural(n, "character")} for ${plural(n, "player")}.` : `The bag has ${plural(bag.length, "character")} for ${plural(n, "player")}. ${bag.length < n ? "Add" : "Take out"} ${Math.abs(n - bag.length)} to start.`}</p>
+    <div class="row">
+      <button class="btn primary" data-act="draw-start" ${bag.length === n ? "" : "disabled"}>Start the draw →</button>
+      ${can ? `<button class="btn" data-act="bag-random">Pick another setup</button>` : ""}
+      <button class="btn" data-act="bag-clear">Clear</button>
+    </div>
+  </section>`;
+}
+
+function startDraw() {
+  for (const p of G.players) { p.role = ""; p.thinks = ""; p.align = "good"; }
+  const inBag = new Set(G.bag.map(b => b.role));
+  G.bluffs = G.bluffs.map(b => inBag.has(b) || G.bag.some(x => x.thinks === b) ? "" : b);
+  G.redHerring = "";
+  G.draw = { left: shuffle(G.bag.map(b => ({ ...b }))), queue: G.players.map(p => p.id), step: "pass" };
+}
+// When everyone has drawn: fill in bluffs and the red herring the Storyteller hasn't chosen
+function finishDraw() {
+  const R = scriptRoles(G.script);
+  const used = new Set(G.players.flatMap(p => [p.role, p.thinks]).concat(G.bluffs).filter(Boolean));
+  const free = shuffle(R.townsfolk.filter(r => !used.has(r))).concat(shuffle(R.outsider.filter(r => !used.has(r))));
+  G.bluffs = G.bluffs.map(b => b || free.shift() || "");
+  const ft = G.players.some(p => p.role === "Fortune Teller" || p.thinks === "Fortune Teller");
+  const good = G.players.filter(p => p.align !== "evil");
+  if (ft && !G.redHerring && good.length) G.redHerring = good[rnd(good.length)].id;
+  G.draw = null;
+  G.started = true; delete G.example;
+  ui.tab = "grim";
+}
+
+// What the player sees: the Drunk and Lunatic see the character they think they are
+function tokenHtml(role, thinks) {
+  const seen = thinks || role, team = teamOf(seen), align = thinks ? defAlign(seen) : defAlign(role);
+  const ab = window.ccAbility && window.ccAbility(seen);
+  return `<p class="lead">You are the</p>
+    <div class="big-tok ${align === "evil" ? "evil" : ""}">${esc(seen)}</div>
+    <p class="lead"><span class="t-${team}" style="font-weight:800">${esc(TEAM_LABEL[team] ? TEAM_LABEL[team].replace(/s$/, "") : "Character")}</span> · ${align === "evil" ? `<span style="color:var(--evil);font-weight:800">Evil</span>` : `<span style="color:var(--good);font-weight:800">Good</span>`}</p>
+    ${ab ? `<p class="ability">${esc(ab.text)}</p>` : ""}`;
+}
+
+function renderDraw() {
+  const box = $("draw"), D = G.draw, sh = ui.show;
+  if (!D && !sh) { if (!box.hidden) { box.hidden = true; box.innerHTML = ""; } return; }
+  let h;
+  if (sh) {
+    h = sh.step === "ready" ? `<p class="lead">Pass the phone to</p><h1>${esc(sh.name)}</h1>
+      <button class="btn primary huge" data-act="show-reveal">I'm ${esc(sh.name)}: show my character</button>
+      <button class="draw-small" data-act="show-close">Cancel</button>`
+      : `${tokenHtml(sh.role, sh.thinks)}<button class="btn primary huge" data-act="show-close">Hide it</button>`;
+  } else {
+    const pid = D.queue[0], name = pid && esc(nameOf(pid)), total = G.players.length, drawn = total - D.queue.length;
+    if (D.step === "stop") h = `<h1>Stop the draw?</h1><p class="lead">Players who have drawn keep their characters. The rest can be picked on the Setup page.</p>
+      <div class="draw-foot"><button class="btn huge" data-act="draw-back">Keep drawing</button><button class="btn evil huge" data-act="draw-stop-yes">Stop</button></div>`;
+    else if (D.step === "done") h = `<h1>Everyone has a character</h1><p class="lead">Hand the phone back to the Storyteller.</p>
+      <button class="btn primary huge" data-act="draw-finish">I'm the Storyteller: open the Grimoire</button>`;
+    else if (D.step === "pick") h = `<p class="lead">${name}, tap a token to draw it</p>
+      <div class="bag-grid">${D.left.map((_, i) => `<button class="bag-tok" data-act="draw-pick" data-i="${i}" aria-label="Token ${i + 1}">?</button>`).join("")}</div>
+      <button class="draw-small" data-act="draw-back">Not ${name}? Go back</button>`;
+    else if (D.step === "show") { const p = P(pid); h = `${tokenHtml(p.role, p.thinks)}<p class="hint">Remember it, then hide it before you pass the phone on.</p><button class="btn primary huge" data-act="draw-hide">Got it: hide it</button>`; }
+    else if (D.step === "ready") h = `<p class="lead">${name}, you've drawn your character</p><button class="btn primary huge" data-act="draw-reshow">Show it again</button>`;
+    else h = `<p class="hint">${drawn} of ${total} drawn</p><p class="lead">Pass the phone to</p><h1>${name}</h1>
+      <button class="btn primary huge" data-act="draw-me">I'm ${name}: draw my character</button>
+      <div class="draw-foot">${D.queue.length > 1 ? `<button class="draw-small" data-act="draw-later">${name} isn't here: draw later</button>` : ""}<button class="draw-small" data-act="draw-stop">Storyteller: stop the draw</button></div>`;
+  }
+  box.innerHTML = `<div class="draw-inner">${h}</div>`;
+  if (box.hidden) { box.hidden = false; }
+  box.scrollTop = 0;
 }
 
 /* Grimoire tab */
@@ -1078,6 +1226,7 @@ function renderPlayerCard(pid, S, R, ph) {
       ${s.dead ? `<button class="btn sm" data-act="add" data-type="revive" data-target="${pid}">Revive</button>` : `<button class="btn sm" data-act="add" data-type="death" data-target="${pid}">Dies</button>`}
       <button class="btn sm" data-act="add" data-type="change" data-target="${pid}">Change character</button>
       <button class="btn sm" data-act="add" data-type="status" data-target="${pid}">Reminder</button>
+      ${s.role ? `<button class="btn sm" data-act="show-again" data-pid="${pid}">Show them their character</button>` : ""}
     </div>
     ${evs.length ? `<h3>Their game so far</h3><div class="events">${evs.join("")}</div>` : ""}
   </section>`;
@@ -1546,6 +1695,29 @@ document.addEventListener("click", ev => {
       G.players.forEach((p, i) => { p.role = rs[i][0]; p.thinks = rs[i][1]; p.align = defAlign(p.role); });
       break;
     }
+    case "bag-random": G.bag = randomBag(G.players.length); break;
+    case "bag-del": G.bag.splice(Number(el.dataset.i), 1); fixThinks(G.bag); break;
+    case "bag-clear": G.bag = []; break;
+    case "draw-start":
+      if (G.players.some(p => p.role) && !el.dataset.sure) { ask("Drawing replaces the characters already picked for each player. Start the draw?", [["Cancel", null, ""], ["Start the draw", true, "primary"]]).then(ok => { if (ok) { el.dataset.sure = 1; el.click(); } }); return; }
+      startDraw(); break;
+    case "draw-me": G.draw.step = "pick"; break;
+    case "draw-back": G.draw.step = "pass"; break;
+    case "draw-later": G.draw.queue.push(G.draw.queue.shift()); break;
+    case "draw-pick": {
+      const D = G.draw, p = P(D.queue[0]), b = D.left.splice(Number(el.dataset.i), 1)[0];
+      if (!p || !b) return;
+      p.role = b.role; p.thinks = b.thinks; p.align = defAlign(b.role);
+      D.step = "show"; break;
+    }
+    case "draw-reshow": G.draw.step = "show"; break;
+    case "draw-hide": G.draw.queue.shift(); G.draw.step = G.draw.queue.length ? "pass" : "done"; break;
+    case "draw-stop": G.draw.step = "stop"; break;
+    case "draw-stop-yes": G.draw = null; ui.tab = "setup"; break;
+    case "draw-finish": finishDraw(); break;
+    case "show-again": { const s = stateAt(G.phase)[el.dataset.pid]; ui.show = { name: nameOf(el.dataset.pid), role: s.role, thinks: s.thinks, step: "ready" }; break; }
+    case "show-reveal": ui.show.step = "show"; break;
+    case "show-close": ui.show = null; break;
     case "start": G.started = true; delete G.example; ui.tab = "grim"; break;
     case "open-past": {
       const g = store.archive.find(x => x.id === el.dataset.id);
@@ -1627,6 +1799,8 @@ document.addEventListener("input", ev => {
     if (t.dataset.f === "role") { p.align = defAlign(t.value); if (!THINKS.includes(t.value)) p.thinks = ""; }
     save(); return;
   }
+  if (t.dataset.bagAdd) { if (t.value) { G.bag.push({ role: t.value, thinks: "" }); G.bag.sort(byTeam); fixThinks(G.bag); } render(); return; }
+  if (t.dataset.bagThinks) { G.bag[Number(t.dataset.bagThinks)].thinks = t.value; render(); return; }
   if (t.dataset.bluff) { G.bluffs[Number(t.dataset.bluff)] = t.value; save(); return; }
   if (t.dataset.g) { G[t.dataset.g] = t.value; save(); if (t.tagName === "SELECT") render(); }
 });
@@ -1680,8 +1854,10 @@ $("wStart").onclick = $("wStart2").onclick = () => { closeWelcome(); newGame(); 
 document.addEventListener("keydown", ev => { if (ev.key === "Escape" && !$("welcome").hidden && !$("modal").innerHTML) closeWelcome(); });
 
 lastJson = snapshotJson();
+// A draw in progress picks up where it left off, without showing the last token to whoever holds the phone
+if (G.draw && G.draw.step === "show") G.draw.step = "ready";
 render();
-openWelcome();
+if (!G.draw) openWelcome();
 connectAccount();
 </script>
 </body>

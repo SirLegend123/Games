@@ -170,6 +170,7 @@
   ];
   const ABILITY = {};
   SHEET.forEach(([team, , rs]) => rs.forEach(([r, t]) => { ABILITY[r.toLowerCase()] = { name: r, team, text: t }; }));
+  window.ccAbility = name => ABILITY[String(name || '').toLowerCase()];
   const COUNTS = { 5: [3, 0, 1], 6: [3, 1, 1], 7: [5, 0, 1], 8: [5, 1, 1], 9: [5, 2, 1], 10: [7, 0, 2], 11: [7, 1, 2], 12: [7, 2, 2], 13: [9, 0, 3], 14: [9, 1, 3], 15: [9, 2, 3] };
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
