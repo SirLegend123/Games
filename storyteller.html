@@ -798,7 +798,7 @@ function makeInfo(st, truth) {
       return { pids: shuffle([h, o]), role: roleOf(h) };
     }
     const two = shuffle(others(pid)).slice(0, 2);
-    const role = pickOne(scriptChars([team]).filter(r => !two.some(q => roleOf(q) === r)));
+    const role = pickOne(scriptChars([team]).filter(r => r !== wakesAs(pid) && !two.some(q => roleOf(q) === r)));
     return { pids: two, role };
   }
   if (a.info === "outsiders") {
@@ -1401,32 +1401,83 @@ const STORY_VERB = { Poisoner: "poisoned", Pukka: "poisoned", Monk: "protected",
 function storyHtml() {
   const out = [], P = t => out.push(`<p>${t}</p>`), H = t => out.push(`<h3>${esc(t)}</h3>`);
   const shown = new Set(); // players whose character has been revealed
+  const deeds = {};        // what each evil player did, held back until they're unmasked: pid -> [{ n, clause }]
+  const said = {};         // the last thing each info character learnt, so repeats can be skipped
+  let nights = 0;
   const nm = q => `<b>${esc(nameOf(q))}</b>`;
-  // A player as the story may name them: by character only, until they've been revealed
+  // A player as the story may name them: by character until revealed, by name after
   const ref = (q, roles) => {
+    if (shown.has(q)) return nm(q);
     const r = roles[q] || roleOf(q);
-    if (shown.has(q)) return `${nm(q)} the ${esc(r)}`;
     return `the ${esc(r === "Drunk" && S.drawn[q] && S.drawn[q].shown ? S.drawn[q].shown : r)}`; // the Drunk keeps their secret
   };
-  const known = q => { shown.add(q); return ""; }; // revealed in passing, like a Slayer who hit
-  const reveal = (q, role) => { const first = !shown.has(q); shown.add(q); return first ? ` ${nm(q)} was the <b class="t-${teamOf(role)}">${esc(role)}</b>${S.drawn[q] && S.drawn[q].shown && role === "Drunk" ? `, who believed they were the ${esc(S.drawn[q].shown)}` : ""}${alignOf(role) === "evil" ? "!" : "."}` : ""; };
+  const known = q => { shown.add(q); return ""; };
+  // "Looking back, Dad had been busy: they poisoned Sophie on Night 1 and Mum on Night 2."
+  const flashback = q => {
+    const list = deeds[q] || [];
+    delete deeds[q];
+    if (!list.length) return "";
+    const when = ns => ns.length > 1 && ns.length === nights ? "every night" : `on ${ns.length > 1 ? "Nights" : "Night"} ${listJoin(ns.map(String))}`;
+    const verbs = [...new Set(list.map(d => d.verb))], perNight = new Set(list.map(d => d.n)).size === list.length;
+    let text;
+    if (verbs.length === 1 && perNight) {
+      // One kind of deed, once a night: "poisoned Ben on Night 1, Gus on Night 2 and Ann on Night 3"
+      const objs = [...new Set(list.map(d => d.obj))];
+      text = objs.length === 1 ? `${verbs[0]}${objs[0] ? " " + objs[0] : ""} ${when(list.map(d => d.n))}` : `${verbs[0]} ${listJoin(list.map(d => `${d.obj} on Night ${d.n}`))}`;
+    } else {
+      // Otherwise night by night: "on Night 3 they became the Imp and killed Gus"
+      const byNight = {};
+      list.forEach(d => (byNight[d.n] = byNight[d.n] || []).push(`${d.verb}${d.obj ? " " + d.obj : ""}`));
+      text = listJoin(Object.entries(byNight).map(([n, ds]) => `on Night ${n}, they ${listJoin(ds)}`));
+      return ` Looking back, ${nm(q)} had been busy: ${text}.`;
+    }
+    return ` Looking back, ${nm(q)} had been busy: they ${text}.`;
+  };
+  const reveal = (q, role) => {
+    if (shown.has(q)) return "";
+    shown.add(q);
+    const d = S.drawn[q], evil = alignOf(role) === "evil";
+    return ` ${nm(q)} was the <b class="t-${teamOf(role)}">${esc(role)}</b>${role === "Drunk" && d && d.shown ? `, who believed they were the ${esc(d.shown)}` : ""}${evil ? "!" + flashback(q) : "."}`;
+  };
   const chron = [...(S.chron || [])];
   if (S.step === "day" && S.day && !chron.some(c => c.type === "day" && c.n === S.day.n)) chron.push(dayRecord());
   P(`Gather round, everyone, and let me tell you what really happened in this game of <i>${esc(SCRIPTS[S.script].name)}</i>. Some of you have been hiding who you really are. Not for much longer.`);
+  const NIGHT_OPEN = ["Night fell, and the town closed their eyes once more.", "Darkness returned to the town.", "Once again, the town slept.", "Night came, and with it, danger."];
+  const QUIET_DAWN = ["When the sun rose, everyone was still alive.", "Morning came, and to everyone's relief, nobody had died.", "The town woke to find everyone safe, for now."];
+  const DAY_OPEN = ["The town gathered again, fewer and warier than before.", "Suspicion hung over the town square.", "The town met once more, looking for the Demon among them."];
   for (const ph of chron) {
     if (ph.type === "night") {
+      nights++;
       H(`Night ${ph.n}`);
-      const lines = [ph.n === 1 ? "On the first night, the town closed their eyes, and the Grimoire stirred." : "Night fell, and the town closed their eyes once more."];
-      for (const r of ph.recs) { const t = storyStep(r, ref, nm); if (t) lines.push(t); }
+      const lines = [ph.n === 1 ? "On the first night, the town closed their eyes, and the Grimoire stirred." : NIGHT_OPEN[(ph.n - 2) % NIGHT_OPEN.length]];
+      const saves = [];
+      for (const r of ph.recs) {
+        if (r.key === "MINION" || r.key === "DEMON") continue;
+        const evil = alignOf(r.role) === "evil" || r.role === "Lunatic";
+        if (evil && !shown.has(r.pid)) { // keep the evil team's secrets for later
+          for (const [verb, obj] of evilDeed(r)) (deeds[r.pid] = deeds[r.pid] || []).push({ n: ph.n, verb, obj });
+          for (const k of r.kills || []) if (!k.died && k.why && SAVE_WORDS(k.why)) saves.push(`The Demon came for ${ref(k.pid, r.roles)} in the night, but ${SAVE_WORDS(k.why)}.`);
+          continue;
+        }
+        // Skip what a character learns or does again, unchanged
+        const sig = JSON.stringify([r.key, r.info, r.picks, r.answer]);
+        if (said[r.pid + r.key] === sig && !(r.kills || []).length) continue;
+        said[r.pid + r.key] = sig;
+        const t = storyStep(r, ref, nm);
+        if (t) lines.push(t);
+      }
       P(flow(lines, NIGHT_LINKS, ph.n * 3));
-      P(ph.deaths.length ? ph.deaths.map((d, k) => `${k ? "Beside them lay" : "When the sun rose, the town found"} ${nm(d.pid)}, dead.${reveal(d.pid, d.role)}`).join(" ") : "When the sun rose, the town counted heads, and everyone was still alive.");
+      const dawn = [...saves];
+      ph.deaths.forEach((d, k) => dawn.push(`${k ? "Beside them lay" : "When the sun rose, the town found"} ${nm(d.pid)}, dead.${reveal(d.pid, d.role)}`));
+      if (!dawn.length) dawn.push(QUIET_DAWN[(ph.n - 1) % QUIET_DAWN.length]);
+      else if (!ph.deaths.length) dawn.push("Everyone lived to see the morning.");
+      P(dawn.join(" "));
     } else {
       H(`Day ${ph.n}`);
-      const lines = [ph.n === 1 ? "The first day dawned, and the town began to talk, and to suspect." : "The town gathered again, fewer and warier than before."];
+      const lines = [ph.n === 1 ? "The first day dawned, and the town began to talk, and to suspect." : DAY_OPEN[(ph.n - 2) % DAY_OPEN.length]];
       for (const x of ph.shots) lines.push(`${nm(x.by)} stood up, claimed to be the Slayer, and shot at ${nm(x.at)}.${x.died ? ` ${nm(x.at)} fell dead!${reveal(x.at, ph.roles[x.at])} ${nm(x.by)} really was the Slayer.${known(x.by)}` : " Nothing happened."}`);
-      for (const n of ph.noms) lines.push(n.virgin === "executed" ? `${nm(n.by)} nominated ${nm(n.of)}, who turned out to be the Virgin. ${nm(n.by)} was a Townsfolk, so was executed on the spot!${reveal(n.by, ph.roles[n.by])}${known(n.of)}`
-        : `${nm(n.by)} nominated ${nm(n.of)}, and ${plural(n.count, "hand")} ${n.count === 1 ? "was" : "were"} raised${n.need ? (n.count >= n.need ? ", enough to put them on the block" : ", not enough") : ""}.${n.virgin === "nothing" ? ` ${nm(n.of)} was the Virgin, but nothing happened.` : ""}`);
-      ph.noms.filter(n => n.virgin === "nothing").forEach(n => known(n.of));
+      for (const n of ph.noms) lines.push(n.virgin === "executed" ? `${nm(n.by)} nominated ${nm(n.of)}, who turned out to be the Virgin, and ${nm(n.by)}, a Townsfolk, was executed on the spot!${reveal(n.by, ph.roles[n.by])}${known(n.of)}`
+        : `${nm(n.by)} nominated ${nm(n.of)}, and ${plural(n.count, "hand")} ${n.count === 1 ? "was" : "were"} raised${n.need ? (n.count >= n.need ? ", enough to put them on the block" : ", not enough") : ""}.${n.virgin === "nothing" ? ` ${nm(n.of)} was the Virgin, but nothing happened.${known(n.of)}` : ""}`);
       const e = ph.exec;
       if (e && e.cause !== "nominated the Virgin") lines.push(e.dies ? `As the sun went down, the town executed ${nm(e.pid)}.${reveal(e.pid, ph.roles[e.pid])}` : `As the sun went down, the town executed ${nm(e.pid)}, but ${nm(e.pid)} did not die.`);
       else if (!e) lines.push(ph.noms.length ? "As the sun went down, nobody had enough votes, and nobody was executed." : "Nobody dared to nominate, and as the sun went down, nobody was executed.");
@@ -1435,13 +1486,13 @@ function storyHtml() {
   }
   const o = S.over;
   if (o) { H("The end"); P(`<b>${o.winner === "good" ? "Good wins!" : "Evil wins!"}</b> ${esc(o.reason)}`); }
-  // The grand reveal: the good survivors first, then the evil team, the Demon last
+  // The grand reveal: the good team first, then the evil team, the Demon last
   const ids = S.players.map(p => p.id).filter(q => S.drawn[q]);
   const good = ids.filter(q => sideOf(q) !== "evil" && !shown.has(q));
   const evil = ids.filter(q => sideOf(q) === "evil");
   if (good.length) {
     H("The town");
-    const who = good.map(q => { known(q); const d = S.drawn[q]; return `${nm(q)} was the <b class="t-${teamOf(d.role)}">${esc(d.role)}</b>${d.role === "Drunk" && d.shown ? ` (who believed they were the ${esc(d.shown)})` : ""}`; });
+    const who = good.map(q => { known(q); const d = S.drawn[q]; return `${nm(q)} was the <b class="t-${teamOf(d.role)}">${esc(d.role)}</b>${d.role === "Drunk" && d.shown ? ` (who believed they were the ${esc(d.shown)})` : ""}${d.role === "Lunatic" ? ` (who believed they were the ${esc(d.shown)}${flashback(q).replace(/^ Looking back, <b>[^<]*<\/b> had been busy: they/, ", and")})` : ""}`; });
     const alive = good.filter(q => !S.dead[q]).length;
     P(`Let's meet the rest of the good team. ${listJoin(who)}. ${alive === good.length ? (good.length > 1 ? "All of them survived." : "They survived.") : ""}`);
   }
@@ -1452,12 +1503,13 @@ function storyHtml() {
     const was = S.start && S.start[q] && S.start[q] !== roleOf(q) ? `, who started as the ${esc(S.start[q])}` : "";
     const role = `<b class="t-${teamOf(roleOf(q))}">${esc(roleOf(q))}</b>`;
     if (shown.has(q)) return `${nm(q)} was the ${role}${was}, as we found out.`;
-    if (q === lastDemon) return `And the Demon, who has been among you all along… ${nm(q)}, the ${role}${was}!${S.dead[q] ? "" : " They survived the whole game."}`;
-    return `${nm(q)} was the ${role}${was}.${S.dead[q] ? "" : " They survived."}`;
+    shown.add(q);
+    if (q === lastDemon) return `And the Demon, who has been among you all along… ${nm(q)}, the ${role}${was}!${flashback(q)}${S.dead[q] ? "" : " And they survived the whole game."}`;
+    return `${nm(q)} was the ${role}${was}.${flashback(q)}${S.dead[q] ? "" : " They survived."}`;
   };
   if (ms.length) P(`${ms.length === 1 ? "Working in the shadows was a single Minion." : `Working in the shadows were ${ms.length} Minions.`} ${ms.map(evilLine).join(" ")}`);
-  const known2 = ds.filter(q => q !== lastDemon);
-  if (known2.length) P(known2.map(evilLine).join(" "));
+  const earlier = ds.filter(q => q !== lastDemon);
+  if (earlier.length) P(earlier.map(evilLine).join(" "));
   if (lastDemon) P(evilLine(lastDemon));
   const bl = S.bluffs.filter(Boolean), extra = [];
   if (bl.length) extra.push(`The Demon's bluffs were the ${esc(listJoin(bl))}.`);
@@ -1465,6 +1517,32 @@ function storyHtml() {
   if (extra.length) P(extra.join(" "));
   P("Thank you for playing!");
   return out.join("");
+}
+// How a save sounds from the town's side (nothing that gives away a secret)
+function SAVE_WORDS(why) {
+  if (/protected/.test(why)) return "the Monk's protection held";
+  if (/Soldier/.test(why)) return "the Soldier could not be killed";
+  if (/Tea Lady/.test(why)) return "the Tea Lady kept them safe";
+  if (/Sailor/.test(why)) return "the Sailor could not die";
+  if (/Fool/.test(why)) return "the Fool cheated death";
+  return "";
+}
+// What an evil player did on a night, told later as part of their unmasking: [["poisoned", "Sophie"]]
+function evilDeed(r) {
+  const a = (r.n > 1 && ACT_LATER[r.key]) || ACT[r.key] || {}, names = qs => listJoin((qs || []).map(q => `<b>${esc(nameOf(q))}</b>`));
+  if (r.key === "TOLD") return [[`became the ${esc(r.now || r.role)}`, ""]];
+  if (a.info === "grim") return [["looked at the Grimoire", ""]];
+  if (a.info === "outsiders") return [["learnt which Outsiders were in play", ""]];
+  if (a.info === "lunatic" || a.info === "twin") return [];
+  if (r.skipped) return a.kill ? [["chose to kill no-one", ""]] : [];
+  if (a.fake) return [["tried to kill", names(r.picks)]];
+  if (a.kill) {
+    const ks = (r.kills || []).map(k => k.jump ? ["jumped into", names([k.pid])] : k.died && k.pid === r.pid ? ["killed themselves, passing on the Demon", ""] : k.died ? ["killed", names([k.instead || k.pid])] : ["tried to kill", names([k.pid])]);
+    if (r.key === "Pukka") ks.push(["poisoned", names(r.picks)]);
+    return ks.length ? ks : [["attacked", names(r.picks)]];
+  }
+  const verb = { Poisoner: "poisoned", Witch: "cursed", "Devil's Advocate": "protected", Cerenovus: "drove mad", "Pit-Hag": "transformed" }[r.role];
+  return r.role === "Evil Twin" ? [] : [[verb || "chose", names(r.picks)]];
 }
 // Join a phase's events into one paragraph, with a linking phrase between them
 const NIGHT_LINKS = ["Soon after,", "Meanwhile,", "Elsewhere in the town,", "Not long after,", "In the darkness,", "Later that night,", "Quietly,", "Then"];
@@ -1485,7 +1563,13 @@ function storyStep(r, ref, nm) {
   const why = (r.why || []).filter(w => !/Drunk/.test(w));
   const lie = r.truth === false ? ` But that was false${why.length ? `, because ${esc(past(why[0]))}` : ""}.` : "";
   const chars = rs => listJoin(rs.map(x => `the ${esc(x)}`));
-  const refs = qs => listJoin((qs || []).map(q => ref(q, R)));
+  // Hidden evil players stay anonymous in the good team's story: "the Monk and another player"
+  const hiddenEvil = q => !/<b>/.test(ref(q, R)) && alignOf(R[q] || roleOf(q)) === "evil";
+  const refs = qs => {
+    const seen = (qs || []).filter(q => !hiddenEvil(q)).map(q => ref(q, R)), h = (qs || []).filter(hiddenEvil).length;
+    if (h) seen.push(seen.length ? (h === 1 ? "another player" : `${h} other players`) : (h === 1 ? "a player" : `${h === 2 ? "two" : h} players`));
+    return listJoin(seen);
+  };
   if (r.key === "MINION") return "The Minions opened their eyes, and saw who their Demon was.";
   if (r.key === "DEMON") return `In turn, the Demon learnt who their Minions were, and was given three characters to bluff as: ${chars(S.bluffs.filter(Boolean))}.`;
   if (r.key === "TOLD") return `In the dark, ${ref(r.pid, { ...R, [r.pid]: S.start && S.start[r.pid] || r.role })} was woken and told they were now the ${esc(r.now || r.role)}.`;
@@ -1501,16 +1585,16 @@ function storyStep(r, ref, nm) {
   if (a.info === "sage") return `${who}, killed by the Demon, learnt it was one of two players.${lie}`;
   if (a.info === "pair") return I.none ? `${who} learnt there were no Outsiders in play.${lie}` : `${who} was shown two players, and learnt that one of them was the ${esc(I.role)}.${lie}`;
   if (a.info === "outsiders") return `${who} learnt which Outsiders were in play: ${I.roles && I.roles.length ? chars(I.roles) : "none"}.${lie}`;
-  if (a.info === "grandchild") return `${who} met their grandchild, ${ref(I.pid, R)}.${lie}`;
+  if (a.info === "grandchild") return `${who} met their grandchild, ${refs([I.pid])}.${lie}`;
   if (a.info === "twin") return `${who} and their twin, ${ref(I.pid, R)}, learnt who each other were.`;
   if (a.info === "grim") return `${who} crept a look at the Grimoire.`;
   if (a.st) return r.stKilled ? `${cap(ref(r.stKilled, R))} died${a.st === "gossip" ? ", because the Gossip's words that day had been true" : ": the Tinker's luck ran out"}.` : "";
   if (r.skipped) return a.kill ? `${who} chose to kill no-one.` : `${who} chose not to use their ability.`;
   if (a.fake) return `${who} chose to kill ${refs(r.picks)}… but nothing happened.`;
   const verb = STORY_VERB[r.role === "Drunk" ? r.seen : r.role] || "chose";
-  let t = r.key === "Cerenovus" ? `${who} made ${ref(r.picks[0], R)} mad about being the ${esc(r.char)}`
+  let t = r.key === "Cerenovus" ? `${who} made ${refs(r.picks)} mad about being the ${esc(r.char)}`
     : r.key === "Pit-Hag" ? `${who} turned ${ref(r.picks[0], R)} into the ${esc(r.char)}`
-    : r.key === "Gambler" ? `${who} gambled that ${ref(r.picks[0], R)} was the ${esc(r.char)}`
+    : r.key === "Gambler" ? `${who} gambled that ${refs(r.picks)} was the ${esc(r.char)}`
     : r.key === "Philosopher" ? `${who} chose to gain the ability of the ${esc(r.char)}`
     : r.key === "Courtier" ? `${who} chose the ${esc(r.char)}, to make them drunk`
     : r.key === "Ravenkeeper" ? `With their last breath, ${ref(r.pid, R)} pointed at a player`
