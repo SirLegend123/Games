@@ -1407,18 +1407,21 @@ function storyHtml() {
   for (const ph of chron) {
     if (ph.type === "night") {
       H(`Night ${ph.n}`);
-      P(ph.n === 1 ? "On the first night, the town closed their eyes, and the Grimoire stirred." : "Night fell, and the town closed their eyes once more.");
-      for (const r of ph.recs) { const t = storyStep(r, ref, nm); if (t) P(t); }
-      if (!ph.deaths.length) P("When the sun rose, everyone was still alive.");
-      for (const d of ph.deaths) P(`When the sun rose, ${nm(d.pid)} was found dead.${reveal(d.pid, d.role)}`);
+      const lines = [ph.n === 1 ? "On the first night, the town closed their eyes, and the Grimoire stirred." : "Night fell, and the town closed their eyes once more."];
+      for (const r of ph.recs) { const t = storyStep(r, ref, nm); if (t) lines.push(t); }
+      P(flow(lines, NIGHT_LINKS, ph.n * 3));
+      P(ph.deaths.length ? ph.deaths.map((d, k) => `${k ? "Beside them lay" : "When the sun rose, the town found"} ${nm(d.pid)}, dead.${reveal(d.pid, d.role)}`).join(" ") : "When the sun rose, the town counted heads, and everyone was still alive.");
     } else {
       H(`Day ${ph.n}`);
-      for (const x of ph.shots) P(`${nm(x.by)} stood up, claimed to be the Slayer, and shot at ${nm(x.at)}.${x.died ? ` ${nm(x.at)} fell dead!${reveal(x.at, ph.roles[x.at])} ${nm(x.by)} really was the Slayer.${known(x.by)}` : " Nothing happened."}`);
-      for (const n of ph.noms) P(n.virgin === "executed" ? `${nm(n.by)} nominated ${nm(n.of)}, who turned out to be the Virgin. ${nm(n.by)} was a Townsfolk, so was executed on the spot!${reveal(n.by, ph.roles[n.by])}${known(n.of)}` : `${nm(n.by)} nominated ${nm(n.of)}, and ${plural(n.count, "hand")} ${n.count === 1 ? "was" : "were"} raised.${n.virgin === "nothing" ? ` ${nm(n.of)} was the Virgin, but nothing happened.` : ""}`);
+      const lines = [ph.n === 1 ? "The first day dawned, and the town began to talk, and to suspect." : "The town gathered again, fewer and warier than before."];
+      for (const x of ph.shots) lines.push(`${nm(x.by)} stood up, claimed to be the Slayer, and shot at ${nm(x.at)}.${x.died ? ` ${nm(x.at)} fell dead!${reveal(x.at, ph.roles[x.at])} ${nm(x.by)} really was the Slayer.${known(x.by)}` : " Nothing happened."}`);
+      for (const n of ph.noms) lines.push(n.virgin === "executed" ? `${nm(n.by)} nominated ${nm(n.of)}, who turned out to be the Virgin. ${nm(n.by)} was a Townsfolk, so was executed on the spot!${reveal(n.by, ph.roles[n.by])}${known(n.of)}`
+        : `${nm(n.by)} nominated ${nm(n.of)}, and ${plural(n.count, "hand")} ${n.count === 1 ? "was" : "were"} raised${n.need ? (n.count >= n.need ? ", enough to put them on the block" : ", not enough") : ""}.${n.virgin === "nothing" ? ` ${nm(n.of)} was the Virgin, but nothing happened.` : ""}`);
       ph.noms.filter(n => n.virgin === "nothing").forEach(n => known(n.of));
       const e = ph.exec;
-      if (e && e.cause !== "nominated the Virgin") P(e.dies ? `The town executed ${nm(e.pid)}.${reveal(e.pid, ph.roles[e.pid])}` : `The town executed ${nm(e.pid)}, but ${nm(e.pid)} did not die.`);
-      else if (!e) P(ph.noms.length ? "In the end, nobody was executed." : "Nobody was nominated, and nobody was executed.");
+      if (e && e.cause !== "nominated the Virgin") lines.push(e.dies ? `As the sun went down, the town executed ${nm(e.pid)}.${reveal(e.pid, ph.roles[e.pid])}` : `As the sun went down, the town executed ${nm(e.pid)}, but ${nm(e.pid)} did not die.`);
+      else if (!e) lines.push(ph.noms.length ? "As the sun went down, nobody had enough votes, and nobody was executed." : "Nobody dared to nominate, and as the sun went down, nobody was executed.");
+      P(flow(lines, DAY_LINKS, ph.n));
     }
   }
   const o = S.over;
@@ -1427,21 +1430,43 @@ function storyHtml() {
   const ids = S.players.map(p => p.id).filter(q => S.drawn[q]);
   const good = ids.filter(q => sideOf(q) !== "evil" && !shown.has(q));
   const evil = ids.filter(q => sideOf(q) === "evil");
-  if (good.length) { H("The town"); good.forEach(q => P(`${reveal(q, roleOf(q)).trim()}${S.dead[q] ? "" : " They survived."}`)); }
+  if (good.length) {
+    H("The town");
+    const who = good.map(q => { known(q); const d = S.drawn[q]; return `${nm(q)} was the <b class="t-${teamOf(d.role)}">${esc(d.role)}</b>${d.role === "Drunk" && d.shown ? ` (who believed they were the ${esc(d.shown)})` : ""}`; });
+    const alive = good.filter(q => !S.dead[q]).length;
+    P(`Let's meet the rest of the good team. ${listJoin(who)}. ${alive === good.length ? (good.length > 1 ? "All of them survived." : "They survived.") : ""}`);
+  }
   H("And now… the evil team");
-  const evilOrder = [...evil.filter(q => teamOf(roleOf(q)) !== "demon"), ...evil.filter(q => teamOf(roleOf(q)) === "demon")];
-  const lastDemon = [...evilOrder].reverse().find(q => teamOf(roleOf(q)) === "demon" && !shown.has(q));
-  evilOrder.forEach(q => {
+  const ms = evil.filter(q => teamOf(roleOf(q)) !== "demon"), ds = evil.filter(q => teamOf(roleOf(q)) === "demon");
+  const lastDemon = [...ds].reverse().find(q => !shown.has(q));
+  const evilLine = q => {
     const was = S.start && S.start[q] && S.start[q] !== roleOf(q) ? `, who started as the ${esc(S.start[q])}` : "";
     const role = `<b class="t-${teamOf(roleOf(q))}">${esc(roleOf(q))}</b>`;
-    if (shown.has(q)) return P(`${nm(q)} was the ${role}${was}, as we found out.`);
-    P(`${q === lastDemon ? "And the Demon… " : ""}${nm(q)} was the ${role}${was}${q === lastDemon ? "!" : "."}${S.dead[q] ? "" : " They survived."}`);
-  });
-  const bl = S.bluffs.filter(Boolean);
-  if (bl.length) P(`The Demon's bluffs were the ${esc(listJoin(bl))}.`);
-  if (S.redHerring) P(`The Fortune Teller's red herring was ${nm(S.redHerring)}.`);
+    if (shown.has(q)) return `${nm(q)} was the ${role}${was}, as we found out.`;
+    if (q === lastDemon) return `And the Demon, who has been among you all along… ${nm(q)}, the ${role}${was}!${S.dead[q] ? "" : " They survived the whole game."}`;
+    return `${nm(q)} was the ${role}${was}.${S.dead[q] ? "" : " They survived."}`;
+  };
+  if (ms.length) P(`${ms.length === 1 ? "Working in the shadows was a single Minion." : `Working in the shadows were ${ms.length} Minions.`} ${ms.map(evilLine).join(" ")}`);
+  const known2 = ds.filter(q => q !== lastDemon);
+  if (known2.length) P(known2.map(evilLine).join(" "));
+  if (lastDemon) P(evilLine(lastDemon));
+  const bl = S.bluffs.filter(Boolean), extra = [];
+  if (bl.length) extra.push(`The Demon's bluffs were the ${esc(listJoin(bl))}.`);
+  if (S.redHerring) extra.push(`The Fortune Teller's red herring was ${nm(S.redHerring)}.`);
+  if (extra.length) P(extra.join(" "));
   P("Thank you for playing!");
   return out.join("");
+}
+// Join a phase's events into one paragraph, with a linking phrase between them
+const NIGHT_LINKS = ["Soon after,", "Meanwhile,", "Elsewhere in the town,", "Not long after,", "In the darkness,", "Later that night,", "Quietly,", "Then"];
+const DAY_LINKS = ["Then", "After some debate,", "Next,", "Later,", "Not to be outdone,"];
+function flow(lines, links, start = 0) {
+  let k = start;
+  return lines.map((t, i) => {
+    if (!i || /^(But|When|In the dark|In turn|With their|As the sun|Nobody|The town)/.test(t)) return t;
+    const link = links[k++ % links.length];
+    return `${link} ${t.replace(/^(The|A) /, m => m.toLowerCase())}`;
+  }).join(" ");
 }
 function storyStep(r, ref, nm) {
   const a = (r.n > 1 && ACT_LATER[r.key]) || ACT[r.key] || {}, I = r.info || {}, R = r.roles;
@@ -1453,7 +1478,7 @@ function storyStep(r, ref, nm) {
   const chars = rs => listJoin(rs.map(x => `the ${esc(x)}`));
   const refs = qs => listJoin((qs || []).map(q => ref(q, R)));
   if (r.key === "MINION") return "The Minions opened their eyes, and saw who their Demon was.";
-  if (r.key === "DEMON") return `The Demon learnt who their Minions were, and was given three characters to bluff as: ${chars(S.bluffs.filter(Boolean))}.`;
+  if (r.key === "DEMON") return `In turn, the Demon learnt who their Minions were, and was given three characters to bluff as: ${chars(S.bluffs.filter(Boolean))}.`;
   if (r.key === "TOLD") return `In the dark, ${ref(r.pid, { ...R, [r.pid]: S.start && S.start[r.pid] || r.role })} was woken and told they were now the ${esc(r.now || r.role)}.`;
   if (a.info === "lunatic") return `${cap(ref(r.pid, { ...R, [r.pid]: r.seen }))} woke, and was shown their Minions and their bluffs.`;
   if (a.info === "number") {
@@ -1479,7 +1504,7 @@ function storyStep(r, ref, nm) {
     : r.key === "Gambler" ? `${who} gambled that ${ref(r.picks[0], R)} was the ${esc(r.char)}`
     : r.key === "Philosopher" ? `${who} chose to gain the ability of the ${esc(r.char)}`
     : r.key === "Courtier" ? `${who} chose the ${esc(r.char)}, to make them drunk`
-    : r.key === "Ravenkeeper" ? `${who} pointed at a player`
+    : r.key === "Ravenkeeper" ? `With their last breath, ${ref(r.pid, R)} pointed at a player`
     : r.key === "Butler" ? `${who} chose ${refs(r.picks)} as their master`
     : `${who} ${verb} ${refs(r.picks)}`;
   if (a.result === "ft") t += `, and was told ${r.answer ? "Yes: one of them was the Demon" : "No"}`;
@@ -1491,7 +1516,10 @@ function storyStep(r, ref, nm) {
   t += ".";
   if (a.rem && why.length && !a.kill) t += ` But they ${esc(past(why[0]).replace(/^they /, ""))}, so it had no effect.`;
   if (a.result && !["gamble", "pithag", "professor", "exorcist"].includes(a.result)) t += lie;
-  for (const k of r.kills || []) {
+  // A single kill reads as one sentence: "attacked the Monk, killing them"
+  const ks = r.kills || [];
+  if (ks.length === 1 && ks[0].died && !ks[0].jump && !ks[0].instead && !(ks[0].pid === r.pid && r.starpass) && !["Pukka", "Gambler"].includes(r.key)) return t.slice(0, -1) + ", killing them.";
+  for (const k of ks) {
     if (k.jump) t += ` ${cap(ref(k.pid, R))} was an Outsider: the Fang Gu jumped into them, and the old Fang Gu died in their place.`;
     else if (k.died && k.pid === r.pid && r.starpass) t += " The Imp died by their own hand, and a Minion rose as the new Imp.";
     else if (k.died && k.instead) t += ` But the Mayor's luck held, and ${ref(k.instead, R)} died instead.`;
@@ -1680,7 +1708,7 @@ document.addEventListener("click", ev => {
     case "vote": { const d = S.day.draft, q = el.dataset.pid; d.votes = d.votes.includes(q) ? d.votes.filter(x => x !== q) : [...d.votes, q]; break; }
     case "vote-ok": {
       const d = S.day.draft;
-      S.day.noms.push({ by: d.by, of: d.of, votes: d.votes, ghosts: d.votes.filter(q => !alive(q)), count: d.votes.length, ...(d.virginNothing ? { virgin: "nothing" } : {}) });
+      S.day.noms.push({ by: d.by, of: d.of, votes: d.votes, ghosts: d.votes.filter(q => !alive(q)), count: d.votes.length, need: votesNeeded(), ...(d.virginNothing ? { virgin: "nothing" } : {}) });
       S.day.draft = null; break;
     }
     case "nom-del": {
