@@ -96,6 +96,19 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass)
 .spot-tok.evil { border-color: var(--evil); }
 .spot-tok .ico { font-size: clamp(4rem, 16vmin, 12rem); line-height: 1; }
 @keyframes flip { from { transform: rotateY(90deg) scale(.8); } to { transform: none; } }
+/* The lobby */
+.lobby { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 4vmin; align-items: center; }
+@media (orientation: portrait) { .lobby { grid-template-columns: 1fr; } }
+.lobby-join { display: grid; gap: 1.6vmin; justify-items: center; text-align: center; }
+.lobby-join h1 { font-size: clamp(2rem, 5vw, 4rem); }
+.qr { background: #fff; padding: 1.4vmin; border-radius: 16px; width: min(40vmin, 420px); }
+.qr svg { display: block; width: 100%; height: auto; }
+.lobby-code { font-weight: 800; font-size: clamp(3rem, 10vmin, 7rem); letter-spacing: .2em; color: var(--brass); line-height: 1; }
+.lobby-players { display: grid; gap: 2vmin; }
+.lobby-players h2 { font-size: clamp(1.8rem, 4vw, 3rem); }
+.lobby-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.4vmin; }
+.lobby-p { background: var(--surface); border: 2px solid var(--line); border-radius: 14px; padding: 1.2vmin 2vmin; font-size: 1.4em; font-weight: 800; color: var(--muted); }
+.lobby-p.in { border-color: var(--good); color: var(--fg); background: rgba(76,140,228,.18); }
 .corner { position: fixed; right: 12px; bottom: 10px; display: flex; gap: 8px; align-items: center; opacity: .55; font-size: .8rem; z-index: 5; }
 .corner button { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--good); display: inline-block; }
@@ -107,6 +120,7 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass)
 <div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
+<script src="vendor/qrcode.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -207,6 +221,25 @@ function dayPanel() {
   return cards.join("");
 }
 
+// Like a Jackbox room: scan the code or type it in the Player app, and see who has joined
+function lobbyHtml() {
+  const base = location.href.replace(/town\.html.*$/, ""), url = `${base}player.html?code=${encodeURIComponent(G.code || code)}`;
+  let qr = "";
+  try { const q = qrcode(0, "M"); q.addData(url); q.make(); qr = q.createSvgTag({ cellSize: 8, margin: 2, scalable: true }); } catch (e) {}
+  const joined = new Set(G.joined || []);
+  return `<div class="screen lobby"><div class="lobby-join">
+      <h1>${esc(G.script)}</h1>
+      <p class="big">Join on your phone</p>
+      ${qr ? `<div class="qr">${qr}</div>` : ""}
+      <p class="muted">or go to <b>${esc(base.replace(/^https?:\/\//, ""))}player.html</b> and enter</p>
+      <div class="lobby-code">${esc(G.code || code)}</div>
+    </div>
+    <div class="lobby-players">
+      <h2>${G.dealt ? "Everyone has their token" : G.players.length ? `${joined.size} of ${G.players.length} joined` : "Waiting for the Storyteller to add the players"}</h2>
+      <div class="lobby-grid">${G.players.map(p => `<div class="lobby-p ${joined.has(p.id) ? "in" : ""}">${joined.has(p.id) ? "📱" : "⌛"} ${esc(p.name)}</div>`).join("")}</div>
+      ${G.dealt ? `<p class="big">The first night is about to begin.</p>` : G.players.length && joined.size === G.players.length ? `<p class="big">Everyone's here! The Storyteller will hand out the tokens.</p>` : ""}
+    </div></div>`;
+}
 function render() {
   const app = $("app");
   $("corner").hidden = !G;
@@ -247,10 +280,9 @@ function render() {
   } else if (m === "day") {
     app.innerHTML = `<div class="screen game"><div>${circle({ center: `<span class="ph">Day ${G.n}</span><span class="sub">${G.alive} alive · ${G.need} to execute</span>` })}</div><div class="panel">${dayPanel()}</div></div>`;
   } else if (m === "draw") {
-    app.innerHTML = `<div class="screen full"><div class="full-inner"><h1 style="font-size:clamp(2.6rem,8vw,6rem)">Drawing characters</h1><p class="big">${G.drawn} of ${G.total} have drawn their character.</p></div></div>`;
+    app.innerHTML = `<div class="screen full"><div class="full-inner"><h1 style="font-size:clamp(2.6rem,8vw,6rem)">Drawing characters</h1><p class="big">${G.drawn} of ${G.total} have their character.</p><p class="muted">Pass the Storyteller's phone round to anyone without a phone.</p></div></div>`;
   } else {
-    app.innerHTML = `<div class="screen full"><div class="full-inner"><h1 style="font-size:clamp(2.6rem,8vw,6rem)">${esc(G.script)}</h1><p class="big">The Storyteller is setting up.</p>
-      ${G.players.length ? `<p class="muted">${esc(listJoin(G.players.map(p => p.name)))}</p>` : ""}</div></div>`;
+    app.innerHTML = lobbyHtml();
   }
 }
 // Keep the timer counting between updates

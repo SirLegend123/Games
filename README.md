@@ -6,6 +6,8 @@ Open `index.html` to choose between the *Blood on the Clocktower* apps: the **St
 
 **＋ New game** at the top starts again at any point (asking first if a game is under way), keeping the players.
 
+**Playing like a Jackbox game**: every game gets a 5-letter code as soon as it's created. Put the **Town Square** on a TV and it shows a QR code, the web address and the code; players scan it (or open the Player app and type the code) on their phones and tap their name, and each one lights up on the TV as they join. The Storyteller's Players and Bag screens show the code and who has joined (📱). When the bag is ready, **📱 Send tokens to phones** deals the characters at random and sends each player theirs, privately, to their own phone, which opens their Grimoire. Anyone without a phone gets their token by passing the Storyteller's phone round, as before. **＋ New game** clears everyone's phone for the next game.
+
 A *Blood on the Clocktower* Storyteller app for games round a real table. Open `storyteller.html` (or `index.html`) in any browser; nothing to install. The game is saved on the device as you go.
 
 1. **Players**: choose the script (Trouble Brewing, Bad Moon Rising or Sects & Violets) and add everyone in seat order, clockwise. Type names one at a time or several separated by commas. Move or remove players with the arrows and ×. Shows how many Townsfolk, Outsiders, Minions and Demon 5 to 15 players need.
@@ -45,8 +47,8 @@ A *Blood on the Clocktower* Storyteller app for games round a real table. Open `
 
 A *Blood on the Clocktower* app for each player at a real table. Open `player.html`. Everything is saved on the device.
 
-1. **Players**: if the Storyteller is sharing the game, type their code in **🔗 Join the game** and tap which player is you: the script and the players fill in by themselves, in seat order, and from then on deaths and the night and day follow the Storyteller's game (your own notes, claims and reads are kept). Otherwise, choose the script and add everyone in seat order, clockwise, including yourself (several at once with commas). Tap **Me** next to your own name.
-2. **My token**: once the Storyteller hands you your character, tap it (its ability is shown), then choose your side: **Good** or **Evil**. You can come back and change either later.
+1. **Players**: scan the QR code on the Town Square, or type the Storyteller's code in **🔗 Join the game** and tap which player is you: the script and the players fill in by themselves, in seat order, and from then on deaths and the night and day follow the Storyteller's game (your own notes, claims and reads are kept). Otherwise, choose the script and add everyone in seat order, clockwise, including yourself (several at once with commas). Tap **Me** next to your own name.
+2. **My token**: when the Storyteller sends the tokens, yours arrives on your phone: **Your token has arrived** asks you to make sure nobody can see, then **Show me** reveals your character, its ability and your side, and **Open my Grimoire** takes you in (good or evil, set for you). If you're not linked, or were handed a physical token, then once the Storyteller hands you your character, tap it (its ability is shown), then choose your side: **Good** or **Evil**. You can come back and change either later.
 3. **Grimoire** (good players):
    - **The circle**: every player in their seat, showing the character they claim (with its symbol), your read of them (blue for trust, grey for unsure, red for suspect, a darker red and a **Demon?** badge for your Demon guess), whether they're dead and whether they still have their ghost vote. You're marked ★ with your own character. The middle shows the phase, how many are alive and the votes needed to execute.
    - **Tap a player** to record what they claim (with that character's ability), set your read, mark them dead or their ghost vote used, and keep notes on what they've said.
