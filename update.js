@@ -3,7 +3,7 @@
 (function () {
   let shown = false;
   async function check() {
-    if (shown) return;
+    if (shown || location.protocol === "file:") return;
     try {
       const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
       const { v } = await r.json();
