@@ -148,6 +148,37 @@ label.field, .field { display: grid; gap: 6px; }
 .pill { font-size: .78rem; font-weight: 800; border-radius: 999px; padding: 2px 10px; background: var(--surface-2); border: 1px solid var(--line); white-space: nowrap; }
 .pill.th-target { background: var(--demon); color: #fff; border-color: var(--demon); } .pill.th-threat { background: var(--warn); color: #1a1408; border-color: var(--warn); } .pill.th-watch { border-color: var(--brass); color: var(--brass); }
 .log li.cover { border-left: 4px solid var(--brass); }
+/* Night steps sent from the Storyteller: big, and tinted with my team's colour */
+.night-ov { position: fixed; inset: 0; z-index: 60; overflow-y: auto; display: grid; place-items: center; padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); color: #f6f2fa; --fg: #f6f2fa; --muted: #ddd3e8; --surface: rgba(0,0,0,.3); --surface-2: rgba(0,0,0,.2); --line: rgba(255,255,255,.3); --brass: #f0c66a; --on-brass: #1a1408; background: #120f17; }
+.night-ov.tint-evil { background: radial-gradient(circle at 50% 35%, #8a1a2c 0%, #4a0c17 55%, #24050b 100%); }
+.night-ov.tint-townsfolk { background: radial-gradient(circle at 50% 35%, #2456a8 0%, #12305f 55%, #0a1730 100%); }
+.night-ov.tint-outsider { background: radial-gradient(circle at 50% 35%, #49a6dc 0%, #1d628c 55%, #0d3149 100%); }
+.night-ov .draw-inner { width: min(760px, 100%); display: grid; gap: 18px; text-align: center; justify-items: center; }
+.night-ov h1 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: clamp(2.4rem, 9vw, 3.6rem); line-height: 1.1; }
+.night-ov .lead { font-size: clamp(1.3rem, 5vw, 1.8rem); margin: 0; line-height: 1.3; }
+.night-ov .hint { color: var(--muted); }
+.night-ov .names, .night-ov .chars, .night-ov .draw-foot { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.night-ov .nmchip { font-family: var(--font-display); font-size: clamp(2rem, 8vw, 3rem); background: var(--surface); border: 3px solid var(--brass); border-radius: 14px; padding: 6px 20px; }
+.night-ov .charchip { display: grid; justify-items: center; gap: 2px; background: var(--parch); color: var(--parch-ink); border: 5px solid var(--townsfolk); border-radius: 14px; padding: 12px 18px; font-weight: 800; font-size: 1.4rem; min-width: 140px; }
+.night-ov .charchip.t-outsider { border-color: var(--outsider); } .night-ov .charchip.t-minion, .night-ov .charchip.t-demon { border-color: var(--evil); }
+.night-ov .charchip .ico { font-size: 3rem; line-height: 1.1; }
+.night-ov .answer { font-weight: 800; font-size: clamp(5rem, 26vw, 9rem); line-height: 1; color: var(--brass); }
+.night-ov .answer.small { font-family: var(--font-display); font-weight: 400; font-size: clamp(2.4rem, 10vw, 3.6rem); }
+.night-ov .answer.evil-t { color: #ff6b81; }
+.night-ov .pickgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; width: 100%; }
+.night-ov .pick { min-height: 74px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); font-weight: 800; font-size: 1.4rem; color: inherit; }
+.night-ov .pick[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
+.night-ov .pick.ally { border-color: #ff6b81; background: rgba(216,67,90,.45); }
+.night-ov .pick small { display: block; font-size: .6em; text-transform: uppercase; letter-spacing: .08em; color: inherit; opacity: .85; }
+.night-ov .pick:disabled { opacity: .45; }
+.night-ov .tiles { width: 100%; }
+.night-ov .tile { color: inherit; } .night-ov .tile[aria-pressed="true"] { color: var(--parch-ink); }
+.night-ov .btn.huge { font-size: 1.4rem; min-height: 70px; padding: 14px 32px; }
+.night-ov .big-tok { width: min(280px, 72vw); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); border: 10px solid var(--good); display: grid; place-content: center; justify-items: center; gap: 4px; font-family: var(--font-display); font-size: 1.8rem; }
+.night-ov .big-tok.evil { border-color: var(--evil); } .night-ov .big-tok.outsider { border-color: var(--outsider); }
+.night-ov .big-tok .ico { font-size: 4rem; line-height: 1.1; }
+.night-ov .ability { background: var(--surface); border-radius: 12px; padding: 12px 16px; max-width: 520px; font-size: 1.15rem; }
+.night-ov .spy .circle { max-width: 100%; }
 /* Private chats */
 .chat-cover { position: fixed; inset: 0; z-index: 40; background: rgba(8,6,12,.7); display: grid; place-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
 .chat-panel { width: min(640px, 100%); background: var(--surface); border: 2px solid var(--brass); border-radius: 18px; padding: 18px; display: grid; gap: 14px; }
@@ -180,6 +211,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   </header>
   <main id="app"></main>
   <div id="chatBox"></div>
+  <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
 <script src="characters.js"></script>
@@ -547,11 +579,6 @@ function linkStart() {
     h.on("data", fromHost);
     h.on("close", () => { if (link.host === h) { link.status = "lost"; renderLink(); linkAgain(); } });
   });
-  // A chat partner connecting to us directly
-  peer.on("connection", c => {
-    if (!(c.metadata && c.metadata.kind === "chat" && link.chat && c.metadata.id === link.chat.id)) return c.close();
-    attachChat(c);
-  });
   peer.on("error", e => {
     link.status = "error";
     link.err = e.type === "peer-unavailable" ? `Nobody is sharing a game with code ${L.code} right now.` : "Can't reach the link service. Check the internet connection.";
@@ -587,14 +614,15 @@ function fromHost(m) {
   if (m.t === "chat-no") { link.waiting = null; link.note = m.why; }
   if (m.t === "chat-open") {
     link.waiting = null; link.incoming = null;
-    link.chat = { id: m.id, with: m.with, msgs: [], conn: null, ended: "", unread: 0 };
-    link.open = true; buzz();
-    if (m.call) attachChat(link.peer.connect(m.peer, { reliable: true, metadata: { kind: "chat", id: m.id } }));
+    // A chat we're already in (after a reconnect) keeps its messages; either way, agree a fresh key
+    if (!(link.chat && link.chat.id === m.id && !link.chat.ended)) { link.chat = { id: m.id, with: m.with, msgs: [], ended: "", unread: 0, queue: [] }; link.open = true; buzz(); }
+    chatKeys(link.chat, true);
   }
-  if (m.t === "chat-closed" && link.chat && link.chat.id === m.id) {
-    link.chat.ended = m.why;
-    if (link.chat.conn) try { link.chat.conn.close(); } catch (e) {}
-  }
+  if (m.t === "chat-key" && link.chat && link.chat.id === m.id) chatPeerKey(link.chat, m.key, m.first);
+  if (m.t === "chat-msg" && link.chat && link.chat.id === m.id) chatReceive(link.chat, m);
+  if (m.t === "chat-closed" && link.chat && link.chat.id === m.id) link.chat.ended = m.why;
+  if (m.t === "night") showNight(m);
+  if (m.t === "night-off") hideNight();
   renderLink();
 }
 // The Storyteller's game is the source of truth for who's playing, who's dead and what phase it is.
@@ -630,22 +658,79 @@ function syncFromLobby(lb) {
   if (changed && !(document.activeElement && ["TEXTAREA", "INPUT"].includes(document.activeElement.tagName) && document.activeElement.id !== "joinCode")) render();
 }
 function joinAs(pid) { L.pid = pid; saveLink(); toHost({ t: "join", pid, secret: L.secret }); }
-function attachChat(c) {
-  const ch = link.chat;
-  if (!ch) return;
-  ch.conn = c;
-  c.on("data", m => { if (m && m.t === "msg" && link.chat === ch && !ch.ended) { ch.msgs.push({ me: false, text: String(m.text).slice(0, 1000), at: Date.now() }); if (!link.open) ch.unread++; buzz(); renderLink(); } });
-  c.on("open", renderLink);
+/* End-to-end encryption for chats. Each phone makes a key pair for the chat and sends the public half;
+   both work out the same secret key from it (ECDH), and only they can read the messages (AES-GCM).
+   The Storyteller's device just passes the scrambled messages along. */
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function chatKeys(ch, first) {
+  try {
+    ch.pair = ch.pair || await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, false, ["deriveKey"]);
+    toHost({ t: "chat-key", id: ch.id, key: await crypto.subtle.exportKey("jwk", ch.pair.publicKey), first });
+  } catch (e) { ch.ended = "This browser can't keep chats private, so the chat can't start."; renderLink(); }
+}
+async function chatPeerKey(ch, jwk, first) {
+  try {
+    if (!ch.pair) await chatKeys(ch, false);
+    const theirs = await crypto.subtle.importKey("jwk", jwk, { name: "ECDH", namedCurve: "P-256" }, false, []);
+    const had = !!ch.key;
+    ch.key = await crypto.subtle.deriveKey({ name: "ECDH", public: theirs }, ch.pair.privateKey, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+    // They reconnected and made a new key: send ours again so they can work out the shared one
+    if (first && had) chatKeys(ch, false);
+    const q = ch.queue.splice(0);
+    for (const t of q) await chatSend(ch, t);
+    renderLink();
+  } catch (e) {}
+}
+async function chatSend(ch, text) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, ch.key, new TextEncoder().encode(text));
+  toHost({ t: "chat-msg", id: ch.id, iv: b64(iv), data: b64(data) });
+}
+async function chatReceive(ch, m) {
+  try {
+    if (!ch.key || ch.ended) return;
+    const text = new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(m.iv) }, ch.key, unb64(m.data)));
+    ch.msgs.push({ me: false, text: text.slice(0, 1000), at: Date.now() });
+    if (!link.open) ch.unread++;
+    buzz(); renderLink();
+  } catch (e) {}
 }
 function sendChat() {
   const box = $("chatIn"), ch = link.chat, t = box && box.value.trim();
-  if (!t || !ch || ch.ended || !ch.conn || !ch.conn.open) return;
-  ch.conn.send({ t: "msg", text: t });
+  if (!t || !ch || ch.ended) return;
+  if (ch.key) chatSend(ch, t); else ch.queue.push(t);
   ch.msgs.push({ me: true, text: t, at: Date.now() });
   box.value = "";
   renderLink();
   $("chatIn").focus();
 }
+
+/* The Storyteller can send a night step to this phone: my info, or my choice.
+   Taps go back to the Storyteller, who updates the screen. */
+function showNight(m) {
+  const box = $("nightBox");
+  if (!box) return;
+  const was = !box.hidden && box.dataset.step === String(m.step);
+  box.className = `night-ov tint-${m.tint}`;
+  box.dataset.step = m.step;
+  box.innerHTML = `<div class="draw-inner">${m.html}</div>`;
+  box.hidden = false;
+  if (!was) { buzz(); box.scrollTop = 0; }
+}
+function hideNight() {
+  const box = $("nightBox");
+  if (!box || box.hidden) return;
+  box.className = "night-ov tint-done";
+  box.innerHTML = `<div class="draw-inner"><h1>Close your eyes</h1><p class="lead">Thank you.</p></div>`;
+  setTimeout(() => { if (box.classList.contains("tint-done")) { box.hidden = true; box.innerHTML = ""; } }, 2500);
+}
+document.addEventListener("click", ev => {
+  const el = ev.target.closest("#nightBox [data-act]");
+  if (!el) return;
+  ev.stopImmediatePropagation();
+  toHost({ t: "act", act: el.dataset.act, pid: el.dataset.pid || "", role: el.dataset.role || "" });
+}, true);
 
 // The card on the Grimoire: join the game, then see who's around to talk to
 function linkCard() {
@@ -680,7 +765,7 @@ function chatBoxHtml() {
   if (!ch || !link.open) return "";
   return `<div class="chat-cover"><div class="chat-panel chat">
     <div class="row"><h2 style="margin-right:auto">💬 ${esc(lname(ch.with))}</h2><button class="btn" data-act="chat-hide">Hide</button>${ch.ended ? `<button class="btn" data-act="chat-done">Close</button>` : `<button class="btn danger" data-act="chat-end">End chat</button>`}</div>
-    <div class="msgs" id="msgs">${ch.msgs.length ? ch.msgs.map(m => `<div class="msg ${m.me ? "me" : ""}">${esc(m.text)}</div>`).join("") : `<p class="hint">${ch.conn && ch.conn.open ? "Say hello. Only the two of you can see this chat." : "Connecting…"}</p>`}</div>
+    <div class="msgs" id="msgs">${ch.msgs.length ? ch.msgs.map(m => `<div class="msg ${m.me ? "me" : ""}">${esc(m.text)}</div>`).join("") : `<p class="hint">${ch.key ? "🔒 Say hello. Only the two of you can read this chat." : "🔒 Setting up a private line…"}</p>`}</div>
     ${ch.ended ? `<p class="warn">${esc(ch.ended)}</p>` : `<div class="add"><input type="text" id="chatIn" placeholder="Message" autocomplete="off" enterkeyhint="send" aria-label="Message"><button class="btn primary" data-act="chat-send">Send</button></div>`}
   </div></div>`;
 }
