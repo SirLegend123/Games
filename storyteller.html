@@ -337,6 +337,7 @@ function render() {
   renderDraw();
   renderTown();
   townSend();
+  remoteSync();
   save();
 }
 
@@ -749,6 +750,48 @@ function startNight() {
 }
 
 // What the Storyteller sees for each step
+// Whose phone a night step can go to: the woken player, or every linked Minion for the Minion info
+function remoteTargets() {
+  const N = S.night, st = N && N.steps[N.i];
+  if (!st || actOf(st.key).st) return [];
+  return (st.key === "MINION" ? minions() : [st.pid]).filter(q => town.players[q]);
+}
+// Keep the woken player's phone showing exactly what this phone would show them
+function remoteSync() {
+  const N = S.night, on = S.step === "night" && N && N.view === "remote" && N.steps[N.i];
+  const targets = on ? remoteTargets() : [];
+  const html = on ? nightPlayerHtml().replace(/<button class="link" data-act="night-hide">[^<]*<\/button>/, "") : "";
+  const key = JSON.stringify([targets, html]);
+  if (town.remote === key) return;
+  const prev = town.remote ? JSON.parse(town.remote)[0] : [];
+  town.remote = key;
+  for (const q of prev) if (!targets.includes(q)) tellPlayer(q, { t: "night-off" });
+  if (on) for (const q of targets) tellPlayer(q, { t: "night", html, tint: nightTint(), step: N.i });
+}
+// A tap on the player's phone during their night step
+function remoteAct(pid, m) {
+  const N = S.night;
+  if (S.step !== "night" || !N || N.view !== "remote") return;
+  const st = N.steps[N.i];
+  if (!st || !(st.key === "MINION" ? minions() : [st.pid]).includes(pid)) return;
+  const c = N.cur, a = actOf(st.key);
+  switch (m.act) {
+    case "np-pick": {
+      if (c.done || !S.players.some(p => p.id === m.pid)) return;
+      c.picks = c.picks.includes(m.pid) ? c.picks.filter(x => x !== m.pid) : [...c.picks, m.pid].slice(-pickN(a));
+      break;
+    }
+    case "np-char": if (c.done || !CHAR[m.role]) return; c.char = m.role; break;
+    case "np-ok": if (c.done || c.picks.length !== pickN(a) || (a.chars && !c.char)) return; workResult(st, c); c.done = true; break;
+    case "np-skip": if (!a.optional || c.done) return; c.skipped = true; nextStep(true); break;
+    case "night-done":
+      if (st.key === "MINION") return tellPlayer(pid, { t: "night-off" });
+      if (c.done && c.kills) N.view = "st"; else nextStep(true);
+      break;
+    default: return;
+  }
+  render();
+}
 function nightHtml() {
   const N = S.night, st = N.steps[N.i];
   let card;
@@ -779,7 +822,10 @@ function nightHtml() {
         <p>${stNote(st)}</p>
         ${truthSeg}
         ${stControls(st)}
-        <div class="row"><button class="btn" data-act="night-back">← Back</button><button class="btn" data-act="night-next">Skip</button><span class="spacer"></span><button class="btn primary" data-act="night-show">Show ${st.key === "MINION" ? "the Minions" : name} →</button></div>
+        ${N.view === "remote" ? `<p class="notice">📱 On ${esc(listJoin(remoteTargets().map(nameOf)))}'s phone${remoteTargets().length > 1 ? "s" : ""}. ${st.key === "MINION" ? "Carry on when they've seen it." : "Waiting for them…"}</p>` : ""}
+        <div class="row"><button class="btn" data-act="night-back">← Back</button><button class="btn" data-act="night-next">${N.view === "remote" && st.key === "MINION" ? "Done →" : "Skip"}</button><span class="spacer"></span>
+          ${N.view === "remote" ? `<button class="btn" data-act="night-unremote">Take it back</button>`
+          : `${remoteTargets().length ? `<button class="btn primary" data-act="night-phone">📱 Send to ${esc(listJoin(remoteTargets().map(nameOf)))}'s phone</button>` : ""}<button class="btn ${remoteTargets().length ? "" : "primary"}" data-act="night-show">Show ${st.key === "MINION" ? "the Minions" : name} on this phone →</button>`}</div>
       </section>`;
     }
   }
@@ -1649,8 +1695,8 @@ function townStart() {
 function townStop() { S.townOn = false; if (town.peer) town.peer.destroy(); town = { peer: null, conns: [], status: "off", last: "", players: {}, chats: [], reqs: {}, lobby: "" }; }
 
 /* Players linked from the Player app, and their private chats.
-   The Storyteller only passes on requests and keeps track of who is talking to whom:
-   the messages go straight between the two players' devices and never come here. */
+   Chat messages pass through here, but they're encrypted end to end by the two phones
+   (with a key only they share), so the Storyteller's device can't read them, and doesn't keep them. */
 const chatDay = () => S.step === "day" && !S.over;
 const tellPlayer = (pid, m) => { const P = town.players[pid]; if (P && P.conn.open) try { P.conn.send(m); } catch (e) {} };
 const inChat = pid => town.chats.some(c => c.a === pid || c.b === pid);
@@ -1668,7 +1714,9 @@ function fromPlayer(c, m) {
     c.pid = pid;
     sendLobby(true);
     if (S.drawn[pid] && !(S.draw && S.draw.queue.includes(pid))) sendToken(pid);
-    renderTown(); refreshJoin(); return;
+    town.chats.filter(x => x.a === pid || x.b === pid).forEach(x => c.send({ t: "chat-open", id: x.id, with: x.a === pid ? x.b : x.a }));
+    town.remote = null; // the night screen is sent again below
+    renderTown(); refreshJoin(); remoteSync(); return;
   }
   const me = c.pid;
   if (!me) return;
@@ -1692,12 +1740,21 @@ function fromPlayer(c, m) {
     if (!m.ok) return tellPlayer(r.from, { t: "chat-no", to: r.to, why: `${nameOf(r.to)} said no.` });
     if (!chatDay() || inChat(r.from) || inChat(r.to) || !town.players[r.from]) { tellPlayer(r.to, { t: "chat-gone", id: m.id }); return tellPlayer(r.from, { t: "chat-no", to: r.to, why: "The chat couldn't start." }); }
     town.chats.push({ id: m.id, a: r.from, b: r.to });
-    tellPlayer(r.from, { t: "chat-open", id: m.id, with: r.to, peer: town.players[r.to].peer, call: true });
-    tellPlayer(r.to, { t: "chat-open", id: m.id, with: r.from, peer: town.players[r.from].peer, call: false });
+    tellPlayer(r.from, { t: "chat-open", id: m.id, with: r.to });
+    tellPlayer(r.to, { t: "chat-open", id: m.id, with: r.from });
     sendLobby(true); townSend(true); renderTown();
     return;
   }
   if (m.t === "chat-end") endChat(m.id, `${nameOf(me)} ended the chat.`);
+  // Keys and encrypted messages, passed on to the other player in the chat, unread
+  if (m.t === "chat-key" || m.t === "chat-msg") {
+    const ch = town.chats.find(x => x.id === m.id && (x.a === me || x.b === me));
+    if (!ch) return;
+    const other = ch.a === me ? ch.b : ch.a;
+    if (m.t === "chat-key") tellPlayer(other, { t: "chat-key", id: m.id, key: m.key, first: !!m.first });
+    else tellPlayer(other, { t: "chat-msg", id: m.id, iv: String(m.iv).slice(0, 64), data: String(m.data).slice(0, 8000) });
+  }
+  if (m.t === "act") remoteAct(me, m);
 }
 function endChat(id, why) {
   const ch = town.chats.find(x => x.id === id);
@@ -1710,7 +1767,8 @@ function playerLeft(c) {
   const pid = c.pid;
   if (!pid || !town.players[pid] || town.players[pid].conn !== c) return;
   delete town.players[pid];
-  town.chats.filter(x => x.a === pid || x.b === pid).forEach(x => endChat(x.id, `${nameOf(pid)} left the game.`));
+  // Phones drop out when their screen locks: give them 30 seconds to come back before ending their chat
+  setTimeout(() => { if (!town.players[pid]) town.chats.filter(x => x.a === pid || x.b === pid).forEach(x => endChat(x.id, `${nameOf(pid)} left the game.`)); }, 30000);
   refreshJoin();
   for (const [id, r] of Object.entries(town.reqs)) if (r.from === pid || r.to === pid) { delete town.reqs[id]; tellPlayer(r.from === pid ? r.to : r.from, { t: r.from === pid ? "chat-gone" : "chat-no", id, to: r.to, why: `${nameOf(pid)} left.` }); }
   sendLobby(true);
@@ -1784,7 +1842,7 @@ function tokenHtml(role, shown) {
 }
 
 function renderDraw() {
-  const box = $("draw"), D = S.draw, NP = S.step === "night" && S.night && S.night.view !== "st";
+  const box = $("draw"), D = S.draw, NP = S.step === "night" && S.night && ["player", "handback"].includes(S.night.view);
   const TM = ui.timerOpen && S.step === "day" && !NP && !D && !show && !S.announce && !S.over;
   if (!D && !show && !NP && !S.announce && !TM) { box.hidden = true; box.innerHTML = ""; return; }
   let h;
@@ -1893,9 +1951,11 @@ document.addEventListener("click", ev => {
       if (S.bluffs.filter(Boolean).length < 3 && S.players.length >= 7 && !confirm("You haven't chosen 3 bluffs for the Demon. Start anyway?")) return;
       S.n = 1; startNight(); wake(); break;
     case "night-cancel": if (S.preNight) S = JSON.parse(S.preNight); else { S.night = null; S.step = "grim"; } break;
-    case "night-next": nextStep(false); break;
+    case "night-next": { const N = S.night, st = N.steps[N.i]; nextStep(!!(st && st.key === "MINION" && N.view === "remote")); break; }
     case "night-back": prevStep(); break;
     case "night-show": S.night.view = "player"; S.night.cur.skipped = false; break;
+    case "night-phone": S.night.view = "remote"; S.night.cur.skipped = false; break;
+    case "night-unremote": S.night.view = "st"; break;
     case "night-hide": S.night.view = "handback"; S.night.after = "st"; break;
     case "night-done": S.night.view = "handback"; S.night.after = "next"; break;
     case "night-resume": if (S.night.after === "next" && !(S.night.cur && S.night.cur.done && S.night.cur.kills)) nextStep(true); else S.night.view = "st"; break;
