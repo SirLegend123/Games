@@ -2,6 +2,8 @@
 
 Open `index.html` to choose between the *Blood on the Clocktower* apps: the **Storyteller**, the **Town Square** and the **Player**. They share their character list (`characters.js`).
 
+**Updates**: browsers keep a copy of each app for a while, so a device can still be on an old version after an update. Every app checks the site every couple of minutes (and whenever it's brought back to the screen), and when there's a newer version it shows **🔄 A new version is ready. Tap to update**; the game is kept. A phone linked to a Storyteller app that's out of date says so, and works out the night by itself. (When changing the apps, raise the number in `version.json` and `window.APP_V` in each page together.)
+
 ## Storyteller: face to face
 
 **＋ New game** at the top starts again at any point (asking first if a game is under way), keeping the players. **🏠** goes back to the cover page; the game is saved, so opening the Storyteller again carries on where you left off and the phones and TV reconnect.
