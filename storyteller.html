@@ -167,6 +167,9 @@ label.field { display: grid; gap: 6px; }
 .story-text { font-size: 1.15rem; line-height: 1.6; max-width: 70ch; }
 .story-text h3 { margin: 18px 0 4px; font-family: var(--font-display); font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 1.4rem; color: var(--brass); }
 .story-text p { margin: 0 0 10px; }
+#townBtn.live { background: var(--good); border-color: var(--good); color: #fff; }
+.town-card { border-color: var(--brass); }
+.town-code { font-weight: 800; font-size: clamp(3rem, 12vw, 5rem); letter-spacing: .2em; text-align: center; color: var(--brass); font-variant-numeric: tabular-nums; }
 .kill { display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
 .history summary { cursor: pointer; padding: 6px 0; }
 .history h3 { margin-top: 10px; }
@@ -237,13 +240,16 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <header>
     <h1>Storyteller</h1>
     <nav class="steps" id="steps" aria-label="Steps"></nav>
+    <button class="btn" id="townBtn" data-act="town-open" aria-label="Town Square">📺</button>
   </header>
+  <div id="townBox"></div>
   <main id="app"></main>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
 <script src="characters.js"></script>
+<script src="vendor/peerjs.min.js"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -326,6 +332,8 @@ function render() {
   if (S.step === "grim" && S.phase === "day1") startDay(); // games saved before the day was built
   $("app").innerHTML = S.over ? overHtml() : S.step === "players" ? playersHtml() : S.step === "bag" ? bagHtml() : S.step === "night" ? nightHtml() : S.step === "day" ? dayHtml() : grimHtml();
   renderDraw();
+  renderTown();
+  townSend();
   save();
 }
 
@@ -1542,6 +1550,83 @@ setInterval(() => {
   if (b) b.textContent = fmtTime(l);
 }, 250);
 
+/* ---------- Town Square: a live public view for a TV, projector or spare tablet ---------- */
+// Only public information ever leaves this device: names, deaths, ghost votes, nominations, votes,
+// the timer and the dawn news. Characters are sent only once the game is over, for the reveal.
+function publicState() {
+  const st = { v: 1, script: SCRIPTS[S.script].name, players: S.players.map(p => ({ id: p.id, name: nameOf(p.id) })) };
+  if (S.over) return { ...st, mode: "over", winner: S.over.winner, reason: S.over.reason, roles: S.players.map(p => ({ id: p.id, role: roleOf(p.id), side: sideOf(p.id), dead: !!S.dead[p.id] })) };
+  if (S.draw) return { ...st, mode: "draw", drawn: S.players.length - S.draw.queue.length, total: S.players.length };
+  if (!["night", "day"].includes(S.step)) return { ...st, mode: "setup" };
+  const spent = S.step === "day" && S.day ? ghostSpent() : new Set(S.ghostSpent || []);
+  st.seats = S.players.map(p => ({ id: p.id, dead: !!S.dead[p.id], vote: !S.dead[p.id] || !spent.has(p.id) }));
+  st.alive = aliveIds().length; st.need = votesNeeded();
+  if (S.announce) st.announce = { n: S.announce.n, ids: S.announce.pids };
+  if (S.step === "night") return { ...st, mode: "night", n: S.n };
+  const D = S.day, d = D.draft, b = onBlock();
+  return {
+    ...st, mode: "day", n: D.n,
+    noms: D.noms.map(n => ({ by: n.by, of: n.of, count: n.count, virgin: n.virgin === "executed" })),
+    shots: (D.shots || []).map(x => ({ by: x.by, at: x.at, died: x.died })),
+    vote: d && d.stage === "vote" ? { by: d.by, of: d.of, votes: d.votes } : null,
+    block: D.done ? null : { who: b.who, best: b.best },
+    done: D.done, exec: D.done && D.exec ? { pid: D.exec.pid, dies: D.exec.dies, virgin: D.exec.cause === "nominated the Virgin" } : null,
+    timer: T.total ? { left: timerLeft(), running: !!T.end, total: T.total, big: !!ui.timerOpen } : null
+  };
+}
+const TOWN_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const townId = code => `clocktower-town-${code}`;
+// For testing against a local PeerJS server: ?peer=localhost:9000
+const peerOpts = () => { const h = new URLSearchParams(location.search).get("peer"); if (!h) return {}; const [host, port] = h.split(":"); return { host, port: Number(port) || 9000, path: "/", secure: false }; };
+let town = { peer: null, conns: [], status: "off", last: "" };
+const townBC = "BroadcastChannel" in window ? new BroadcastChannel("clocktower-town") : null;
+function townStart() {
+  if (!S.townCode) { S.townCode = Array.from({ length: 5 }, () => TOWN_CHARS[rnd(TOWN_CHARS.length)]).join(""); save(); }
+  if (!window.Peer) { town.status = "error"; town.err = "The live link couldn't load."; return; }
+  if (town.peer) town.peer.destroy();
+  town.status = "starting";
+  const peer = town.peer = new Peer(townId(S.townCode), peerOpts());
+  peer.on("open", () => { town.status = "on"; town.err = ""; renderTown(); });
+  peer.on("connection", c => {
+    c.on("open", () => { town.conns.push(c); c.send(publicState()); renderTown(); });
+    c.on("close", () => { town.conns = town.conns.filter(x => x !== c); renderTown(); });
+  });
+  peer.on("disconnected", () => { if (S.townOn && !peer.destroyed) setTimeout(() => peer.reconnect(), 2000); });
+  peer.on("error", e => {
+    town.status = "error";
+    town.err = e.type === "unavailable-id" ? "This code is still in use from a moment ago. Trying again…" : e.type === "network" || e.type === "server-error" || e.type === "socket-error" ? "Can't reach the link service. Check the internet connection. Trying again…" : "";
+    renderTown();
+    if (S.townOn && e.type !== "peer-unavailable") setTimeout(() => { if (S.townOn && town.status === "error") townStart(); }, 4000);
+  });
+}
+function townStop() { S.townOn = false; if (town.peer) town.peer.destroy(); town = { peer: null, conns: [], status: "off", last: "" }; }
+// Send the public view to every Town Square screen, and to other windows on this device
+function townSend(force) {
+  const st = publicState(), json = JSON.stringify(st);
+  if (!force && json === town.last) return;
+  town.last = json;
+  if (townBC) townBC.postMessage(st);
+  town.conns = town.conns.filter(c => c.open);
+  for (const c of town.conns) { try { c.send(st); } catch (e) {} }
+}
+setInterval(() => townSend(true), 4000);
+function townCard() {
+  const url = location.href.replace(/storyteller\.html.*$/, "town.html");
+  const n = town.conns.length;
+  return `<section class="card town-card">
+    <div class="row"><h2 style="margin-right:auto">📺 Town Square</h2><button class="icon" data-act="town-close" aria-label="Close">×</button></div>
+    ${S.townOn ? `<p class="hint">On the TV, projector or spare tablet, open the Town Square and type this code:</p>
+      <div class="town-code">${esc(S.townCode)}</div>
+      <p class="hint"><b>${esc(url.replace(/^https?:\/\//, ""))}</b></p>
+      <p class="${town.status === "error" ? "warn" : "hint"}">${town.status === "on" ? (n ? `✅ ${plural(n, "screen")} connected.` : "Waiting for a screen to connect…") : town.status === "error" ? esc(town.err || "Connection problem. Trying again…") : "Starting…"}</p>
+      <p class="hint">The Town Square shows names, deaths, ghost votes, nominations, votes, the timer and the dawn news. It never shows anyone's character until the game is over.</p>
+      <div class="row"><button class="btn danger" data-act="town-stop">Stop sharing</button></div>`
+    : `<p class="hint">Show the town what's happening on a TV, projector or spare tablet, live: names, deaths, votes and the timer, but never anyone's character.</p>
+      <div class="row"><button class="btn primary" data-act="town-start">Start sharing</button></div>`}
+  </section>`;
+}
+function renderTown() { const box = $("townBox"); if (box) box.innerHTML = ui.townOpen ? townCard() : ""; $("townBtn").classList.toggle("live", !!S.townOn); }
+
 /* ---------- Pass and play ---------- */
 function tokenHtml(role, shown) {
   const seen = shown || role, c = CHAR[seen] || { icon: "", text: "", team: "townsfolk" };
@@ -1659,6 +1744,10 @@ document.addEventListener("click", ev => {
     case "night-resume": if (S.night.after === "next" && !(S.night.cur && S.night.cur.done && S.night.cur.kills)) nextStep(true); else S.night.view = "st"; break;
     case "night-dawn": { const before = JSON.stringify(S); S.chron = [...(S.chron || []), { type: "night", n: S.n, recs: S.night.recs || [], deaths: S.night.deaths.map(q => ({ pid: q, role: roleOf(q) })) }]; S.history.push({ h: `Night ${S.n}`, lines: [...S.log, S.night.deaths.length ? `${esc(names(S.night.deaths))} died.` : "Nobody died."] }); S.announce = { n: S.n, pids: [...S.night.deaths] }; S.preNight = null; startDay(); checkOver(before, {}); break; }
     case "announce-close": S.announce = null; break;
+    case "town-open": ui.townOpen = !ui.townOpen; renderTown(); return;
+    case "town-close": ui.townOpen = false; renderTown(); return;
+    case "town-start": S.townOn = true; save(); townStart(); renderTown(); return;
+    case "town-stop": townStop(); save(); renderTown(); return;
     case "timer-open": ui.timerOpen = true; wake(); break;
     case "timer-close": ui.timerOpen = false; break;
     case "timer-set": { const ms = Number(el.dataset.v) * 60000; Object.assign(T, { total: ms, left: ms, end: 0, rang: false }); break; }
@@ -1755,7 +1844,7 @@ document.addEventListener("click", ev => {
     case "show-hide": show.step = "handback"; break;
     case "show-close": show = null; break;
     case "redraw": if (!confirm("Clear everyone's characters and go back to the bag?")) return; S.drawn = {}; S.step = "bag"; ui.sel = null; break;
-    case "new-game": if (!confirm("Start a new game? The players stay; the bag and characters are cleared.")) return; S = { ...fresh(), script: S.script, players: S.players }; break;
+    case "new-game": if (!confirm("Start a new game? The players stay; the bag and characters are cleared.")) return; S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn, townCode: S.townCode }; break;
     default: return;
   }
   render();
@@ -1790,6 +1879,8 @@ let lock = null;
 async function wake() { try { if (navigator.wakeLock && !lock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => (lock = null)); } } catch (e) {} }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && (S.draw || S.step === "night")) wake(); });
 
+// Carry on sharing with the Town Square after a reload
+if (S.townOn) townStart();
 // A draw in progress picks up where it left off, without showing the last token to whoever holds the phone
 if (S.draw && S.draw.step === "show") S.draw.step = "ready";
 render();
