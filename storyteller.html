@@ -56,6 +56,7 @@ header h1 { margin: 0 auto 0 0; font-family: var(--font-display); font-weight: 4
 .btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 10px 16px; min-height: 46px; font-weight: 800; }
 .btn:hover:not(:disabled) { border-color: var(--brass); }
 a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: inherit; }
+.btn[aria-pressed="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 2px var(--brass); }
 .btn.primary { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
 .btn.danger { color: var(--evil); }
 .btn.evil { background: var(--evil); border-color: var(--evil); color: #fff; }
@@ -1370,7 +1371,7 @@ function dayHtml() {
       <h3>Nominations</h3>${nomListHtml()}
       ${sayHtml()}
       ${(D.shots || []).length ? `<h3>Slayer shots</h3><ol class="log">${shotLines().map((l, k) => `<li>${l} <button class="x-inline" data-act="slay-del" data-i="${k}" aria-label="Undo this shot">×</button></li>`).join("")}</ol>` : ""}
-      <div class="row"><button class="btn primary" data-act="nom-new">+ New nomination</button><button class="btn" data-act="slay-new">🏹 Slayer shot</button><span class="spacer"></span><button class="btn" data-act="day-end">End the day →</button></div>
+      <div class="row"><button class="btn primary" data-act="nom-new">+ New nomination</button><button class="btn" data-act="slay-new">🏹 Slayer shot</button>${sheetBtn()}<span class="spacer"></span><button class="btn" data-act="day-end">End the day →</button></div>
       ${historyHtml()}
     </section>`;
   } else if (d.stage.startsWith("slayer")) {
@@ -1694,7 +1695,7 @@ setInterval(() => {
 // Only public information ever leaves this device: names, deaths, ghost votes, nominations, votes,
 // the timer and the dawn news. Characters are sent only once the game is over, for the reveal.
 function publicState() {
-  const st = { v: 1, script: SCRIPTS[S.script].name, players: S.players.map(p => ({ id: p.id, name: nameOf(p.id) })) };
+  const st = { v: 1, script: SCRIPTS[S.script].name, scriptKey: S.script, sheet: !!ui.tvSheet, players: S.players.map(p => ({ id: p.id, name: nameOf(p.id) })) };
   if (S.over) {
     // Characters go out one at a time, as the Storyteller reveals them
     const shown = S.revealed || [], all = shown.length === S.players.length;
@@ -1945,6 +1946,8 @@ function townSend(force) {
   for (const c of town.conns) { try { c.send(st); } catch (e) {} }
 }
 setInterval(() => { townSend(true); sendLobby(true); }, 4000);
+// 📜 Every character on the script and what they do, full screen on the TV (never who has which)
+const sheetBtn = () => `<button class="btn" data-act="tv-sheet" aria-pressed="${!!ui.tvSheet}">📜 ${ui.tvSheet ? "Hide the characters on the TV" : "Show the characters on the TV"}</button>`;
 function townCard() {
   const url = location.href.replace(/storyteller\.html.*$/, "town.html");
   const n = town.conns.length;
@@ -1955,6 +1958,7 @@ function townCard() {
       <p class="hint"><b>${esc(url.replace(/^https?:\/\//, ""))}</b></p>
       <p class="${town.status === "error" ? "warn" : "hint"}">${town.status === "on" ? (n ? `✅ ${plural(n, "screen")} connected.` : "Waiting for a screen to connect…") : town.status === "error" ? esc(town.err || "Connection problem. Trying again…") : "Starting…"}</p>
       <p class="hint">The Town Square shows names, deaths, ghost votes, nominations, votes, the timer and the dawn news. It never shows anyone's character until you reveal them at the end.</p>
+      ${sheetBtn()}
       <h3>Players linked</h3>
       <p class="hint">Players can join from the Player app with the same code, and ask each other for private chats during the day. You see who is talking, never what they say.</p>
       <p>${Object.keys(town.players).length ? esc(listJoin(Object.keys(town.players).map(nameOf))) : `<span class="hint">Nobody yet.</span>`}</p>
@@ -2115,6 +2119,7 @@ document.addEventListener("click", ev => {
     case "st-kill": { const c = S.night.cur; c.stKilled = true; c.kills = [{ pid: c.stTarget, dies: true, why: "", instead: "" }]; nextStep(true); break; }
     case "reveal": ui.reveal = !ui.reveal; ui.sel = null; break;
     case "nom-new": if (dayPhase() < 2) enterPhase(2); S.day.draft = { stage: "by", votes: [] }; break;
+    case "tv-sheet": ui.tvSheet = !ui.tvSheet; break;
     case "phase-go": enterPhase(Number(el.dataset.v)); break;
     case "say-del": S.day.say = (S.day.say || []).filter(x => x.id !== el.dataset.id); break;
     case "nom-cancel": S.day.draft = null; break;

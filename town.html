@@ -110,6 +110,21 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass)
 .lobby-players h2 { font-size: clamp(1.8rem, 4vw, 3rem); }
 .lobby-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.4vmin; }
 .lobby-p { background: var(--surface); border: 2px solid var(--line); border-radius: 14px; padding: 1.2vmin 2vmin; font-size: 1.4em; font-weight: 800; color: var(--muted); }
+.sheet { grid-template-rows: auto minmax(0, 1fr); gap: 1.4em; padding: 3vmin 4vmin 7vmin; overflow: hidden; align-content: start; }
+.sheet-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4em 2em; }
+.sheet-head h1 { font-size: 2.6em; }
+.sheet-head .big { font-size: 1.3em; margin: 0; }
+.sheet-head .muted { margin: 0 0 0 auto; }
+.sheet-head .townsfolk, .sh-team.townsfolk h2 { color: var(--townsfolk); } .sheet-head .outsider, .sh-team.outsider h2 { color: var(--outsider); }
+.sheet-head .minion, .sh-team.minion h2 { color: var(--minion); } .sheet-head .demon, .sh-team.demon h2 { color: var(--demon); }
+.sheet-body { column-count: 3; column-gap: 3vmin; }
+@media (orientation: portrait) { .sheet-body { column-count: 2; } }
+.sh-team h2 { font-size: 1.5em; margin: 0 0 .3em; break-after: avoid; }
+.sh-team + .sh-team h2 { margin-top: .6em; }
+.sh-r { display: grid; grid-template-columns: 1.8em minmax(0, 1fr); gap: .5em; align-items: start; margin-bottom: .55em; break-inside: avoid; line-height: 1.25; }
+.sh-r .ico { font-size: 1.5em; line-height: 1; }
+.sh-r b { font-size: 1.1em; }
+.sh-r span:not(.ico) { color: var(--muted); }
 .lobby-p.in { border-color: var(--good); color: var(--fg); background: rgba(76,140,228,.18); }
 .corner { position: fixed; right: 12px; bottom: 10px; display: flex; gap: 8px; align-items: center; opacity: .55; font-size: .8rem; z-index: 5; }
 .corner button { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; }
@@ -119,7 +134,7 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass)
 </head>
 <body>
 <div id="app"></div>
-<div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
+<div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script src="vendor/qrcode.js"></script>
@@ -268,6 +283,9 @@ function render() {
     return;
   }
   const m = G.mode;
+  $("sheetBtn").setAttribute("aria-pressed", String((G.sheet || mySheet) && m !== "over"));
+  // The characters go up when the Storyteller (or someone at the TV) asks, and once everyone has their token
+  if (m !== "over" && !G.announce && !G.vote && (G.sheet || mySheet || (m === "setup" && G.dealt))) { app.innerHTML = sheetHtml(); fitSheet(); return; }
   if (m === "over" && spotOn()) {
     const r = G.roles.find(x => x.id === G.spot.id), c = CHAR[r.role] || {};
     app.innerHTML = `<div class="screen full spot ${r.side}"><div class="full-inner"><div class="dead-name">${esc(nameOf(r.id))}</div><p>was the</p>
@@ -295,6 +313,30 @@ function render() {
     app.innerHTML = lobbyHtml();
   }
 }
+// 📜 The script's characters and what they do: who could be in play, never who is who
+const TEAM_MANY = { townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demons" };
+const countWord = (n, t) => `${n} ${n === 1 ? TEAM_ONE[t] : TEAM_MANY[t]}`;
+function sheetHtml() {
+  const sc = SCRIPTS[G.scriptKey];
+  if (!sc) return "";
+  const n = G.players.length, c = COMP[Math.min(15, n)];
+  return `<div class="screen sheet" id="sheet"><div class="sheet-head"><h1>${esc(sc.name)}</h1>
+      ${c ? `<p class="big">${n} players: ${TEAMS.map((t, i) => `<span class="${t}">${countWord(c[i], t)}</span>`).join(" · ")}</p>` : ""}<p class="muted">* Not the first night</p></div>
+    <div class="sheet-body">${TEAMS.map(t => `<section class="sh-team ${t}"><h2>${sc.roles[t].length === 1 ? TEAM_ONE[t] : TEAM_MANY[t]}</h2>
+      ${sc.roles[t].map(([name, icon, text]) => `<div class="sh-r"><span class="ico">${icon}</span><div><b>${esc(name)}</b> <span>${esc(text)}</span></div></div>`).join("")}</section>`).join("")}</div></div>`;
+}
+// Make the sheet fit the screen, however long the script
+function fitSheet() {
+  const el = $("sheet"), body = el && el.querySelector(".sheet-body"); if (!el) return;
+  // Too much text spills into an extra column off the side, or off the bottom
+  const over = () => body.scrollWidth > body.clientWidth + 2 || el.scrollHeight > el.clientHeight + 2;
+  let f = 3;
+  el.style.fontSize = f + "vmin";
+  while (f > 1 && over()) { f -= .1; el.style.fontSize = f.toFixed(1) + "vmin"; }
+}
+let mySheet = false;
+$("sheetBtn").onclick = () => { mySheet = !mySheet; render(); };
+window.addEventListener("resize", fitSheet);
 // Keep the timer counting between updates
 setInterval(() => {
   if (!G || !G.timer || !G.timer.running) return;
