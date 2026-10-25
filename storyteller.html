@@ -270,6 +270,8 @@ document.getElementById("homeBtn").addEventListener("click", e => {
 </div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
+<script>window.APP_V = 65;</script>
+<script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script>
@@ -1932,7 +1934,7 @@ function startNomination(by, of) {
   S.day.hands = (S.day.hands || []).filter(h => h.by !== by);
 }
 function lobbyBase() {
-  return { t: "lobby", gameId: S.gameId, dayInfo: dayInfo(), day: chatDay(), night: chatNight() ? S.n : null,
+  return { t: "lobby", v: window.APP_V, gameId: S.gameId, dayInfo: dayInfo(), day: chatDay(), night: chatNight() ? S.n : null,
     dawn: S.announce && S.step === "day" && !S.over ? { n: S.announce.n, ids: S.announce.pids } : null, noms: nomsOpen(), phase: chatDay() ? dayPhase() : null, say: sayList(30), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
     players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), online: !!town.players[p.id], busy: inChat(p.id), dead: !!(S.dead || {})[p.id] })),
     chats: town.chats.map(c => [c.a, c.b]) };

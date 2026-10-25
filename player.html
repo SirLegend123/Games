@@ -264,6 +264,8 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
+<script>window.APP_V = 65;</script>
+<script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script>
@@ -687,7 +689,7 @@ function fromHost(m) {
     if (m.gameId) S.gameId = m.gameId;
     const fresh = S.role !== m.role || S.side !== m.side || S.step === "token";
     S.role = m.role; S.side = m.side;
-    if (fresh && S.step !== "grim") { S.step = "reveal"; ui.peek = false; buzz(); if (link.lobby && link.lobby.night) ui.nightPeek = `${link.lobby.gameId}:${link.lobby.night}`; }
+    if (fresh && S.step !== "grim") { S.step = "reveal"; ui.peek = false; buzz(); if (link.lobby && nightOf(link.lobby)) ui.nightPeek = `${link.lobby.gameId}:${nightOf(link.lobby)}`; }
     save(); render();
   }
   if (m.t === "chat-req") { link.incoming = { id: m.id, from: m.from }; buzz(); }
@@ -839,9 +841,10 @@ function linkCard() {
     return `<div class="claim"><span class="ico">${p.online ? "🟢" : "⚪"}</span><span style="flex:1"><b>${esc(p.name)}</b>${p.dead ? ` <span class="hint">(dead)</span>` : ""}${p.busy ? ` <span class="hint">· in a chat</span>` : ""}</span><button class="btn" data-act="chat-ask" data-pid="${p.id}" ${can ? "" : "disabled"}>💬 Chat</button></div>`;
   }).join("");
   return `<section class="card">${head}
-    <p class="hint">You're <b>${esc(lname(me))}</b>. ${lb.night ? "🌙 Night: you can only chat privately with your neighbours." : !lb.day ? "Private chats open when the day starts." : lb.phase ? `${lb.phase === 2 ? "📢 Nominations" : "🗣️ Public discussion"}: you can only chat privately with your neighbours now.` : "💬 Private chats: tap 💬 to ask anyone for a private chat. Only the two of you see what's said."}</p>
+    <p class="hint">You're <b>${esc(lname(me))}</b>. ${nightOf(lb) ? "🌙 Night: you can only chat privately with your neighbours." : !lb.day ? "Private chats open when the day starts." : lb.phase ? `${lb.phase === 2 ? "📢 Nominations" : "🗣️ Public discussion"}: you can only chat privately with your neighbours now.` : "💬 Private chats: tap 💬 to ask anyone for a private chat. Only the two of you see what's said."}</p>
     ${ch ? `<button class="btn primary" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>` : ""}
     ${link.note ? `<p class="warn">${esc(link.note)}</p>` : ""}
+    ${(lb.v || 0) < window.APP_V ? `<p class="warn">⚠ The Storyteller's app is an older version, so the night screen, the dawn news and night chats may not work. Ask the Storyteller to reload their app.</p>` : ""}
     <div class="claims">${rows}</div></section>`;
 }
 const seatPick = lb => `<p class="hint">Which one is you?</p><div class="pickgrid">${lb.players.map(p => `<button class="pick" data-act="link-seat" data-pid="${p.id}" ${p.online ? "disabled" : ""}>${esc(p.name)}${p.online ? "<small>joined</small>" : ""}</button>`).join("")}</div>`;
@@ -889,6 +892,8 @@ function neighboursOf(lb, me) {
   if (i < 0 || n < 2) return [];
   return [...new Set([ids[(i + n - 1) % n], ids[(i + 1) % n]])].map(id => lb.players.find(p => p.id === id));
 }
+// Night, even from an older Storyteller app that doesn't say so directly
+const nightOf = lb => lb.night || (lb.ph != null && lb.ph % 2 === 0 && /^Night/.test(lb.label || "") ? lb.ph / 2 + 1 : null);
 function sleepHtml() {
   const lb = link.lobby, me = lb && lb.you;
   if (!me || S.step === "players") return "";
@@ -900,11 +905,12 @@ function sleepHtml() {
       ${mine ? `<p class="notice-dead">That's you. You're dead, but you can still talk, and you have one ghost vote left.</p>` : ""}
       <button class="btn primary huge" data-act="dawn-ok">Continue</button></div></div>`;
   }
-  if (!lb.night) return "";
-  if (ui.nightPeek === `${lb.gameId}:${lb.night}`) return `<button class="night-pill" data-act="night-unpeek">🌙 Night ${lb.night} · Back to the night screen</button>`;
+  const night = nightOf(lb);
+  if (!night) return "";
+  if (ui.nightPeek === `${lb.gameId}:${night}`) return `<button class="night-pill" data-act="night-unpeek">🌙 Night ${night} · Back to the night screen</button>`;
   const ch = link.chat, nb = neighboursOf(lb, me);
   return `<div class="night-ov sleep"><div class="draw-inner">
-    <div class="moon" aria-hidden="true">🌙</div><h1>Night ${lb.night}</h1>
+    <div class="moon" aria-hidden="true">🌙</div><h1>Night ${night}</h1>
     <p class="lead">Close your eyes. The Storyteller will wake you if you need to act.</p>
     ${ch && !ch.ended ? `<button class="btn primary huge" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>`
       : `<p class="hint">Quietly message a neighbour:</p>
@@ -1015,7 +1021,7 @@ document.addEventListener("click", ev => {
     case "chat-send": return sendChat();
     case "theme": toggleTheme(); return;
     case "dawn-ok": ui.dawnSeen = `${link.lobby.gameId}:${link.lobby.dawn.n}`; renderLink(); return;
-    case "night-peek": ui.nightPeek = `${link.lobby.gameId}:${link.lobby.night}`; renderLink(); return;
+    case "night-peek": ui.nightPeek = `${link.lobby.gameId}:${nightOf(link.lobby)}`; renderLink(); return;
     case "night-unpeek": ui.nightPeek = ""; renderLink(); return;
     case "manual": S.manual = true; break;
     case "welcome": S.manual = false; break;
