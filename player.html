@@ -171,6 +171,17 @@ label.field, .field { display: grid; gap: 6px; }
 .night-ov .btn small { display: block; font-size: .8rem; font-weight: 500; opacity: .8; }
 .notice-dead { margin: 0; font-size: 1.15rem; background: rgba(0,0,0,.3); border: 2px solid #ffd27a; border-radius: 12px; padding: 10px 14px; }
 .night-pill { position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 35; background: #0e1226; color: #f6f2fa; border: 2px solid #f0c66a; border-radius: 999px; padding: 8px 16px; font-weight: 800; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+/* The Grimoire as a list, for the Spy */
+.night-ov .g-list { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; gap: 8px; text-align: left; }
+.night-ov .g-row { display: grid; grid-template-columns: 1.6rem 2.6rem minmax(0, 1fr); gap: 10px; align-items: center; background: rgba(0,0,0,.3); border-left: 6px solid #4c8ce4; border-radius: 10px; padding: 8px 10px; }
+.night-ov .g-row.evil { border-left-color: #ff6b81; }
+.night-ov .g-row.dead { opacity: .65; }
+.night-ov .g-n { color: var(--muted); font-weight: 800; text-align: center; }
+.night-ov .g-ico { font-size: 2rem; line-height: 1; text-align: center; }
+.night-ov .g-txt { line-height: 1.3; font-size: 1.05rem; }
+.night-ov .g-txt b { font-size: 1.15rem; }
+.night-ov .g-row.evil .g-side { color: #ff9aa9; font-weight: 800; } .night-ov .g-row.good .g-side { color: #9cc3ff; font-weight: 800; }
+.night-ov .g-rem { display: inline-block; font-size: .8rem; font-weight: 800; background: rgba(255,255,255,.15); border-radius: 999px; padding: 1px 8px; margin-top: 3px; }
 .night-ov.tint-evil { background: radial-gradient(circle at 50% 35%, #8a1a2c 0%, #4a0c17 55%, #24050b 100%); }
 .night-ov.tint-townsfolk { background: radial-gradient(circle at 50% 35%, #2456a8 0%, #12305f 55%, #0a1730 100%); }
 .night-ov.tint-outsider { background: radial-gradient(circle at 50% 35%, #49a6dc 0%, #1d628c 55%, #0d3149 100%); }
@@ -264,7 +275,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 65;</script>
+<script>window.APP_V = 66;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -658,7 +669,7 @@ function linkStart() {
   link.status = "connecting"; link.err = ""; link.asked = false; renderLink();
   const peer = link.peer = new Peer(peerOpts());
   peer.on("open", () => {
-    const h = link.host = peer.connect(`clocktower-town-${L.code}`, { reliable: true, metadata: { kind: "player" } });
+    const h = link.host = peer.connect(`clocktower-town-${L.code}`, { reliable: true, serialization: "json", metadata: { kind: "player" } });
     h.on("open", () => { link.status = "on"; renderLink(); });
     h.on("data", fromHost);
     h.on("close", () => { if (link.host === h) { link.status = "lost"; renderLink(); linkAgain(); } });

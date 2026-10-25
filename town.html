@@ -135,7 +135,7 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass)
 <body>
 <div id="app"></div>
 <div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
-<script>window.APP_V = 65;</script>
+<script>window.APP_V = 66;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -172,7 +172,7 @@ function connect() {
   if (peer) peer.destroy();
   peer = new Peer(peerOpts());
   peer.on("open", () => {
-    conn = peer.connect(`clocktower-town-${code}`, { reliable: true, metadata: { kind: "town" } });
+    conn = peer.connect(`clocktower-town-${code}`, { reliable: true, serialization: "json", metadata: { kind: "town" } });
     conn.on("open", () => { status = "live"; err = ""; render(); });
     conn.on("data", st => { G = st; gotAt = Date.now(); lastData = Date.now(); status = "live"; render(); });
     conn.on("close", () => { status = "lost"; render(); again(); });
