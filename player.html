@@ -222,8 +222,10 @@ function playersHtml() {
       </span>
     </div>`).join("");
   const ready = n >= 5 && S.me;
-  return `<section class="card">
+  return `<div id="linkCard">${linkCard()}</div>
+  <section class="card">
     <h2>Who's playing?</h2>
+    ${link.lobby ? `<p class="hint">The players come from the Storyteller's game.</p>` : `<p class="hint">Or type the names yourself.</p>`}
     <label class="field"><span class="label">Script</span>
       <select data-script>${Object.entries(SCRIPTS).map(([k, v]) => `<option value="${k}" ${S.script === k ? "selected" : ""}>${v.name}</option>`).join("")}</select>
     </label>
@@ -533,6 +535,7 @@ function fromHost(m) {
   if (!m || !m.t) return;
   if (m.t === "lobby") {
     link.lobby = m;
+    syncFromLobby(m);
     // Join as the seat we had before, or the seat with my name
     if (!m.you) {
       const mine = L.pid && m.players.some(p => p.id === L.pid) ? L.pid : (m.players.find(p => S.me && p.name.trim().toLowerCase() === nameOf(S.me).trim().toLowerCase()) || {}).id;
@@ -556,6 +559,31 @@ function fromHost(m) {
   }
   renderLink();
 }
+// The Storyteller's game is the source of truth for who's playing, who's dead and what phase it is.
+// My own notes, claims and reads are kept, matched up by name.
+function syncFromLobby(lb) {
+  const before = JSON.stringify([S.players, S.me, S.script, S.ph, S.players.map(p => about(p.id).dead)]);
+  if (lb.script && SCRIPTS[lb.script]) S.script = lb.script;
+  const byName = {};
+  S.players.forEach(p => (byName[p.name.trim().toLowerCase()] = p.id));
+  const P = {};
+  let me = S.me && lb.players.some(p => p.id === S.me) ? S.me : "";
+  for (const hp of lb.players) {
+    const old = lb.players.some(p => p.id === hp.id && S.P[hp.id]) ? hp.id : byName[hp.name.trim().toLowerCase()];
+    if (old && S.P[old]) P[hp.id] = S.P[old];
+    if (old && old === S.me) me = hp.id;
+  }
+  S.P = P;
+  S.players = lb.players.map(hp => ({ id: hp.id, name: hp.name }));
+  if (lb.you) S.me = lb.you; else if (me) S.me = me;
+  for (const hp of lb.players) { const A = about(hp.id); A.dead = !!hp.dead; if (!A.dead) A.ghost = false; }
+  if (lb.ph != null) S.ph = lb.ph;
+  if (lb.you && S.step === "players") S.step = "token";
+  const changed = JSON.stringify([S.players, S.me, S.script, S.ph, S.players.map(p => about(p.id).dead)]) !== before;
+  save();
+  // Redraw only when something changed, and never while the player is typing
+  if (changed && !(document.activeElement && ["TEXTAREA", "INPUT"].includes(document.activeElement.tagName) && document.activeElement.id !== "joinCode")) render();
+}
 function joinAs(pid) { L.pid = pid; saveLink(); toHost({ t: "join", pid, secret: L.secret }); }
 function attachChat(c) {
   const ch = link.chat;
@@ -578,7 +606,7 @@ function sendChat() {
 function linkCard() {
   const lb = link.lobby, me = lb && lb.you;
   if (!L.code) return `<section class="card"><h2>🔗 Join the game</h2>
-    <p class="hint">If the Storyteller is sharing the game, type their code to link up. In the day you can then ask other players for private chats.</p>
+    <p class="hint">Got a code from the Storyteller? Type it here and the players fill in by themselves, in seat order. Deaths and the night and day follow the Storyteller's game, and in the day you can ask other players for private chats.</p>
     <div class="add"><input type="text" id="joinCode" maxlength="5" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:.2em;font-weight:800"><button class="btn primary" data-act="link-join">Join</button></div></section>`;
   const head = `<div class="row"><h2 style="margin-right:auto">🔗 ${esc(L.code)}</h2><span class="hint">${link.status === "on" ? (lb ? esc(lb.label) : "Linked") : link.status === "connecting" ? "Connecting…" : "Reconnecting…"}</span><button class="btn" data-act="link-leave">Leave</button></div>`;
   if (link.err && !me) return `<section class="card">${head}<p class="warn">${esc(link.err)}</p>${lb ? seatPick(lb) : ""}</section>`;
