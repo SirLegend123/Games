@@ -270,7 +270,7 @@ document.getElementById("homeBtn").addEventListener("click", e => {
 </div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
-<script>window.APP_V = 65;</script>
+<script>window.APP_V = 66;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -791,7 +791,7 @@ function remoteTargets() {
 function remoteSync() {
   const N = S.night, on = S.step === "night" && N && N.view === "remote" && N.steps[N.i];
   const targets = on ? remoteTargets() : [];
-  const html = on ? nightPlayerHtml().replace(/<button class="link" data-act="night-hide">[^<]*<\/button>/, "") : "";
+  const html = on ? nightPlayerHtml(true).replace(/<button class="link" data-act="night-hide">[^<]*<\/button>/, "") : "";
   const key = JSON.stringify([targets, html]);
   if (town.remote === key) return;
   const prev = town.remote ? JSON.parse(town.remote)[0] : [];
@@ -940,7 +940,18 @@ function nightTint() {
   const t = teamOf(seen);
   return t === "minion" || t === "demon" || (st.key === "TOLD" && sideOf(st.pid) === "evil") ? "evil" : t;
 }
-function nightPlayerHtml() {
+// The Grimoire as a list, for the Spy's phone: the circle only lays out in this app
+function grimListHtml() {
+  const rows = S.players.map((p, i) => {
+    const role = roleOf(p.id), c = CHAR[role] || { icon: "", team: "townsfolk" }, side = sideOf(p.id);
+    const rems = [...(p.id === S.redHerring ? ["Red herring"] : []), ...remsOf(p.id)];
+    return `<li class="g-row ${side} ${S.dead[p.id] ? "dead" : ""}"><span class="g-n">${i + 1}</span><span class="g-ico">${c.icon}</span>
+      <span class="g-txt"><b>${esc(nameOf(p.id))}</b>${S.dead[p.id] ? " 💀" : ""}<br>${esc(role)} · <span class="g-side">${side === "evil" ? "Evil" : "Good"}</span>${shownOf(p.id) ? `<br><small>Thinks they're the ${esc(shownOf(p.id))}</small>` : ""}${rems.length ? `<br>${rems.map(r => `<span class="g-rem">${esc(r)}</span>`).join(" ")}` : ""}</span></li>`;
+  }).join("");
+  const bl = S.bluffs.filter(Boolean);
+  return `<ol class="g-list">${rows}</ol>${bl.length ? `<p class="lead">Demon bluffs</p><div class="chars">${bl.map(r => `<span class="charchip t-${teamOf(r)}"><span class="ico">${(CHAR[r] || {}).icon || ""}</span>${esc(r)}</span>`).join("")}</div>` : ""}`;
+}
+function nightPlayerHtml(phone) {
   const N = S.night, st = N.steps[N.i], a = actOf(st.key), c = N.cur, I = c.info;
   const seen = st.key === "MINION" ? "" : st.key === "TOLD" ? roleOf(st.pid) : roleOf(st.pid) === "Lunatic" ? shownOf(st.pid) : wakesAs(st.pid), ch = CHAR[seen] || { icon: "" };
   const head = st.key === "MINION" ? `<h1>Minions</h1><p class="lead">Open your eyes, ${esc(names(minions()))}</p>`
@@ -968,7 +979,7 @@ function nightPlayerHtml() {
       <p class="lead">These characters are not in play:</p>${chars(S.bluffs.filter(Boolean))}
       ${a.info === "demon" && lun ? `<p class="lead">The Lunatic is</p>${nameList([lun])}` : ""}${done}`;
   }
-  else if (a.info === "grim") body = `<p class="lead">The Grimoire</p><div class="spy">${circleHtml()}</div>${done}`;
+  else if (a.info === "grim") body = `<p class="lead">The Grimoire</p>${phone ? grimListHtml() : `<div class="spy">${circleHtml()}</div>`}${done}`;
   else if (c.done) body = resultHtml(st, c) + done;
   else {
     const self = st.pid, n = pickN(a);
@@ -1950,7 +1961,10 @@ function townSend(force) {
   town.conns = town.conns.filter(c => c.open);
   for (const c of town.conns) { try { c.send(st); } catch (e) {} }
 }
-setInterval(() => { townSend(true); sendLobby(true); }, 4000);
+// Check for changes every few seconds, but only send everything again every 20 seconds:
+// the less there is on the line, the quicker the chats get through
+let beat = 0;
+setInterval(() => { const all = ++beat % 5 === 0; townSend(all); sendLobby(all); }, 4000);
 // 📜 Every character on the script and what they do, full screen on the TV (never who has which)
 const sheetBtn = () => `<button class="btn" data-act="tv-sheet" aria-pressed="${!!ui.tvSheet}">📜 ${ui.tvSheet ? "Hide the characters on the TV" : "Show the characters on the TV"}</button>`;
 function townCard() {
