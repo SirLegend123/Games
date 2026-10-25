@@ -160,6 +160,14 @@ label.field, .field { display: grid; gap: 6px; }
 .pick { min-height: 54px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface-2); font-weight: 800; }
 .pick small { display: block; font-size: .7em; color: var(--muted); }
 .pick:disabled { opacity: .5; }
+.reveal { text-align: center; justify-items: center; }
+.reveal .lead { font-size: 1.3rem; }
+.btn.huge { font-size: 1.2rem; min-height: 60px; padding: 12px 28px; }
+.token-big { width: min(300px, 74vw); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); border: 12px solid var(--townsfolk); display: grid; place-content: center; justify-items: center; gap: 6px; font-family: var(--font-display); font-size: 2rem; box-shadow: 0 6px 22px rgba(0,0,0,.45); animation: flip .45s ease; }
+.token-big .ico { font-size: 5rem; line-height: 1; }
+.token-big.outsider { border-color: var(--outsider); } .token-big.evil { border-color: var(--evil); }
+@keyframes flip { from { transform: rotateY(90deg); } to { transform: none; } }
+.wait { text-align: center; }
 footer { color: var(--muted); font-size: .8rem; text-align: center; }
 </style>
 </head>
@@ -204,8 +212,8 @@ const aliveIds = () => S.players.map(p => p.id).filter(q => !about(q).dead);
 /* ---------- Screens ---------- */
 function render() {
   const steps = [["players", "Players"], ["token", "My token"], ["grim", S.side === "evil" ? "Evil" : "Grimoire"]];
-  $("steps").innerHTML = steps.map(([k, l]) => `<span class="${S.step === k ? "on" : ""}">${l}</span>`).join("");
-  $("app").innerHTML = S.step === "players" ? playersHtml() : S.step === "token" ? tokenHtml() : S.side === "evil" ? evilGrimHtml() : grimHtml();
+  $("steps").innerHTML = steps.map(([k, l]) => `<span class="${S.step === k || (k === "token" && S.step === "reveal") ? "on" : ""}">${l}</span>`).join("");
+  $("app").innerHTML = S.step === "players" ? playersHtml() : S.step === "reveal" ? revealHtml() : S.step === "token" ? (L.code && link.lobby && link.lobby.you && !ui.pickOwn ? waitHtml() : tokenHtml()) : S.side === "evil" ? evilGrimHtml() : grimHtml();
   save();
 }
 
@@ -222,6 +230,7 @@ function playersHtml() {
       </span>
     </div>`).join("");
   const ready = n >= 5 && S.me;
+  if (L.code) return `<div id="linkCard">${linkCard()}</div>`;
   return `<div id="linkCard">${linkCard()}</div>
   <section class="card">
     <h2>Who's playing?</h2>
@@ -244,6 +253,28 @@ function playersHtml() {
   </section>`;
 }
 
+// Waiting for the Storyteller to deal the tokens to everyone's phones
+function waitHtml() {
+  return `<section class="card wait">
+    <h2>Waiting for your token…</h2>
+    <p class="lead">The Storyteller will send your character to this phone. Keep it close, and keep it to yourself.</p>
+    <p class="hint">Got a token from the Storyteller in your hand instead? <button class="btn" data-act="pick-own">Choose it myself</button></p>
+  </section><div id="linkCard">${linkCard()}</div>`;
+}
+// The token arrives: tap to see it, so nobody nearby catches a glimpse
+function revealHtml() {
+  const c = CHAR[S.role] || { icon: "", text: "", team: "townsfolk", name: S.role }, evil = S.side === "evil";
+  if (!ui.peek) return `<section class="card reveal"><h2>Your token has arrived</h2>
+    <p class="lead">Make sure nobody can see your screen, then tap to see your character.</p>
+    <button class="btn primary huge" data-act="peek">Show me</button></section>`;
+  return `<section class="card reveal">
+    <p class="lead">You are the</p>
+    <div class="token-big ${evil ? "evil" : c.team}"><span class="ico" aria-hidden="true">${c.icon}</span><span>${esc(S.role)}</span></div>
+    <p class="lead"><span class="t-${c.team}" style="font-weight:800">${TEAM_LABEL[c.team] ? TEAM_LABEL[c.team].replace(/s$/, "") : ""}</span> · <b style="color:var(--${evil ? "evil" : "good"})">${evil ? "Evil" : "Good"}</b></p>
+    ${c.text ? `<p class="ability">${esc(c.text)}${c.text.includes("night*") ? "<small>* not the first night</small>" : ""}</p>` : ""}
+    <div class="row" style="justify-content:center"><button class="btn" data-act="unpeek">Hide it</button><button class="btn primary" data-act="to-grim">Open my Grimoire →</button></div>
+  </section>`;
+}
 function tokenHtml() {
   const R = SCRIPTS[S.script].roles;
   const c = CHAR[S.role];
@@ -543,6 +574,13 @@ function fromHost(m) {
     }
   }
   if (m.t === "error") { link.err = m.why; L.pid = ""; saveLink(); link.asked = true; }
+  if (m.t === "token") {
+    if (m.gameId) S.gameId = m.gameId;
+    const fresh = S.role !== m.role || S.side !== m.side || S.step === "token";
+    S.role = m.role; S.side = m.side;
+    if (fresh && S.step !== "grim") { S.step = "reveal"; ui.peek = false; buzz(); }
+    save(); render();
+  }
   if (m.t === "chat-req") { link.incoming = { id: m.id, from: m.from }; buzz(); }
   if (m.t === "chat-gone" && link.incoming && link.incoming.id === m.id) link.incoming = null;
   if (m.t === "chat-wait") link.waiting = { id: m.id, to: m.to };
@@ -562,7 +600,14 @@ function fromHost(m) {
 // The Storyteller's game is the source of truth for who's playing, who's dead and what phase it is.
 // My own notes, claims and reads are kept, matched up by name.
 function syncFromLobby(lb) {
-  const before = JSON.stringify([S.players, S.me, S.script, S.ph, S.players.map(p => about(p.id).dead)]);
+  // A new game on the Storyteller: clear last game's character, notes and reads
+  const newGame = lb.gameId && S.gameId && lb.gameId !== S.gameId;
+  if (newGame) {
+    Object.assign(S, { role: "", side: "", P: {}, info: [], bluffs: ["", "", ""], myBluff: "", ph: 0, step: lb.you ? "token" : "players" });
+    ui.sel = null; ui.pickOwn = false;
+  }
+  if (lb.gameId) S.gameId = lb.gameId;
+  const before = JSON.stringify([S.step, S.players, S.me, S.script, S.ph, S.players.map(p => about(p.id).dead)]);
   if (lb.script && SCRIPTS[lb.script]) S.script = lb.script;
   const byName = {};
   S.players.forEach(p => (byName[p.name.trim().toLowerCase()] = p.id));
@@ -579,7 +624,7 @@ function syncFromLobby(lb) {
   for (const hp of lb.players) { const A = about(hp.id); A.dead = !!hp.dead; if (!A.dead) A.ghost = false; }
   if (lb.ph != null) S.ph = lb.ph;
   if (lb.you && S.step === "players") S.step = "token";
-  const changed = JSON.stringify([S.players, S.me, S.script, S.ph, S.players.map(p => about(p.id).dead)]) !== before;
+  const changed = newGame || JSON.stringify([S.step, S.players, S.me, S.script, S.ph, S.players.map(p => about(p.id).dead)]) !== before;
   save();
   // Redraw only when something changed, and never while the player is typing
   if (changed && !(document.activeElement && ["TEXTAREA", "INPUT"].includes(document.activeElement.tagName) && document.activeElement.id !== "joinCode")) render();
@@ -688,6 +733,9 @@ document.addEventListener("click", ev => {
     case "team": { const A = about(pid); A.team = !A.team; break; }
     case "threat": { const A = about(pid); A.threat = A.threat === el.dataset.v ? "" : el.dataset.v; break; }
     case "kind": ui.kind = el.dataset.v; break;
+    case "peek": ui.peek = true; break;
+    case "unpeek": ui.peek = false; break;
+    case "pick-own": ui.pickOwn = true; break;
     case "link-join": { const c = ($("joinCode").value || "").trim().toUpperCase(); if (!c) return; L.code = c; L.pid = ""; saveLink(); link.asked = false; linkStart(); return; }
     case "link-leave": if (!confirm("Leave the Storyteller's game? You can join again with the code.")) return; linkStop(); return;
     case "link-seat": link.err = ""; joinAs(pid); return;
@@ -734,6 +782,8 @@ document.addEventListener("keydown", ev => {
 });
 
 render();
+const urlCode = (new URLSearchParams(location.search).get("code") || "").trim().toUpperCase();
+if (urlCode && urlCode !== L.code) { L.code = urlCode; L.pid = ""; saveLink(); }
 if (L.code) linkStart();
 </script>
 </body>

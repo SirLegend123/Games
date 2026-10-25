@@ -169,6 +169,8 @@ label.field { display: grid; gap: 6px; }
 .story-text p { margin: 0 0 10px; }
 #townBtn.live { background: var(--good); border-color: var(--good); color: #fff; }
 .town-card { border-color: var(--brass); }
+.join-banner { border-color: var(--brass); }
+.join-banner .town-code { font-size: clamp(2.2rem, 7vw, 3.2rem); }
 .town-code { font-weight: 800; font-size: clamp(3rem, 12vw, 5rem); letter-spacing: .2em; text-align: center; color: var(--brass); font-variant-numeric: tabular-nums; }
 .kill { display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
 .history summary { cursor: pointer; padding: 6px 0; }
@@ -265,7 +267,7 @@ const nameOf = pid => { const i = S.players.findIndex(p => p.id === pid); return
 
 /* ---------- State ---------- */
 const LS = "botc-storyteller-ftf-v1";
-const fresh = () => ({ step: "players", script: "tb", players: [], bag: [], draw: null, drawn: {} });
+const fresh = () => ({ step: "players", script: "tb", players: [], bag: [], draw: null, drawn: {}, gameId: uid(), townOn: true });
 let S;
 try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
 if (!S || !S.step) S = fresh();
@@ -338,10 +340,21 @@ function render() {
   save();
 }
 
+// The game code, and who has joined on their phone, like a Jackbox lobby
+function joinBanner() {
+  if (!S.townOn) return `<section class="card"><div class="row"><span class="hint" style="flex:1">Sharing is off, so players can't join on their phones.</span><button class="btn" data-act="town-start">📺 Share the game</button></div></section>`;
+  const on = Object.keys(town.players);
+  const url = location.href.replace(/storyteller\.html.*$/, "").replace(/^https?:\/\//, "");
+  return `<section class="card join-banner" id="joinBanner">
+    <div class="row"><div style="flex:1"><span class="label">Game code</span><div class="town-code" style="text-align:left">${esc(S.townCode || "…")}</div></div>
+      <p class="hint" style="flex:2">Put the <b>Town Square</b> on the TV, and everyone joins on their phone with the <b>Player</b> app at <b>${esc(url)}</b>, or by scanning the code on the TV.</p></div>
+    <p class="${town.status === "error" ? "warn" : "hint"}">${town.status === "on" ? (S.players.length ? `📱 ${on.length} of ${S.players.length} joined${on.length ? `: ${esc(listJoin(on.map(nameOf)))}` : ""}.` : "Add the players, then they can join.") : town.status === "error" ? esc(town.err || "Connection problem. Trying again…") : "Starting…"}</p>
+  </section>`;
+}
 function playersHtml() {
   const n = S.players.length;
   const rows = S.players.map((p, i) => `<div class="prow" data-i="${i}">
-      <span class="n">${i + 1}</span>
+      <span class="n">${town.players[p.id] ? "📱" : i + 1}</span>
       <input type="text" data-name="${i}" value="${esc(p.name)}" placeholder="Player name" aria-label="Seat ${i + 1} name" autocomplete="off">
       <span class="btns">
         <button class="icon" data-act="up" data-i="${i}" aria-label="Move up" ${i === 0 ? "disabled" : ""}>↑</button>
@@ -350,7 +363,7 @@ function playersHtml() {
       </span>
     </div>`).join("");
   const ex = expected(n, []);
-  return `<section class="card">
+  return `${joinBanner()}<section class="card">
     <h2>Who's playing?</h2>
     <label class="field"><span class="label">Script</span>
       <select data-script>${Object.entries(SCRIPTS).map(([k, v]) => `<option value="${k}" ${S.script === k ? "selected" : ""}>${v.name}</option>`).join("")}</select>
@@ -379,7 +392,7 @@ function bagHtml() {
     return `<label class="field"><span class="label">The ${esc(b.role)} will see</span><select data-shown="${i}">${pool.map(r => `<option ${r === b.shown ? "selected" : ""}>${esc(r)}</option>`).join("")}</select></label>`;
   }).join("");
   const size = S.bag.length;
-  return `<section class="card">
+  return `${joinBanner()}<section class="card">
     <h2>Build the bag</h2>
     <p class="hint">Tap characters to put them in the bag, or pick a random setup and adjust it. You need ${plural(n, "character")} for ${plural(n, "player")}.</p>
     <div class="row"><button class="btn" data-act="random">🎲 Random setup</button><button class="btn" data-act="empty-bag" ${size ? "" : "disabled"}>Empty the bag</button></div>
@@ -395,7 +408,8 @@ function bagHtml() {
       <button class="btn" data-act="to-players">← Players</button>
       <span class="spacer"></span>
       <span class="${size === n ? "hint" : "warn"}">${size} of ${n} in the bag</span>
-      <button class="btn primary" data-act="start-draw" ${size === n ? "" : "disabled"}>Start the draw →</button>
+      <button class="btn ${Object.keys(town.players).length ? "" : "primary"}" data-act="start-draw" ${size === n ? "" : "disabled"}>Pass the phone round</button>
+      <button class="btn ${Object.keys(town.players).length ? "primary" : ""}" data-act="deal" ${size === n && Object.keys(town.players).length ? "" : "disabled"}>📱 Send tokens to phones →</button>
     </div>
   </section>`;
 }
@@ -1098,6 +1112,20 @@ function endNotes(pid, died) {
   if (remsOf(pid).includes("Twin") && sideOf(pid) === "good" && died) notes.push("The Evil Twin's good twin was executed: <b>evil wins</b>.");
   return notes;
 }
+// A fresh Grimoire once every player has their token
+function resetGrim() {
+  Object.assign(S, { bluffs: ["", "", ""], redHerring: "", rem: {}, dead: {}, log: [], phase: "", night: null, day: null, n: 1, used: {}, deathCause: {}, history: [], chron: [], toTell: [], today: null, ghostSpent: [], virginUsed: false, pukkaPrev: "", poCharged: false, fangJumped: false });
+}
+// Send a player their token, privately, to their own phone: the character they were dealt
+// (as they believe it: the Drunk sees their Townsfolk, the Lunatic their Demon)
+function sendToken(pid) {
+  const d = (S.dealt && S.dealt[pid]) || S.drawn[pid];
+  if (!d || !town.players[pid]) return;
+  S.dealt = S.dealt || {};
+  S.dealt[pid] = { role: d.role, shown: d.shown || "" };
+  const believe = d.shown || d.role;
+  tellPlayer(pid, { t: "token", gameId: S.gameId, role: believe, side: alignOf(believe) });
+}
 // When the Demon dies with 5 or more alive, the Scarlet Woman becomes the Demon and is told at night
 function scarletTakeover(demon) {
   const sw = inPlay().find(q => roleOf(q) === "Scarlet Woman" && alive(q) && !unreliable(q).length);
@@ -1572,8 +1600,8 @@ function publicState() {
       dead: S.players.filter(p => S.dead[p.id]).map(p => p.id),
       roles: S.players.filter(p => shown.includes(p.id)).map(p => ({ id: p.id, role: roleOf(p.id), side: sideOf(p.id), dead: !!S.dead[p.id] })) };
   }
-  if (S.draw) return { ...st, mode: "draw", drawn: S.players.length - S.draw.queue.length, total: S.players.length };
-  if (!["night", "day"].includes(S.step)) return { ...st, mode: "setup" };
+  if (S.draw) return { ...st, mode: "draw", drawn: S.players.length - S.draw.queue.length, total: S.players.length, code: S.townCode, joined: Object.keys(town.players) };
+  if (!["night", "day"].includes(S.step)) return { ...st, mode: "setup", code: S.townOn ? S.townCode : "", joined: Object.keys(town.players), dealt: S.step === "grim" };
   const spent = S.step === "day" && S.day ? ghostSpent() : new Set(S.ghostSpent || []);
   st.seats = S.players.map(p => ({ id: p.id, dead: !!S.dead[p.id], vote: !S.dead[p.id] || !spent.has(p.id) }));
   st.alive = aliveIds().length; st.need = votesNeeded();
@@ -1603,7 +1631,7 @@ function townStart() {
   if (town.peer) town.peer.destroy();
   town.status = "starting";
   const peer = town.peer = new Peer(townId(S.townCode), peerOpts());
-  peer.on("open", () => { town.status = "on"; town.err = ""; renderTown(); });
+  peer.on("open", () => { town.status = "on"; town.err = ""; renderTown(); refreshJoin(); });
   peer.on("connection", c => {
     const isPlayer = c.metadata && c.metadata.kind === "player";
     c.on("open", () => { if (isPlayer) c.send({ ...lobbyBase(), you: null }); else { town.conns.push(c); c.send(publicState()); } renderTown(); });
@@ -1638,7 +1666,9 @@ function fromPlayer(c, m) {
     if (old && old.conn !== c) try { old.conn.close(); } catch (e) {}
     town.players[pid] = { conn: c, peer: c.peer };
     c.pid = pid;
-    sendLobby(true); renderTown(); return;
+    sendLobby(true);
+    if (S.drawn[pid] && !(S.draw && S.draw.queue.includes(pid))) sendToken(pid);
+    renderTown(); refreshJoin(); return;
   }
   const me = c.pid;
   if (!me) return;
@@ -1681,10 +1711,18 @@ function playerLeft(c) {
   if (!pid || !town.players[pid] || town.players[pid].conn !== c) return;
   delete town.players[pid];
   town.chats.filter(x => x.a === pid || x.b === pid).forEach(x => endChat(x.id, `${nameOf(pid)} left the game.`));
+  refreshJoin();
   for (const [id, r] of Object.entries(town.reqs)) if (r.from === pid || r.to === pid) { delete town.reqs[id]; tellPlayer(r.from === pid ? r.to : r.from, { t: r.from === pid ? "chat-gone" : "chat-no", id, to: r.to, why: `${nameOf(pid)} left.` }); }
   sendLobby(true);
 }
 // Who's here, who's busy, and whether it's daytime, for every linked player
+// Someone joined or left: refresh the setup screens (just the banner while the Storyteller is typing)
+function refreshJoin() {
+  if (!["players", "bag"].includes(S.step) || S.draw || S.over) return;
+  const a = document.activeElement;
+  if (a && ["INPUT", "TEXTAREA", "SELECT"].includes(a.tagName)) { const jb = $("joinBanner"); if (jb) jb.outerHTML = joinBanner(); }
+  else render();
+}
 function sendLobby(force) {
   if (!chatDay() && (town.chats.length || Object.keys(town.reqs).length)) {
     town.chats.slice().forEach(x => endChat(x.id, "Night has fallen. Private chats are over."));
@@ -1698,7 +1736,7 @@ function sendLobby(force) {
   for (const pid of Object.keys(town.players)) tellPlayer(pid, { ...base, you: pid });
 }
 function lobbyBase() {
-  return { t: "lobby", day: chatDay(), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
+  return { t: "lobby", gameId: S.gameId, day: chatDay(), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
     players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), online: !!town.players[p.id], busy: inChat(p.id), dead: !!(S.dead || {})[p.id] })),
     chats: town.chats.map(c => [c.a, c.b]) };
 }
@@ -1833,7 +1871,19 @@ document.addEventListener("click", ev => {
     case "draw-hide": D.queue.shift(); D.step = D.queue.length ? "pass" : "done"; break;
     case "draw-stop": D.step = "stop"; break;
     case "draw-stop-yes": S.draw = null; S.step = "grim"; break;
-    case "draw-finish": S.draw = null; S.step = "grim"; Object.assign(S, { bluffs: ["", "", ""], redHerring: "", rem: {}, dead: {}, log: [], phase: "", night: null, day: null, n: 1, used: {}, deathCause: {}, history: [], chron: [], toTell: [], today: null, ghostSpent: [], virginUsed: false, pukkaPrev: "", poCharged: false, fangJumped: false }); break;
+    case "deal": {
+      if (!countsOk(S.players.length, S.bag.map(b => b.role)) && !confirm("The bag doesn't match the usual setup for this many players. Deal anyway?")) return;
+      const on = S.players.map(p => p.id).filter(q => town.players[q]), off = S.players.map(p => p.id).filter(q => !town.players[q]);
+      if (off.length && !confirm(`${listJoin(off.map(nameOf))} ${off.length === 1 ? "hasn't" : "haven't"} joined on a phone. Send tokens to everyone who has, then pass this phone round to ${off.length === 1 ? "them" : "the rest"}?`)) return;
+      const tokens = shuffle(S.bag.map(b => ({ ...b })));
+      S.drawn = {}; S.dealt = {};
+      on.forEach(q => { S.drawn[q] = tokens.shift(); });
+      on.forEach(sendToken);
+      if (off.length) { S.draw = { left: tokens, queue: off, step: "pass" }; wake(); }
+      else { S.step = "grim"; resetGrim(); }
+      break;
+    }
+    case "draw-finish": S.draw = null; S.step = "grim"; resetGrim(); break;
     case "sel": ui.sel = ui.sel === el.dataset.pid ? null : el.dataset.pid; render(); return;
     case "side": S.drawn[el.dataset.pid].align = el.dataset.v; break;
     case "dead": S.dead[el.dataset.pid] = !S.dead[el.dataset.pid]; break;
@@ -1957,7 +2007,7 @@ document.addEventListener("click", ev => {
     case "new-game": {
       const playing = S.step !== "players" || S.bag.length;
       if (playing && !confirm(S.over ? "Start a new game with the same players?" : "Start a new game? This game ends now. The players stay; the bag, characters and everything that has happened are cleared.")) return;
-      S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn, townCode: S.townCode, linkSecrets: S.linkSecrets };
+      S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn !== false, townCode: S.townCode, linkSecrets: S.linkSecrets };
       Object.assign(T, { end: 0, left: 0, total: 0, rang: false });
       Object.assign(ui, { sel: null, reveal: false, story: false, timerOpen: false }); show = null;
       break;
@@ -1997,7 +2047,9 @@ async function wake() { try { if (navigator.wakeLock && !lock) { lock = await na
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && (S.draw || S.step === "night")) wake(); });
 
 // Carry on sharing with the Town Square after a reload
-if (S.townOn) townStart();
+// Every game is shared: the code is there from the start, for the TV and the players' phones
+if (!S.gameId) S.gameId = uid();
+if (S.townOn !== false) { S.townOn = true; townStart(); }
 // A draw in progress picks up where it left off, without showing the last token to whoever holds the phone
 if (S.draw && S.draw.step === "show") S.draw.step = "ready";
 render();
