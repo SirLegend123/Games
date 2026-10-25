@@ -218,7 +218,8 @@ function dayPanel() {
   if ((G.hands || []).length && !G.vote) cards.push(`<div class="card"><h2>✋ Hands up</h2>${G.hands.map(h => `<p class="big"><b>${esc(nameOf(h[0]))}</b> wants to nominate <b>${esc(nameOf(h[1]))}</b></p>`).join("")}</div>`);
   if ((G.chats || []).length) cards.push(`<div class="card"><h2>💬 Private chats</h2>${G.chats.map(c => `<p class="big">${esc(nameOf(c[0]))} ↔ ${esc(nameOf(c[1]))}</p>`).join("")}</div>`);
   if (lines.length) cards.push(`<div class="card"><h2>Today</h2><ol class="list">${lines.map(l => `<li>${l}</li>`).join("")}</ol></div>`);
-  if (!cards.length) cards.push(`<div class="card"><h2>Day ${G.n}</h2><p class="big">Talk, plot, and find the Demon.</p><p class="muted">Nominations will appear here.</p></div>`);
+  if (!cards.length) cards.push(G.nomsOpen ? `<div class="card"><h2>📢 Nominations are open</h2><p class="big">Raise your hand on your phone to nominate.</p><p class="muted">Private chats only between neighbours now.</p></div>`
+    : `<div class="card"><h2>Day ${G.n}</h2><p class="big">Talk, plot, and find the Demon.</p><p class="muted">Private chats are open. Nominations will appear here.</p></div>`);
   return cards.join("");
 }
 
