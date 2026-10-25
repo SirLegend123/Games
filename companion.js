@@ -13,9 +13,12 @@
     'storyteller.html': { name: "Storyteller's Grimoire", game: 'botc-storyteller-v1', keys: ['botc-storyteller-v1', 'botc-storyteller-v1-tab'] },
     'clockwork-storyteller.html': { name: 'Clockwork Storyteller', game: 'clockwork-storyteller-v1', keys: ['clockwork-storyteller-v1', 'clockwork-storyteller-prefs'] },
     'solo.html': { name: 'Solo Practice', game: 'clocktower-solo-v1', keys: ['clocktower-solo-v1', 'clocktower-solo-prefs'] },
+    // An online game: its state lives on the castle screen, so there's no undo or saved-game file, and no character sheet
+    'traitors.html': { name: 'The Traitors', game: null, keys: [], clocktower: false },
   };
   const page = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
   const app = APPS[page] || null;
+  const clocktower = !app || app.clocktower !== false;
   const PREFS = 'clocktower-companion-prefs';
 
   /* ---------- Preferences shared by every app ---------- */
@@ -218,15 +221,15 @@
       : /iphone|ipad|ipod/i.test(navigator.userAgent) ? '<p>In Safari, tap <b>Share</b> (the square with an arrow), then <b>Add to Home Screen</b>. The apps then open full screen and work without signal.</p>'
       : '<p>In your browser\'s menu, choose <b>Install app</b> or <b>Add to Home Screen</b>. The apps then open full screen and work without signal.</p>';
     return `<div class="cc-head"><h2>Settings</h2><button class="cc-btn" data-cc="close" aria-label="Close">✕</button></div>
-      ${app ? `<h3>Undo</h3><div class="cc-row"><button class="cc-btn ${can ? 'on' : ''}" data-cc="undo" ${can ? '' : 'disabled'}>↶ Undo last change</button><span class="cc-hint">${can ? `${can} ${can === 1 ? 'step' : 'steps'} back available` : 'Nothing to undo yet'}</span></div>` : ''}
+      ${app && app.game ? `<h3>Undo</h3><div class="cc-row"><button class="cc-btn ${can ? 'on' : ''}" data-cc="undo" ${can ? '' : 'disabled'}>↶ Undo last change</button><span class="cc-hint">${can ? `${can} ${can === 1 ? 'step' : 'steps'} back available` : 'Nothing to undo yet'}</span></div>` : ''}
       ${app && app.simple ? `<h3>Simple mode</h3><div class="cc-set"><span>Simple mode</span>${seg('simple:' + page, [[true, 'On'], [false, 'Off']])}</div><p class="cc-hint">${esc(app.simple)}</p>` : ''}
       <h3>Display</h3>
       <div class="cc-set"><span>Text size</span>${seg('zoom', [[1, 'Normal'], [1.15, 'Large'], [1.3, 'Extra large']])}</div>
       <div class="cc-set"><span>Light or dark</span>${seg('theme', [['auto', 'Like my phone'], ['light', 'Light'], ['dark', 'Dark']])}</div>
       ${'wakeLock' in navigator ? `<div class="cc-set"><span>Keep screen on</span>${seg('awake', [[true, 'On'], [false, 'Off']])}</div><p class="cc-hint">Stops the phone dimming and locking while an app is open.</p>` : ''}
-      <h3>Characters</h3><div class="cc-row"><button class="cc-btn" data-cc="sheet">Trouble Brewing character sheet</button></div>
-      <p class="cc-hint">Tip: tap any character's name in the apps to see what it does.</p>
-      ${app ? `<h3>Your saved game</h3><div class="cc-row"><button class="cc-btn" data-cc="export">Save game to a file</button><button class="cc-btn" data-cc="import">Load a saved game</button></div>
+      ${clocktower ? `<h3>Characters</h3><div class="cc-row"><button class="cc-btn" data-cc="sheet">Trouble Brewing character sheet</button></div>
+      <p class="cc-hint">Tip: tap any character's name in the apps to see what it does.</p>` : ''}
+      ${app && app.game ? `<h3>Your saved game</h3><div class="cc-row"><button class="cc-btn" data-cc="export">Save game to a file</button><button class="cc-btn" data-cc="import">Load a saved game</button></div>
         <p class="cc-hint">Games are saved in this browser only. Save one to a file to keep a backup or carry on on another device.</p>` : ''}
       <h3>Install</h3>${install}`;
   }
@@ -293,13 +296,14 @@
     }
     if (pop && !pop.contains(t)) closePop();
     // A character's name (on its own, or in bold) that isn't part of a button or form
-    if (!t.closest || t.closest(INTERACTIVE)) return;
+    if (!clocktower || !t.closest || t.closest(INTERACTIVE)) return;
     const txt = (t.textContent || '').trim().replace(/[.,!?:;'’]+$/, '').toLowerCase();
     if (txt.length > 16 || !ABILITY[txt]) return;
     showPop(t, ABILITY[txt]);
   });
   // Underline character names that can be tapped (bold names and table headings)
   function markNames() {
+    if (!clocktower) return;
     document.querySelectorAll('b, strong, th span').forEach(n => {
       if (n.classList.contains('cc-name') || n.closest(INTERACTIVE)) return;
       const txt = (n.textContent || '').trim().toLowerCase();

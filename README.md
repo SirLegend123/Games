@@ -2,7 +2,7 @@
 
 ## Clocktower Companion
 
-Open `index.html` in any web browser for a cover page that lets you pick one of five *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, the **Storyteller's Grimoire**, the **Clockwork Storyteller**, which runs a game of Trouble Brewing by itself when nobody wants to be Storyteller, or **Solo Practice**, where you play Trouble Brewing on your own against bots. Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
+Open `index.html` in any web browser for a cover page that lets you pick one of five *Blood on the Clocktower* tools: the **Clocktower Notebook** for good players, the **Evil Grimoire** for the evil team, the **Storyteller's Grimoire**, the **Clockwork Storyteller**, which runs a game of Trouble Brewing by itself when nobody wants to be Storyteller, or **Solo Practice**, where you play Trouble Brewing on your own against bots. The cover page also has **The Traitors**, an online party game for family and friends (see below). Each app has a ⌂ button that brings you back to the cover page, and each keeps its own saved game.
 
 ### In every app
 
@@ -18,6 +18,24 @@ Open `index.html` in any web browser for a cover page that lets you pick one of 
 - **Tap any character's name** (underlined with dots) to see what it does.
 - **Works offline**: once opened, every app is saved on the device and opens without signal. Updates arrive next time you're online.
 - **Continue buttons** on the cover page for any game in progress, such as "Continue: Solo Practice, Day 3".
+
+## The Traitors
+
+A party game for family and friends based on the TV show, played online: one **castle screen** shared on your video call, and everyone (the host included) playing on their own phone. Pick it from the cover page, or open `traitors.html`. 6 to 20 players.
+
+- Hosting: one person taps **Open a new castle screen** on a laptop, tablet or spare phone and shares that screen on the call (Zoom, FaceTime, Discord and so on). It shows a 4-letter room code and the link to join. Everyone opens the link on their phone, types the code and their name, and appears in the lobby. The host joins on their own phone too, and runs the game from the castle screen
+- Privacy: the castle screen holds the game and sends each phone only that player's own view. The castle screen shows only public moments; roles, meetings, votes, letters and clues only ever appear on the right phone
+- Connections: phones connect straight to the castle screen, using a free public connection service (PeerJS) to find each other. If a phone drops or refreshes, its player joins again with the same code and name and carries on. If the castle screen refreshes, tap **Resume castle** and every phone reconnects by itself
+- Rules (faithful to the show): the number of Traitors is secret and never shown. With **the Secret Traitor** on (the default), one Traitor is hidden even from the others; each night the Secret Traitor draws up the shortlists, three who can be murdered and, on recruiting nights, three who can be recruited, and the Traitors must choose from them
+- Missions on every phone: the Library Quiz (over 100 questions), quick sums, anagrams of castle words, or the Portrait Gallery memory test. Every right answer adds £500. The top scorers (every one of them, if tied) choose the Shield (safe from murder that night) or £2,000 for the pot
+- Round Table: talk on the call while the castle screen runs the clock (with +1 min), then everyone votes on their phone. The castle screen turns the slates one at a time with a running tally. A tie means a revote between the tied players (they don't vote); a second tie goes to the draw. The banished player says "I am…" and the castle reveals Faithful, Traitor or the Secret Traitor
+- Night: the Traitors meet on their phones, see each other's picks and have a private chat. Faithful phones show the turret. Nobody, the victim included, learns who died until breakfast, where the castle screen brings players down one by one
+- Recruiting: after a Traitor is banished, while more than 6 remain, the Traitors recruit. With two or more of them it's a seduction (refusing is safe, accepting shows you the Traitors, and they still murder someone else that night); with only one it's blackmail, face to face: you see the Traitor, and it's join or die
+- The final five: no murder that night; from then on, banished players don't reveal their role, and the mission's top scorers become Seers, each with a true clue on their phone ("At least one of Ben and Zara is a Traitor" or "Neither is")
+- The fire pit: once 4 remain, everyone votes on their phone to end the game or banish again. If everyone votes to end with a Traitor still there, the Traitors take the pot. The Faithful win straight away if the last Traitor is banished in the open
+- Game over: who wins and how the pot splits, everyone's role (with recruits and the Secret Traitor marked), and the whole story day by day: missions, Shields, Seers' clues, every vote, the Secret Traitor's shortlists and every recruitment
+- Host controls: if someone goes quiet, **Carry on without them** fills in their answer so the game can move on. At night it never names who the castle is waiting for, so it doesn't give the Traitors away
+- Narrator voice on the castle screen (Menu to turn it off). The castle screen and phones keep the screen awake
 
 ## Clocktower Notebook
 
