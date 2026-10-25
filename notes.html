@@ -151,6 +151,7 @@ label.field, .field { display: grid; gap: 6px; }
 .tiles.small .tile { min-height: 66px; font-size: .8rem; padding: 6px 4px; }
 .tiles.small .tile .ico { font-size: 1.4rem; }
 .pick-chars { display: grid; gap: 8px; }
+.disc .ico.multi { font-size: calc(var(--tok) * .2); letter-spacing: -.1em; }
 .card > .seg { display: grid; grid-template-columns: 1fr 1fr; }
 .card > .seg button + button { border-left: 1px solid var(--line); }
 .seat.soft .disc { border-style: dashed; border-color: var(--brass); }
@@ -186,7 +187,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <main id="app"></main>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 68;</script>
+<script>window.APP_V = 69;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -224,7 +225,7 @@ let S;
 try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
 if (!S || !S.step) S = fresh();
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
-const ui = { sel: null, kind: "hard", claimRole: "" };
+const ui = { sel: null, kind: "hard", claimRoles: [] };
 const about = pid => (S.P[pid] = S.P[pid] || { claims: [], death: null, ghost: false, notes: "" });
 const nameOf = pid => (S.players.find(p => p.id === pid) || {}).name || "?";
 const alive = () => S.players.filter(p => !about(p.id).death);
@@ -241,6 +242,10 @@ const roleInput = (id, val = "") => S.script === "other"
   ? `<input type="text" id="${id}" list="allChars" value="${esc(val)}" placeholder="Character" autocomplete="off"><datalist id="allChars">${Object.keys(CHAR).sort().map(n => `<option value="${esc(n)}">`).join("")}</datalist>`
   : `<select id="${id}"><option value="">Character…</option>${charGroups().map(([l, rs]) => `<optgroup label="${l}">${rs.map(r => `<option ${r === val ? "selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>`).join("")}</select>`;
 
+// A soft claim can be one of several characters ("I'm the Slayer, Soldier or Mayor")
+const rolesOf = c => c.roles || [c.role];
+const orList = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " or " + a[a.length - 1];
+const claimText = c => orList(rolesOf(c));
 // What each player is claiming: their latest hard claim, or else their latest soft one
 function currentClaim(pid) {
   const cs = about(pid).claims;
@@ -248,8 +253,9 @@ function currentClaim(pid) {
 }
 // ⚠ when someone's story has changed, or two players hard claim the same character
 function flagsOf(pid) {
-  const f = [], cs = about(pid).claims, roles = new Set(cs.map(c => c.role));
-  if (roles.size > 1) f.push("Claims have changed");
+  const f = [], cs = about(pid).claims;
+  // Two claims that can't both be true: no character in common
+  if (cs.some((a, i) => cs.slice(i + 1).some(b => !rolesOf(a).some(r => rolesOf(b).includes(r))))) f.push("Claims have changed");
   const c = currentClaim(pid);
   if (c && c.kind === "hard") {
     const others = S.players.filter(p => p.id !== pid && (currentClaim(p.id) || {}).role === c.role && currentClaim(p.id).kind === "hard");
@@ -320,10 +326,11 @@ function circleHtml() {
   const seats = S.players.map((p, i) => {
     const a = (i / n) * 2 * Math.PI - Math.PI / 2, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
     const A = about(p.id), me = p.id === S.me, c = me ? { role: S.role, kind: "hard" } : currentClaim(p.id), d = A.death;
-    const word = c ? Math.max(...c.role.split(/\s+/).map(w => w.length), 3) : 3;
+    const rs = c ? rolesOf(c) : [], word = rs.length === 1 ? Math.max(...rs[0].split(/\s+/).map(w => w.length), 3) : 6;
     const flag = !me && flagsOf(p.id).length;
-    return `<button class="seat ${me ? "me" : ""} ${c && !me ? c.kind : ""} ${d ? "dead" : ""} ${ui.sel === p.id ? "sel" : ""}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" data-act="sel" data-pid="${p.id}" aria-label="${esc(p.name)}${c ? `, ${c.kind} claim ${esc(c.role)}` : ""}${d ? ", dead" : ""}">
-      <span class="disc">${c ? `<span class="ico" aria-hidden="true">${iconOf(c.role)}</span><span class="nm" style="--fs:${Math.min(.16, 1.4 / word).toFixed(3)}">${esc(c.role)}</span>${!me && c.kind === "soft" ? `<span class="sm">soft</span>` : ""}` : `<span class="q">?</span>`}</span>
+    return `<button class="seat ${me ? "me" : ""} ${c && !me ? c.kind : ""} ${d ? "dead" : ""} ${ui.sel === p.id ? "sel" : ""}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" data-act="sel" data-pid="${p.id}" aria-label="${esc(p.name)}${c ? `, ${c.kind} claim ${esc(claimText(c))}` : ""}${d ? ", dead" : ""}">
+      <span class="disc">${!c ? `<span class="q">?</span>` : rs.length > 1 ? `<span class="ico multi" aria-hidden="true">${rs.slice(0, 3).map(iconOf).join("")}</span><span class="nm" style="--fs:.13">1 of ${rs.length}</span><span class="sm">soft</span>`
+        : `<span class="ico" aria-hidden="true">${iconOf(rs[0])}</span><span class="nm" style="--fs:${Math.min(.16, 1.4 / word).toFixed(3)}">${esc(rs[0])}</span>${!me && c.kind === "soft" ? `<span class="sm">soft</span>` : ""}`}</span>
       ${flag ? `<span class="flag" aria-hidden="true">!</span>` : ""}
       <span class="plate">${me ? "★ " : ""}${esc(p.name)}</span>
       ${d ? `<span class="badge">${deathOf(d.how)[1]} ${d.ph % 2 ? "D" : "N"}${Math.floor(d.ph / 2) + 1}${A.ghost ? "" : " 👻"}</span>` : ""}
@@ -336,22 +343,22 @@ function circleHtml() {
 
 function panelHtml(pid) {
   const A = about(pid), d = A.death, me = pid === S.me;
-  const claims = A.claims.map(c => `<li><span class="ico ${teamCls(c.role)}">${iconOf(c.role)}</span>
-      <span><span class="kind ${c.kind}">${c.kind === "hard" ? "Hard" : "Soft"}</span> <b>${esc(c.role)}</b> <small>${phaseName(c.ph)}${c.note ? ` · ${esc(c.note)}` : ""}</small></span>
+  const claims = A.claims.map(c => `<li><span class="ico">${rolesOf(c).map(iconOf).join("")}</span>
+      <span><span class="kind ${c.kind}">${c.kind === "hard" ? "Hard" : "Soft"}</span> <b>${esc(claimText(c))}</b> <small>${phaseName(c.ph)}${c.note ? ` · ${esc(c.note)}` : ""}</small></span>
       <button class="x" data-act="claim-del" data-pid="${pid}" data-id="${c.id}" aria-label="Remove this claim">×</button></li>`).join("");
-  const cur = currentClaim(pid), ab = cur && CHAR[cur.role];
+  const cur = currentClaim(pid), abs = cur ? rolesOf(cur).map(r => CHAR[r]).filter(Boolean) : [];
   return `<section class="card">
     <div class="row"><h2 style="margin-right:auto">${esc(nameOf(pid))}${me ? " (you)" : ""}</h2><button class="icon" data-act="sel" data-pid="${pid}" aria-label="Close">×</button></div>
     ${me ? "" : `<h3>Claims</h3>
     ${claims ? `<ul class="cl-list">${claims}</ul>` : `<p class="hint">No claims yet.</p>`}
     ${flagsOf(pid).map(f => `<p class="warn">⚠ ${esc(f)}</p>`).join("")}
-    ${ab ? `<p class="ability"><b>${ab.icon} ${esc(ab.name)}</b>: ${esc(ab.text)}</p>` : ""}
+    ${abs.map(ab => `<p class="ability"><b>${ab.icon} ${esc(ab.name)}</b>: ${esc(ab.text)}</p>`).join("")}
     <div class="seg" role="group" aria-label="Kind of claim"><button data-act="kind" data-v="soft" aria-pressed="${ui.kind === "soft"}">Soft claim</button><button data-act="kind" data-v="hard" aria-pressed="${ui.kind === "hard"}">Hard claim</button></div>
-    <p class="hint">${ui.kind === "soft" ? "A hint or a maybe: \"I might be an info role\", \"I'm one of three\"." : "They've said outright which character they are."}</p>
+    <p class="hint">${ui.kind === "soft" ? "A hint or a maybe. Tap every character they might be: \"I'm the Slayer, Soldier or Mayor\"." : "They've said outright which character they are. Tap it."}</p>
     ${S.script === "other" ? roleInput("claimRole") : `<div class="pick-chars">${TEAMS.map(t => `<h3 class="t-${t}">${TEAM_LABEL[t]}</h3>
-      <div class="tiles small">${SCRIPTS[S.script].roles[t].map(([name, icon]) => `<button class="tile ${t}" data-act="claim-role" data-role="${esc(name)}" aria-pressed="${ui.claimRole === name}"><span class="ico" aria-hidden="true">${icon}</span>${esc(name)}</button>`).join("")}</div>`).join("")}</div>`}
+      <div class="tiles small">${SCRIPTS[S.script].roles[t].map(([name, icon]) => `<button class="tile ${t}" data-act="claim-role" data-role="${esc(name)}" aria-pressed="${ui.claimRoles.includes(name)}"><span class="ico" aria-hidden="true">${icon}</span>${esc(name)}</button>`).join("")}</div>`).join("")}</div>`}
     <input type="text" id="claimNote" placeholder="What they said (optional)" autocomplete="off" enterkeyhint="done">
-    <button class="btn primary" data-act="claim-add" data-pid="${pid}" ${S.script === "other" || ui.claimRole ? "" : "disabled"}>${S.script === "other" || !ui.claimRole ? `Add ${ui.kind} claim` : `Add ${ui.kind} claim: ${esc(ui.claimRole)}`}</button>`}
+    <button class="btn primary" data-act="claim-add" data-pid="${pid}" ${S.script === "other" || ui.claimRoles.length ? "" : "disabled"}>${S.script === "other" || !ui.claimRoles.length ? `Add ${ui.kind} claim` : `Add ${ui.kind} claim: ${esc(orList(ui.claimRoles))}`}</button>`}
     <h3>Died?</h3>
     ${d ? `<div class="dead-box"><p class="lead">${deathOf(d.how)[1]} <b>${deathOf(d.how)[2]}</b> · ${phaseName(d.ph)}</p>
       <div class="row"><button class="btn" data-act="ghost" data-pid="${pid}" aria-pressed="${A.ghost}">${A.ghost ? "👻 Ghost vote used" : "👻 Ghost vote still there"}</button><button class="btn" data-act="undead" data-pid="${pid}">Undo</button></div></div>`
@@ -374,7 +381,7 @@ function myCard() {
 function summaryCard() {
   const rows = S.players.map(p => {
     const A = about(p.id), cur = p.id === S.me ? { role: S.role, kind: "me" } : currentClaim(p.id), f = p.id === S.me ? [] : flagsOf(p.id);
-    return `<div class="r ${A.death ? "dead" : ""}"><b>${esc(p.name)}</b><span>${cur ? `${iconOf(cur.role)} ${esc(cur.role)} ${cur.kind === "me" ? `<span class="kind hard">You</span>` : `<span class="kind ${cur.kind}">${cur.kind}</span>`}` : `<span class="hint">no claim</span>`}${A.death ? ` · ${deathOf(A.death.how)[1]} ${phaseName(A.death.ph)}` : ""}${f.length ? `<br><span class="flagtxt">⚠ ${esc(f.join("; "))}</span>` : ""}</span></div>`;
+    return `<div class="r ${A.death ? "dead" : ""}"><b>${esc(p.name)}</b><span>${cur ? `${rolesOf(cur).map(iconOf).join("")} ${esc(claimText(cur))} ${cur.kind === "me" ? `<span class="kind hard">You</span>` : `<span class="kind ${cur.kind}">${cur.kind}</span>`}` : `<span class="hint">no claim</span>`}${A.death ? ` · ${deathOf(A.death.how)[1]} ${phaseName(A.death.ph)}` : ""}${f.length ? `<br><span class="flagtxt">⚠ ${esc(f.join("; "))}</span>` : ""}</span></div>`;
   }).join("");
   const dead = S.players.filter(p => about(p.id).death).sort((a, b) => about(a.id).death.ph - about(b.id).death.ph);
   return `<section class="card"><h2>The town</h2><div class="sum">${rows}</div></section>
@@ -414,10 +421,12 @@ function keepDraft() {
   window.scrollTo(0, y);
 }
 function addClaim(pid) {
-  const role = S.script === "other" ? ($("claimRole").value || "").trim() : ui.claimRole;
-  if (!role) { if ($("claimRole")) $("claimRole").focus(); return; }
-  about(pid).claims.push({ id: uid(), kind: ui.kind, role, note: ($("claimNote").value || "").trim(), ph: S.ph });
-  ui.claimRole = "";
+  // Typed characters: a soft claim can list several, separated by commas or "or"
+  const typed = S.script === "other" ? ($("claimRole").value || "").split(ui.kind === "soft" ? /,|\s+or\s+|\//i : /$^/).map(x => x.trim()).filter(Boolean) : null;
+  const roles = typed || ui.claimRoles;
+  if (!roles.length) { if ($("claimRole")) $("claimRole").focus(); return; }
+  about(pid).claims.push({ id: uid(), kind: ui.kind, role: roles[0], roles: ui.kind === "soft" ? [...new Set(roles)] : [roles[0]], note: ($("claimNote").value || "").trim(), ph: S.ph });
+  ui.claimRoles = [];
   render();
 }
 document.addEventListener("click", ev => {
@@ -436,9 +445,14 @@ document.addEventListener("click", ev => {
     case "to-notes": S.step = "notes"; break;
     case "role": S.role = el.dataset.role; break;
     case "role-typed": S.role = ($("myRole").value || "").trim(); break;
-    case "sel": ui.claimRole = ""; ui.sel = ui.sel === pid ? null : pid; render(); if (ui.sel && innerWidth < 900) { const c = document.querySelector(".grim-wrap > .side + .side"); if (c) c.scrollIntoView({ behavior: "smooth" }); } return;
-    case "claim-role": ui.claimRole = ui.claimRole === el.dataset.role ? "" : el.dataset.role; keepDraft(); return;
-    case "kind": ui.kind = el.dataset.v; { const r = $("claimRole") && $("claimRole").value, n = $("claimNote") && $("claimNote").value; render(); if ($("claimRole")) $("claimRole").value = r || ""; if ($("claimNote")) $("claimNote").value = n || ""; } return;
+    case "sel": ui.claimRoles = []; ui.sel = ui.sel === pid ? null : pid; render(); if (ui.sel && innerWidth < 900) { const c = document.querySelector(".grim-wrap > .side + .side"); if (c) c.scrollIntoView({ behavior: "smooth" }); } return;
+    case "claim-role": {
+      // Soft: tap as many as they might be. Hard: just the one.
+      const r = el.dataset.role, on = ui.claimRoles.includes(r);
+      ui.claimRoles = ui.kind === "soft" ? (on ? ui.claimRoles.filter(x => x !== r) : [...ui.claimRoles, r]) : (on ? [] : [r]);
+      keepDraft(); return;
+    }
+    case "kind": ui.kind = el.dataset.v; if (ui.kind === "hard") ui.claimRoles = ui.claimRoles.slice(-1); { const r = $("claimRole") && $("claimRole").value, n = $("claimNote") && $("claimNote").value; render(); if ($("claimRole")) $("claimRole").value = r || ""; if ($("claimNote")) $("claimNote").value = n || ""; } return;
     case "claim-add": return addClaim(pid);
     case "claim-del": about(pid).claims = about(pid).claims.filter(c => c.id !== el.dataset.id); break;
     case "die": about(pid).death = { how: el.dataset.v, ph: S.ph }; break;

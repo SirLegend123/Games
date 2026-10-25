@@ -88,7 +88,7 @@ A notepad for playing the official online game. Open `notes.html` (or **Online N
 2. **My character**: tap your character.
 3. **Notes**: the town in a circle, with **‹ Night 1 ›** to move through the nights and days.
    - **My info**: what you learn, noted against the night or day it is.
-   - Tap a player to add a **soft claim** (a hint or a maybe) or a **hard claim** (they've said outright): tap the character's button, add what they said if you like, then **Add claim**. Their token shows their latest hard claim (gold) or, failing that, soft claim (dashed). A **!** flags a story that has changed, two players hard claiming the same character, or someone claiming your character.
+   - Tap a player to add a **soft claim** (a hint or a maybe) or a **hard claim** (they've said outright): tap the character's button (for a soft claim, tap every character they might be, like "the Slayer, Soldier or Mayor"), add what they said if you like, then **Add claim**. The ! for a changed story only shows when two claims can't both be true. Their token shows their latest hard claim (gold) or, failing that, soft claim (dashed). A **!** flags a story that has changed, two players hard claiming the same character, or someone claiming your character.
    - **Died?**: tap how they died (executed, died at night, Slayer shot, Virgin or other). It's noted for the current night or day, and the token greys out with a 👻 until you mark their ghost vote used.
    - Notes for each player, **The town** (everyone's claim and fate at a glance) and **Deaths** in order.
    - **New game** keeps the players.
