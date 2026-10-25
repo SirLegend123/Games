@@ -179,6 +179,14 @@ label.field, .field { display: grid; gap: 6px; }
 .night-ov .big-tok .ico { font-size: 4rem; line-height: 1.1; }
 .night-ov .ability { background: var(--surface); border-radius: 12px; padding: 12px 16px; max-width: 520px; font-size: 1.15rem; }
 .night-ov .spy .circle { max-width: 100%; }
+/* ✋ Nominating and voting from the phone */
+.handbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--surface); border-top: 2px solid var(--brass); padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; justify-items: center; text-align: center; box-shadow: 0 -6px 20px rgba(0,0,0,.35); }
+.handbar p { margin: 0; font-size: 1.1rem; }
+.handbar.vote { border-top-color: var(--evil); }
+.handbar .pickgrid { width: min(700px, 100%); max-height: 45vh; overflow-y: auto; }
+.hand { width: min(520px, 100%); min-height: 64px; border-radius: 16px; border: 3px solid var(--brass); background: var(--surface-2); font-weight: 800; font-size: 1.3rem; }
+.hand.up { background: var(--good); border-color: var(--good); color: #fff; }
+body.has-handbar .wrap { padding-bottom: 160px; }
 /* Private chats */
 .chat-cover { position: fixed; inset: 0; z-index: 40; background: rgba(8,6,12,.7); display: grid; place-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
 .chat-panel { width: min(640px, 100%); background: var(--surface); border: 2px solid var(--brass); border-radius: 18px; padding: 18px; display: grid; gap: 14px; }
@@ -211,6 +219,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   </header>
   <main id="app"></main>
   <div id="chatBox"></div>
+  <div id="handBar"></div>
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
@@ -622,6 +631,15 @@ function fromHost(m) {
   if (m.t === "chat-msg" && link.chat && link.chat.id === m.id) chatReceive(link.chat, m);
   if (m.t === "chat-closed" && link.chat && link.chat.id === m.id) link.chat.ended = m.why;
   if (m.t === "night") showNight(m);
+  if (m.t === "note") { link.note = m.why; buzz(); }
+  // What the evil team learnt on Night 1: fill in my evil Grimoire
+  if (m.t === "evil-info") {
+    for (const q of m.team || []) about(q).team = true;
+    for (const q of m.demons || []) { const A = about(q); A.team = true; if (!A.real) A.real = "Demon"; }
+    if (m.bluffs && m.bluffs.length) S.bluffs = [0, 1, 2].map(k => m.bluffs[k] || S.bluffs[k] || "");
+    if (m.lunatic) about(m.lunatic).notes = (about(m.lunatic).notes ? about(m.lunatic).notes + "\n" : "") + "The Lunatic: thinks they're the Demon.";
+    save(); render();
+  }
   if (m.t === "night-off") hideNight();
   renderLink();
 }
@@ -769,7 +787,26 @@ function chatBoxHtml() {
     ${ch.ended ? `<p class="warn">${esc(ch.ended)}</p>` : `<div class="add"><input type="text" id="chatIn" placeholder="Message" autocomplete="off" enterkeyhint="send" aria-label="Message"><button class="btn primary" data-act="chat-send">Send</button></div>`}
   </div></div>`;
 }
+function handBarHtml() {
+  const lb = link.lobby, me = lb && lb.you, D = lb && lb.dayInfo;
+  if (!me || !D || D.done) return "";
+  const nm = id => esc(lname(id)), meP = lb.players.find(p => p.id === me) || {};
+  if (D.vote) {
+    const v = D.vote, up = v.votes.includes(me), can = D.canVote.includes(me);
+    return `<div class="handbar vote"><p><b>${nm(v.by)}</b> nominated <b>${nm(v.of)}</b> · ${v.votes.length} of ${D.need} needed</p>
+      ${can ? `<button class="hand ${up ? "up" : ""}" data-act="hand-vote" data-v="${up ? 0 : 1}">${up ? "✋ Hand up! Tap to lower" : `✋ Raise my hand${meP.dead ? " (uses your ghost vote)" : ""}`}</button>` : `<p class="hint">${meP.dead ? "You've used your ghost vote." : "You can't vote."}</p>`}</div>`;
+  }
+  const mine = (D.hands || []).find(h => h[0] === me);
+  if (mine) return `<div class="handbar"><p>✋ You want to nominate <b>${nm(mine[1])}</b>. Waiting for the Storyteller…</p><button class="btn" data-act="nom-cancel-mine">Put my hand down</button></div>`;
+  if (meP.dead || D.nominators.includes(me)) return "";
+  if (ui.nominating) return `<div class="handbar pick-nom"><p>Who do you nominate?</p>
+    <div class="pickgrid">${lb.players.filter(p => !D.nominated.includes(p.id)).map(p => `<button class="pick" data-act="nominate" data-pid="${p.id}">${esc(p.name)}${p.id === me ? "<small>yourself</small>" : ""}</button>`).join("")}</div>
+    <button class="btn" data-act="nom-cancel-mine">Cancel</button></div>`;
+  return `<div class="handbar"><button class="hand" data-act="nom-open">✋ Nominate someone</button></div>`;
+}
 function renderLink() {
+  const hb = $("handBar");
+  if (hb) { hb.innerHTML = handBarHtml(); document.body.classList.toggle("has-handbar", !!hb.innerHTML); }
   const box = $("chatBox");
   if (box) {
     const draft = $("chatIn") && $("chatIn").value;
@@ -829,6 +866,10 @@ document.addEventListener("click", ev => {
     case "chat-yes": toHost({ t: "chat-ans", id: link.incoming.id, ok: true }); link.incoming = null; renderLink(); return;
     case "chat-nope": toHost({ t: "chat-ans", id: link.incoming.id, ok: false }); link.incoming = null; renderLink(); return;
     case "chat-send": return sendChat();
+    case "nom-open": ui.nominating = true; renderLink(); return;
+    case "nominate": ui.nominating = false; link.note = ""; toHost({ t: "nominate", of: pid }); return;
+    case "nom-cancel-mine": ui.nominating = false; toHost({ t: "nominate-cancel" }); renderLink(); return;
+    case "hand-vote": toHost({ t: "vote", up: el.dataset.v === "1" }); return;
     case "chat-hide": link.open = false; renderLink(); return;
     case "chat-show": link.open = true; renderLink(); return;
     case "chat-end": if (!confirm("End this private chat?")) return; toHost({ t: "chat-end", id: link.chat.id }); return;
