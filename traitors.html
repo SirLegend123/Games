@@ -1,0 +1,1240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Traitors">
+<title>The Traitors</title>
+<meta name="theme-color" content="#15121b">
+<script>window.APP_V = 69;</script>
+<script src="update.js"></script>
+<script src="vendor/peerjs.min.js"></script>
+<script src="vendor/qrcode.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+/* The Traitors, played online: a castle screen shared on a video call, and every player on their own phone.
+   Same palette as the Clocktower apps. */
+:root {
+  --bg: #15121b; --surface: #211c29; --surface-2: #2b2534; --line: #3b3346;
+  --fg: #ece6f2; --muted: #a69cb3; --brass: #d4ab55; --parch: #efe4c9; --parch-ink: #2a2118;
+  --faithful: #4c8ce4; --traitor: #d8435a; --cloak: #8e1428;
+  --ok: #3aa35c; --warn: #e3a53c;
+  --felt: radial-gradient(circle at 50% 0%, #2c2436 0%, #1b1622 55%, #15121b 100%);
+  --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+    --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+    --faithful: #2463c2; --traitor: #be2a42; --cloak: #8a1428; --ok: #2a9150; --warn: #b7791f;
+    --felt: radial-gradient(circle at 50% 0%, #ffffff 0%, #ebe5f0 60%, #e2dbe9 100%);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+  --fg: #231d2b; --muted: #6c6278; --brass: #94701f;
+  --faithful: #2463c2; --traitor: #be2a42; --cloak: #8a1428; --ok: #2a9150; --warn: #b7791f;
+  --felt: radial-gradient(circle at 50% 0%, #ffffff 0%, #ebe5f0 60%, #e2dbe9 100%);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { margin: 0; background: var(--bg); background-image: var(--felt); background-attachment: fixed; color: var(--fg); font-family: var(--font-body); font-size: 1rem; line-height: 1.45; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+.bar { display: flex; align-items: center; gap: 10px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.brand { font-family: var(--font-display); font-weight: 400; font-size: 1.45rem; color: var(--brass); margin: 0; line-height: 1; margin-right: auto; }
+.phase { font-weight: 800; font-size: .9rem; color: var(--muted); white-space: nowrap; }
+@media (max-width: 420px) { .brand { font-size: 1.15rem; } }
+.wrap { max-width: 640px; margin: 0 auto; padding: 14px 16px 48px; display: grid; gap: 14px; }
+.wrap.castle { max-width: 1100px; }
+
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 16px; font-weight: 700; min-height: 48px; }
+.btn:hover { border-color: var(--brass); }
+.btn.primary { background: var(--brass); color: #1a1408; border-color: var(--brass); }
+.btn.sm { padding: 5px 11px; min-height: 36px; font-size: .88rem; }
+.btn.danger { color: var(--traitor); }
+.btn.block { width: 100%; }
+.btn:disabled { opacity: .45; cursor: default; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row.center { justify-content: center; }
+.row > .grow { flex: 1; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.card h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.6rem; line-height: 1.1; color: var(--brass); text-wrap: balance; }
+.card h3 { margin: 4px 0 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.card p { margin: 0; }
+.hint { color: var(--muted); font-size: .92rem; }
+.center { text-align: center; }
+.kicker { color: var(--muted); text-transform: uppercase; letter-spacing: .14em; font-size: .78rem; font-weight: 800; margin: 0; }
+.title { font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: clamp(2rem, 9vw, 3rem); line-height: 1; margin: 0; }
+input[type="text"], textarea { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 48px; width: 100%; }
+.code-input { text-transform: uppercase; letter-spacing: .3em; font-weight: 800; font-size: 1.4rem; text-align: center; }
+.set { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 0; border-top: 1px solid var(--line); }
+.set > span { font-weight: 700; margin-right: auto; }
+.set small { display: block; color: var(--muted); font-weight: 500; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface-2); padding: 8px 12px; min-height: 40px; font-weight: 700; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--brass); color: #1a1408; }
+
+.pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.pick button { min-height: 56px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface-2); font-weight: 800; padding: 8px; overflow-wrap: anywhere; }
+.pick button[aria-pressed="true"] { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 22%, var(--surface-2)); }
+.pick button small { display: block; font-weight: 600; color: var(--muted); font-size: .78rem; }
+.pick button:disabled { cursor: default; opacity: .55; }
+
+.role { border-radius: 16px; padding: 22px 16px; text-align: center; display: grid; gap: 8px; color: #fff; }
+.role.faithful { background: linear-gradient(160deg, color-mix(in srgb, var(--faithful) 85%, #000) 0%, color-mix(in srgb, var(--faithful) 55%, #000) 100%); }
+.role.traitor { background: linear-gradient(160deg, var(--traitor) 0%, var(--cloak) 100%); }
+.role .rname { font-family: var(--font-display); font-size: clamp(2.4rem, 12vw, 4rem); line-height: 1; }
+.role p { margin: 0; }
+.role .kicker { color: #fff; opacity: .8; }
+.tag { display: inline-block; font-weight: 800; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; padding: 2px 8px; border-radius: 99px; }
+.tag.faithful { background: color-mix(in srgb, var(--faithful) 20%, transparent); color: var(--faithful); }
+.tag.traitor { background: color-mix(in srgb, var(--traitor) 20%, transparent); color: var(--traitor); }
+.tag.out { background: var(--surface-2); color: var(--muted); }
+.tag.ok { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); }
+
+.list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.list li { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); flex-wrap: wrap; }
+.list li b { margin-right: auto; overflow-wrap: anywhere; }
+.list li.out { opacity: .55; }
+.list li.new { animation: arrive .5s ease-out; }
+@keyframes arrive { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .list li.new, .ballot { animation: none; } }
+.big-news { font-family: var(--font-display); font-size: clamp(1.8rem, 6vw, 3rem); line-height: 1.1; text-align: center; margin: 6px 0; text-wrap: balance; }
+.big-news.bad { color: var(--traitor); }
+.ballot { text-align: center; display: grid; gap: 4px; padding: 18px; border-radius: 14px; background: var(--parch); color: var(--parch-ink); animation: arrive .4s ease-out; }
+.ballot .slate { font-family: var(--font-display); font-size: clamp(2.2rem, 8vw, 4rem); line-height: 1; }
+.tally { display: grid; gap: 6px; }
+.tally div { display: grid; grid-template-columns: minmax(0, 9em) 1fr auto; gap: 8px; align-items: center; font-weight: 700; }
+.tally span.b { height: 14px; border-radius: 7px; background: var(--brass); min-width: 4px; }
+.gold { color: var(--brass); font-weight: 800; }
+.big-timer { text-align: center; font-family: var(--font-display); font-variant-numeric: tabular-nums; font-size: clamp(4rem, 18vw, 9rem); line-height: 1; color: var(--brass); }
+.big-timer.low { color: var(--warn); }
+.big-timer.up { color: var(--traitor); }
+.banner { text-align: center; padding: 26px 16px; border-radius: 16px; color: #fff; display: grid; gap: 6px; }
+.banner.faithful { background: linear-gradient(160deg, var(--faithful), color-mix(in srgb, var(--faithful) 45%, #000)); }
+.banner.traitors { background: linear-gradient(160deg, var(--traitor), var(--cloak)); }
+.banner .title, .banner .kicker { color: #fff; }
+.hist { display: grid; gap: 4px; font-size: .95rem; }
+.hist p { margin: 0; }
+.secret { border: 1px solid var(--traitor); border-radius: 12px; padding: 10px 12px; background: color-mix(in srgb, var(--traitor) 10%, var(--surface)); display: grid; gap: 4px; }
+.secret.seer { border-color: var(--faithful); background: color-mix(in srgb, var(--faithful) 10%, var(--surface)); }
+.secret p { margin: 0; }
+.chat { display: grid; gap: 6px; max-height: 40vh; overflow-y: auto; }
+.chat p { margin: 0; background: var(--surface-2); border-radius: 10px; padding: 6px 10px; overflow-wrap: anywhere; }
+.chat p b { color: var(--traitor); }
+.gallery { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.gallery li { background: var(--parch); color: var(--parch-ink); border-radius: 10px; padding: 14px 10px; text-align: center; font-weight: 800; font-family: var(--font-display); font-size: 1.15rem; }
+.status { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: .85rem; color: var(--muted); }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--warn); }
+.dot.on { background: var(--ok); }
+.dot.off { background: var(--traitor); }
+
+/* The castle screen is shared on a video call: everything bigger */
+.castle .card { padding: 22px; }
+.castle .card h2 { font-size: clamp(1.8rem, 3.6vw, 2.6rem); }
+.castle .list li { font-size: 1.15rem; padding: 10px 14px; }
+.castle-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .castle-grid { grid-template-columns: minmax(0, 1fr); } }
+.joincode { font-family: var(--font-display); font-size: clamp(3rem, 12vw, 6rem); letter-spacing: .12em; color: var(--brass); line-height: 1; text-align: center; }
+.qr { width: min(240px, 70%); margin: 0 auto; background: #fff; border-radius: 12px; padding: 8px; }
+.qr svg { display: block; width: 100%; height: auto; }
+.joinurl { font-weight: 700; text-align: center; overflow-wrap: anywhere; user-select: all; }
+.waitlist { display: flex; flex-wrap: wrap; gap: 6px; }
+.waitlist span { background: var(--surface-2); border: 1px solid var(--line); border-radius: 99px; padding: 3px 10px; font-weight: 700; }
+.waitlist span.done { border-color: var(--ok); color: var(--ok); }
+
+.sheet-back { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.5); display: grid; place-items: end center; }
+@media (min-width: 640px) { .sheet-back { place-items: center; } }
+.sheet { width: min(560px, 100%); max-height: min(88vh, 900px); overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px 16px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; }
+@media (min-width: 640px) { .sheet { border-radius: 16px; } }
+.sheet h2 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.45rem; margin-right: auto; }
+.sheet h3 { margin: 6px 0 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.sheet p, .sheet ul { margin: 0; }
+.sheet ul { padding-left: 1.2em; display: grid; gap: 4px; }
+footer.note { text-align: center; color: var(--muted); font-size: .8rem; }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="btn sm" href="index.html" title="Choose another app" aria-label="All apps" style="text-decoration:none;color:inherit;display:inline-grid;place-items:center">&#8962;</a>
+  <h1 class="brand">The Traitors</h1>
+  <span class="phase" id="phase"></span>
+  <button class="btn sm" type="button" data-act="menu">Menu</button>
+</header>
+<main class="wrap" id="app"></main>
+<div id="sheet"></div>
+<script>
+'use strict';
+/* ---------- Basics ---------- */
+const CASTLE_KEY = 'traitors-castle-v1', ME_KEY = 'traitors-player-v1', PKEY = 'traitors-prefs';
+const PREFIX = 'clocktower-traitors-castle-';   // the castle's address on the connection service is PREFIX + room code
+const SECRET_AT = 5, FIRE_PIT = 4, RECRUIT_ABOVE = 6, MIN_PLAYERS = 6, MAX_PLAYERS = 20, SHORTLIST = 3;
+const GOLD_PER_ANSWER = 500, SHIELD_GOLD = 2000;
+const DEFAULTS = { missions: true, shields: true, recruit: true, secretT: true, talk: 5 };
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rnd = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const pick = a => a[rnd(a.length)];
+const money = n => '£' + n.toLocaleString('en-GB');
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const load = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+const store = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+let prefs = Object.assign({ voice: true }, load(PKEY) || {});
+function say(t) {
+  if (!prefs.voice || !('speechSynthesis' in window)) return;
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.rate = .95; u.lang = 'en-GB'; speechSynthesis.speak(u); } catch (e) {}
+}
+const secretRange = n => n <= 8 ? [1, 2] : n <= 12 ? [2, 3] : [3, 4];
+// Testing hook: ?peerhost=localhost&peerport=9000 points the game at a local connection server instead of the public one
+const params = new URLSearchParams(location.search);
+function peerOptions() {
+  const host = params.get('peerhost');
+  return host ? { host, port: +(params.get('peerport') || 9000), path: params.get('peerpath') || '/', secure: false, debug: 0 } : { debug: 0 };
+}
+function joinLink(code) {
+  const u = new URL(location.href.split('#')[0]);
+  ['join', 'host'].forEach(k => u.searchParams.delete(k));
+  u.searchParams.set('join', code);
+  return u.toString();
+}
+
+/* ---------- Question banks for the missions ---------- */
+const QUESTIONS = [
+  ['What is the capital of Australia?', 'Canberra', 'Sydney', 'Melbourne', 'Perth'],
+  ['How many sides does a hexagon have?', '6', '5', '7', '8'],
+  ['Which planet is known as the Red Planet?', 'Mars', 'Venus', 'Jupiter', 'Mercury'],
+  ['Who painted the Mona Lisa?', 'Leonardo da Vinci', 'Michelangelo', 'Raphael', 'Vincent van Gogh'],
+  ['What is the largest ocean on Earth?', 'Pacific', 'Atlantic', 'Indian', 'Arctic'],
+  ['In which year did the Titanic sink?', '1912', '1905', '1921', '1898'],
+  ['What is the chemical symbol for gold?', 'Au', 'Ag', 'Go', 'Gd'],
+  ['How many players does a football team have on the pitch?', '11', '10', '12', '9'],
+  ['What is the longest river in the UK?', 'Severn', 'Thames', 'Trent', 'Tay'],
+  ['What is the smallest prime number?', '2', '1', '3', '5'],
+  ['Which country gave the Statue of Liberty to the USA?', 'France', 'Britain', 'Spain', 'Italy'],
+  ['How many hearts does an octopus have?', '3', '1', '2', '8'],
+  ['What is the hardest natural substance?', 'Diamond', 'Quartz', 'Granite', 'Iron'],
+  ['Who wrote Romeo and Juliet?', 'William Shakespeare', 'Charles Dickens', 'Christopher Marlowe', 'Jane Austen'],
+  ['What is the capital of Canada?', 'Ottawa', 'Toronto', 'Vancouver', 'Montreal'],
+  ['Which gas do plants take in from the air?', 'Carbon dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen'],
+  ['How many minutes are there in a day?', '1,440', '1,240', '1,400', '1,600'],
+  ['In which country is the castle in the UK series of The Traitors?', 'Scotland', 'Wales', 'Ireland', 'England'],
+  ['What is the largest mammal?', 'Blue whale', 'African elephant', 'Giraffe', 'Orca'],
+  ['Which element has the symbol Fe?', 'Iron', 'Fluorine', 'Lead', 'Fermium'],
+  ['How many continents are there?', '7', '5', '6', '8'],
+  ['At what temperature does water boil at sea level?', '100 °C', '90 °C', '110 °C', '120 °C'],
+  ['Who was the first person to walk on the Moon?', 'Neil Armstrong', 'Buzz Aldrin', 'Yuri Gagarin', 'Michael Collins'],
+  ['What colour do you get by mixing blue and yellow?', 'Green', 'Purple', 'Orange', 'Brown'],
+  ['What is the capital of Spain?', 'Madrid', 'Barcelona', 'Seville', 'Valencia'],
+  ['How many strings does a standard violin have?', '4', '5', '6', '3'],
+  ['What is the square root of 81?', '9', '8', '7', '11'],
+  ['Which ocean lies between Africa and Australia?', 'Indian', 'Atlantic', 'Pacific', 'Southern'],
+  ['How many legs does a spider have?', '8', '6', '10', '12'],
+  ['What is the tallest mountain above sea level?', 'Everest', 'K2', 'Kilimanjaro', 'Mont Blanc'],
+  ['Which language has the most native speakers?', 'Mandarin Chinese', 'English', 'Spanish', 'Hindi'],
+  ['What is the currency of Japan?', 'Yen', 'Won', 'Yuan', 'Ringgit'],
+  ['In chess, which piece only ever moves diagonally?', 'Bishop', 'Rook', 'Knight', 'Queen'],
+  ['Which planet has the most famous rings?', 'Saturn', 'Jupiter', 'Uranus', 'Neptune'],
+  ['How many days are there in a leap year?', '366', '365', '364', '367'],
+  ['Who discovered penicillin?', 'Alexander Fleming', 'Louis Pasteur', 'Marie Curie', 'Edward Jenner'],
+  ['What is the capital of Italy?', 'Rome', 'Milan', 'Venice', 'Naples'],
+  ['What is the largest hot desert in the world?', 'Sahara', 'Gobi', 'Kalahari', 'Arabian'],
+  ['How many bones are in the adult human body?', '206', '186', '226', '306'],
+  ['How many keys does a standard piano have?', '88', '76', '92', '64'],
+  ['Which is the closest star to Earth?', 'The Sun', 'Proxima Centauri', 'Sirius', 'Polaris'],
+  ['How many years are there in a century?', '100', '10', '1,000', '50'],
+  ['What is the capital of Japan?', 'Tokyo', 'Kyoto', 'Osaka', 'Hiroshima'],
+  ['How many weeks are there in a year?', '52', '48', '50', '56'],
+  ['Which is the smallest planet in our solar system?', 'Mercury', 'Mars', 'Venus', 'Earth'],
+  ['At what temperature does water freeze?', '0 °C', '10 °C', '-10 °C', '4 °C'],
+  ['Who wrote Pride and Prejudice?', 'Jane Austen', 'Charlotte Brontë', 'George Eliot', 'Mary Shelley'],
+  ['What is the capital of France?', 'Paris', 'Lyon', 'Marseille', 'Nice'],
+  ['What is the largest country in the world by area?', 'Russia', 'Canada', 'China', 'USA'],
+  ['Which metal is liquid at room temperature?', 'Mercury', 'Lead', 'Tin', 'Zinc'],
+  ['Which country is home to the kangaroo?', 'Australia', 'New Zealand', 'South Africa', 'Brazil'],
+  ['What colour are emeralds?', 'Green', 'Red', 'Blue', 'Purple'],
+  ['Who painted The Starry Night?', 'Vincent van Gogh', 'Claude Monet', 'Pablo Picasso', 'Salvador Dalí'],
+  ['What is the main ingredient of guacamole?', 'Avocado', 'Tomato', 'Pea', 'Cucumber'],
+  ['How many zeros are there in one million?', '6', '5', '7', '9'],
+  ['What is the capital of Scotland?', 'Edinburgh', 'Glasgow', 'Aberdeen', 'Inverness'],
+  ['What is the capital of Wales?', 'Cardiff', 'Swansea', 'Newport', 'Bangor'],
+  ['How many players does a rugby union team have on the pitch?', '15', '13', '11', '12'],
+  ['What is the largest planet in our solar system?', 'Jupiter', 'Saturn', 'Neptune', 'Earth'],
+  ['In which city is the Colosseum?', 'Rome', 'Athens', 'Paris', 'Istanbul'],
+  ['Which detective lived at 221B Baker Street?', 'Sherlock Holmes', 'Hercule Poirot', 'Miss Marple', 'Inspector Morse'],
+  ['How many colours are there in a rainbow?', '7', '6', '8', '5'],
+  ['What is the tallest animal?', 'Giraffe', 'Elephant', 'Ostrich', 'Camel'],
+  ['Which planet is closest to the Sun?', 'Mercury', 'Venus', 'Earth', 'Mars'],
+  ['Which is the hottest planet in our solar system?', 'Venus', 'Mercury', 'Mars', 'Jupiter'],
+  ['How many sides does an octagon have?', '8', '6', '10', '12'],
+  ['What is the national animal of Scotland?', 'Unicorn', 'Lion', 'Stag', 'Golden eagle'],
+  ['Which bird is famous for copying human speech?', 'Parrot', 'Owl', 'Pigeon', 'Swan'],
+  ['Who was the first woman to win a Nobel Prize?', 'Marie Curie', 'Rosalind Franklin', 'Ada Lovelace', 'Florence Nightingale'],
+  ['What is the capital of Germany?', 'Berlin', 'Munich', 'Frankfurt', 'Hamburg'],
+  ['In which ocean is Hawaii?', 'Pacific', 'Atlantic', 'Indian', 'Arctic'],
+  ['What is the largest organ of the human body?', 'Skin', 'Liver', 'Heart', 'Brain'],
+  ['How many teeth does an adult human usually have?', '32', '28', '30', '36'],
+  ['What is the name of the fairy in Peter Pan?', 'Tinker Bell', 'Wendy', 'Tiger Lily', 'Silvermist'],
+  ['Which composer wrote The Four Seasons?', 'Vivaldi', 'Mozart', 'Beethoven', 'Bach'],
+  ['What is the capital of Ireland?', 'Dublin', 'Cork', 'Galway', 'Limerick'],
+  ['Which shape has four equal sides and four right angles?', 'Square', 'Rhombus', 'Rectangle', 'Trapezium'],
+  ['What does a thermometer measure?', 'Temperature', 'Pressure', 'Speed', 'Weight'],
+  ['What is the largest land animal?', 'African elephant', 'Hippopotamus', 'Rhinoceros', 'Giraffe'],
+  ['What is the capital of Egypt?', 'Cairo', 'Alexandria', 'Luxor', 'Giza'],
+  ['Who was granted the first patent for the telephone, in 1876?', 'Alexander Graham Bell', 'Thomas Edison', 'Nikola Tesla', 'Guglielmo Marconi'],
+  ['Which is the only mammal that can truly fly?', 'Bat', 'Flying squirrel', 'Sugar glider', 'Colugo'],
+  ['What is the capital of Portugal?', 'Lisbon', 'Porto', 'Faro', 'Braga'],
+  ['How many cards are in a standard deck, without jokers?', '52', '54', '48', '50'],
+  ['What is the main language spoken in Brazil?', 'Portuguese', 'Spanish', 'French', 'Italian'],
+  ['In Harry Potter, what is the name of Harry\'s owl?', 'Hedwig', 'Errol', 'Pigwidgeon', 'Crookshanks'],
+  ['What is the capital of Greece?', 'Athens', 'Sparta', 'Thessaloniki', 'Corinth'],
+  ['Which month has the fewest days?', 'February', 'April', 'June', 'November'],
+  ['How many legs does an insect have?', '6', '8', '4', '10'],
+  ['What is the longest bone in the human body?', 'Femur', 'Tibia', 'Humerus', 'Fibula'],
+  ['Which planet is famous for its Great Red Spot?', 'Jupiter', 'Mars', 'Saturn', 'Neptune'],
+  ['What is a baby kangaroo called?', 'Joey', 'Kid', 'Cub', 'Calf'],
+  ['Which chess piece can jump over other pieces?', 'Knight', 'Bishop', 'Rook', 'King'],
+  ['What is a group of crows called?', 'A murder', 'A pride', 'A pod', 'A gaggle'],
+  ['What colour is a polar bear\'s skin?', 'Black', 'White', 'Pink', 'Grey'],
+  ['Which country is known as the Land of the Rising Sun?', 'Japan', 'China', 'Thailand', 'South Korea'],
+  ['How many strings does a standard guitar have?', '6', '4', '5', '8'],
+  ['What is the capital of Norway?', 'Oslo', 'Bergen', 'Stockholm', 'Copenhagen'],
+  ['Which vegetable is famously said to help you see in the dark?', 'Carrot', 'Broccoli', 'Pea', 'Potato'],
+  ['How many seconds are in a minute?', '60', '100', '30', '90'],
+  ['Which famous clock tower bell is in London?', 'Big Ben', 'Big Tom', 'Great Paul', 'Old Bailey'],
+];
+// Anagram mission: castle words to unscramble
+const ANAGRAMS = ['CASTLE', 'TRAITOR', 'FAITHFUL', 'DAGGER', 'SHIELD', 'TURRET', 'BANQUET', 'CLOAK', 'MURDER', 'LANTERN', 'GOBLET', 'DUNGEON',
+  'CANDLE', 'TAPESTRY', 'RAVEN', 'POTION', 'THRONE', 'SECRET', 'ALIBI', 'VERDICT', 'CHALICE', 'ARMOUR', 'FORTRESS', 'PORTRAIT'];
+// Memory mission: the portrait gallery
+const GALLERY = ['a red fox', 'a silver key', 'a broken clock', 'a white swan', 'a golden crown', 'an old map', 'a black cat', 'a candle', 'a raven', 'a dagger',
+  'a rose', 'a sailing ship', 'a lantern', 'a chess knight', 'an hourglass', 'a harp', 'an owl', 'a goblet', 'a feather', 'a stag', 'a crescent moon', 'a teapot'];
+
+/* ================================================================
+   THE CASTLE: holds the whole game and the secrets.
+   Every phone only ever receives its own view.
+   ================================================================ */
+let H = null;   // the castle's game state (saved on the castle device)
+const conns = {};  // player token -> open connection (not saved)
+const P = i => H.players[i];
+const nameOf = i => P(i).name;
+const alive = () => H.players.map((p, i) => i).filter(i => P(i).alive);
+const traitorsAlive = () => alive().filter(i => P(i).role === 'traitor');
+const faithfulAlive = () => alive().filter(i => P(i).role === 'faithful');
+const today = () => H.days[H.days.length - 1];
+// The Secret Traitor: hidden even from the other Traitors, who know nothing of them; they draw up each night's shortlists
+const isST = i => H.secretT === i;
+const stActive = () => H.secretT != null && P(H.secretT).alive && P(H.secretT).role === 'traitor' && traitorsAlive().some(i => i !== H.secretT);
+const regulars = () => stActive() ? traitorsAlive().filter(i => i !== H.secretT) : traitorsAlive();
+const knownMates = a => P(a).role !== 'traitor' ? [] : stActive() && !isST(a) ? regulars().filter(i => i !== a) : traitorsAlive().filter(i => i !== a);
+const inMeeting = a => P(a).role === 'traitor' && P(a).alive && !(stActive() && isST(a));
+const stCandidates = () => alive().filter(x => P(x).role !== 'traitor');
+const shielded = i => (H.shields || []).includes(i);
+
+function newCastle() {
+  const letters = 'BCDFGHJKLMNPQRSTVWXZ';
+  const code = Array.from({ length: 4 }, () => letters[rnd(letters.length)]).join('');
+  return { v: 1, code, phase: 'lobby', settings: Object.assign({}, DEFAULTS), players: [], day: 0, pot: 0, shields: [], secretT: null,
+    days: [], need: null, night: null, vote: null, endVote: null, mission: null, bf: null, ban: null, tie: null, fpTalk: false,
+    recruitNext: false, usedQ: [], chat: [], winner: null, winWhy: '' };
+}
+function saveCastle() { store(CASTLE_KEY, H); }
+
+/* ---------- Waiting for answers from phones ---------- */
+// Only one question is open at a time; the castle waits until everyone asked has answered (or the host skips them)
+function ask(kind, who, extra) { H.need = Object.assign({ kind, who: who.slice(), got: {} }, extra || {}); }
+const waiting = () => H.need ? H.need.who.filter(i => !(i in H.need.got)) : [];
+function answer(i, kind, value) {
+  const n = H.need;
+  if (!n || n.kind !== kind || !n.who.includes(i) || (i in n.got) || !valid(kind, i, value)) return;
+  n.got[i] = value;
+  if (!waiting().length) { H.need = null; complete(kind, n.got, n); }
+  update();
+}
+function skipWaiting() {
+  const n = H.need;
+  if (!n) return;
+  waiting().forEach(i => { n.got[i] = fallback(n.kind, i, n); });
+  H.need = null;
+  complete(n.kind, n.got, n);
+  update();
+}
+const isIdList = (v, pool, len) => Array.isArray(v) && v.length === len && new Set(v).size === len && v.every(x => pool.includes(x));
+function valid(kind, i, v) {
+  const n = H.need;
+  switch (kind) {
+    case 'ready': return v === true;
+    case 'mission': return Array.isArray(v) && v.length === H.mission.items.length && v.every(x => Number.isInteger(x) && x >= 0 && x < 4);
+    case 'shield': return v === 'shield' || v === 'gold';
+    case 'vote': return (n.cands || alive()).includes(v) && v !== i;
+    case 'endvote': return v === 0 || v === 1;
+    case 'letter': return v === 0 || v === 1;
+    case 'stlist': {
+      const c = stCandidates(), need = Math.min(SHORTLIST, c.length);
+      return v && (H.night.black ? true : isIdList(v.m, c, need)) && (H.night.recruit ? isIdList(v.r, c, need) : true);
+    }
+    case 'meeting': {
+      const o = meetingOptions(i);
+      if (!o.opts.includes(v && v.choice)) return false;
+      return !o.two || (o.mopts.includes(v.choice2) && v.choice2 !== v.choice);
+    }
+  }
+  return false;
+}
+function fallback(kind, i, n) {
+  switch (kind) {
+    case 'ready': return true;
+    case 'mission': return H.mission.items.map(() => -1);
+    case 'shield': return 'shield';
+    case 'vote': return pick((n.cands || alive()).filter(x => x !== i));
+    case 'endvote': return 0;
+    case 'letter': return 0;
+    case 'stlist': { const c = shuffle(stCandidates()), k = Math.min(SHORTLIST, c.length); return { m: c.slice(0, k), r: shuffle(c).slice(0, k) }; }
+    case 'meeting': { const o = meetingOptions(i), c = pick(o.opts); return { choice: c, choice2: o.two ? pick(o.mopts.filter(x => x !== c)) : null }; }
+  }
+}
+function complete(kind, got, n) {
+  switch (kind) {
+    case 'ready': newDay(); H.phase = 'dawn'; say('Every player knows their role. The game begins.'); break;
+    case 'mission': gradeMission(got); break;
+    case 'shield': Object.keys(got).forEach(w => shieldChoice(+w, got[w])); break;
+    case 'vote': H.vote.ballots = shuffle(H.vote.voters).map(v => [v, got[v]]); H.vote.shown = 0; H.phase = 'votereveal'; say('The votes are in. Let\'s see them, one at a time.'); break;
+    case 'endvote': H.endVote = { ballots: shuffle(alive()).map(v => [v, got[v]]), shown: 0 }; H.phase = 'endreveal'; break;
+    case 'stlist': H.night.short = H.night.black ? null : got[H.secretT].m; H.night.rshort = H.night.recruit ? got[H.secretT].r : null; startMeeting(); break;
+    case 'meeting': resolveMeeting(got); break;
+    case 'letter': resolveLetter(got[H.night.target] === 1); break;
+  }
+}
+
+/* ---------- Lobby and start ---------- */
+function startGame() {
+  const n = H.players.length, st = !!H.settings.secretT, [lo, hi] = secretRange(n);
+  // With a Secret Traitor there are always at least two Traitors: one hidden, one or more ordinary
+  const k = Math.max(st ? 2 : 1, lo + rnd(hi - lo + 1));
+  const trList = shuffle(H.players.map((p, i) => i)).slice(0, k), tr = new Set(trList);
+  H.players.forEach((p, i) => { p.role = p.first = tr.has(i) ? 'traitor' : 'faithful'; p.alive = true; p.out = null; p.clues = []; });
+  H.secretT = st ? pick(trList) : null;
+  Object.assign(H, { day: 0, pot: 0, shields: [], days: [], winner: null, recruitNext: false, chat: [], fpTalk: false });
+  H.phase = 'reveal';
+  ask('ready', alive());
+  say('Welcome to the castle. Look at your phones: your role is waiting. Traitors walk among you.');
+}
+function newDay() {
+  H.day++;
+  H.days.push({ day: H.day, murdered: null, recruited: null, refused: null, refusedDied: false, mission: null, votes: [], banished: null, endVotes: [], seers: [], shortlist: null });
+}
+
+/* ---------- Missions: everyone plays on their own phone ---------- */
+const MISSION_KINDS = {
+  quiz: { name: 'The Library Quiz', intro: 'Three questions from the castle library.' },
+  sums: { name: 'The Counting House', intro: 'Three quick sums. Count the gold correctly.' },
+  anagram: { name: 'The Scrambled Scrolls', intro: 'Three scrolls, each with a scrambled castle word.' },
+  memory: { name: 'The Portrait Gallery', intro: 'Study six portraits, then say which one was never on the wall. Three rounds.' },
+};
+function withAnswer(right, wrongs) { const opts = shuffle([right, ...wrongs.slice(0, 3)]); return { opts, ans: opts.indexOf(right) }; }
+function buildMission(kind) {
+  if (kind === 'quiz') {
+    let left = QUESTIONS.map((q, i) => i).filter(i => !H.usedQ.includes(i));
+    if (left.length < 3) { H.usedQ = []; left = QUESTIONS.map((q, i) => i); }
+    return shuffle(left).slice(0, 3).map(i => { H.usedQ.push(i); const q = QUESTIONS[i]; return Object.assign({ q: q[0] }, withAnswer(q[1], q.slice(2))); });
+  }
+  if (kind === 'sums') return [0, 1, 2].map(k => {
+    const mul = k === 2, a = mul ? 3 + rnd(9) : 12 + rnd(70), b = mul ? 3 + rnd(9) : 12 + rnd(70), right = mul ? a * b : a + b;
+    const wr = new Set(); while (wr.size < 3) { const d = (1 + rnd(mul ? 12 : 10)) * (rnd(2) ? 1 : -1); if (right + d > 0) wr.add(right + d); }
+    return Object.assign({ q: `What is ${a} ${mul ? '×' : '+'} ${b}?` }, withAnswer(String(right), [...wr].map(String)));
+  });
+  if (kind === 'anagram') return shuffle(ANAGRAMS).slice(0, 3).map(w => {
+    let sc = w; for (let t = 0; t < 10 && sc === w; t++) sc = shuffle(w.split('')).join('');
+    return Object.assign({ q: `Unscramble: ${sc.split('').join(' ')}` }, withAnswer(w, shuffle(ANAGRAMS.filter(x => x !== w)).slice(0, 3)));
+  });
+  return [0, 1, 2].map(() => {
+    const g = shuffle(GALLERY), shown = g.slice(0, 6);
+    return Object.assign({ q: 'Which of these was NOT in the gallery?', show: shown }, withAnswer(g[6], shuffle(shown).slice(0, 3)));
+  });
+}
+function startMission() {
+  if (!H.settings.missions) return toTable();
+  const kind = pick(Object.keys(MISSION_KINDS));
+  H.mission = { kind, items: buildMission(kind), result: null };
+  H.phase = 'mission';
+  ask('mission', alive());
+  say(`Today's mission: ${MISSION_KINDS[kind].name}. ${MISSION_KINDS[kind].intro} Play on your phones. Every right answer adds gold to the pot.`);
+}
+function gradeMission(got) {
+  const m = H.mission, scores = {};
+  alive().forEach(i => { scores[i] = (got[i] || []).filter((a, k) => a === m.items[k].ans).length; });
+  const total = Object.values(scores).reduce((a, b) => a + b, 0), gold = total * GOLD_PER_ANSWER;
+  H.pot += gold;
+  // Everyone who ties for the top score is rewarded
+  const top = Math.max(...Object.values(scores)), winners = top > 0 ? Object.keys(scores).filter(k => scores[k] === top).map(Number) : [];
+  const n = alive().length;
+  const mode = !winners.length ? null : n <= SECRET_AT && n > 2 ? 'seer' : H.settings.shields && n > FIRE_PIT ? 'shield' : null;
+  m.result = { scores, gold, winners: mode ? winners : [], mode, choices: {}, clues: {} };
+  today().mission = { kind: m.kind, gold, scores, shields: [], tookGold: [] };
+  H.phase = 'missionResult';
+  if (mode === 'seer') winners.forEach(w => { const c = makeClue(w); m.result.clues[w] = c; P(w).clues.push({ day: H.day, text: clueText(c) }); today().seers.push({ who: w, clue: c }); });
+  if (mode === 'shield') ask('shield', winners);
+  say(`The mission earned ${money(gold)}.${mode === 'seer' ? ` ${winners.map(nameOf).join(' and ')} ${winners.length > 1 ? 'become Seers' : 'becomes the Seer'}.` : mode === 'shield' ? ` Top score: ${winners.map(nameOf).join(' and ')}. Check your phone: Shield, or gold?` : ''}`);
+}
+function shieldChoice(w, c) {
+  const r = H.mission.result, d = today().mission;
+  r.choices[w] = c;
+  if (c === 'shield') { H.shields.push(w); d.shields.push(w); }
+  else { H.pot += SHIELD_GOLD; r.gold += SHIELD_GOLD; d.gold += SHIELD_GOLD; d.tookGold.push(w); }
+}
+// The Seer's clue (from the final five): a true statement about two other players
+function makeClue(w) {
+  const others = alive().filter(i => i !== w), tr = others.filter(i => P(i).role === 'traitor'), fa = others.filter(i => P(i).role !== 'traitor');
+  if (tr.length && (fa.length < 2 || rnd(10) < 6)) { const t = pick(tr); return { kind: 'one', pair: shuffle([t, pick(others.filter(i => i !== t))]) }; }
+  if (fa.length >= 2) return { kind: 'none', pair: shuffle(fa).slice(0, 2) };
+  return { kind: 'one', pair: shuffle(others).slice(0, 2) };
+}
+const clueText = c => c.kind === 'one' ? `At least one of ${nameOf(c.pair[0])} and ${nameOf(c.pair[1])} is a Traitor.` : `Neither ${nameOf(c.pair[0])} nor ${nameOf(c.pair[1])} is a Traitor.`;
+
+/* ---------- Round Table, votes, banishment ---------- */
+let T = { left: 0, end: 0, running: false };
+const timerLeft = () => T.running ? Math.max(0, Math.round((T.end - Date.now()) / 1000)) : T.left;
+function toTable() {
+  H.vote = null; H.endVote = null; H.ban = null;
+  if (alive().length <= FIRE_PIT && !H.fpTalk) {
+    H.phase = 'firepit';
+    ask('endvote', alive());
+    say('Welcome to the fire pit. There are no more murders. On your phones: end the game, or banish again?');
+    return;
+  }
+  H.fpTalk = false;
+  H.phase = 'table';
+  T = { left: H.settings.talk * 60, end: 0, running: false };
+  say('Take your seats at the Round Table.');
+}
+function startVote(round, cands) {
+  const voters = alive().filter(x => !(cands && round > 1 && cands.includes(x)));
+  H.vote = { round, cands: cands || null, voters, ballots: null, shown: 0 };
+  H.phase = 'vote';
+  ask('vote', voters, { cands: cands || null });
+  say(round > 1 ? 'A tie. Everyone else votes again, on your phones.' : 'Time to vote. Write a name on your slate: vote on your phone.');
+}
+function tally(ballots) {
+  const c = {};
+  ballots.forEach(([, t]) => { c[t] = (c[t] || 0) + 1; });
+  const top = Math.max(...Object.values(c));
+  return { counts: c, leaders: Object.keys(c).filter(k => c[k] === top).map(Number) };
+}
+function afterVotes() {
+  const t = tally(H.vote.ballots);
+  today().votes.push({ round: H.vote.round, ballots: H.vote.ballots });
+  if (t.leaders.length === 1) return banish(t.leaders[0], false);
+  if (H.vote.round === 1 && H.vote.voters.some(v => !t.leaders.includes(v)) && alive().length > t.leaders.length) {
+    H.tie = t.leaders; H.phase = 'tie'; say(`It's a tie between ${t.leaders.map(nameOf).join(' and ')}. Everyone else votes again.`);
+  } else banish(pick(t.leaders), true);
+}
+function banish(i, drawn) {
+  const secret = alive().length <= SECRET_AT;
+  H.ban = { who: i, drawn, shown: false, secret };
+  H.phase = 'banish';
+  if (secret) removeBanished();
+  say(`${drawn ? 'Still tied. The draw has chosen. ' : ''}${nameOf(i)}, you have been banished. ${secret ? 'From the final five, roles stay secret.' : 'Please stand, and tell everyone who you really are.'}`);
+}
+function removeBanished() {
+  const i = H.ban.who;
+  P(i).alive = false; P(i).out = { how: 'banished', day: H.day, secret: H.ban.secret };
+  today().banished = { who: i, role: P(i).role, st: isST(i), secret: H.ban.secret };
+  if (P(i).role === 'traitor') H.recruitNext = H.settings.recruit && traitorsAlive().length > 0;
+}
+function revealBanished() {
+  const i = H.ban.who, st = isST(i) && stActive();
+  H.ban.shown = true; H.ban.wasST = st;
+  removeBanished();
+  say(P(i).role === 'traitor' ? `${nameOf(i)} was ${st ? 'the Secret Traitor' : 'a Traitor'}!` : `${nameOf(i)} was Faithful.`);
+}
+function afterBanish() {
+  if (!H.ban.secret && !traitorsAlive().length) return endGame('faithful', 'Every Traitor has been banished.');
+  if (alive().length <= 2) return endGame(traitorsAlive().length ? 'traitors' : 'faithful', 'Only two players remain.');
+  if (alive().length <= FIRE_PIT) return toTable();
+  startNight();
+}
+function afterEndVotes() {
+  const e = H.endVote;
+  today().endVotes.push(e.ballots);
+  if (e.ballots.every(b => b[1] === 1)) return endGame(traitorsAlive().length ? 'traitors' : 'faithful', traitorsAlive().length ? 'The game was ended with a Traitor still at the fire.' : 'Everyone left at the fire was Faithful.');
+  H.fpTalk = true;
+  toTable();
+  say('Not everyone agrees. The Round Table must banish again.');
+}
+function endGame(w, why) {
+  H.winner = w; H.winWhy = why; H.phase = 'over'; H.need = null;
+  say(w === 'faithful' ? 'The Faithful have won!' : 'The Traitors have won! They take the gold.');
+}
+
+/* ---------- Night ---------- */
+function startNight() {
+  H.phase = 'night';
+  if (alive().length <= SECRET_AT) {
+    // The final five: nobody is murdered tonight
+    H.night = { final5: true, stage: 'done', result: 'final5', victim: null };
+    H.recruitNext = false;
+    say('The final five. Tonight, nobody will be murdered.');
+    return;
+  }
+  const recruit = H.recruitNext && alive().length > RECRUIT_ABOVE && faithfulAlive().length > 0;
+  H.recruitNext = false;
+  H.night = { recruit, black: recruit && regulars().length === 1, stage: null, short: null, rshort: null, target: null, murder: null, victim: null, result: null, picks: {} };
+  say('Night falls on the castle. Traitors, check your phones.');
+  // With a hidden Secret Traitor, they draw up the shortlists first
+  if (stActive()) { H.night.stage = 'stlist'; ask('stlist', [H.secretT]); }
+  else startMeeting();
+}
+// The choices one Traitor has at the meeting (limited to the Secret Traitor's shortlists if there are any)
+function meetingOptions(i) {
+  const n = H.night, km = knownMates(i), anyone = alive().filter(x => x !== i && !km.includes(x));
+  const opts = (n.recruit ? n.rshort : n.short) || (n.recruit ? anyone.filter(x => P(x).role === 'faithful' || !km.includes(x)) : anyone);
+  return { opts, mopts: n.short || anyone, two: n.recruit && !n.black };
+}
+function startMeeting() {
+  H.night.stage = 'meeting';
+  today().shortlist = H.night.short || H.night.rshort ? { m: H.night.short, r: H.night.rshort } : null;
+  ask('meeting', traitorsAlive().filter(inMeeting));
+}
+function resolveMeeting(got) {
+  const n = H.night, ids = Object.keys(got).map(Number);
+  const target = ids.length ? pick(tally(ids.map(t => [t, got[t].choice])).leaders) : null;
+  n.target = target;
+  if (!n.recruit) n.murder = target;
+  else if (!n.black) {
+    const mb = ids.map(t => [t, got[t].choice2]).filter(b => b[1] != null && b[1] !== target);
+    n.murder = mb.length ? pick(tally(mb).leaders) : null;
+  }
+  if (n.recruit && target != null) {
+    // Recruiting someone who is secretly already a Traitor: they simply "accept"
+    if (P(target).role === 'traitor') return resolveLetter(true);
+    n.stage = 'letter';
+    ask('letter', [target]);
+    return;
+  }
+  finishNight();
+}
+function resolveLetter(yes) {
+  const n = H.night, t = n.target;
+  if (yes) { if (P(t).role !== 'traitor') { P(t).role = 'traitor'; P(t).welcome = H.day; } n.result = 'recruited'; today().recruited = t; }
+  else { today().refused = t; today().refusedDied = n.black; if (n.black) kill(t); else n.result = 'refused'; }
+  finishNight();
+}
+function kill(t) { P(t).alive = false; P(t).out = { how: 'murdered', day: H.day + 1 }; H.night.victim = t; H.night.result = 'murder'; }
+function finishNight() {
+  const n = H.night, m = n.murder;
+  if (m != null && P(m).alive) { if (shielded(m)) { n.result = 'saved'; n.saved = m; } else kill(m); }
+  n.stage = 'done';
+  say('The Traitors have made their choice. The castle sleeps.');
+}
+function dawn() {
+  const victim = H.night ? H.night.victim : null;
+  H.shields = [];
+  newDay();
+  today().murdered = victim;
+  H.bf = { victim, order: shuffle(alive()), shown: 0 };
+  H.phase = 'breakfast';
+  say('Good morning. Let\'s see who joins us for breakfast.');
+}
+function afterBreakfast() {
+  if (alive().length <= 2) return endGame(traitorsAlive().length ? 'traitors' : 'faithful', 'Only two players remain.');
+  startMission();
+}
+
+/* ---------- What each phone is allowed to know ---------- */
+function publicPlayers() {
+  return H.players.map((p, i) => ({ name: p.name, alive: p.alive !== false, shield: shielded(i),
+    out: p.out && !(H.phase === 'breakfast' && H.bf && H.bf.victim === i && H.bf.shown < H.bf.order.length)
+      ? { how: p.out.how, role: p.out.how === 'murdered' ? 'faithful' : p.out.secret ? null : p.role, st: p.out.how === 'banished' && !p.out.secret && H.days.some(d => d.banished && d.banished.who === i && d.banished.st) } : null,
+    online: !!(conns[p.token] && conns[p.token].open) }));
+}
+function viewFor(i) {
+  const p = P(i), started = H.phase !== 'lobby';
+  const me = { id: i, name: p.name };
+  if (started) Object.assign(me, { role: p.role, alive: p.alive, st: isST(i) && stActive(), mates: knownMates(i).map(nameOf), secretT: stActive(), clues: p.clues || [] });
+  return { code: H.code, phase: H.phase, day: H.day, pot: H.pot, n: started ? alive().length : H.players.length, me, players: publicPlayers(), screen: screenFor(i) };
+}
+function screenFor(i) {
+  const p = P(i), n = H.need;
+  if (H.phase === 'lobby') return { type: 'lobby' };
+  if (H.phase === 'over') {
+    const mine = (p.role === 'traitor') === (H.winner === 'traitors'), winners = alive().filter(x => (P(x).role === 'traitor') === (H.winner === 'traitors'));
+    return { type: 'over', winner: H.winner, why: H.winWhy, mine, alive: p.alive, share: winners.includes(i) ? Math.floor(H.pot / winners.length) : 0,
+      roles: H.players.map((q, k) => ({ name: q.name, role: q.role, st: isST(k), recruited: q.first !== q.role, alive: q.alive, how: q.out && q.out.how })) };
+  }
+  // A murder stays secret, even from the victim, until breakfast reveals it
+  const hideDeath = !p.alive && p.out && p.out.how === 'murdered' && ((H.phase === 'night') || (H.phase === 'breakfast' && H.bf.shown < H.bf.order.length));
+  if (!p.alive && !hideDeath) return { type: 'out', how: p.out.how };
+  if (hideDeath) return H.phase === 'night' ? { type: 'sleep' } : { type: 'wait', text: 'Breakfast is being served. Watch the castle screen.' };
+  if (n && n.who.includes(i)) {
+    const done = i in n.got;
+    switch (n.kind) {
+      case 'ready': return { type: 'role', ready: !done };
+      case 'mission': return done ? { type: 'wait', text: 'Answers in. Waiting for the others.' } : { type: 'mission', kind: H.mission.kind, name: MISSION_KINDS[H.mission.kind].name, intro: MISSION_KINDS[H.mission.kind].intro, items: H.mission.items.map(({ q, opts, show }) => ({ q, opts, show })) };
+      case 'shield': return done ? { type: 'wait', text: n.got[i] === 'shield' ? 'You took the Shield: safe from murder tonight.' : `You turned down the Shield and added ${money(SHIELD_GOLD)} to the pot.` } : { type: 'shield', score: H.mission.result.scores[i], tie: H.mission.result.winners.length > 1 };
+      case 'vote': return done ? { type: 'wait', text: `You voted for ${nameOf(n.got[i])}. Watch the castle screen for the slates.` } : { type: 'vote', round: H.vote.round, cands: (n.cands || alive()).filter(x => x !== i).map(x => ({ id: x, name: nameOf(x) })) };
+      case 'endvote': return done ? { type: 'wait', text: `You voted to ${n.got[i] ? 'end the game' : 'banish again'}.` } : { type: 'endvote' };
+      case 'letter': return done ? { type: 'sleep' } : { type: 'letter', black: H.night.black, lone: H.night.black ? nameOf(regulars()[0]) : null };
+      case 'stlist': return done ? { type: 'wait', text: 'Your shortlist has gone to the Traitors.' } : { type: 'stlist', recruit: H.night.recruit, black: H.night.black, need: Math.min(SHORTLIST, stCandidates().length), cands: stCandidates().map(x => ({ id: x, name: nameOf(x), shield: shielded(x) })) };
+      case 'meeting': return meetingScreen(i, done);
+    }
+  }
+  if (H.phase === 'night') {
+    if (P(i).welcome === H.day) return { type: 'welcome', black: H.night.black, mates: knownMates(i).map(nameOf), secretT: stActive() };
+    if (inMeeting(i) && H.night.stage === 'meeting') return meetingScreen(i, true);
+    if (isST(i) && stActive() && H.night.stage !== 'stlist') return { type: 'wait', text: H.night.stage === 'done' ? 'The Traitors have chosen. Sleep well.' : 'Your shortlist has gone to the Traitors. They are choosing now.' };
+    return { type: 'sleep', final5: !!H.night.final5 };
+  }
+  if (H.phase === 'missionResult' && H.mission.result.clues[i]) return { type: 'seer', clue: clueText(H.mission.result.clues[i]) };
+  const texts = { reveal: 'Waiting for everyone to read their role.', dawn: 'Day 1 begins. Watch the castle screen.', mission: 'Waiting for the others to finish.',
+    missionResult: 'Watch the castle screen for the mission results.', table: 'The Round Table. Talk it over on the call. The vote comes to your phone.',
+    votereveal: 'The slates are being turned on the castle screen.', tie: 'A tie. Watch the castle screen.', banish: 'Watch the castle screen.',
+    breakfast: 'Breakfast is being served. Watch the castle screen.', firepit: 'The fire pit. Watch the castle screen.', endreveal: 'The fire pit votes are being revealed.' };
+  return { type: 'wait', text: texts[H.phase] || 'Watch the castle screen.' };
+}
+function meetingScreen(i, done) {
+  const n = H.night, o = meetingOptions(i), got = H.need && H.need.kind === 'meeting' ? H.need.got : {};
+  return { type: 'meeting', done, recruit: n.recruit, black: n.black, two: o.two, fromST: !!(n.short || n.rshort),
+    opts: o.opts.map(x => ({ id: x, name: nameOf(x), shield: shielded(x) })), mopts: o.mopts.map(x => ({ id: x, name: nameOf(x), shield: shielded(x) })),
+    picks: Object.keys(got).filter(t => +t !== i).map(t => ({ who: nameOf(+t), choice: nameOf(got[t].choice), choice2: got[t].choice2 != null ? nameOf(got[t].choice2) : null })),
+    mine: got[i] ? { choice: nameOf(got[i].choice), choice2: got[i].choice2 != null ? nameOf(got[i].choice2) : null } : null,
+    waitingFor: (H.need && H.need.kind === 'meeting' ? waiting() : []).map(nameOf),
+    chat: H.chat.slice(-30).map(c => ({ who: nameOf(c.from), text: c.text })) };
+}
+
+/* ---------- Messages from phones ---------- */
+function onPlayerMessage(conn, msg) {
+  if (!msg || typeof msg !== 'object') return;
+  if (msg.t === 'hello') {
+    const token = String(msg.token || '').slice(0, 64), name = String(msg.name || '').trim().replace(/\s+/g, ' ').slice(0, 20);
+    let i = H.players.findIndex(p => p.token === token);
+    if (i < 0) {
+      if (H.phase !== 'lobby') return conn.send({ t: 'error', text: 'This game has already started. Only players who joined before the start can rejoin.' });
+      if (!name) return conn.send({ t: 'error', text: 'Type your name to join.' });
+      if (H.players.some(p => p.name.toLowerCase() === name.toLowerCase())) return conn.send({ t: 'error', text: `Someone called ${name} has already joined. Add an initial to make your name different.` });
+      if (H.players.length >= MAX_PLAYERS) return conn.send({ t: 'error', text: `The castle is full (${MAX_PLAYERS} players).` });
+      H.players.push({ name, token, role: null, alive: true, out: null, clues: [] });
+      i = H.players.length - 1;
+      say(`${name} has arrived at the castle.`);
+    }
+    conn.token = token;
+    conns[token] = conn;
+    update();
+    return;
+  }
+  const i = H.players.findIndex(p => p.token === conn.token);
+  if (i < 0) return;
+  if (msg.t === 'act') answer(i, msg.kind, msg.value);
+  else if (msg.t === 'chat' && H.phase === 'night' && H.night && H.night.stage === 'meeting' && inMeeting(i)) {
+    const text = String(msg.text || '').trim().slice(0, 200);
+    if (text) { H.chat.push({ from: i, text, day: H.day }); update(); }
+  }
+}
+// After every change: save, redraw the castle, and send each connected phone its own view
+function update() {
+  saveCastle();
+  render();
+  H.players.forEach((p, i) => { const c = conns[p.token]; if (c && c.open) try { c.send({ t: 'view', v: viewFor(i) }); } catch (e) {} });
+}
+
+/* ---------- Connection: the castle side ---------- */
+let peer = null, castleNet = 'connecting';
+function openCastle() {
+  if (peer) try { peer.destroy(); } catch (e) {}
+  castleNet = 'connecting'; render();
+  if (typeof Peer !== 'function') { castleNet = 'failed'; return render(); }
+  peer = new Peer(PREFIX + H.code, peerOptions());
+  peer.on('open', () => { castleNet = 'open'; render(); });
+  peer.on('connection', conn => {
+    conn.on('data', msg => onPlayerMessage(conn, msg));
+    conn.on('close', () => { if (conns[conn.token] === conn) delete conns[conn.token]; render(); });
+    conn.on('error', () => {});
+  });
+  peer.on('disconnected', () => { castleNet = 'connecting'; render(); setTimeout(() => { try { peer.reconnect(); } catch (e) {} }, 2000); });
+  peer.on('error', err => {
+    // After a refresh, the service may still hold the old address for a few seconds
+    if (err && err.type === 'unavailable-id') { castleNet = 'connecting'; render(); setTimeout(openCastle, 4000); }
+    else if (err && (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed')) { castleNet = 'connecting'; render(); setTimeout(openCastle, 4000); }
+  });
+}
+
+/* ================================================================
+   SCREENS
+   ================================================================ */
+let mode = 'home';   // 'home' | 'castle' | 'player'
+let ME = load(ME_KEY);   // this phone's seat: { code, name, token }
+let menu = null, homeError = '';
+const pickHtml = (opts, chosen, act, sub) => `<div class="pick">${opts.map(o => `<button type="button" data-act="${act}" data-v="${o.id}" aria-pressed="${Array.isArray(chosen) ? chosen.includes(o.id) : chosen === o.id}">${esc(o.name)}${sub && sub(o) ? `<small>${sub(o)}</small>` : o.shield ? '<small>🛡 Shield</small>' : ''}</button>`).join('')}</div>`;
+const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+/* ---------- Home: host or join ---------- */
+function homeHtml() {
+  const saved = load(CASTLE_KEY), resume = saved && saved.phase !== 'over' ? saved : null;
+  const code = (params.get('join') || (ME && ME.code) || '').toUpperCase();
+  return `<div class="center" style="display:grid;gap:8px;margin-top:10px">
+      <p class="kicker">Online · everyone on their own phone</p>
+      <p class="title">The Traitors</p>
+      <p class="hint">One person opens the castle screen and shares it on your video call. Everyone, the host included, plays on their own phone.</p>
+    </div>
+    <section class="card">
+      <h2>Join a game</h2>
+      ${homeError ? `<p class="secret" role="alert">${esc(homeError)}</p>` : ''}
+      <label class="hint" for="joinCode">Room code (it's on the castle screen)</label>
+      <input type="text" id="joinCode" class="code-input" maxlength="4" autocomplete="off" autocapitalize="characters" value="${esc(code)}" placeholder="ABCD">
+      <label class="hint" for="joinName">Your name</label>
+      <input type="text" id="joinName" maxlength="20" autocomplete="off" value="${esc(ME ? ME.name : '')}" placeholder="Your name">
+      <button class="btn primary block" data-act="join">Join the castle</button>
+      ${ME && ME.code ? `<p class="hint center">Last game: room ${esc(ME.code)} as ${esc(ME.name)}. Join again to rejoin.</p>` : ''}
+    </section>
+    <section class="card">
+      <h2>Host a game</h2>
+      <p>Open the castle screen on a laptop, tablet or spare phone, and share that screen on your video call. Then join on your own phone like everyone else.</p>
+      <button class="btn block" data-act="host">Open a new castle screen</button>
+      ${resume ? `<button class="btn primary block" data-act="resume">Resume castle ${esc(resume.code)} (${resume.phase === 'lobby' ? 'lobby' : `day ${resume.day}`})</button>` : ''}
+    </section>
+    <footer class="note"><p><i>The Traitors</i> is a TV format by IDTV. This is an unofficial fan-made game.</p></footer>`;
+}
+
+/* ---------- The castle screen ---------- */
+// A QR code for the join link, so phones can join by scanning the shared screen
+let qrCache = { url: '', svg: '' };
+function qrSvg(url) {
+  if (qrCache.url === url) return qrCache.svg;
+  let svg = '';
+  try { const q = qrcode(0, 'M'); q.addData(url); q.make(); svg = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true }); } catch (e) {}
+  qrCache = { url, svg };
+  return svg;
+}
+const netDot = s => `<span class="status"><span class="dot ${s === 'open' ? 'on' : s === 'failed' ? 'off' : ''}"></span>${s === 'open' ? 'Online' : s === 'failed' ? 'Can\'t reach the connection service' : 'Connecting…'}</span>`;
+function waitHtml(names, hide) {
+  const w = waiting();
+  if (!H.need) return '';
+  if (hide) return `<p class="hint center">Waiting for ${w.length ? 'the Traitors' : '…'}.</p><button class="btn sm" data-act="skip">Someone has gone quiet: carry on without them</button>`;
+  return `<div class="waitlist">${H.need.who.map(i => `<span class="${i in H.need.got ? 'done' : ''}">${i in H.need.got ? '✓ ' : ''}${esc(nameOf(i))}</span>`).join('')}</div>
+    ${w.length ? `<button class="btn sm" data-act="skip">Carry on without ${w.length === 1 ? esc(nameOf(w[0])) : `the ${w.length} still to answer`}</button>` : ''}`;
+}
+function sideHtml() {
+  const pp = publicPlayers();
+  return `<section class="card">
+      <p class="kicker center">Room code</p>
+      <div class="joincode">${esc(H.code)}</div>
+      ${qrSvg(joinLink(H.code)) ? `<div class="qr" aria-label="QR code to join">${qrSvg(joinLink(H.code))}</div><p class="hint center">Scan to join, or go to</p>` : '<p class="hint center">Join at</p>'}
+      <p class="joinurl">${esc(joinLink(H.code))}</p>
+      <div class="row center">${netDot(castleNet)}</div>
+      ${H.phase !== 'lobby' ? `<p class="center">Day ${H.day} · ${plural(alive().length, 'player')} left · Pot <span class="gold">${money(H.pot)}</span></p>` : ''}
+      <ul class="list">${pp.map((p, i) => `<li class="${p.alive ? '' : 'out'}"><span class="dot ${p.online ? 'on' : 'off'}" title="${p.online ? 'Connected' : 'Not connected'}"></span><b>${esc(p.name)}</b>${p.shield ? '<span class="tag faithful">🛡</span>' : ''}${p.out ? `${p.out.role ? `<span class="tag ${p.out.role}">${p.out.st ? 'Secret Traitor' : p.out.role === 'traitor' ? 'Traitor' : 'Faithful'}</span>` : '<span class="tag out">role secret</span>'}<span class="tag out">${p.out.how}</span>` : ''}${H.phase === 'lobby' ? `<button class="btn sm danger" data-act="kick" data-v="${i}" aria-label="Remove ${esc(p.name)}">✕</button>` : ''}</li>`).join('') || '<li class="hint">Nobody has joined yet.</li>'}</ul>
+    </section>`;
+}
+function castleMainHtml() {
+  const s = H.settings;
+  switch (H.phase) {
+    case 'lobby': {
+      const seg = (k, opts) => `<div class="seg">${opts.map(([v, l]) => `<button type="button" data-act="set" data-k="${k}" data-v="${v}" aria-pressed="${String(s[k]) === String(v)}">${l}</button>`).join('')}</div>`;
+      const n = H.players.length;
+      return `<section class="card">
+          <h2>Welcome to the castle</h2>
+          <p>Share this screen on your video call. Everyone joins on their own phone: scan the QR code or open the link (the room code <b>${esc(H.code)}</b> fills itself in), then type their name. The host joins too.</p>
+          <h3>Rules</h3>
+          <div class="set"><span>The Secret Traitor<small>One Traitor is hidden even from the other Traitors, and draws up the shortlists they must choose from</small></span>${seg('secretT', [[true, 'On'], [false, 'Off']])}</div>
+          <div class="set"><span>Missions<small>A challenge on everyone's phone each day; right answers add gold</small></span>${seg('missions', [[true, 'On'], [false, 'Off']])}</div>
+          <div class="set"><span>Shields<small>The mission's top scorers choose a Shield or gold</small></span>${seg('shields', [[true, 'On'], [false, 'Off']])}</div>
+          <div class="set"><span>Recruiting<small>After a Traitor is banished, while more than 6 remain</small></span>${seg('recruit', [[true, 'On'], [false, 'Off']])}</div>
+          <div class="set"><span>Talking time<small>Minutes at each Round Table</small></span>${seg('talk', [[3, '3'], [5, '5'], [8, '8'], [10, '10']])}</div>
+          <button class="btn primary block" data-act="start" ${n >= MIN_PLAYERS ? '' : 'disabled'}>${n >= MIN_PLAYERS ? `Start with ${n} players` : `Waiting for players: ${n} of at least ${MIN_PLAYERS}`}</button>
+        </section>`;
+    }
+    case 'reveal': return `<section class="card center"><p class="kicker">The game begins</p><h2>Look at your phones</h2>
+        <p>Everyone is secretly learning whether they are Faithful or a Traitor. Keep a straight face.</p>${waitHtml()}</section>`;
+    case 'dawn': return `<section class="card center"><p class="kicker">Day 1</p><h2>Traitors walk among you</h2>
+        <p>How many is a secret. Nobody is murdered before the first Round Table.</p>
+        <button class="btn primary block" data-act="next">${s.missions ? 'Start the first mission' : 'To the Round Table'}</button></section>`;
+    case 'mission': return `<section class="card center"><p class="kicker">Day ${H.day} · Mission</p><h2>${esc(MISSION_KINDS[H.mission.kind].name)}</h2>
+        <p>${esc(MISSION_KINDS[H.mission.kind].intro)} Everyone plays on their phone. Every right answer adds ${money(GOLD_PER_ANSWER)} to the pot.</p>${waitHtml()}</section>`;
+    case 'missionResult': {
+      const r = H.mission.result, rows = Object.keys(r.scores).map(Number).sort((a, b) => r.scores[b] - r.scores[a]);
+      return `<section class="card"><p class="kicker">Day ${H.day} · ${esc(MISSION_KINDS[H.mission.kind].name)}</p><h2>+${money(r.gold)} to the pot</h2>
+          <div class="tally">${rows.map(i => `<div><span>${esc(nameOf(i))}${r.choices[i] === 'shield' ? ' 🛡' : r.mode === 'seer' && r.winners.includes(i) ? ' 👁' : ''}</span><span class="b" style="width:${r.scores[i] / 3 * 100}%"></span><span>${r.scores[i]}/3</span></div>`).join('')}</div>
+          ${r.winners.length > 1 ? `<p><b>A tie at the top:</b> every one of them is rewarded.</p>` : ''}
+          ${r.mode === 'seer' ? `<p>${r.winners.map(i => esc(nameOf(i))).join(' and ')} ${r.winners.length > 1 ? 'become Seers' : 'becomes the <b>Seer</b>'}: from the final five there are no more murders, so instead of a Shield they get a true clue on their phone about who is, or isn't, a Traitor. They can share it, or not.</p>` : ''}
+          ${r.mode === 'shield' ? `<p>${H.need ? 'The top scorers are choosing on their phones: the <b>Shield</b> (safe from murder tonight), or turn it down and add ' + money(SHIELD_GOLD) + ' to the pot.' : r.winners.map(w => `${esc(nameOf(w))} ${r.choices[w] === 'shield' ? 'took the <b>Shield</b>.' : `turned down the Shield and added ${money(SHIELD_GOLD)} to the pot.`}`).join(' ')}</p>${waitHtml()}` : ''}
+          <button class="btn primary block" data-act="next" ${H.need ? 'disabled' : ''}>To the Round Table</button></section>`;
+    }
+    case 'table': return `<section class="card"><p class="kicker">Day ${H.day} · ${H.days.some(d => d.endVotes.length) && alive().length <= FIRE_PIT ? 'The fire pit · banish again' : 'Round Table'}</p><h2>Who is a Traitor?</h2>
+        <p>Accuse, defend, question, on the call. When time's up, everyone votes on their phone.</p>
+        <div id="clock" class="big-timer">${fmt(timerLeft())}</div>
+        <div class="row center"><button class="btn" data-act="timer">${T.running ? 'Pause' : timerLeft() === H.settings.talk * 60 ? 'Start the clock' : timerLeft() ? 'Resume' : 'Restart'}</button><button class="btn sm" data-act="plus">+1 min</button></div>
+        <button class="btn primary block" data-act="vote">Start the vote</button></section>`;
+    case 'vote': return `<section class="card center"><p class="kicker">Day ${H.day} · ${H.vote.round > 1 ? 'Revote' : 'The vote'}</p><h2>Write a name on your slate</h2>
+        <p>Everyone votes on their phone. ${H.vote.cands ? `Choose between ${H.vote.cands.map(i => esc(nameOf(i))).join(' and ')}.` : ''}</p>${waitHtml()}</section>`;
+    case 'votereveal': {
+      const v = H.vote, shown = v.ballots.slice(0, v.shown), last = shown[shown.length - 1], t = shown.length ? tally(shown) : null;
+      return `<section class="card"><p class="kicker">Day ${H.day} · ${v.round > 1 ? 'Revote' : 'The votes'}</p>
+          ${last ? `<div class="ballot"><span>${esc(nameOf(last[0]))} votes for</span><span class="slate">${esc(nameOf(last[1]))}</span></div>` : '<p>Everyone has voted. One at a time, say who you voted for and why, then the slate is turned.</p>'}
+          ${t ? `<div class="tally">${Object.keys(t.counts).sort((a, b) => t.counts[b] - t.counts[a]).map(k => `<div><span>${esc(nameOf(+k))}</span><span class="b" style="width:${t.counts[k] / v.ballots.length * 100}%"></span><span>${t.counts[k]}</span></div>`).join('')}</div>` : ''}
+          ${v.shown < v.ballots.length ? `<div class="row"><button class="btn primary grow" data-act="showvote">Turn ${esc(nameOf(v.ballots[v.shown][0]))}'s slate</button><button class="btn" data-act="showall">All slates</button></div>` : '<button class="btn primary block" data-act="count">Count the votes</button>'}
+        </section>`;
+    }
+    case 'tie': return `<section class="card center"><p class="kicker">Day ${H.day} · Tie</p><h2>A tie</h2>
+        <p>${H.tie.map(i => esc(nameOf(i))).join(' and ')} have the most votes. Everyone else votes again, choosing only between them. If it's still tied, the draw decides.</p>
+        <button class="btn primary block" data-act="revote">Revote</button></section>`;
+    case 'banish': {
+      const b = H.ban, i = b.who, t = P(i).role === 'traitor';
+      if (b.secret) return `<section class="card center"><p class="kicker">Day ${H.day} · Banished</p>${b.drawn ? '<p class="hint">Still tied: the draw chose.</p>' : ''}
+          <p class="big-news bad">${esc(nameOf(i))}</p><p>You have been banished. From the final five, roles stay secret: leave without saying who you are. Everyone finds out at the end.</p>
+          <button class="btn primary block" data-act="afterban">${alive().length <= FIRE_PIT ? 'To the fire pit' : 'Continue'}</button></section>`;
+      if (!b.shown) return `<section class="card center"><p class="kicker">Day ${H.day} · Banished</p>${b.drawn ? '<p class="hint">Still tied: the draw chose.</p>' : ''}
+          <p class="big-news bad">${esc(nameOf(i))}</p><p>You have been banished. Tell everyone: <b>"I am…"</b></p>
+          <button class="btn primary block" data-act="reveal">Show who ${esc(nameOf(i))} really is</button></section>`;
+      return `<div class="role ${t ? 'traitor' : 'faithful'}"><p class="kicker">${esc(nameOf(i))} was</p><div class="rname">${b.wasST ? 'the Secret Traitor' : t ? 'a Traitor' : 'Faithful'}</div>
+          <p>${b.wasST ? 'Even the other Traitors didn\'t know.' : t ? 'One Traitor caught. Are there more?' : 'The Traitors are still among you.'}</p></div>
+        <button class="btn primary block" data-act="afterban">${alive().length <= FIRE_PIT && traitorsAlive().length ? 'To the fire pit' : 'Continue'}</button>`;
+    }
+    case 'night': {
+      const n = H.night;
+      if (n.final5) return `<section class="card center"><p class="kicker">Night ${H.day}</p><h2>The final five</h2>
+          <p>Five players remain. Tonight, nobody is murdered. From tomorrow, the mission's winner becomes the Seer, and banished players no longer reveal their role.</p>
+          <button class="btn primary block" data-act="morning">To the morning</button></section>`;
+      return `<section class="card center"><p class="kicker">Night ${H.day}</p><h2>${n.stage === 'done' ? 'The Traitors have chosen' : 'Night falls'}</h2>
+          <p>${n.stage === 'done' ? 'Everyone sleeps. Who will come down to breakfast?' : 'Everyone, look at your phones. The Traitors are meeting in secret.'}</p>
+          ${n.stage === 'done' ? '<button class="btn primary block" data-act="morning">To the morning</button>' : waitHtml(null, true)}</section>`;
+    }
+    case 'breakfast': {
+      const b = H.bf, done = b.shown >= b.order.length, r = H.night && H.night.result;
+      return `<section class="card"><p class="kicker">Day ${H.day} · Breakfast</p><h2>Who comes to breakfast?</h2>
+          <ul class="list">${b.order.slice(0, b.shown).map((i, k) => `<li class="${k === b.shown - 1 ? 'new' : ''}"><b>${esc(nameOf(i))}</b><span class="hint">arrives</span></li>`).join('')}</ul>
+          ${!done ? `<div class="row"><button class="btn primary grow" data-act="arrive">Next to arrive</button><button class="btn" data-act="arriveall">Everyone</button></div>`
+            : b.victim != null ? `<p class="big-news bad">${esc(nameOf(b.victim))} never came down.</p><p class="center">${esc(nameOf(b.victim))} was murdered in the night. They were Faithful.</p>`
+            : `<p class="big-news">Everyone is here!</p><p class="center">${r === 'saved' ? 'The Traitors struck, but their victim held the Shield.' : r === 'final5' ? 'The final five were safe last night.' : 'Nobody was murdered last night…'}</p>`}
+          ${done ? `<button class="btn primary block" data-act="afterbf">${s.missions ? 'To the mission' : 'To the Round Table'}</button>` : ''}</section>`;
+    }
+    case 'firepit': return `<section class="card center"><p class="kicker">Day ${H.day} · The fire pit</p><h2>End the game, or banish again?</h2>
+        <p>Only ${plural(alive().length, 'player')} remain, and there are no more murders. Everyone votes on their phone. It takes <b>every</b> vote to end the game; end it with a Traitor still here, and the Traitors take the pot.</p>${waitHtml()}</section>`;
+    case 'endreveal': {
+      const e = H.endVote, shown = e.ballots.slice(0, e.shown), done = e.shown >= e.ballots.length;
+      return `<section class="card"><p class="kicker">Day ${H.day} · The fire pit</p><h2>The vote</h2>
+          <ul class="list">${shown.map(([v, c], k) => `<li class="${k === shown.length - 1 ? 'new' : ''}"><b>${esc(nameOf(v))}</b><span class="tag ${c ? 'faithful' : 'traitor'}">${c ? 'End the game' : 'Banish again'}</span></li>`).join('')}</ul>
+          ${!done ? `<button class="btn primary block" data-act="showend">Show ${esc(nameOf(e.ballots[e.shown][0]))}'s vote</button>` : `<button class="btn primary block" data-act="afterend">${e.ballots.every(b => b[1] === 1) ? 'Everyone voted to end: the reveal' : 'Back to the Round Table'}</button>`}</section>`;
+    }
+    case 'over': return overHtml(H.winner, H.winWhy, H.players.map((q, k) => ({ name: q.name, role: q.role, st: isST(k), recruited: q.first !== q.role, alive: q.alive, how: q.out && q.out.how })), historyHtml())
+      + '<button class="btn block" data-act="again">New game with the same players</button>';
+  }
+  return '';
+}
+function overHtml(w, why, roles, extra) {
+  const winners = roles.filter(r => r.alive && (r.role === 'traitor') === (w === 'traitors'));
+  return `<div class="banner ${w}"><p class="kicker">Game over</p><p class="title">${w === 'traitors' ? 'The Traitors win' : 'The Faithful win'}</p><p>${esc(why)}</p>
+      ${winners.length && mode === 'castle' ? `<p>${winners.map(r => esc(r.name)).join(', ')} ${winners.length === 1 ? 'takes' : 'share'} <b>${money(H.pot)}</b>${winners.length > 1 ? ` (${money(Math.floor(H.pot / winners.length))} each)` : ''}.</p>` : ''}</div>
+    <section class="card"><h2>Who was who</h2><ul class="list">${roles.map(r => `<li class="${r.alive ? '' : 'out'}"><b>${esc(r.name)}</b>${r.recruited ? '<span class="hint">recruited</span>' : ''}<span class="tag ${r.role}">${r.st ? 'Secret Traitor' : r.role === 'traitor' ? 'Traitor' : 'Faithful'}</span>${r.alive ? '' : `<span class="tag out">${r.how}</span>`}</li>`).join('')}</ul></section>
+    ${extra || ''}`;
+}
+function historyHtml() {
+  const nm = i => esc(nameOf(i));
+  const days = H.days.map(d => {
+    const bits = [];
+    if (d.murdered != null) bits.push(`<p>☠ ${nm(d.murdered)} was murdered in the night.</p>`);
+    if (d.mission) bits.push(`<p>⚔ ${esc(MISSION_KINDS[d.mission.kind].name)} earned ${money(d.mission.gold)}${d.mission.shields.length ? `; ${d.mission.shields.map(nm).join(' and ')} took the Shield` : ''}${d.mission.tookGold.length ? `; ${d.mission.tookGold.map(nm).join(' and ')} chose gold` : ''}.</p>`);
+    d.seers.forEach(x => bits.push(`<p>👁 ${nm(x.who)} was a Seer. Their clue: ${esc(clueText(x.clue))}</p>`));
+    d.votes.forEach(v => bits.push(`<p>🗳 ${v.round > 1 ? 'Revote' : 'Votes'}: ${v.ballots.map(([a, b]) => `${nm(a)}→${nm(b)}`).join(', ')}</p>`));
+    d.endVotes.forEach(ev => bits.push(`<p>🔥 Fire pit: ${ev.map(([a, c]) => `${nm(a)} ${c ? 'end' : 'banish'}`).join(', ')}</p>`));
+    if (d.banished) bits.push(`<p>🚪 ${nm(d.banished.who)} was banished${d.banished.secret ? ' (role kept secret)' : ''}: ${d.banished.role === 'traitor' ? `<b style="color:var(--traitor)">${d.banished.st ? 'Secret Traitor' : 'Traitor'}</b>` : 'Faithful'}.</p>`);
+    if (d.shortlist) bits.push(`<p class="hint">The Secret Traitor's shortlist: ${[d.shortlist.r ? `recruit from ${d.shortlist.r.map(nm).join(', ')}` : '', d.shortlist.m ? `murder from ${d.shortlist.m.map(nm).join(', ')}` : ''].filter(Boolean).join('; ')}.</p>`);
+    if (d.recruited != null) bits.push(`<p>🗝 ${nm(d.recruited)} accepted the Traitors' offer.</p>`);
+    if (d.refused != null) bits.push(`<p>🗝 ${nm(d.refused)} refused to join the Traitors${d.refusedDied ? ' and was murdered for it' : ''}.</p>`);
+    return bits.length ? `<div class="hist"><h3>Day ${d.day}</h3>${bits.join('')}</div>` : '';
+  }).join('');
+  return `<section class="card"><h2>How it happened</h2>${days || '<p class="hint">Nothing happened.</p>'}</section>`;
+}
+
+/* ---------- A player's phone ---------- */
+let pnet = 'connecting', V = null, L = { key: '' };
+function roleHtml(me) {
+  if (!me || !me.role) return '';
+  const t = me.role === 'traitor';
+  if (t && me.st) return `<div class="role traitor"><p class="kicker">${esc(me.name)}, you are</p><div class="rname">the Secret Traitor</div>
+      <p>The other Traitors don't know who you are. You know them: <b>${me.mates.map(esc).join(', ')}</b>.</p>
+      <p>Each night, before the Traitors meet, you draw up the shortlists they must choose from: who can be murdered and, on recruiting nights, who can be recruited. By day they may even suspect you. Win with the Traitors.</p></div>`;
+  return `<div class="role ${t ? 'traitor' : 'faithful'}"><p class="kicker">${esc(me.name)}, you are</p><div class="rname">${t ? 'a Traitor' : 'Faithful'}</div>
+      ${me.secretT ? `<p><b>There is a Secret Traitor.</b> ${t ? 'They know who you are, but you don\'t know them. Each night they send you a shortlist, and you must choose from it.' : 'Even the other Traitors don\'t know who it is.'}</p>` : ''}
+      <p>${t ? 'Each night you and your fellow Traitors murder a Faithful. By day, blend in. Survive to the end to take the gold.' : 'Find the Traitors and banish them at the Round Table. If none are left at the end, the Faithful share the gold.'}</p>
+      ${t ? `<p><b>${me.mates.length ? `Your fellow Traitor${me.mates.length > 1 ? 's' : ''}: ${me.mates.map(esc).join(', ')}` : 'You are the only Traitor you know of.'}</b></p>` : ''}
+      ${me.clues && me.clues.length ? `<p>Your Seer's clue${me.clues.length > 1 ? 's' : ''}: ${me.clues.map(c => `<b>${esc(c.text)}</b>`).join(' ')}</p>` : ''}</div>`;
+}
+function playerHtml() {
+  if (!V) return `<section class="card center"><h2>${pnet === 'nocastle' ? 'Looking for the castle…' : 'Connecting…'}</h2>
+      <p>${pnet === 'nocastle' ? `There's no castle screen open for room <b>${esc(ME.code)}</b> right now. Check the code, or wait for the host to open it.` : `Joining room <b>${esc(ME.code)}</b> as ${esc(ME.name)}.`}</p>
+      <button class="btn" data-act="leave">Use a different code</button></section>`;
+  const s = V.screen, me = V.me;
+  const top = `<div class="row"><span class="grow hint">Room ${esc(V.code)} · ${esc(me.name)}${V.phase !== 'lobby' ? ` · Day ${V.day}` : ''}</span>${netDot(pnet)}${me.role ? '<button class="btn sm" data-act="myrole">My role</button>' : ''}</div>`;
+  return top + screenHtml(s, me);
+}
+function screenHtml(s, me) {
+  switch (s.type) {
+    case 'lobby': return `<section class="card center"><h2>You're in the castle</h2><p>Waiting for the host to start. ${plural(V.players.length, 'player')} so far.</p>
+        <ul class="list">${V.players.map(p => `<li><b>${esc(p.name)}</b></li>`).join('')}</ul></section>`;
+    case 'role': return `${roleHtml(me)}<p class="hint center">Keep a straight face. Tap below when you've read it.</p>${s.ready ? '<button class="btn primary block" data-act="ready">I\'ve read my role</button>' : ''}`;
+    case 'wait': return `<section class="card center"><p class="big-news" style="font-size:1.6rem">${esc(s.text)}</p></section>`;
+    case 'sleep': return `<section class="card center"><p class="kicker">Night ${V.day}</p><h2>${s.final5 ? 'The final five' : 'You sleep in your turret'}</h2><p>${s.final5 ? 'Nobody is murdered tonight.' : 'Lock your door. Somewhere in the castle, the Traitors are meeting.'}</p></section>`;
+    case 'out': return `<section class="card center"><h2>${s.how === 'murdered' ? 'You were murdered' : 'You have been banished'}</h2><p>Your game is over, but you can keep watching on the castle screen. ${me.role === 'traitor' ? 'Your fellow Traitors can still win.' : 'The Faithful can still win.'}</p></section>`;
+    case 'mission': {
+      const it = s.items[L.i];
+      if (L.i >= s.items.length) return `<section class="card center"><p>Sending your answers…</p></section>`;
+      if (it.show && !L.shown) return `<section class="card"><p class="kicker">${esc(s.name)} · ${L.i + 1} of ${s.items.length}</p><h2>Study the portraits</h2><p class="hint">They'll be covered in a few seconds.</p>
+          <ul class="gallery">${it.show.map(x => `<li>${esc(x)}</li>`).join('')}</ul><button class="btn primary block" data-act="memorised">I've memorised them</button></section>`;
+      return `<section class="card"><p class="kicker">${esc(s.name)} · ${L.i + 1} of ${s.items.length}</p><h2>${esc(it.q)}</h2>
+          ${me.role === 'traitor' && L.i === 0 ? '<p class="hint">You\'re a Traitor: you can answer wrongly on purpose to sabotage, but a poor score gets noticed.</p>' : ''}
+          <div class="pick">${it.opts.map((o, k) => `<button type="button" data-act="answer" data-v="${k}">${esc(o)}</button>`).join('')}</div></section>`;
+    }
+    case 'shield': return `<section class="card"><h2>${s.tie ? 'You tied for the top score' : 'You got the top score'}</h2><p>You scored ${s.score}/3. Take the <b>Shield</b> (safe from murder tonight), or turn it down and add ${money(SHIELD_GOLD)} to the pot? Traitors don't need a Shield, so taking the gold can look suspicious.</p>
+        <div class="pick"><button type="button" data-act="shield" data-v="shield">🛡 Take the Shield</button><button type="button" data-act="shield" data-v="gold">+${money(SHIELD_GOLD)} to the pot</button></div></section>`;
+    case 'seer': return `<div class="secret seer"><b>👁 You are a Seer</b><p>This clue is true, and only you have seen it:</p><p class="big-news" style="font-size:1.5rem">${esc(s.clue)}</p><p class="hint">Share it at the Round Table, or keep it to yourself. It's kept under My role.</p></div>`;
+    case 'vote': return `<section class="card"><p class="kicker">Day ${V.day} · ${s.round > 1 ? 'Revote' : 'The vote'}</p><h2>Who do you banish?</h2><p>Write a name on your slate. Everyone will see your vote on the castle screen.</p>
+        ${pickHtml(s.cands, L.sel, 'pick')}<button class="btn primary block" data-act="castvote" ${L.sel == null ? 'disabled' : ''}>${L.sel == null ? 'Choose a name' : `Vote for ${esc(s.cands.find(c => c.id === L.sel).name)}`}</button></section>`;
+    case 'endvote': return `<section class="card"><p class="kicker">The fire pit</p><h2>End the game, or banish again?</h2><p>It takes <b>every</b> vote to end. End it with a Traitor still here, and the Traitors take the pot.</p>
+        <div class="pick"><button type="button" data-act="endvote" data-v="1">End the game</button><button type="button" data-act="endvote" data-v="0">Banish again</button></div></section>`;
+    case 'stlist': {
+      const sel = L.st || (L.st = { m: [], r: [] }), mNeed = s.black ? 0 : s.need, rNeed = s.recruit ? s.need : 0;
+      const ready = sel.m.length === mNeed && sel.r.length === rNeed && (!s.recruit || s.black || sel.r.some(r => !sel.m.includes(r)) || sel.m.length > 1);
+      return `${roleHtml(me)}<section class="card"><p class="kicker">Night ${V.day} · The Secret Traitor</p><h2>Draw up the shortlists</h2><p>The Traitors will choose from the names you give them. They don't know the list comes from you.</p>
+          ${rNeed ? `<h3>${s.black ? 'Who can be blackmailed' : 'Who can be seduced'} (choose ${rNeed})</h3>${pickHtml(s.cands, sel.r, 'str')}` : ''}
+          ${mNeed ? `<h3>Who can be murdered (choose ${mNeed})</h3>${pickHtml(s.cands, sel.m, 'stm')}` : ''}
+          <button class="btn primary block" data-act="sendst" ${ready ? '' : 'disabled'}>${ready ? 'Send the shortlist' : 'Choose the names'}</button></section>`;
+    }
+    case 'meeting': {
+      const verb = !s.recruit ? 'murder' : s.black ? 'blackmail' : 'seduce';
+      const sel = L.meet || (L.meet = { c: null, c2: null });
+      const ready = sel.c != null && (!s.two || (sel.c2 != null && sel.c2 !== sel.c));
+      return `<section class="card"><p class="kicker">Night ${V.day} · The Traitors' meeting</p><h2>${s.done ? 'Your choice is in' : `Who do you ${verb}?`}</h2>
+          <p>${!s.recruit ? 'Choose a Faithful to murder. If you disagree, the most popular choice wins; a tie is settled at random.' : s.black ? 'You are the last Traitor you know of. Blackmail a Faithful: they join you, or die. Nobody else is murdered tonight.' : 'A Traitor was banished. Seduce a Faithful to join you (they may refuse), and murder another.'}</p>
+          ${s.fromST ? '<p class="hint"><b>A note from the Secret Traitor.</b> Whoever they are, they have sent you a shortlist, and you must choose from it.</p>' : ''}
+          ${s.done ? `<p>You chose <b>${esc(s.mine ? s.mine.choice : '')}</b>${s.mine && s.mine.choice2 ? ` and to murder <b>${esc(s.mine.choice2)}</b>` : ''}.${s.waitingFor.length ? ` Waiting for ${s.waitingFor.map(esc).join(', ')}.` : ''}</p>` : `
+          ${s.recruit && !s.black ? '<h3>Seduce</h3>' : ''}${pickHtml(s.opts, sel.c, 'meet1')}
+          ${s.two ? `<h3>Murder</h3>${pickHtml(s.mopts.filter(o => o.id !== sel.c), sel.c2, 'meet2')}` : ''}
+          <button class="btn primary block" data-act="sendmeet" ${ready ? '' : 'disabled'}>${ready ? 'Confirm' : 'Choose first'}</button>`}
+          ${s.picks.length ? `<p class="hint">Chosen so far: ${s.picks.map(p => `${esc(p.who)} → <b>${esc(p.choice)}</b>${p.choice2 ? ` (murder <b>${esc(p.choice2)}</b>)` : ''}`).join(', ')}</p>` : ''}
+          <h3>Traitors' chat</h3>
+          <div class="chat" id="chatLog">${s.chat.map(c => `<p><b>${esc(c.who)}</b> ${esc(c.text)}</p>`).join('') || '<p class="hint">Nothing said yet tonight.</p>'}</div>
+          <form class="row" data-act="chatform"><input type="text" id="chatBox" maxlength="200" autocomplete="off" placeholder="Message your fellow Traitors" class="grow" style="width:auto;flex:1"><button class="btn" type="submit">Send</button></form></section>`;
+    }
+    case 'letter': return `<div class="role traitor"><p class="kicker">${s.black ? 'You are taken from your room' : 'A letter slides under your door'}</p><div class="rname" style="font-size:2rem">${s.black ? 'Join us, or die' : 'The Traitors want you'}</div>
+        <p>${s.black ? `In a candlelit room, the last Traitor is waiting for you: <b>${esc(s.lone)}</b>. This is blackmail. Join, or refuse and be murdered tonight.` : 'Join them and become a Traitor, or refuse and stay Faithful. Nothing happens to you if you refuse. If you join, you\'ll see who the Traitors are.'}</p></div>
+        <div class="pick"><button type="button" data-act="letter" data-v="1">Join the Traitors</button><button type="button" data-act="letter" data-v="0">Refuse</button></div>`;
+    case 'welcome': return `<div class="role traitor"><p class="kicker">You accepted</p><div class="rname">You are a Traitor</div>
+        <p>${s.black ? 'You shake hands by candlelight.' : 'You are led to the Traitors\' meeting room.'} Your fellow Traitor${s.mates.length === 1 ? ' is' : 's are'}: <b>${s.mates.map(esc).join(', ')}</b>.${s.secretT ? ' There is also a Secret Traitor, whom none of you know.' : ''}</p>
+        <p>${s.black ? 'Nobody else dies tonight.' : 'Tonight\'s murder was chosen before you joined.'} From tomorrow night, you choose with them.</p></div>`;
+    case 'over': return `<div class="banner ${s.winner}"><p class="kicker">Game over</p><p class="title">${s.winner === 'traitors' ? 'The Traitors win' : 'The Faithful win'}</p><p>${esc(s.why)}</p>
+        <p><b>${s.mine ? (s.alive ? `You won ${money(s.share)}!` : 'Your team won, but you didn\'t make it to the end.') : 'You lost.'}</b></p></div>
+      <section class="card"><h2>Who was who</h2><ul class="list">${s.roles.map(r => `<li class="${r.alive ? '' : 'out'}"><b>${esc(r.name)}</b>${r.recruited ? '<span class="hint">recruited</span>' : ''}<span class="tag ${r.role}">${r.st ? 'Secret Traitor' : r.role === 'traitor' ? 'Traitor' : 'Faithful'}</span></li>`).join('')}</ul></section>`;
+  }
+  return '';
+}
+
+/* ---------- Connection: the phone side ---------- */
+let ppeer = null, pconn = null, retryT = null;
+function openPlayer() {
+  clearTimeout(retryT);
+  if (typeof Peer !== 'function') { pnet = 'failed'; return render(); }
+  if (!ppeer || ppeer.destroyed) {
+    ppeer = new Peer(undefined, peerOptions());
+    ppeer.on('open', connectToCastle);
+    ppeer.on('error', err => { pnet = err && err.type === 'peer-unavailable' ? 'nocastle' : 'connecting'; if (err && err.type === 'peer-unavailable') V = null; render(); retry(); });
+    ppeer.on('disconnected', () => { setTimeout(() => { try { ppeer.reconnect(); } catch (e) {} }, 2000); });
+  } else if (ppeer.open) connectToCastle();
+  else retry();
+}
+function connectToCastle() {
+  if (pconn) try { pconn.close(); } catch (e) {}
+  pconn = ppeer.connect(PREFIX + ME.code, { reliable: true });
+  pconn.on('open', () => { pnet = 'open'; pconn.send({ t: 'hello', name: ME.name, token: ME.token }); render(); });
+  pconn.on('data', msg => {
+    if (msg && msg.t === 'view') { V = msg.v; render(); }
+    else if (msg && msg.t === 'error') { homeError = msg.text; mode = 'home'; V = null; try { pconn.close(); ppeer.destroy(); } catch (e) {} ppeer = null; render(); }
+  });
+  pconn.on('close', () => { if (mode !== 'player') return; pnet = 'connecting'; render(); retry(); });
+  pconn.on('error', () => {});
+}
+function retry() { clearTimeout(retryT); if (mode === 'player') retryT = setTimeout(() => { if (!pconn || !pconn.open) openPlayer(); }, 3000); }
+function send(kind, value) { if (pconn && pconn.open) pconn.send({ t: 'act', kind, value }); }
+
+/* ---------- Menu ---------- */
+function menuHtml() {
+  if (menu === 'role') return `<div class="row"><h2>My role</h2><button class="btn sm" data-act="close" aria-label="Close">✕</button></div>${roleHtml(V && V.me)}<p class="hint">Make sure nobody can see your screen.</p>`;
+  if (menu === 'rules') return `<div class="row"><h2>How to play</h2><button class="btn sm" data-act="menu">‹ Back</button><button class="btn sm" data-act="close" aria-label="Close">✕</button></div>
+    <ul>
+      <li>One person opens the <b>castle screen</b> and shares it on your video call. Everyone joins on their own phone with the room code. Your phone only ever shows your own secrets.</li>
+      <li>Some players are <b>Traitors</b>; nobody is told how many. With the Secret Traitor on, one Traitor is hidden even from the others.</li>
+      <li><b>Missions</b>: a quiz, sums, anagrams or a memory test on every phone. Right answers add gold. The top scorers (all of them, if tied) choose the <b>Shield</b> or more gold.</li>
+      <li><b>Round Table</b>: talk on the call, then vote on your phone. The slates are turned one by one on the castle screen. A tie means a revote between the tied players; a second tie, the draw.</li>
+      <li><b>Night</b>: the Traitors meet on their phones (with a private chat) and murder a Faithful. If there's a Secret Traitor, they first send the shortlist the Traitors must choose from. Nobody learns who died until breakfast.</li>
+      <li><b>Recruiting</b>: after a Traitor is banished, while more than 6 remain, the Traitors recruit. With two or more of them it's a seduction (refusing is safe, and they still murder); with one, it's blackmail, face to face: join or die.</li>
+      <li><b>The final five</b>: no murder that night; banished players no longer reveal their role; and the mission's top scorers become <b>Seers</b>, each with a true clue.</li>
+      <li><b>The fire pit</b>: once 4 remain, everyone votes to end the game or banish again. If everyone votes to end with a Traitor still there, the Traitors take the pot. The Faithful win as soon as every Traitor is banished in the open.</li>
+    </ul>`;
+  return `<div class="row"><h2>Menu</h2><button class="btn sm" data-act="close" aria-label="Close">✕</button></div>
+    <button class="btn" data-act="rules">How to play</button>
+    ${mode === 'castle' ? `<h3>Sound</h3><button class="btn sm" data-act="voice" aria-pressed="${prefs.voice}">Narrator voice: ${prefs.voice ? 'on' : 'off'}</button>
+      <h3>Game</h3>${menu === 'quit' ? '<p>End this game and close the castle? Everyone will be disconnected.</p><div class="row"><button class="btn danger" data-act="quityes">Yes, end it</button><button class="btn" data-act="menu">Keep playing</button></div>' : '<button class="btn danger" data-act="quit">End this game</button>'}` : ''}
+    ${mode === 'player' ? '<h3>Game</h3><button class="btn" data-act="leave">Leave this game</button><p class="hint">You can rejoin with the same code and name.</p>' : ''}
+    `;
+}
+
+/* ---------- Draw ---------- */
+let tick = null;
+function render() {
+  const keep = document.activeElement && document.activeElement.id ? { id: document.activeElement.id, value: document.activeElement.value } : null;
+  if (mode === 'player' && V) {
+    const s = V.screen, key = [V.phase, V.day, s.type, s.round || '', s.done ? 1 : 0].join('|');
+    if (key !== L.key) L = { key, i: 0, ans: [], shown: false, sel: null, st: null, meet: null };
+  }
+  const app = $('#app');
+  app.classList.toggle('castle', mode === 'castle');
+  if (mode === 'castle') {
+    $('#phase').textContent = H.phase === 'lobby' ? `Room ${H.code}` : H.phase === 'over' ? 'Game over' : `${H.phase === 'night' ? 'Night' : 'Day'} ${H.day}`;
+    app.innerHTML = `<div class="castle-grid"><div style="display:grid;gap:16px;min-width:0">${castleMainHtml()}</div>${sideHtml()}</div>`;
+  } else if (mode === 'player') {
+    $('#phase').textContent = V ? (V.phase === 'lobby' ? `Room ${V.code}` : V.phase === 'over' ? 'Game over' : `${V.phase === 'night' ? 'Night' : 'Day'} ${V.day}`) : '';
+    app.innerHTML = playerHtml();
+    const log = $('#chatLog'); if (log) log.scrollTop = log.scrollHeight;
+  } else { $('#phase').textContent = ''; app.innerHTML = homeHtml(); }
+  $('#sheet').innerHTML = menu ? `<div class="sheet-back" data-act="backdrop"><div class="sheet" role="dialog" aria-modal="true" aria-label="Menu">${menuHtml()}</div></div>` : '';
+  if (keep) { const el = document.getElementById(keep.id); if (el && 'value' in el) { el.value = keep.value; el.focus(); } }
+  clearInterval(tick);
+  if ($('#clock')) tick = setInterval(() => {
+    const el = $('#clock'); if (!el) return clearInterval(tick);
+    const s = timerLeft();
+    el.textContent = s ? fmt(s) : "Time's up";
+    el.className = 'big-timer' + (s === 0 ? ' up' : s <= 30 ? ' low' : '');
+    if (T.running && s === 0) { T.running = false; T.left = 0; say("Time's up. Vote on your phones."); render(); }
+  }, 250);
+  // The portrait gallery covers itself after a few seconds
+  if (mode === 'player' && V && V.screen.type === 'mission' && V.screen.items[L.i] && V.screen.items[L.i].show && !L.shown && !L.memo) {
+    const k = L.key, i = L.i;
+    L.memo = setTimeout(() => { if (L.key === k && L.i === i) { L.shown = true; L.memo = null; render(); } }, 6000);
+  }
+}
+
+/* ---------- Taps ---------- */
+function startCastle(fresh) {
+  H = fresh ? newCastle() : load(CASTLE_KEY);
+  if (!H) H = newCastle();
+  mode = 'castle'; saveCastle(); render(); openCastle();
+  if (H.phase === 'table') T = { left: H.settings.talk * 60, end: 0, running: false };
+}
+function startPlayer() {
+  mode = 'player'; V = null; pnet = 'connecting'; render(); openPlayer();
+}
+document.addEventListener('submit', e => {
+  const f = e.target;
+  if (f.dataset.act !== 'chatform') return;
+  e.preventDefault();
+  const box = $('#chatBox'), text = box.value.trim();
+  if (text && pconn && pconn.open) pconn.send({ t: 'chat', text });
+  box.value = '';
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b || b.tagName === 'FORM') return;
+  const a = b.dataset.act, v = b.dataset.v;
+  if (a === 'backdrop') { if (e.target === b) { menu = null; render(); } return; }
+  switch (a) {
+    case 'menu': menu = 'main'; return render();
+    case 'rules': menu = 'rules'; return render();
+    case 'close': menu = null; return render();
+    case 'myrole': menu = 'role'; return render();
+    case 'voice': prefs.voice = !prefs.voice; store(PKEY, prefs); return render();
+    case 'quit': menu = 'quit'; return render();
+    case 'quityes': menu = null; if (peer) try { peer.destroy(); } catch (e2) {} peer = null; store(CASTLE_KEY, null); H = null; mode = 'home'; return render();
+    case 'leave': menu = null; mode = 'home'; V = null; clearTimeout(retryT); try { if (pconn) pconn.close(); if (ppeer) ppeer.destroy(); } catch (e2) {} ppeer = null; pconn = null; return render();
+    // Home
+    case 'host': return startCastle(true);
+    case 'resume': return startCastle(false);
+    case 'join': {
+      const code = $('#joinCode').value.trim().toUpperCase(), name = $('#joinName').value.trim().replace(/\s+/g, ' ').slice(0, 20);
+      if (!/^[A-Z]{4}$/.test(code)) { homeError = 'The room code is 4 letters. It\'s on the castle screen.'; return render(); }
+      if (!name) { homeError = 'Type your name so the others know who you are.'; return render(); }
+      // Keep the same seat (token) when rejoining the same room under the same name
+      const token = ME && ME.code === code && ME.name.toLowerCase() === name.toLowerCase() && ME.token ? ME.token : Array.from(crypto.getRandomValues(new Uint8Array(12)), x => x.toString(16).padStart(2, '0')).join('');
+      ME = { code, name, token }; store(ME_KEY, ME); homeError = '';
+      return startPlayer();
+    }
+  }
+  if (mode === 'castle') return castleTap(a, v, b);
+  if (mode === 'player') return playerTap(a, v);
+});
+function castleTap(a, v, b) {
+  switch (a) {
+    case 'set': { const k = b.dataset.k; H.settings[k] = v === 'true' ? true : v === 'false' ? false : +v; break; }
+    case 'kick': { const i = +v, p = H.players[i]; if (conns[p.token]) { try { conns[p.token].send({ t: 'error', text: 'The host removed you from the lobby.' }); } catch (e) {} delete conns[p.token]; } H.players.splice(i, 1); break; }
+    case 'start': if (H.players.length >= MIN_PLAYERS) startGame(); break;
+    case 'skip': skipWaiting(); return;
+    case 'next': if (H.phase === 'dawn') startMission(); else if (H.phase === 'missionResult' && !H.need) toTable(); break;
+    case 'timer': if (T.running) { T.left = timerLeft(); T.running = false; } else { if (!T.left) T.left = H.settings.talk * 60; T.end = Date.now() + T.left * 1000; T.running = true; } break;
+    case 'plus': if (T.running) T.end += 60000; else T.left += 60; break;
+    case 'vote': T.running = false; startVote(1, null); break;
+    case 'showvote': { const vt = H.vote, [x, t] = vt.ballots[vt.shown++]; say(`${nameOf(x)} votes for ${nameOf(t)}.`); break; }
+    case 'showall': H.vote.shown = H.vote.ballots.length; break;
+    case 'count': afterVotes(); break;
+    case 'revote': startVote(2, H.tie); break;
+    case 'reveal': revealBanished(); break;
+    case 'afterban': afterBanish(); break;
+    case 'morning': dawn(); break;
+    case 'arrive': { const bf = H.bf, i = bf.order[bf.shown++]; say(`${nameOf(i)}.`); if (bf.shown >= bf.order.length) announce(); break; }
+    case 'arriveall': H.bf.shown = H.bf.order.length; announce(); break;
+    case 'afterbf': afterBreakfast(); break;
+    case 'showend': { const e2 = H.endVote, [x, c] = e2.ballots[e2.shown++]; say(`${nameOf(x)}: ${c ? 'end the game' : 'banish again'}.`); break; }
+    case 'afterend': afterEndVotes(); break;
+    case 'again': { const keepP = H.players.map(p => ({ name: p.name, token: p.token, role: null, alive: true, out: null, clues: [] })); const code = H.code, settings = H.settings; H = newCastle(); Object.assign(H, { code, settings, players: keepP }); break; }
+    default: return;
+  }
+  update();
+}
+function announce() {
+  const b = H.bf;
+  if (b.victim != null) say(`${nameOf(b.victim)} never came down to breakfast. They were murdered in the night.`);
+  else say(H.night && H.night.result === 'saved' ? 'Everyone is here. The Shield saved a life.' : 'Everyone is here.');
+}
+function playerTap(a, v) {
+  const s = V && V.screen;
+  switch (a) {
+    case 'ready': send('ready', true); return;
+    case 'memorised': clearTimeout(L.memo); L.memo = null; L.shown = true; return render();
+    case 'answer': L.ans[L.i] = +v; L.i++; L.shown = false; clearTimeout(L.memo); L.memo = null; if (L.i >= s.items.length) send('mission', L.ans); return render();
+    case 'shield': send('shield', v); return;
+    case 'pick': L.sel = +v; return render();
+    case 'castvote': if (L.sel != null) send('vote', L.sel); return;
+    case 'endvote': send('endvote', +v); return;
+    case 'letter': send('letter', +v); return;
+    case 'stm': case 'str': { const list = L.st[a === 'stm' ? 'm' : 'r'], x = +v, k = list.indexOf(x); if (k >= 0) list.splice(k, 1); else if (list.length < s.need) list.push(x); return render(); }
+    case 'sendst': send('stlist', { m: L.st.m, r: L.st.r }); return;
+    case 'meet1': L.meet.c = +v; if (L.meet.c2 === +v) L.meet.c2 = null; return render();
+    case 'meet2': L.meet.c2 = +v; return render();
+    case 'sendmeet': send('meeting', { choice: L.meet.c, choice2: s.two ? L.meet.c2 : null }); return;
+  }
+}
+
+// Keep the screen awake while the castle or a phone is in a game (where the browser allows it)
+let wakeLock = null;
+async function keepAwake() {
+  try { if (mode !== 'home' && 'wakeLock' in navigator && document.visibilityState === 'visible' && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) { wakeLock = null; }
+}
+document.addEventListener('visibilitychange', keepAwake);
+document.addEventListener('click', keepAwake);
+
+/* ---------- Start ---------- */
+if (params.get('join')) { mode = 'home'; }
+render();
+</script>
+</body>
+</html>
