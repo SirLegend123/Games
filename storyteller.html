@@ -1323,6 +1323,7 @@ function dayHtml() {
     card = `<section class="card"><h2>Day ${D.n}</h2>
       <p class="lead">${aliveIds().length} alive · <b>${need}</b> votes needed to execute.</p>
       ${b.who ? `<p class="notice">On the block: <b>${esc(nameOf(b.who))}</b> with ${plural(b.best, "vote")}.</p>` : b.best ? `<p class="notice">Tied on ${plural(b.best, "vote")}: nobody is on the block.</p>` : ""}
+      ${nomsOpen() ? `<p class="notice">📢 Nominations are open. Private chats are only allowed between neighbours.</p>` : `<div class="row"><button class="btn primary" data-act="noms-open">📢 Open nominations</button><span class="hint" style="flex:1">Until then, players can chat privately with anyone. Afterwards, only with their neighbours.</span></div>`}
       ${validHands().length ? `<h3>✋ Hands up to nominate</h3><div class="claims">${D.hands.map((h, k) => `<div class="row"><span style="flex:1"><b>${esc(nameOf(h.by))}</b> wants to nominate <b>${esc(nameOf(h.of))}</b></span><button class="btn primary" data-act="hand-start" data-i="${k}">Start</button><button class="icon" data-act="hand-drop" data-i="${k}" aria-label="Dismiss">×</button></div>`).join("")}</div>` : ""}
       <h3>Nominations</h3>${nomListHtml()}
       ${(D.shots || []).length ? `<h3>Slayer shots</h3><ol class="log">${shotLines().map((l, k) => `<li>${l} <button class="x-inline" data-act="slay-del" data-i="${k}" aria-label="Undo this shot">×</button></li>`).join("")}</ol>` : ""}
@@ -1671,7 +1672,7 @@ function publicState() {
     noms: D.noms.map(n => ({ by: n.by, of: n.of, count: n.count, virgin: n.virgin === "executed" })),
     shots: (D.shots || []).map(x => ({ by: x.by, at: x.at, died: x.died })),
     vote: d && d.stage === "vote" ? { by: d.by, of: d.of, votes: d.votes } : null,
-    hands: validHands().map(h => [h.by, h.of]),
+    hands: validHands().map(h => [h.by, h.of]), nomsOpen: nomsOpen(),
     block: D.done ? null : { who: b.who, best: b.best },
     done: D.done, exec: D.done && D.exec ? { pid: D.exec.pid, dies: D.exec.dies, virgin: D.exec.cause === "nominated the Virgin" } : null,
     timer: T.total ? { left: timerLeft(), running: !!T.end, total: T.total, big: !!ui.timerOpen } : null,
@@ -1711,6 +1712,11 @@ function townStop() { S.townOn = false; if (town.peer) town.peer.destroy(); town
    Chat messages pass through here, but they're encrypted end to end by the two phones
    (with a key only they share), so the Storyteller's device can't read them, and doesn't keep them. */
 const chatDay = () => S.step === "day" && !S.over;
+// Nominations are open once the Storyteller says so, or the first nomination starts, until night
+const nomsOpen = () => chatDay() && !!S.day && (S.day.nomsOpen || S.day.done || S.day.noms.length > 0 || !!S.day.draft);
+const seatNeighbours = (a, b) => { const ids = S.players.map(p => p.id), n = ids.length, i = ids.indexOf(a), j = ids.indexOf(b); return i >= 0 && j >= 0 && (Math.abs(i - j) === 1 || Math.abs(i - j) === n - 1); };
+const canChat = (a, b) => chatDay() && (!nomsOpen() || seatNeighbours(a, b));
+const chatWhy = () => !chatDay() ? "Private chats are only allowed during the day." : "Nominations are open: you can only chat with your neighbours now.";
 const tellPlayer = (pid, m) => { const P = town.players[pid]; if (P && P.conn.open) try { P.conn.send(m); } catch (e) {} };
 const inChat = pid => town.chats.some(c => c.a === pid || c.b === pid);
 function fromPlayer(c, m) {
@@ -1735,7 +1741,7 @@ function fromPlayer(c, m) {
   if (!me) return;
   if (m.t === "chat-req") {
     const to = m.to, no = why => c.send({ t: "chat-no", to, why });
-    if (!chatDay()) return no("Private chats are only allowed during the day.");
+    if (!canChat(me, to)) return no(chatWhy());
     if (!town.players[to]) return no(`${nameOf(to)} isn't linked to the game.`);
     if (inChat(me)) return no("You're already in a private chat.");
     if (inChat(to)) return no(`${nameOf(to)} is already in a private chat.`);
@@ -1751,7 +1757,7 @@ function fromPlayer(c, m) {
     delete town.reqs[m.id];
     if (m.t === "chat-cancel") return tellPlayer(r.to, { t: "chat-gone", id: m.id });
     if (!m.ok) return tellPlayer(r.from, { t: "chat-no", to: r.to, why: `${nameOf(r.to)} said no.` });
-    if (!chatDay() || inChat(r.from) || inChat(r.to) || !town.players[r.from]) { tellPlayer(r.to, { t: "chat-gone", id: m.id }); return tellPlayer(r.from, { t: "chat-no", to: r.to, why: "The chat couldn't start." }); }
+    if (!canChat(r.from, r.to) || inChat(r.from) || inChat(r.to) || !town.players[r.from]) { tellPlayer(r.to, { t: "chat-gone", id: m.id }); return tellPlayer(r.from, { t: "chat-no", to: r.to, why: "The chat couldn't start." }); }
     town.chats.push({ id: m.id, a: r.from, b: r.to });
     tellPlayer(r.from, { t: "chat-open", id: m.id, with: r.to });
     tellPlayer(r.to, { t: "chat-open", id: m.id, with: r.from });
@@ -1775,6 +1781,7 @@ function fromPlayer(c, m) {
     if (m.t === "nominate-cancel") D.hands = (D.hands || []).filter(h => h.by !== me);
     if (m.t === "nominate") {
       const of = m.of;
+      if (!nomsOpen()) return c.send({ t: "note", why: "Nominations aren't open yet." });
       if (!alive(me)) return c.send({ t: "note", why: "Dead players can't nominate." });
       if (D.noms.some(n => n.by === me)) return c.send({ t: "note", why: "You've already nominated today." });
       if (!S.players.some(p => p.id === of) || D.noms.some(n => n.of === of)) return c.send({ t: "note", why: `${nameOf(of)} has already been nominated today.` });
@@ -1817,16 +1824,15 @@ function refreshJoin() {
   else render();
 }
 function sendLobby(force) {
-  if (!chatDay() && (town.chats.length || Object.keys(town.reqs).length)) {
-    town.chats.slice().forEach(x => endChat(x.id, "Night has fallen. Private chats are over."));
-    for (const [id, r] of Object.entries(town.reqs)) { tellPlayer(r.to, { t: "chat-gone", id }); tellPlayer(r.from, { t: "chat-no", to: r.to, why: "Night has fallen." }); }
-    town.reqs = {};
-  }
+  // End the chats that aren't allowed any more: at night, or between non-neighbours once nominations open
+  const why = !chatDay() ? "Night has fallen. Private chats are over." : "Nominations are open. Private chats are over, except between neighbours.";
+  town.chats.filter(x => !canChat(x.a, x.b)).forEach(x => endChat(x.id, why));
+  for (const [id, r] of Object.entries(town.reqs)) if (!canChat(r.from, r.to)) { delete town.reqs[id]; tellPlayer(r.to, { t: "chat-gone", id }); tellPlayer(r.from, { t: "chat-no", to: r.to, why }); }
   const base = lobbyBase();
   const json = JSON.stringify(base);
   if (!force && json === town.lobby) return;
   town.lobby = json;
-  for (const pid of Object.keys(town.players)) tellPlayer(pid, { ...base, you: pid });
+  for (const pid of Object.keys(town.players)) tellPlayer(pid, { ...base, you: pid, chatOk: S.players.map(p => p.id).filter(q => q !== pid && canChat(pid, q)) });
 }
 // Nominations waiting for the Storyteller, still valid under the day's rules
 function validHands() {
@@ -1840,18 +1846,18 @@ function validHands() {
 function dayInfo() {
   if (S.step !== "day" || !S.day || S.over) return null;
   const D = S.day, d = D.draft;
-  return { n: D.n, done: D.done, need: votesNeeded(), nominators: D.noms.map(n => n.by), nominated: D.noms.map(n => n.of),
+  return { n: D.n, done: D.done, open: nomsOpen(), need: votesNeeded(), nominators: D.noms.map(n => n.by), nominated: D.noms.map(n => n.of),
     hands: validHands().map(h => [h.by, h.of]), canVote: S.players.map(p => p.id).filter(hasVote),
     vote: d && d.stage === "vote" ? { by: d.by, of: d.of, votes: d.votes } : null };
 }
 function startNomination(by, of) {
   const d = { stage: "of", votes: [], by, of };
   d.stage = virginIn(of) && !S.virginUsed && !S.day.noms.some(n => n.virgin) ? "virgin" : "vote";
-  S.day.draft = d;
+  S.day.draft = d; S.day.nomsOpen = true;
   S.day.hands = (S.day.hands || []).filter(h => h.by !== by);
 }
 function lobbyBase() {
-  return { t: "lobby", gameId: S.gameId, dayInfo: dayInfo(), day: chatDay(), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
+  return { t: "lobby", gameId: S.gameId, dayInfo: dayInfo(), day: chatDay(), noms: nomsOpen(), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
     players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), online: !!town.players[p.id], busy: inChat(p.id), dead: !!(S.dead || {})[p.id] })),
     chats: town.chats.map(c => [c.a, c.b]) };
 }
@@ -2035,7 +2041,8 @@ document.addEventListener("click", ev => {
     case "yn": S.night.cur.info.yes = el.dataset.v === "1"; break;
     case "st-kill": { const c = S.night.cur; c.stKilled = true; c.kills = [{ pid: c.stTarget, dies: true, why: "", instead: "" }]; nextStep(true); break; }
     case "reveal": ui.reveal = !ui.reveal; ui.sel = null; break;
-    case "nom-new": S.day.draft = { stage: "by", votes: [] }; break;
+    case "nom-new": S.day.draft = { stage: "by", votes: [] }; S.day.nomsOpen = true; break;
+    case "noms-open": S.day.nomsOpen = true; break;
     case "nom-cancel": S.day.draft = null; break;
     case "nom-by": S.day.draft.by = el.dataset.pid; S.day.draft.stage = "of"; break;
     case "hand-start": { const h = validHands()[i]; if (h) startNomination(h.by, h.of); break; }

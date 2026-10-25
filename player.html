@@ -762,11 +762,11 @@ function linkCard() {
   if (!me) return `<section class="card">${head}${seatPick(lb)}</section>`;
   const ch = link.chat;
   const rows = lb.players.filter(p => p.id !== me).map(p => {
-    const can = lb.day && p.online && !p.busy && !ch && !link.waiting;
+    const can = lb.day && (lb.chatOk || []).includes(p.id) && p.online && !p.busy && !ch && !link.waiting;
     return `<div class="claim"><span class="ico">${p.online ? "🟢" : "⚪"}</span><span style="flex:1"><b>${esc(p.name)}</b>${p.dead ? ` <span class="hint">(dead)</span>` : ""}${p.busy ? ` <span class="hint">· in a chat</span>` : ""}</span><button class="btn" data-act="chat-ask" data-pid="${p.id}" ${can ? "" : "disabled"}>💬 Chat</button></div>`;
   }).join("");
   return `<section class="card">${head}
-    <p class="hint">You're <b>${esc(lname(me))}</b>. ${lb.day ? "Tap 💬 to ask someone for a private chat. Only the two of you see what's said." : "Private chats open when the day starts."}</p>
+    <p class="hint">You're <b>${esc(lname(me))}</b>. ${!lb.day ? "Private chats open when the day starts." : lb.noms ? "📢 Nominations are open: you can only chat privately with your neighbours now." : "Tap 💬 to ask someone for a private chat. Only the two of you see what's said."}</p>
     ${ch ? `<button class="btn primary" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>` : ""}
     ${link.note ? `<p class="warn">${esc(link.note)}</p>` : ""}
     <div class="claims">${rows}</div></section>`;
@@ -774,6 +774,7 @@ function linkCard() {
 const seatPick = lb => `<p class="hint">Which one is you?</p><div class="pickgrid">${lb.players.map(p => `<button class="pick" data-act="link-seat" data-pid="${p.id}" ${p.online ? "disabled" : ""}>${esc(p.name)}${p.online ? "<small>joined</small>" : ""}</button>`).join("")}</div>`;
 
 // Requests, waiting and the chat itself, over the top of everything
+const msgsHtml = ch => ch.msgs.length ? ch.msgs.map(m => `<div class="msg ${m.me ? "me" : ""}">${esc(m.text)}</div>`).join("") : `<p class="hint">${ch.key ? "🔒 Say hello. Only the two of you can read this chat." : "🔒 Setting up a private line…"}</p>`;
 function chatBoxHtml() {
   if (link.incoming) return `<div class="chat-cover"><div class="chat-panel"><h2>💬 ${esc(lname(link.incoming.from))} would like a private chat</h2>
     <div class="row"><button class="btn primary" data-act="chat-yes">Accept</button><button class="btn" data-act="chat-nope">Decline</button></div></div></div>`;
@@ -783,7 +784,7 @@ function chatBoxHtml() {
   if (!ch || !link.open) return "";
   return `<div class="chat-cover"><div class="chat-panel chat">
     <div class="row"><h2 style="margin-right:auto">💬 ${esc(lname(ch.with))}</h2><button class="btn" data-act="chat-hide">Hide</button>${ch.ended ? `<button class="btn" data-act="chat-done">Close</button>` : `<button class="btn danger" data-act="chat-end">End chat</button>`}</div>
-    <div class="msgs" id="msgs">${ch.msgs.length ? ch.msgs.map(m => `<div class="msg ${m.me ? "me" : ""}">${esc(m.text)}</div>`).join("") : `<p class="hint">${ch.key ? "🔒 Say hello. Only the two of you can read this chat." : "🔒 Setting up a private line…"}</p>`}</div>
+    <div class="msgs" id="msgs">${msgsHtml(ch)}</div>
     ${ch.ended ? `<p class="warn">${esc(ch.ended)}</p>` : `<div class="add"><input type="text" id="chatIn" placeholder="Message" autocomplete="off" enterkeyhint="send" aria-label="Message"><button class="btn primary" data-act="chat-send">Send</button></div>`}
   </div></div>`;
 }
@@ -798,7 +799,7 @@ function handBarHtml() {
   }
   const mine = (D.hands || []).find(h => h[0] === me);
   if (mine) return `<div class="handbar"><p>✋ You want to nominate <b>${nm(mine[1])}</b>. Waiting for the Storyteller…</p><button class="btn" data-act="nom-cancel-mine">Put my hand down</button></div>`;
-  if (meP.dead || D.nominators.includes(me)) return "";
+  if (meP.dead || D.nominators.includes(me) || !D.open) return "";
   if (ui.nominating) return `<div class="handbar pick-nom"><p>Who do you nominate?</p>
     <div class="pickgrid">${lb.players.filter(p => !D.nominated.includes(p.id)).map(p => `<button class="pick" data-act="nominate" data-pid="${p.id}">${esc(p.name)}${p.id === me ? "<small>yourself</small>" : ""}</button>`).join("")}</div>
     <button class="btn" data-act="nom-cancel-mine">Cancel</button></div>`;
@@ -806,17 +807,28 @@ function handBarHtml() {
 }
 function renderLink() {
   const hb = $("handBar");
-  if (hb) { hb.innerHTML = handBarHtml(); document.body.classList.toggle("has-handbar", !!hb.innerHTML); }
+  if (hb) { const h = handBarHtml(); if (hb.innerHTML !== h) hb.innerHTML = h; document.body.classList.toggle("has-handbar", !!h); }
   const box = $("chatBox");
   if (box) {
-    const draft = $("chatIn") && $("chatIn").value;
-    box.innerHTML = chatBoxHtml();
-    if (draft && $("chatIn")) $("chatIn").value = draft;
-    const ms = $("msgs"); if (ms) ms.scrollTop = ms.scrollHeight;
-    if (link.chat && link.open) link.chat.unread = 0;
+    // Rebuilding the chat window would close the keyboard while typing: when only the messages
+    // have changed, update just the messages and leave the text box alone
+    const ch = link.chat, shape = JSON.stringify([link.incoming && link.incoming.id, link.waiting && link.waiting.id, ch && ch.id, ch && ch.ended, !!(ch && ch.key), link.open]);
+    const ms = $("msgs");
+    if (box.dataset.shape === shape && ms && ch) {
+      const list = msgsHtml(ch);
+      if (ms.innerHTML !== list) { ms.innerHTML = list; ms.scrollTop = ms.scrollHeight; }
+    } else {
+      const draft = $("chatIn") && $("chatIn").value, typing = document.activeElement && document.activeElement.id === "chatIn";
+      box.innerHTML = chatBoxHtml();
+      box.dataset.shape = shape;
+      if (draft && $("chatIn")) $("chatIn").value = draft;
+      if (typing && $("chatIn")) $("chatIn").focus();
+      const m2 = $("msgs"); if (m2) m2.scrollTop = m2.scrollHeight;
+    }
+    if (ch && link.open) ch.unread = 0;
   }
   const card = $("linkCard");
-  if (card) { const code = $("joinCode") && $("joinCode").value; card.innerHTML = linkCard(); if (code && $("joinCode")) $("joinCode").value = code; }
+  if (card) { const h = linkCard(); if (card.dataset.html !== h) { const code = $("joinCode") && $("joinCode").value; card.innerHTML = h; card.dataset.html = h; if (code && $("joinCode")) $("joinCode").value = code; } }
 }
 
 /* ---------- Actions ---------- */
