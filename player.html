@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#15121b">
+<script>try { const t = localStorage.getItem("botc-player-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <title>Player's Grimoire</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,8 +22,9 @@
   --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
 }
+/* Light mode: following the phone, unless the player has picked one with the ☀️/🌙 button */
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme="dark"]) {
     --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
     --fg: #231d2b; --muted: #6c6278; --brass: #94701f; --on-brass: #fff;
     --good: #2463c2; --evil: #be2a42; --unsure: #8a8095;
@@ -30,6 +32,14 @@
     --felt: radial-gradient(circle at 50% 45%, #ffffff 0%, #ebe5f0 70%, #e2dbe9 100%);
     color-scheme: light;
   }
+}
+:root[data-theme="light"] {
+  --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
+  --fg: #231d2b; --muted: #6c6278; --brass: #94701f; --on-brass: #fff;
+  --good: #2463c2; --evil: #be2a42; --unsure: #8a8095;
+  --townsfolk: #2463c2; --outsider: #2a92cc; --minion: #c0344b; --demon: #8a1428; --warn: #b7791f;
+  --felt: radial-gradient(circle at 50% 45%, #ffffff 0%, #ebe5f0 70%, #e2dbe9 100%);
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -43,6 +53,7 @@ button { cursor: pointer; }
 header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 header h1 { margin: 0 auto 0 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.6rem; }
 .home { text-decoration: none; color: var(--muted); font-size: 1.3rem; }
+.head-btns { display: flex; gap: 8px; }
 .steps { display: flex; gap: 6px; flex-wrap: wrap; }
 .steps span { font-size: .8rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); }
 .steps span.on { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
@@ -215,7 +226,14 @@ body.has-handbar .wrap { padding-bottom: 160px; }
 .token-big .ico { font-size: 5rem; line-height: 1; }
 .token-big.outsider { border-color: var(--outsider); } .token-big.evil { border-color: var(--evil); }
 @keyframes flip { from { transform: rotateY(90deg); } to { transform: none; } }
-.wait { text-align: center; }
+.welcome { text-align: center; justify-items: center; padding: 28px 18px; }
+.welcome h2 { font-size: 2rem; }
+.welcome .lead { font-size: 1.25rem; max-width: 34ch; }
+.welcome .hint { max-width: 40ch; margin: 0; }
+.welcome-ico { font-size: 4rem; line-height: 1; }
+.welcome-ico.pulse { animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.12); opacity: .75; } }
+@media (prefers-reduced-motion: reduce) { .welcome-ico.pulse { animation: none; } }
 footer { color: var(--muted); font-size: .8rem; text-align: center; }
 </style>
 </head>
@@ -225,7 +243,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
     <a class="home" href="index.html" aria-label="All apps">⌂</a>
     <h1>Player's Grimoire</h1>
     <nav class="steps" id="steps" aria-label="Steps"></nav>
-    <button class="btn" data-act="sheet-open" aria-label="Characters on the script">📜 Characters</button>
+    <span class="head-btns"><button class="btn" data-act="sheet-open" aria-label="Characters on the script">📜 Characters</button><button class="btn" id="themeBtn" data-act="theme"></button></span>
   </header>
   <main id="app"></main>
   <div id="chatBox"></div>
@@ -247,6 +265,22 @@ const scriptChars = (teams = TEAMS) => teams.flatMap(t => SCRIPTS[S.script].role
 // Phases: 0 is Night 1, 1 is Day 1, 2 is Night 2…
 const phaseName = ph => `${ph % 2 ? "Day" : "Night"} ${Math.floor(ph / 2) + 1}`;
 
+/* ---------- Light and dark ---------- */
+const isDark = () => document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : !matchMedia("(prefers-color-scheme: light)").matches;
+function themeBtn() {
+  const d = isDark(), b = $("themeBtn");
+  b.textContent = d ? "☀️ Light" : "🌙 Dark";
+  b.setAttribute("aria-label", d ? "Switch to light mode" : "Switch to dark mode");
+  document.querySelector('meta[name="theme-color"]').content = d ? "#15121b" : "#f1eef4";
+}
+function toggleTheme() {
+  const t = isDark() ? "light" : "dark";
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("botc-player-theme", t); } catch (e) {}
+  themeBtn();
+}
+matchMedia("(prefers-color-scheme: light)").addEventListener("change", themeBtn);
+
 /* ---------- State ---------- */
 const LS = "botc-player-v1";
 const fresh = () => ({ step: "players", script: "tb", players: [], me: "", role: "", side: "", ph: 0, P: {}, info: [], bluffs: ["", "", ""], myBluff: "" });
@@ -264,8 +298,10 @@ const aliveIds = () => S.players.map(p => p.id).filter(q => !about(q).dead);
 /* ---------- Screens ---------- */
 function render() {
   const steps = [["players", "Players"], ["token", "My token"], ["grim", S.side === "evil" ? "Evil" : "Grimoire"]];
-  $("steps").innerHTML = steps.map(([k, l]) => `<span class="${S.step === k || (k === "token" && S.step === "reveal") ? "on" : ""}">${l}</span>`).join("");
-  $("app").innerHTML = S.step === "players" ? playersHtml() : S.step === "reveal" ? revealHtml() : S.step === "token" ? (L.code && link.lobby && link.lobby.you && !ui.pickOwn ? waitHtml() : tokenHtml()) : S.side === "evil" ? evilGrimHtml() : grimHtml();
+  // Joined with a code, the steps happen by themselves: welcome, wait for the token, then the Grimoire
+  $("steps").innerHTML = L.code || (S.step === "players" && !S.manual) ? "" : steps.map(([k, l]) => `<span class="${S.step === k || (k === "token" && S.step === "reveal") ? "on" : ""}">${l}</span>`).join("");
+  themeBtn();
+  $("app").innerHTML = S.step === "players" ? (L.code || !S.manual ? welcomeHtml() : playersHtml()) : S.step === "reveal" ? revealHtml() : S.step === "token" ? (L.code && !ui.pickOwn ? waitHtml() : tokenHtml()) : S.side === "evil" ? evilGrimHtml() : grimHtml();
   const tc = $("talkCard"); if (tc) { tc.innerHTML = talkCardHtml(); tc.dataset.shape = tc.innerHTML ? "on" : ""; }
   save();
 }
@@ -283,11 +319,8 @@ function playersHtml() {
       </span>
     </div>`).join("");
   const ready = n >= 5 && S.me;
-  if (L.code) return `<div id="linkCard">${linkCard()}</div>`;
-  return `<div id="linkCard">${linkCard()}</div>
-  <section class="card">
-    <h2>Who's playing?</h2>
-    ${link.lobby ? `<p class="hint">The players come from the Storyteller's game.</p>` : `<p class="hint">Or type the names yourself.</p>`}
+  return `<section class="card">
+    <div class="row"><h2 style="margin-right:auto">Who's playing?</h2><button class="btn" data-act="welcome">← Join with a code</button></div>
     <label class="field"><span class="label">Script</span>
       <select data-script>${Object.entries(SCRIPTS).map(([k, v]) => `<option value="${k}" ${S.script === k ? "selected" : ""}>${v.name}</option>`).join("")}</select>
     </label>
@@ -306,13 +339,29 @@ function playersHtml() {
   </section>`;
 }
 
+const joinCount = () => { const lb = link.lobby; return lb ? `📱 ${lb.players.filter(p => p.online).length} of ${lb.players.length} players have joined.` : link.status === "on" ? "" : "Connecting to the Storyteller…"; };
+// The first thing a player sees: join the Storyteller's game with the code (or the QR code on the TV)
+function welcomeHtml() {
+  const lb = link.lobby;
+  return `<section class="card welcome">
+    <div class="welcome-ico" aria-hidden="true">🕯️</div>
+    <h2>Welcome to the town</h2>
+    <p class="lead">${L.code ? (lb ? "Tap your name to take your seat." : "Finding the Storyteller's game…") : "Scan the QR code on the TV, or type the code the Storyteller gives you."}</p>
+    <p class="hint">Your character comes to this phone, then your own Grimoire opens: notes on everyone, what you've learnt, private chats and voting.</p>
+  </section>
+  <div id="linkCard">${linkCard()}</div>
+  ${L.code ? "" : `<p class="hint" style="text-align:center">No code? <button class="btn" data-act="manual">Set up the players myself</button></p>`}`;
+}
 // Waiting for the Storyteller to deal the tokens to everyone's phones
 function waitHtml() {
-  return `<section class="card wait">
-    <h2>Waiting for your token…</h2>
-    <p class="lead">The Storyteller will send your character to this phone. Keep it close, and keep it to yourself.</p>
-    <p class="hint">Got a token from the Storyteller in your hand instead? <button class="btn" data-act="pick-own">Choose it myself</button></p>
-  </section><div id="linkCard">${linkCard()}</div>`;
+  return `<section class="card welcome">
+    <div class="welcome-ico pulse" aria-hidden="true">🎟️</div>
+    <h2>Welcome, ${esc(nameOf(S.me))}</h2>
+    <p class="lead">You're in. Waiting for the Storyteller to hand out the tokens…</p>
+    <p class="hint" id="joinCount">${joinCount()}</p>
+    <p class="hint">Your character will appear here. Keep your phone close, and keep it to yourself.</p>
+  </section><div id="linkCard">${linkCard()}</div>
+  <p class="hint" style="text-align:center">Holding a real token from the Storyteller instead? <button class="btn" data-act="pick-own">Choose it myself</button></p>`;
 }
 // The token arrives: tap to see it, so nobody nearby catches a glimpse
 function revealHtml() {
@@ -868,6 +917,7 @@ function renderLink() {
     if (tc.dataset.shape === shape && shape) { const sl = $("sayList"), list = sayHtml(link.lobby); if (sl && sl.innerHTML !== list) { sl.innerHTML = list; sl.scrollTop = sl.scrollHeight; } }
     else { tc.innerHTML = h; tc.dataset.shape = shape; const sl = $("sayList"); if (sl) sl.scrollTop = sl.scrollHeight; }
   }
+  const jc = $("joinCount"); if (jc && jc.textContent !== joinCount()) jc.textContent = joinCount();
   const card = $("linkCard");
   if (card) { const h = linkCard(); if (card.dataset.html !== h) { const code = $("joinCode") && $("joinCode").value; card.innerHTML = h; card.dataset.html = h; if (code && $("joinCode")) $("joinCode").value = code; } }
 }
@@ -912,13 +962,16 @@ document.addEventListener("click", ev => {
     case "unpeek": ui.peek = false; break;
     case "pick-own": ui.pickOwn = true; break;
     case "link-join": { const c = ($("joinCode").value || "").trim().toUpperCase(); if (!c) return; L.code = c; L.pid = ""; saveLink(); link.asked = false; linkStart(); return; }
-    case "link-leave": if (!confirm("Leave the Storyteller's game? You can join again with the code.")) return; linkStop(); return;
+    case "link-leave": if (!confirm("Leave the Storyteller's game? You can join again with the code.")) return; linkStop(); if (S.step === "token" && !S.role) S.step = "players"; break;
     case "link-seat": link.err = ""; joinAs(pid); return;
     case "chat-ask": link.note = ""; toHost({ t: "chat-req", to: pid }); return;
     case "chat-cancel": toHost({ t: "chat-cancel", id: link.waiting.id }); link.waiting = null; renderLink(); return;
     case "chat-yes": toHost({ t: "chat-ans", id: link.incoming.id, ok: true }); link.incoming = null; renderLink(); return;
     case "chat-nope": toHost({ t: "chat-ans", id: link.incoming.id, ok: false }); link.incoming = null; renderLink(); return;
     case "chat-send": return sendChat();
+    case "theme": toggleTheme(); return;
+    case "manual": S.manual = true; break;
+    case "welcome": S.manual = false; break;
     case "sheet-open": { const b = $("sheetBox"); b.innerHTML = sheetHtml(); b.hidden = false; document.body.style.overflow = "hidden"; b.querySelector(".sheet-list").scrollTop = 0; return; }
     case "sheet-close": $("sheetBox").hidden = true; document.body.style.overflow = ""; return;
     case "say-send": return sendSay();
