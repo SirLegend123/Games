@@ -240,6 +240,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <header>
     <h1>Storyteller</h1>
     <nav class="steps" id="steps" aria-label="Steps"></nav>
+    <button class="btn" id="newBtn" data-act="new-game">＋ New game</button>
     <button class="btn" id="townBtn" data-act="town-open" aria-label="Town Square">📺</button>
   </header>
   <div id="townBox"></div>
@@ -1697,7 +1698,7 @@ function sendLobby(force) {
   for (const pid of Object.keys(town.players)) tellPlayer(pid, { ...base, you: pid });
 }
 function lobbyBase() {
-  return { t: "lobby", day: chatDay(), label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
+  return { t: "lobby", day: chatDay(), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
     players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), online: !!town.players[p.id], busy: inChat(p.id), dead: !!(S.dead || {})[p.id] })),
     chats: town.chats.map(c => [c.a, c.b]) };
 }
@@ -1953,7 +1954,14 @@ document.addEventListener("click", ev => {
     case "show-hide": show.step = "handback"; break;
     case "show-close": show = null; break;
     case "redraw": if (!confirm("Clear everyone's characters and go back to the bag?")) return; S.drawn = {}; S.step = "bag"; ui.sel = null; break;
-    case "new-game": if (!confirm("Start a new game? The players stay; the bag and characters are cleared.")) return; S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn, townCode: S.townCode }; break;
+    case "new-game": {
+      const playing = S.step !== "players" || S.bag.length;
+      if (playing && !confirm(S.over ? "Start a new game with the same players?" : "Start a new game? This game ends now. The players stay; the bag, characters and everything that has happened are cleared.")) return;
+      S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn, townCode: S.townCode, linkSecrets: S.linkSecrets };
+      Object.assign(T, { end: 0, left: 0, total: 0, rang: false });
+      Object.assign(ui, { sel: null, reveal: false, story: false, timerOpen: false }); show = null;
+      break;
+    }
     default: return;
   }
   render();

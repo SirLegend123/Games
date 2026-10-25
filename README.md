@@ -4,6 +4,8 @@ Open `index.html` to choose between the *Blood on the Clocktower* apps: the **St
 
 ## Storyteller: face to face
 
+**＋ New game** at the top starts again at any point (asking first if a game is under way), keeping the players.
+
 A *Blood on the Clocktower* Storyteller app for games round a real table. Open `storyteller.html` (or `index.html`) in any browser; nothing to install. The game is saved on the device as you go.
 
 1. **Players**: choose the script (Trouble Brewing, Bad Moon Rising or Sects & Violets) and add everyone in seat order, clockwise. Type names one at a time or several separated by commas. Move or remove players with the arrows and ×. Shows how many Townsfolk, Outsiders, Minions and Demon 5 to 15 players need.
@@ -43,7 +45,7 @@ A *Blood on the Clocktower* Storyteller app for games round a real table. Open `
 
 A *Blood on the Clocktower* app for each player at a real table. Open `player.html`. Everything is saved on the device.
 
-1. **Players**: choose the script and add everyone in seat order, clockwise, including yourself (several at once with commas). Tap **Me** next to your own name.
+1. **Players**: if the Storyteller is sharing the game, type their code in **🔗 Join the game** and tap which player is you: the script and the players fill in by themselves, in seat order, and from then on deaths and the night and day follow the Storyteller's game (your own notes, claims and reads are kept). Otherwise, choose the script and add everyone in seat order, clockwise, including yourself (several at once with commas). Tap **Me** next to your own name.
 2. **My token**: once the Storyteller hands you your character, tap it (its ability is shown), then choose your side: **Good** or **Evil**. You can come back and change either later.
 3. **Grimoire** (good players):
    - **The circle**: every player in their seat, showing the character they claim (with its symbol), your read of them (blue for trust, grey for unsure, red for suspect, a darker red and a **Demon?** badge for your Demon guess), whether they're dead and whether they still have their ghost vote. You're marked ★ with your own character. The middle shows the phase, how many are alive and the votes needed to execute.
@@ -80,7 +82,7 @@ A live public view of the Storyteller's game for a TV, projector or spare tablet
 
 Players can link the Player app to the Storyteller's game and text each other privately during the day.
 
-- **Joining**: in the Player app's Grimoire, the **🔗 Join the game** card takes the same code as the Town Square. The app joins you as the player with your name (or asks which one is you). Only one device can be each player: once you've joined as Sophie, nobody else can.
+- **Joining**: on the Player app's first screen or in its Grimoire, the **🔗 Join the game** card takes the same code as the Town Square. The app joins you as the player with your name (or asks which one is you). Only one device can be each player: once you've joined as Sophie, nobody else can.
 - **Chatting**: during the day, tap **💬 Chat** next to a player. They get a request on their phone to **Accept** or **Decline**. Once accepted, you text each other in a chat window; **Hide** tucks it away (new messages show on the button) and **End chat** finishes it. One chat at a time each.
 - **Day only**: the Storyteller's app only allows chats during the day, and ends every chat when night falls.
 - **Private**: the messages go straight between the two players' devices. The Storyteller's app passes on the request and knows who is talking to whom (shown on the Town Square and on the 📺 card), but never sees what is said.
