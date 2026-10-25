@@ -1,6 +1,6 @@
 # Games
 
-Open `index.html` to choose between the two *Blood on the Clocktower* apps: the **Storyteller** and the **Player**. They share their character list (`characters.js`).
+Open `index.html` to choose between the *Blood on the Clocktower* apps: the **Storyteller**, the **Town Square** and the **Player**. They share their character list (`characters.js`).
 
 ## Storyteller: face to face
 
@@ -60,4 +60,18 @@ A *Blood on the Clocktower* app for each player at a real table. Open `player.ht
    - **Who to kill** (Demons): living players not on your team, most dangerous first.
    - **My cover story**: a log by night and day of what really happened and, kept apart, what you'll say (🗣️), so your story stays the same.
    - **What the town claims**: every good player's claim, with double claims and claims of your bluffs flagged.
+
+## Town Square
+
+A live public view of the Storyteller's game for a TV, projector or spare tablet. Open `town.html`.
+
+- **Linking up**: on the Storyteller app, tap **📺** and **Start sharing**. It shows a 5-letter code. Type the code into the Town Square and it connects; the 📺 button turns blue and says how many screens are connected. Both devices need the internet to find each other (through the free PeerJS service); after that the game goes straight between them. If either side reloads or drops out, they reconnect by themselves, and sharing carries on into the next game. A Town Square open in another window on the same device works without a code.
+- **What it shows**, always big enough to read across a room:
+  - **Setting up / drawing**: the players, then how many have drawn their character.
+  - **Night**: a dark "Night 2: everyone, close your eyes" screen.
+  - **Dawn**: the red dawn screen with who was found dead.
+  - **Day**: the seating circle with names, deaths and ghost votes; the nominator and nominee highlighted while a vote is on, with everyone who has raised a hand lit up and the count against the votes needed; who's on the block; today's nominations and Slayer shots; who was executed. The discussion timer shows alongside, or full screen when the Storyteller opens it.
+  - **Game over**: who won and why, and the whole Grimoire revealed.
+- **Privacy**: the Storyteller app only ever sends public information. Nobody's character leaves the Storyteller's device until the game is over, so there's nothing to find on the Town Square screen.
+- **Full screen** and **Change code** are in the corner.
 
