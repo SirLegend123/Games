@@ -161,6 +161,16 @@ label.field, .field { display: grid; gap: 6px; }
 .log li.cover { border-left: 4px solid var(--brass); }
 /* Night steps sent from the Storyteller: big, and tinted with my team's colour */
 .night-ov { position: fixed; inset: 0; z-index: 60; overflow-y: auto; display: grid; place-items: center; padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); color: #f6f2fa; --fg: #f6f2fa; --muted: #ddd3e8; --surface: rgba(0,0,0,.3); --surface-2: rgba(0,0,0,.2); --line: rgba(255,255,255,.3); --brass: #f0c66a; --on-brass: #1a1408; background: #120f17; }
+/* The night screen while you sleep, and the dawn news */
+#sleepBox .night-ov { z-index: 35; }
+#sleepBox .night-ov.dawn { z-index: 45; } /* the dawn news comes over an open chat */
+.night-ov.sleep { background: radial-gradient(circle at 50% 30%, #1d2547 0%, #0e1226 60%, #06070f 100%); }
+.night-ov.dawn { background: radial-gradient(circle at 50% 35%, #9b1b2f 0%, #5c0d1a 55%, #2a050c 100%); --brass: #ffd27a; }
+.night-ov.dawn h1 { color: #fff1e0; }
+.night-ov .moon { font-size: 4.5rem; line-height: 1; }
+.night-ov .btn small { display: block; font-size: .8rem; font-weight: 500; opacity: .8; }
+.notice-dead { margin: 0; font-size: 1.15rem; background: rgba(0,0,0,.3); border: 2px solid #ffd27a; border-radius: 12px; padding: 10px 14px; }
+.night-pill { position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 35; background: #0e1226; color: #f6f2fa; border: 2px solid #f0c66a; border-radius: 999px; padding: 8px 16px; font-weight: 800; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
 .night-ov.tint-evil { background: radial-gradient(circle at 50% 35%, #8a1a2c 0%, #4a0c17 55%, #24050b 100%); }
 .night-ov.tint-townsfolk { background: radial-gradient(circle at 50% 35%, #2456a8 0%, #12305f 55%, #0a1730 100%); }
 .night-ov.tint-outsider { background: radial-gradient(circle at 50% 35%, #49a6dc 0%, #1d628c 55%, #0d3149 100%); }
@@ -248,6 +258,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <main id="app"></main>
   <div id="chatBox"></div>
   <div id="handBar"></div>
+  <div id="sleepBox" hidden></div>
   <div id="sheetBox" class="chat-cover" hidden role="dialog" aria-modal="true" aria-label="Characters on the script"></div>
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
@@ -823,11 +834,11 @@ function linkCard() {
   if (!me) return `<section class="card">${head}${seatPick(lb)}</section>`;
   const ch = link.chat;
   const rows = lb.players.filter(p => p.id !== me).map(p => {
-    const can = lb.day && (lb.chatOk || []).includes(p.id) && p.online && !p.busy && !ch && !link.waiting;
+    const can = (lb.day || lb.night) && (lb.chatOk || []).includes(p.id) && p.online && !p.busy && !ch && !link.waiting;
     return `<div class="claim"><span class="ico">${p.online ? "🟢" : "⚪"}</span><span style="flex:1"><b>${esc(p.name)}</b>${p.dead ? ` <span class="hint">(dead)</span>` : ""}${p.busy ? ` <span class="hint">· in a chat</span>` : ""}</span><button class="btn" data-act="chat-ask" data-pid="${p.id}" ${can ? "" : "disabled"}>💬 Chat</button></div>`;
   }).join("");
   return `<section class="card">${head}
-    <p class="hint">You're <b>${esc(lname(me))}</b>. ${!lb.day ? "Private chats open when the day starts." : lb.phase ? `${lb.phase === 2 ? "📢 Nominations" : "🗣️ Public discussion"}: you can only chat privately with your neighbours now.` : "💬 Private chats: tap 💬 to ask anyone for a private chat. Only the two of you see what's said."}</p>
+    <p class="hint">You're <b>${esc(lname(me))}</b>. ${lb.night ? "🌙 Night: you can only chat privately with your neighbours." : !lb.day ? "Private chats open when the day starts." : lb.phase ? `${lb.phase === 2 ? "📢 Nominations" : "🗣️ Public discussion"}: you can only chat privately with your neighbours now.` : "💬 Private chats: tap 💬 to ask anyone for a private chat. Only the two of you see what's said."}</p>
     ${ch ? `<button class="btn primary" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>` : ""}
     ${link.note ? `<p class="warn">${esc(link.note)}</p>` : ""}
     <div class="claims">${rows}</div></section>`;
@@ -870,6 +881,36 @@ function sheetHtml() {
   return `<div class="chat-panel sheet"><div class="row"><h2 style="margin-right:auto">📜 ${esc(sc.name)}</h2><button class="btn" data-act="sheet-close">Close</button></div>
     ${c ? `<p class="hint">${n} players: ${TEAMS.map((t, i) => `${c[i]} ${c[i] === 1 ? TEAM_ONE[t] : TEAM_LABEL[t]}`).join(" · ")}. * means not the first night.</p>` : `<p class="hint">* means not the first night.</p>`}
     <div class="sheet-list">${TEAMS.map(t => `<h3 class="sh-${t}">${TEAM_LABEL[t]}</h3>${sc.roles[t].map(([name, icon, text]) => `<div class="sh-r ${name === S.role ? "mine" : ""}"><span class="ico">${icon}</span><div><b>${esc(name)}</b>${name === S.role ? ` <span class="tag">You</span>` : ""}<br><span class="hint">${esc(text)}</span></div></div>`).join("")}`).join("")}</div></div>`;
+}
+// 🌙 At night: close your eyes, with quiet chats to your neighbours. 🌅 At dawn: who died in the night.
+function neighboursOf(lb, me) {
+  const ids = lb.players.map(p => p.id), i = ids.indexOf(me), n = ids.length;
+  if (i < 0 || n < 2) return [];
+  return [...new Set([ids[(i + n - 1) % n], ids[(i + 1) % n]])].map(id => lb.players.find(p => p.id === id));
+}
+function sleepHtml() {
+  const lb = link.lobby, me = lb && lb.you;
+  if (!me || S.step !== "grim") return "";
+  if (lb.dawn && ui.dawnSeen !== `${lb.gameId}:${lb.dawn.n}`) {
+    const ids = lb.dawn.ids, mine = ids.includes(me);
+    return `<div class="night-ov dawn"><div class="draw-inner"><p class="lead">Wake up, everyone. It's the dawn of</p><h1>Day ${lb.dawn.n}</h1>
+      ${ids.length ? `<p class="lead">In the night…</p>${ids.map(id => `<div class="nmchip">💀 ${esc(lname(id))}</div>`).join("")}<p class="lead">${ids.length === 1 ? "was" : "were"} found dead.</p>`
+        : `<h1>Nobody died</h1><p class="lead">The whole town survived the night.</p>`}
+      ${mine ? `<p class="notice-dead">That's you. You're dead, but you can still talk, and you have one ghost vote left.</p>` : ""}
+      <button class="btn primary huge" data-act="dawn-ok">Continue</button></div></div>`;
+  }
+  if (!lb.night) return "";
+  if (ui.nightPeek === `${lb.gameId}:${lb.night}`) return `<button class="night-pill" data-act="night-unpeek">🌙 Night ${lb.night} · Back to the night screen</button>`;
+  const ch = link.chat, nb = neighboursOf(lb, me);
+  return `<div class="night-ov sleep"><div class="draw-inner">
+    <div class="moon" aria-hidden="true">🌙</div><h1>Night ${lb.night}</h1>
+    <p class="lead">Close your eyes. The Storyteller will wake you if you need to act.</p>
+    ${ch && !ch.ended ? `<button class="btn primary huge" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>`
+      : `<p class="hint">Quietly message a neighbour:</p>
+      <div class="draw-foot">${nb.map(p => `<button class="btn huge" data-act="chat-ask" data-pid="${p.id}" ${(lb.chatOk || []).includes(p.id) && p.online && !p.busy && !link.waiting ? "" : "disabled"}>💬 ${esc(p.name)}${!p.online ? "<small>not here</small>" : p.busy ? "<small>in a chat</small>" : ""}</button>`).join("")}</div>`}
+    ${link.note ? `<p class="warn">${esc(link.note)}</p>` : ""}
+    <button class="btn" data-act="night-peek">📖 My Grimoire</button>
+  </div></div>`;
 }
 function handBarHtml() {
   const lb = link.lobby, me = lb && lb.you, D = lb && lb.dayInfo;
@@ -917,6 +958,8 @@ function renderLink() {
     if (tc.dataset.shape === shape && shape) { const sl = $("sayList"), list = sayHtml(link.lobby); if (sl && sl.innerHTML !== list) { sl.innerHTML = list; sl.scrollTop = sl.scrollHeight; } }
     else { tc.innerHTML = h; tc.dataset.shape = shape; const sl = $("sayList"); if (sl) sl.scrollTop = sl.scrollHeight; }
   }
+  const sb = $("sleepBox");
+  if (sb) { const h = sleepHtml(); if (sb.dataset.html !== h) { const was = sb.dataset.html || ""; sb.innerHTML = h; sb.dataset.html = h; sb.hidden = !h; if (h && !was.includes("night-ov") && h.includes("night-ov")) buzz(); } }
   const jc = $("joinCount"); if (jc && jc.textContent !== joinCount()) jc.textContent = joinCount();
   const card = $("linkCard");
   if (card) { const h = linkCard(); if (card.dataset.html !== h) { const code = $("joinCode") && $("joinCode").value; card.innerHTML = h; card.dataset.html = h; if (code && $("joinCode")) $("joinCode").value = code; } }
@@ -970,6 +1013,9 @@ document.addEventListener("click", ev => {
     case "chat-nope": toHost({ t: "chat-ans", id: link.incoming.id, ok: false }); link.incoming = null; renderLink(); return;
     case "chat-send": return sendChat();
     case "theme": toggleTheme(); return;
+    case "dawn-ok": ui.dawnSeen = `${link.lobby.gameId}:${link.lobby.dawn.n}`; renderLink(); return;
+    case "night-peek": ui.nightPeek = `${link.lobby.gameId}:${link.lobby.night}`; renderLink(); return;
+    case "night-unpeek": ui.nightPeek = ""; renderLink(); return;
     case "manual": S.manual = true; break;
     case "welcome": S.manual = false; break;
     case "sheet-open": { const b = $("sheetBox"); b.innerHTML = sheetHtml(); b.hidden = false; document.body.style.overflow = "hidden"; b.querySelector(".sheet-list").scrollTop = 0; return; }

@@ -1768,8 +1768,10 @@ const phaseMins = k => (S.phaseMins || [])[k] || PHASES[k].mins;
 const dayPhase = () => { const D = S.day; if (!D) return 0; const d = D.draft; return D.done || D.noms.length || (d && !d.stage.startsWith("slayer")) || D.nomsOpen ? 2 : D.phase || 0; };
 const nomsOpen = () => chatDay() && !!S.day && dayPhase() === 2;
 const seatNeighbours = (a, b) => { const ids = S.players.map(p => p.id), n = ids.length, i = ids.indexOf(a), j = ids.indexOf(b); return i >= 0 && j >= 0 && (Math.abs(i - j) === 1 || Math.abs(i - j) === n - 1); };
-const canChat = (a, b) => chatDay() && (dayPhase() === 0 || seatNeighbours(a, b));
-const chatWhy = () => !chatDay() ? "Private chats are only allowed during the day." : `${PHASES[dayPhase()].name}: you can only chat with your neighbours now.`;
+// At night, players can quietly message the neighbours either side of them
+const chatNight = () => S.step === "night" && !S.over;
+const canChat = (a, b) => (chatDay() && (dayPhase() === 0 || seatNeighbours(a, b))) || (chatNight() && seatNeighbours(a, b));
+const chatWhy = () => chatNight() ? "At night you can only chat with your neighbours." : !chatDay() ? "Private chats aren't open yet." : `${PHASES[dayPhase()].name}: you can only chat with your neighbours now.`;
 // Set the timer for a part of the day; it starts straight away when the Storyteller moves on to it
 function phaseTimer(k, run) {
   const ms = phaseMins(k) * 60000;
@@ -1897,7 +1899,7 @@ function refreshJoin() {
 }
 function sendLobby(force) {
   // End the chats that aren't allowed any more: at night, or between non-neighbours once nominations open
-  const why = !chatDay() ? "Night has fallen. Private chats are over." : `${PHASES[dayPhase()].started} Private chats are over, except between neighbours.`;
+  const why = chatNight() ? "Night has fallen. Private chats are over, except between neighbours." : !chatDay() ? "Private chats are over." : `${PHASES[dayPhase()].started} Private chats are over, except between neighbours.`;
   town.chats.filter(x => !canChat(x.a, x.b)).forEach(x => endChat(x.id, why));
   for (const [id, r] of Object.entries(town.reqs)) if (!canChat(r.from, r.to)) { delete town.reqs[id]; tellPlayer(r.to, { t: "chat-gone", id }); tellPlayer(r.from, { t: "chat-no", to: r.to, why }); }
   const base = lobbyBase();
@@ -1930,7 +1932,8 @@ function startNomination(by, of) {
   S.day.hands = (S.day.hands || []).filter(h => h.by !== by);
 }
 function lobbyBase() {
-  return { t: "lobby", gameId: S.gameId, dayInfo: dayInfo(), day: chatDay(), noms: nomsOpen(), phase: chatDay() ? dayPhase() : null, say: sayList(30), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
+  return { t: "lobby", gameId: S.gameId, dayInfo: dayInfo(), day: chatDay(), night: chatNight() ? S.n : null,
+    dawn: S.announce && S.step === "day" && !S.over ? { n: S.announce.n, ids: S.announce.pids } : null, noms: nomsOpen(), phase: chatDay() ? dayPhase() : null, say: sayList(30), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
     players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), online: !!town.players[p.id], busy: inChat(p.id), dead: !!(S.dead || {})[p.id] })),
     chats: town.chats.map(c => [c.a, c.b]) };
 }
