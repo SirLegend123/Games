@@ -1132,6 +1132,14 @@ function checkOver(before, ctx) {
   const w = winCheck(ctx);
   if (w) { S.over = { ...w, before }; ui.sel = null; }
 }
+// Reveal each player's character on the Town Square, one at a time, in whatever order makes the best ending
+function revealCard() {
+  const shown = S.revealed || [];
+  return `<div class="field"><span class="label">📺 Reveal on the Town Square</span>
+    <div class="pickgrid">${S.players.map(p => { const on = shown.includes(p.id); return `<button class="pick ${on ? "" : ""}" data-act="reveal-one" data-pid="${p.id}" aria-pressed="${on}">${esc(nameOf(p.id))}<small>${on ? esc(roleOf(p.id)) : "tap to reveal"}</small></button>`; }).join("")}</div>
+    <div class="row"><button class="btn" data-act="reveal-all" ${shown.length === S.players.length ? "disabled" : ""}>Reveal everyone</button>${shown.length ? `<button class="btn" data-act="reveal-none">Hide them all again</button>` : ""}</div>
+    <p class="hint">Each reveal flashes up big on the Town Square. Tap a revealed player again to hide them.</p></div>`;
+}
 function overHtml() {
   const o = S.over;
   if (ui.story) return `<section class="card story">
@@ -1145,6 +1153,7 @@ function overHtml() {
       <h1>${o.winner === "good" ? "Good wins!" : "Evil wins!"}</h1>
       <p class="lead">${esc(o.reason)}</p>
       <p class="hint">Reveal the Grimoire: everyone's character is on the circle.</p>
+      ${S.townOn ? revealCard() : ""}
       <button class="btn primary huge" data-act="story">📜 Read the story</button>
       <div class="row"><button class="btn" data-act="over-undo">← Undo: carry on playing</button><span class="spacer"></span><button class="btn primary" data-act="new-game">New game</button></div>
       ${historyHtml(true)}
@@ -1555,7 +1564,13 @@ setInterval(() => {
 // the timer and the dawn news. Characters are sent only once the game is over, for the reveal.
 function publicState() {
   const st = { v: 1, script: SCRIPTS[S.script].name, players: S.players.map(p => ({ id: p.id, name: nameOf(p.id) })) };
-  if (S.over) return { ...st, mode: "over", winner: S.over.winner, reason: S.over.reason, roles: S.players.map(p => ({ id: p.id, role: roleOf(p.id), side: sideOf(p.id), dead: !!S.dead[p.id] })) };
+  if (S.over) {
+    // Characters go out one at a time, as the Storyteller reveals them
+    const shown = S.revealed || [], all = shown.length === S.players.length;
+    return { ...st, mode: "over", winner: S.over.winner, reason: all ? S.over.reason : "", spot: S.spot || null,
+      dead: S.players.filter(p => S.dead[p.id]).map(p => p.id),
+      roles: S.players.filter(p => shown.includes(p.id)).map(p => ({ id: p.id, role: roleOf(p.id), side: sideOf(p.id), dead: !!S.dead[p.id] })) };
+  }
   if (S.draw) return { ...st, mode: "draw", drawn: S.players.length - S.draw.queue.length, total: S.players.length };
   if (!["night", "day"].includes(S.step)) return { ...st, mode: "setup" };
   const spent = S.step === "day" && S.day ? ghostSpent() : new Set(S.ghostSpent || []);
@@ -1571,14 +1586,15 @@ function publicState() {
     vote: d && d.stage === "vote" ? { by: d.by, of: d.of, votes: d.votes } : null,
     block: D.done ? null : { who: b.who, best: b.best },
     done: D.done, exec: D.done && D.exec ? { pid: D.exec.pid, dies: D.exec.dies, virgin: D.exec.cause === "nominated the Virgin" } : null,
-    timer: T.total ? { left: timerLeft(), running: !!T.end, total: T.total, big: !!ui.timerOpen } : null
+    timer: T.total ? { left: timerLeft(), running: !!T.end, total: T.total, big: !!ui.timerOpen } : null,
+    chats: town.chats.map(c => [c.a, c.b])
   };
 }
 const TOWN_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const townId = code => `clocktower-town-${code}`;
 // For testing against a local PeerJS server: ?peer=localhost:9000
 const peerOpts = () => { const h = new URLSearchParams(location.search).get("peer"); if (!h) return {}; const [host, port] = h.split(":"); return { host, port: Number(port) || 9000, path: "/", secure: false }; };
-let town = { peer: null, conns: [], status: "off", last: "" };
+let town = { peer: null, conns: [], status: "off", last: "", players: {}, chats: [], reqs: {}, lobby: "" };
 const townBC = "BroadcastChannel" in window ? new BroadcastChannel("clocktower-town") : null;
 function townStart() {
   if (!S.townCode) { S.townCode = Array.from({ length: 5 }, () => TOWN_CHARS[rnd(TOWN_CHARS.length)]).join(""); save(); }
@@ -1588,8 +1604,10 @@ function townStart() {
   const peer = town.peer = new Peer(townId(S.townCode), peerOpts());
   peer.on("open", () => { town.status = "on"; town.err = ""; renderTown(); });
   peer.on("connection", c => {
-    c.on("open", () => { town.conns.push(c); c.send(publicState()); renderTown(); });
-    c.on("close", () => { town.conns = town.conns.filter(x => x !== c); renderTown(); });
+    const isPlayer = c.metadata && c.metadata.kind === "player";
+    c.on("open", () => { if (isPlayer) c.send({ ...lobbyBase(), you: null }); else { town.conns.push(c); c.send(publicState()); } renderTown(); });
+    c.on("data", m => { if (isPlayer) fromPlayer(c, m); });
+    c.on("close", () => { town.conns = town.conns.filter(x => x !== c); if (isPlayer) playerLeft(c); renderTown(); });
   });
   peer.on("disconnected", () => { if (S.townOn && !peer.destroyed) setTimeout(() => peer.reconnect(), 2000); });
   peer.on("error", e => {
@@ -1599,17 +1617,101 @@ function townStart() {
     if (S.townOn && e.type !== "peer-unavailable") setTimeout(() => { if (S.townOn && town.status === "error") townStart(); }, 4000);
   });
 }
-function townStop() { S.townOn = false; if (town.peer) town.peer.destroy(); town = { peer: null, conns: [], status: "off", last: "" }; }
+function townStop() { S.townOn = false; if (town.peer) town.peer.destroy(); town = { peer: null, conns: [], status: "off", last: "", players: {}, chats: [], reqs: {}, lobby: "" }; }
+
+/* Players linked from the Player app, and their private chats.
+   The Storyteller only passes on requests and keeps track of who is talking to whom:
+   the messages go straight between the two players' devices and never come here. */
+const chatDay = () => S.step === "day" && !S.over;
+const tellPlayer = (pid, m) => { const P = town.players[pid]; if (P && P.conn.open) try { P.conn.send(m); } catch (e) {} };
+const inChat = pid => town.chats.some(c => c.a === pid || c.b === pid);
+function fromPlayer(c, m) {
+  if (!m || !m.t) return;
+  if (m.t === "join") {
+    const pid = m.pid;
+    if (!S.players.some(p => p.id === pid)) return c.send({ t: "error", why: "That seat isn't in this game." });
+    S.linkSecrets = S.linkSecrets || {};
+    if (S.linkSecrets[pid] && S.linkSecrets[pid] !== m.secret) return c.send({ t: "error", why: `Someone else has already joined as ${nameOf(pid)}.` });
+    S.linkSecrets[pid] = m.secret; save();
+    const old = town.players[pid];
+    if (old && old.conn !== c) try { old.conn.close(); } catch (e) {}
+    town.players[pid] = { conn: c, peer: c.peer };
+    c.pid = pid;
+    sendLobby(true); renderTown(); return;
+  }
+  const me = c.pid;
+  if (!me) return;
+  if (m.t === "chat-req") {
+    const to = m.to, no = why => c.send({ t: "chat-no", to, why });
+    if (!chatDay()) return no("Private chats are only allowed during the day.");
+    if (!town.players[to]) return no(`${nameOf(to)} isn't linked to the game.`);
+    if (inChat(me)) return no("You're already in a private chat.");
+    if (inChat(to)) return no(`${nameOf(to)} is already in a private chat.`);
+    const id = uid();
+    town.reqs[id] = { from: me, to };
+    c.send({ t: "chat-wait", id, to });
+    tellPlayer(to, { t: "chat-req", id, from: me });
+    return;
+  }
+  if (m.t === "chat-cancel" || m.t === "chat-ans") {
+    const r = town.reqs[m.id];
+    if (!r) return;
+    delete town.reqs[m.id];
+    if (m.t === "chat-cancel") return tellPlayer(r.to, { t: "chat-gone", id: m.id });
+    if (!m.ok) return tellPlayer(r.from, { t: "chat-no", to: r.to, why: `${nameOf(r.to)} said no.` });
+    if (!chatDay() || inChat(r.from) || inChat(r.to) || !town.players[r.from]) { tellPlayer(r.to, { t: "chat-gone", id: m.id }); return tellPlayer(r.from, { t: "chat-no", to: r.to, why: "The chat couldn't start." }); }
+    town.chats.push({ id: m.id, a: r.from, b: r.to });
+    tellPlayer(r.from, { t: "chat-open", id: m.id, with: r.to, peer: town.players[r.to].peer, call: true });
+    tellPlayer(r.to, { t: "chat-open", id: m.id, with: r.from, peer: town.players[r.from].peer, call: false });
+    sendLobby(true); townSend(true); renderTown();
+    return;
+  }
+  if (m.t === "chat-end") endChat(m.id, `${nameOf(me)} ended the chat.`);
+}
+function endChat(id, why) {
+  const ch = town.chats.find(x => x.id === id);
+  if (!ch) return;
+  town.chats = town.chats.filter(x => x !== ch);
+  for (const pid of [ch.a, ch.b]) tellPlayer(pid, { t: "chat-closed", id, why });
+  sendLobby(true); townSend(true); renderTown();
+}
+function playerLeft(c) {
+  const pid = c.pid;
+  if (!pid || !town.players[pid] || town.players[pid].conn !== c) return;
+  delete town.players[pid];
+  town.chats.filter(x => x.a === pid || x.b === pid).forEach(x => endChat(x.id, `${nameOf(pid)} left the game.`));
+  for (const [id, r] of Object.entries(town.reqs)) if (r.from === pid || r.to === pid) { delete town.reqs[id]; tellPlayer(r.from === pid ? r.to : r.from, { t: r.from === pid ? "chat-gone" : "chat-no", id, to: r.to, why: `${nameOf(pid)} left.` }); }
+  sendLobby(true);
+}
+// Who's here, who's busy, and whether it's daytime, for every linked player
+function sendLobby(force) {
+  if (!chatDay() && (town.chats.length || Object.keys(town.reqs).length)) {
+    town.chats.slice().forEach(x => endChat(x.id, "Night has fallen. Private chats are over."));
+    for (const [id, r] of Object.entries(town.reqs)) { tellPlayer(r.to, { t: "chat-gone", id }); tellPlayer(r.from, { t: "chat-no", to: r.to, why: "Night has fallen." }); }
+    town.reqs = {};
+  }
+  const base = lobbyBase();
+  const json = JSON.stringify(base);
+  if (!force && json === town.lobby) return;
+  town.lobby = json;
+  for (const pid of Object.keys(town.players)) tellPlayer(pid, { ...base, you: pid });
+}
+function lobbyBase() {
+  return { t: "lobby", day: chatDay(), label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
+    players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), online: !!town.players[p.id], busy: inChat(p.id), dead: !!(S.dead || {})[p.id] })),
+    chats: town.chats.map(c => [c.a, c.b]) };
+}
 // Send the public view to every Town Square screen, and to other windows on this device
 function townSend(force) {
   const st = publicState(), json = JSON.stringify(st);
   if (!force && json === town.last) return;
   town.last = json;
   if (townBC) townBC.postMessage(st);
+  sendLobby();
   town.conns = town.conns.filter(c => c.open);
   for (const c of town.conns) { try { c.send(st); } catch (e) {} }
 }
-setInterval(() => townSend(true), 4000);
+setInterval(() => { townSend(true); sendLobby(true); }, 4000);
 function townCard() {
   const url = location.href.replace(/storyteller\.html.*$/, "town.html");
   const n = town.conns.length;
@@ -1619,7 +1721,11 @@ function townCard() {
       <div class="town-code">${esc(S.townCode)}</div>
       <p class="hint"><b>${esc(url.replace(/^https?:\/\//, ""))}</b></p>
       <p class="${town.status === "error" ? "warn" : "hint"}">${town.status === "on" ? (n ? `✅ ${plural(n, "screen")} connected.` : "Waiting for a screen to connect…") : town.status === "error" ? esc(town.err || "Connection problem. Trying again…") : "Starting…"}</p>
-      <p class="hint">The Town Square shows names, deaths, ghost votes, nominations, votes, the timer and the dawn news. It never shows anyone's character until the game is over.</p>
+      <p class="hint">The Town Square shows names, deaths, ghost votes, nominations, votes, the timer and the dawn news. It never shows anyone's character until you reveal them at the end.</p>
+      <h3>Players linked</h3>
+      <p class="hint">Players can join from the Player app with the same code, and ask each other for private chats during the day. You see who is talking, never what they say.</p>
+      <p>${Object.keys(town.players).length ? esc(listJoin(Object.keys(town.players).map(nameOf))) : `<span class="hint">Nobody yet.</span>`}</p>
+      ${town.chats.length ? `<p>💬 ${town.chats.map(c => `${esc(nameOf(c.a))} ↔ ${esc(nameOf(c.b))}`).join(" · ")}</p>` : ""}
       <div class="row"><button class="btn danger" data-act="town-stop">Stop sharing</button></div>`
     : `<p class="hint">Show the town what's happening on a TV, projector or spare tablet, live: names, deaths, votes and the timer, but never anyone's character.</p>
       <div class="row"><button class="btn primary" data-act="town-start">Start sharing</button></div>`}
@@ -1815,6 +1921,9 @@ document.addEventListener("click", ev => {
       break;
     }
     case "over-undo": S = JSON.parse(S.over.before); ui.story = false; break;
+    case "reveal-one": { const r = S.revealed || [], q = el.dataset.pid; S.revealed = r.includes(q) ? r.filter(x => x !== q) : [...r, q]; if (!r.includes(q)) S.spot = { id: q, at: Date.now() }; break; }
+    case "reveal-all": S.revealed = S.players.map(p => p.id); S.spot = null; break;
+    case "reveal-none": S.revealed = []; S.spot = null; break;
     case "story": ui.story = !ui.story; break;
     case "story-copy": {
       const text = storyText();
@@ -1848,7 +1957,7 @@ document.addEventListener("click", ev => {
     default: return;
   }
   render();
-  if (!["timer-set", "timer-add", "timer-go", "timer-reset", "np-pick", "np-char", "num", "truth", "info-toggle", "side", "dead", "unrem", "vote", "reveal", "kill-set", "yn"].includes(el.dataset.act)) window.scrollTo({ top: 0 });
+  if (!["reveal-one", "reveal-all", "reveal-none", "timer-set", "timer-add", "timer-go", "timer-reset", "np-pick", "np-char", "num", "truth", "info-toggle", "side", "dead", "unrem", "vote", "reveal", "kill-set", "yn"].includes(el.dataset.act)) window.scrollTo({ top: 0 });
 });
 document.addEventListener("input", ev => {
   const t = ev.target;

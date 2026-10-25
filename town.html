@@ -89,6 +89,13 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass)
 .bigtimer.up .huge { color: #ff5c72; }
 .over h1 { font-size: clamp(3rem, 8vw, 6rem); }
 .over.good h1 { color: var(--good); } .over.evil h1 { color: var(--evil); }
+.spot { background: radial-gradient(circle at 50% 35%, #2a3f73 0%, #12203f 60%, #070b17 100%); }
+.spot.evil { background: radial-gradient(circle at 50% 35%, #8a1a2c 0%, #4a0c17 55%, #24050b 100%); }
+.spot p { font-size: clamp(1.6rem, 4vw, 3rem); margin: 0; }
+.spot-tok { display: grid; justify-items: center; gap: 1vmin; background: var(--parch); color: var(--parch-ink); border: 1.4vmin solid var(--good); border-radius: 50%; width: min(48vmin, 520px); aspect-ratio: 1; place-content: center; font-weight: 800; font-size: clamp(1.8rem, 5vmin, 4rem); animation: flip .6s ease; }
+.spot-tok.evil { border-color: var(--evil); }
+.spot-tok .ico { font-size: clamp(4rem, 16vmin, 12rem); line-height: 1; }
+@keyframes flip { from { transform: rotateY(90deg) scale(.8); } to { transform: none; } }
 .corner { position: fixed; right: 12px; bottom: 10px; display: flex; gap: 8px; align-items: center; opacity: .55; font-size: .8rem; z-index: 5; }
 .corner button { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; }
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--good); display: inline-block; }
@@ -112,6 +119,14 @@ const peerOpts = () => { const h = new URLSearchParams(location.search).get("pee
 let G = null, gotAt = 0;               // the latest public view, and when it arrived
 let code = (new URLSearchParams(location.search).get("code") || (() => { try { return localStorage.getItem(LS) || ""; } catch (e) { return ""; } })()).toUpperCase();
 let peer = null, conn = null, status = "", err = "", retry = null, lastData = 0;
+// A newly revealed character fills the screen for a few seconds
+let spotKey = "", spotUntil = 0;
+function spotOn() {
+  if (!G.spot || !G.roles.some(r => r.id === G.spot.id)) return false;
+  const k = G.spot.id + G.spot.at;
+  if (k !== spotKey) { spotKey = k; spotUntil = Date.now() + 6000; setTimeout(render, 6100); }
+  return Date.now() < spotUntil;
+}
 const nameOf = id => ((G && G.players.find(p => p.id === id)) || {}).name || "someone";
 
 /* ---------- Connecting ---------- */
@@ -124,7 +139,7 @@ function connect() {
   if (peer) peer.destroy();
   peer = new Peer(peerOpts());
   peer.on("open", () => {
-    conn = peer.connect(`clocktower-town-${code}`, { reliable: true });
+    conn = peer.connect(`clocktower-town-${code}`, { reliable: true, metadata: { kind: "town" } });
     conn.on("open", () => { status = "live"; err = ""; render(); });
     conn.on("data", st => { G = st; gotAt = Date.now(); lastData = Date.now(); status = "live"; render(); });
     conn.on("close", () => { status = "lost"; render(); again(); });
@@ -151,14 +166,16 @@ function circle(opts = {}) {
   const v = G.vote;
   return `<div class="circle" style="--tok:min(150px, ${tok}cqi)">${ps.map((p, i) => {
     const a = (i / n) * 2 * Math.PI - Math.PI / 2, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
-    const s = seat(p.id), r = roles && roles[p.id], dead = r ? r.dead : s.dead;
+    const s = seat(p.id), r = roles && roles[p.id], dead = r ? r.dead : roles ? (G.dead || []).includes(p.id) : s.dead;
+    const talking = (G.chats || []).some(c => c.includes(p.id));
     const cls = [dead ? "dead" : "", v && v.of === p.id ? "nominee" : "", v && v.by === p.id ? "nominator" : "", v && v.votes.includes(p.id) ? "voted" : "", !v && G.block && G.block.who === p.id ? "block" : "", r ? r.side : ""].join(" ");
     const word = Math.max(...(r ? r.role : p.name).split(/\s+/).map(w => w.length), 3);
     const c = r && CHAR[r.role];
     return `<div class="seat ${cls}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%">
       <span class="disc">${r ? `<span class="ico">${c ? c.icon : ""}</span><span class="rl" style="--fs:${Math.min(.16, 1.4 / word).toFixed(3)}">${esc(r.role)}</span>` : `<span class="nm" style="--fs:${Math.min(.24, 1.5 / word).toFixed(3)}">${esc(p.name)}</span>`}</span>
       ${r ? `<span class="plate">${esc(p.name)}</span>` : ""}
-      ${!r && dead ? `<span class="ghost ${s.vote ? "" : "used"}">${s.vote ? "👻 ghost vote" : "no vote"}</span>` : ""}
+      ${!roles && dead ? `<span class="ghost ${s.vote ? "" : "used"}">${s.vote ? "👻 ghost vote" : "no vote"}</span>` : ""}
+      ${talking ? `<span class="ghost">💬 talking</span>` : ""}
     </div>`;
   }).join("")}
     <div class="center">${opts.center || ""}</div>
@@ -184,6 +201,7 @@ function dayPanel() {
   else if (G.block && G.block.best) cards.push(`<div class="card"><h2>On the block</h2><p class="big">Tied on ${plural(G.block.best, "vote")}: nobody</p></div>`);
   const lines = [...G.shots.map(x => `🏹 ${esc(nameOf(x.by))} shot ${esc(nameOf(x.at))}: ${x.died ? `${esc(nameOf(x.at))} died` : "nothing happened"}`),
     ...G.noms.map(n => n.virgin ? `${esc(nameOf(n.by))} nominated ${esc(nameOf(n.of))}, and was executed on the spot` : `${esc(nameOf(n.by))} → ${esc(nameOf(n.of))}: ${plural(n.count, "vote")}`)];
+  if ((G.chats || []).length) cards.push(`<div class="card"><h2>💬 Private chats</h2>${G.chats.map(c => `<p class="big">${esc(nameOf(c[0]))} ↔ ${esc(nameOf(c[1]))}</p>`).join("")}</div>`);
   if (lines.length) cards.push(`<div class="card"><h2>Today</h2><ol class="list">${lines.map(l => `<li>${l}</li>`).join("")}</ol></div>`);
   if (!cards.length) cards.push(`<div class="card"><h2>Day ${G.n}</h2><p class="big">Talk, plot, and find the Demon.</p><p class="muted">Nominations will appear here.</p></div>`);
   return cards.join("");
@@ -207,10 +225,16 @@ function render() {
     return;
   }
   const m = G.mode;
-  if (m === "over") {
+  if (m === "over" && spotOn()) {
+    const r = G.roles.find(x => x.id === G.spot.id), c = CHAR[r.role] || {};
+    app.innerHTML = `<div class="screen full spot ${r.side}"><div class="full-inner"><div class="dead-name">${esc(nameOf(r.id))}</div><p>was the</p>
+      <div class="spot-tok ${r.side}"><span class="ico">${c.icon || ""}</span><span>${esc(r.role)}</span></div><p class="big">${r.side === "evil" ? "Evil!" : "Good"}</p></div></div>`;
+  } else if (m === "over") {
+    const evil = G.roles.filter(r => r.side === "evil"), left = G.players.length - G.roles.length;
     app.innerHTML = `<div class="screen game"><div>${circle({ roles: true, center: `<span class="ph">${G.winner === "good" ? "Good" : "Evil"} wins</span>` })}</div>
-      <div class="panel"><div class="card over ${G.winner}"><h1>${G.winner === "good" ? "Good wins!" : "Evil wins!"}</h1><p class="big">${esc(G.reason)}</p></div>
-      <div class="card"><h2>The evil team</h2><p class="big">${esc(listJoin(G.roles.filter(r => r.side === "evil").map(r => `${nameOf(r.id)} the ${r.role}`)))}</p></div></div></div>`;
+      <div class="panel"><div class="card over ${G.winner}"><h1>${G.winner === "good" ? "Good wins!" : "Evil wins!"}</h1>${G.reason ? `<p class="big">${esc(G.reason)}</p>` : `<p class="big">The Storyteller is revealing the Grimoire…</p>`}</div>
+      ${evil.length ? `<div class="card"><h2>The evil team</h2><p class="big">${esc(listJoin(evil.map(r => `${nameOf(r.id)} the ${r.role}`)))}</p></div>` : ""}
+      ${left ? `<div class="card"><p class="big">${plural(left, "player")} still to reveal.</p></div>` : ""}</div></div>`;
   } else if (G.announce) {
     const ids = G.announce.ids;
     app.innerHTML = `<div class="screen full dawn"><div class="full-inner"><p>Wake up, everyone. It's the dawn of</p><h1>Day ${G.announce.n}</h1>

@@ -71,7 +71,17 @@ A live public view of the Storyteller's game for a TV, projector or spare tablet
   - **Night**: a dark "Night 2: everyone, close your eyes" screen.
   - **Dawn**: the red dawn screen with who was found dead.
   - **Day**: the seating circle with names, deaths and ghost votes; the nominator and nominee highlighted while a vote is on, with everyone who has raised a hand lit up and the count against the votes needed; who's on the block; today's nominations and Slayer shots; who was executed. The discussion timer shows alongside, or full screen when the Storyteller opens it.
-  - **Game over**: who won and why, and the whole Grimoire revealed.
+  - **Game over**: who won, then the Grimoire as the Storyteller reveals it. On the Storyteller's game-over screen, tap each player to reveal them on the Town Square, one at a time and in any order: each reveal fills the screen ("Dad was the Poisoner", red for evil, blue for good) before turning over on the circle. **Reveal everyone** turns over the rest, and the reason the game ended appears once everyone is revealed. Tapping a revealed player hides them again.
+  - **Private chats**: during the day, who is talking to whom ("💬 Sophie ↔ Coll"), never what they say.
 - **Privacy**: the Storyteller app only ever sends public information. Nobody's character leaves the Storyteller's device until the game is over, so there's nothing to find on the Town Square screen.
 - **Full screen** and **Change code** are in the corner.
+
+### Private chats between players
+
+Players can link the Player app to the Storyteller's game and text each other privately during the day.
+
+- **Joining**: in the Player app's Grimoire, the **🔗 Join the game** card takes the same code as the Town Square. The app joins you as the player with your name (or asks which one is you). Only one device can be each player: once you've joined as Sophie, nobody else can.
+- **Chatting**: during the day, tap **💬 Chat** next to a player. They get a request on their phone to **Accept** or **Decline**. Once accepted, you text each other in a chat window; **Hide** tucks it away (new messages show on the button) and **End chat** finishes it. One chat at a time each.
+- **Day only**: the Storyteller's app only allows chats during the day, and ends every chat when night falls.
+- **Private**: the messages go straight between the two players' devices. The Storyteller's app passes on the request and knows who is talking to whom (shown on the Town Square and on the 📺 card), but never sees what is said.
 

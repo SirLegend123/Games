@@ -148,6 +148,18 @@ label.field, .field { display: grid; gap: 6px; }
 .pill { font-size: .78rem; font-weight: 800; border-radius: 999px; padding: 2px 10px; background: var(--surface-2); border: 1px solid var(--line); white-space: nowrap; }
 .pill.th-target { background: var(--demon); color: #fff; border-color: var(--demon); } .pill.th-threat { background: var(--warn); color: #1a1408; border-color: var(--warn); } .pill.th-watch { border-color: var(--brass); color: var(--brass); }
 .log li.cover { border-left: 4px solid var(--brass); }
+/* Private chats */
+.chat-cover { position: fixed; inset: 0; z-index: 40; background: rgba(8,6,12,.7); display: grid; place-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+.chat-panel { width: min(640px, 100%); background: var(--surface); border: 2px solid var(--brass); border-radius: 18px; padding: 18px; display: grid; gap: 14px; }
+.chat-panel h2 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.5rem; }
+.chat-panel.chat { height: min(720px, 100%); grid-template-rows: auto 1fr auto auto; }
+.msgs { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; min-height: 0; }
+.msg { align-self: flex-start; max-width: 80%; background: var(--surface-2); border-radius: 14px 14px 14px 4px; padding: 8px 12px; font-size: 1.1rem; overflow-wrap: anywhere; }
+.msg.me { align-self: flex-end; background: var(--brass); color: var(--on-brass); border-radius: 14px 14px 4px 14px; }
+.pickgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.pick { min-height: 54px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface-2); font-weight: 800; }
+.pick small { display: block; font-size: .7em; color: var(--muted); }
+.pick:disabled { opacity: .5; }
 footer { color: var(--muted); font-size: .8rem; text-align: center; }
 </style>
 </head>
@@ -159,9 +171,11 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
     <nav class="steps" id="steps" aria-label="Steps"></nav>
   </header>
   <main id="app"></main>
+  <div id="chatBox"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
 <script src="characters.js"></script>
+<script src="vendor/peerjs.min.js"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -328,7 +342,7 @@ function grimHtml() {
       ${circleHtml()}
       <p class="hint" style="text-align:center">Tap a player to note their claim, your read and whether they've died. Blue: you trust them. Red: you suspect them.</p>
     </div>
-    <div class="side">${ui.sel && ui.sel !== S.me ? playerPanel(ui.sel) : ""}${myCard()}${claimsCard()}
+    <div class="side">${ui.sel && ui.sel !== S.me ? playerPanel(ui.sel) : ""}<div id="linkCard">${linkCard()}</div>${myCard()}${claimsCard()}
       <section class="card"><div class="row"><button class="btn" data-act="to-token">← My token</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
     </div>
   </div>`;
@@ -467,10 +481,147 @@ function evilGrimHtml() {
       ${evilCircle()}
       <p class="hint" style="text-align:center">Red: your team. Tap a player to mark a teammate, rate how dangerous they are, or note their claim.</p>
     </div>
-    <div class="side">${sel}${teamCard()}${bluffCard()}${killCard()}${coverCard()}${evilClaimsCard()}
+    <div class="side">${sel}<div id="linkCard">${linkCard()}</div>${teamCard()}${bluffCard()}${killCard()}${coverCard()}${evilClaimsCard()}
       <section class="card"><div class="row"><button class="btn" data-act="to-token">← My token</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
     </div>
   </div>`;
+}
+
+/* ---------- Joining the Storyteller's game, and private chats ---------- */
+// The Storyteller's device only passes on chat requests and knows who is talking to whom.
+// The messages themselves go straight between the two players' devices.
+const LINK = "botc-player-link";
+let L = {};
+try { L = JSON.parse(localStorage.getItem(LINK)) || {}; } catch (e) {}
+if (!L.secret) L.secret = uid() + uid();
+const saveLink = () => { try { localStorage.setItem(LINK, JSON.stringify(L)); } catch (e) {} };
+// For testing against a local PeerJS server: ?peer=localhost:9000
+const peerOpts = () => { const h = new URLSearchParams(location.search).get("peer"); if (!h) return {}; const [host, port] = h.split(":"); return { host, port: Number(port) || 9000, path: "/", secure: false }; };
+const link = { peer: null, host: null, status: "off", err: "", lobby: null, chat: null, incoming: null, waiting: null, open: false, retry: null };
+const lname = id => ((link.lobby && link.lobby.players.find(p => p.id === id)) || {}).name || "someone";
+const buzz = () => { try { navigator.vibrate && navigator.vibrate([150, 80, 150]); } catch (e) {} };
+
+function linkStart() {
+  clearTimeout(link.retry);
+  if (!L.code) return;
+  if (!window.Peer) { link.status = "error"; link.err = "The live link couldn't load. Check the internet connection."; return renderLink(); }
+  if (link.peer) link.peer.destroy();
+  link.status = "connecting"; link.err = ""; link.asked = false; renderLink();
+  const peer = link.peer = new Peer(peerOpts());
+  peer.on("open", () => {
+    const h = link.host = peer.connect(`clocktower-town-${L.code}`, { reliable: true, metadata: { kind: "player" } });
+    h.on("open", () => { link.status = "on"; renderLink(); });
+    h.on("data", fromHost);
+    h.on("close", () => { if (link.host === h) { link.status = "lost"; renderLink(); linkAgain(); } });
+  });
+  // A chat partner connecting to us directly
+  peer.on("connection", c => {
+    if (!(c.metadata && c.metadata.kind === "chat" && link.chat && c.metadata.id === link.chat.id)) return c.close();
+    attachChat(c);
+  });
+  peer.on("error", e => {
+    link.status = "error";
+    link.err = e.type === "peer-unavailable" ? `Nobody is sharing a game with code ${L.code} right now.` : "Can't reach the link service. Check the internet connection.";
+    renderLink(); linkAgain();
+  });
+}
+const linkAgain = () => { clearTimeout(link.retry); if (L.code) link.retry = setTimeout(linkStart, 5000); };
+function linkStop() { clearTimeout(link.retry); if (link.peer) link.peer.destroy(); Object.assign(link, { peer: null, host: null, status: "off", lobby: null, chat: null, incoming: null, waiting: null }); L.code = ""; L.pid = ""; saveLink(); renderLink(); }
+const toHost = m => { if (link.host && link.host.open) link.host.send(m); };
+
+function fromHost(m) {
+  if (!m || !m.t) return;
+  if (m.t === "lobby") {
+    link.lobby = m;
+    // Join as the seat we had before, or the seat with my name
+    if (!m.you) {
+      const mine = L.pid && m.players.some(p => p.id === L.pid) ? L.pid : (m.players.find(p => S.me && p.name.trim().toLowerCase() === nameOf(S.me).trim().toLowerCase()) || {}).id;
+      if (mine && !link.asked) { link.asked = true; joinAs(mine); }
+    }
+  }
+  if (m.t === "error") { link.err = m.why; L.pid = ""; saveLink(); link.asked = true; }
+  if (m.t === "chat-req") { link.incoming = { id: m.id, from: m.from }; buzz(); }
+  if (m.t === "chat-gone" && link.incoming && link.incoming.id === m.id) link.incoming = null;
+  if (m.t === "chat-wait") link.waiting = { id: m.id, to: m.to };
+  if (m.t === "chat-no") { link.waiting = null; link.note = m.why; }
+  if (m.t === "chat-open") {
+    link.waiting = null; link.incoming = null;
+    link.chat = { id: m.id, with: m.with, msgs: [], conn: null, ended: "", unread: 0 };
+    link.open = true; buzz();
+    if (m.call) attachChat(link.peer.connect(m.peer, { reliable: true, metadata: { kind: "chat", id: m.id } }));
+  }
+  if (m.t === "chat-closed" && link.chat && link.chat.id === m.id) {
+    link.chat.ended = m.why;
+    if (link.chat.conn) try { link.chat.conn.close(); } catch (e) {}
+  }
+  renderLink();
+}
+function joinAs(pid) { L.pid = pid; saveLink(); toHost({ t: "join", pid, secret: L.secret }); }
+function attachChat(c) {
+  const ch = link.chat;
+  if (!ch) return;
+  ch.conn = c;
+  c.on("data", m => { if (m && m.t === "msg" && link.chat === ch && !ch.ended) { ch.msgs.push({ me: false, text: String(m.text).slice(0, 1000), at: Date.now() }); if (!link.open) ch.unread++; buzz(); renderLink(); } });
+  c.on("open", renderLink);
+}
+function sendChat() {
+  const box = $("chatIn"), ch = link.chat, t = box && box.value.trim();
+  if (!t || !ch || ch.ended || !ch.conn || !ch.conn.open) return;
+  ch.conn.send({ t: "msg", text: t });
+  ch.msgs.push({ me: true, text: t, at: Date.now() });
+  box.value = "";
+  renderLink();
+  $("chatIn").focus();
+}
+
+// The card on the Grimoire: join the game, then see who's around to talk to
+function linkCard() {
+  const lb = link.lobby, me = lb && lb.you;
+  if (!L.code) return `<section class="card"><h2>🔗 Join the game</h2>
+    <p class="hint">If the Storyteller is sharing the game, type their code to link up. In the day you can then ask other players for private chats.</p>
+    <div class="add"><input type="text" id="joinCode" maxlength="5" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:.2em;font-weight:800"><button class="btn primary" data-act="link-join">Join</button></div></section>`;
+  const head = `<div class="row"><h2 style="margin-right:auto">🔗 ${esc(L.code)}</h2><span class="hint">${link.status === "on" ? (lb ? esc(lb.label) : "Linked") : link.status === "connecting" ? "Connecting…" : "Reconnecting…"}</span><button class="btn" data-act="link-leave">Leave</button></div>`;
+  if (link.err && !me) return `<section class="card">${head}<p class="warn">${esc(link.err)}</p>${lb ? seatPick(lb) : ""}</section>`;
+  if (!lb) return `<section class="card">${head}</section>`;
+  if (!me) return `<section class="card">${head}${seatPick(lb)}</section>`;
+  const ch = link.chat;
+  const rows = lb.players.filter(p => p.id !== me).map(p => {
+    const can = lb.day && p.online && !p.busy && !ch && !link.waiting;
+    return `<div class="claim"><span class="ico">${p.online ? "🟢" : "⚪"}</span><span style="flex:1"><b>${esc(p.name)}</b>${p.dead ? ` <span class="hint">(dead)</span>` : ""}${p.busy ? ` <span class="hint">· in a chat</span>` : ""}</span><button class="btn" data-act="chat-ask" data-pid="${p.id}" ${can ? "" : "disabled"}>💬 Chat</button></div>`;
+  }).join("");
+  return `<section class="card">${head}
+    <p class="hint">You're <b>${esc(lname(me))}</b>. ${lb.day ? "Tap 💬 to ask someone for a private chat. Only the two of you see what's said." : "Private chats open when the day starts."}</p>
+    ${ch ? `<button class="btn primary" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>` : ""}
+    ${link.note ? `<p class="warn">${esc(link.note)}</p>` : ""}
+    <div class="claims">${rows}</div></section>`;
+}
+const seatPick = lb => `<p class="hint">Which one is you?</p><div class="pickgrid">${lb.players.map(p => `<button class="pick" data-act="link-seat" data-pid="${p.id}" ${p.online ? "disabled" : ""}>${esc(p.name)}${p.online ? "<small>joined</small>" : ""}</button>`).join("")}</div>`;
+
+// Requests, waiting and the chat itself, over the top of everything
+function chatBoxHtml() {
+  if (link.incoming) return `<div class="chat-cover"><div class="chat-panel"><h2>💬 ${esc(lname(link.incoming.from))} would like a private chat</h2>
+    <div class="row"><button class="btn primary" data-act="chat-yes">Accept</button><button class="btn" data-act="chat-nope">Decline</button></div></div></div>`;
+  if (link.waiting) return `<div class="chat-cover"><div class="chat-panel"><h2>💬 Asking ${esc(lname(link.waiting.to))}…</h2><p class="hint">Waiting for them to accept.</p>
+    <div class="row"><button class="btn" data-act="chat-cancel">Cancel</button></div></div></div>`;
+  const ch = link.chat;
+  if (!ch || !link.open) return "";
+  return `<div class="chat-cover"><div class="chat-panel chat">
+    <div class="row"><h2 style="margin-right:auto">💬 ${esc(lname(ch.with))}</h2><button class="btn" data-act="chat-hide">Hide</button>${ch.ended ? `<button class="btn" data-act="chat-done">Close</button>` : `<button class="btn danger" data-act="chat-end">End chat</button>`}</div>
+    <div class="msgs" id="msgs">${ch.msgs.length ? ch.msgs.map(m => `<div class="msg ${m.me ? "me" : ""}">${esc(m.text)}</div>`).join("") : `<p class="hint">${ch.conn && ch.conn.open ? "Say hello. Only the two of you can see this chat." : "Connecting…"}</p>`}</div>
+    ${ch.ended ? `<p class="warn">${esc(ch.ended)}</p>` : `<div class="add"><input type="text" id="chatIn" placeholder="Message" autocomplete="off" enterkeyhint="send" aria-label="Message"><button class="btn primary" data-act="chat-send">Send</button></div>`}
+  </div></div>`;
+}
+function renderLink() {
+  const box = $("chatBox");
+  if (box) {
+    const draft = $("chatIn") && $("chatIn").value;
+    box.innerHTML = chatBoxHtml();
+    if (draft && $("chatIn")) $("chatIn").value = draft;
+    const ms = $("msgs"); if (ms) ms.scrollTop = ms.scrollHeight;
+    if (link.chat && link.open) link.chat.unread = 0;
+  }
+  const card = $("linkCard");
+  if (card) { const code = $("joinCode") && $("joinCode").value; card.innerHTML = linkCard(); if (code && $("joinCode")) $("joinCode").value = code; }
 }
 
 /* ---------- Actions ---------- */
@@ -509,6 +660,18 @@ document.addEventListener("click", ev => {
     case "team": { const A = about(pid); A.team = !A.team; break; }
     case "threat": { const A = about(pid); A.threat = A.threat === el.dataset.v ? "" : el.dataset.v; break; }
     case "kind": ui.kind = el.dataset.v; break;
+    case "link-join": { const c = ($("joinCode").value || "").trim().toUpperCase(); if (!c) return; L.code = c; L.pid = ""; saveLink(); link.asked = false; linkStart(); return; }
+    case "link-leave": if (!confirm("Leave the Storyteller's game? You can join again with the code.")) return; linkStop(); return;
+    case "link-seat": link.err = ""; joinAs(pid); return;
+    case "chat-ask": link.note = ""; toHost({ t: "chat-req", to: pid }); return;
+    case "chat-cancel": toHost({ t: "chat-cancel", id: link.waiting.id }); link.waiting = null; renderLink(); return;
+    case "chat-yes": toHost({ t: "chat-ans", id: link.incoming.id, ok: true }); link.incoming = null; renderLink(); return;
+    case "chat-nope": toHost({ t: "chat-ans", id: link.incoming.id, ok: false }); link.incoming = null; renderLink(); return;
+    case "chat-send": return sendChat();
+    case "chat-hide": link.open = false; renderLink(); return;
+    case "chat-show": link.open = true; renderLink(); return;
+    case "chat-end": if (!confirm("End this private chat?")) return; toHost({ t: "chat-end", id: link.chat.id }); return;
+    case "chat-done": link.chat = null; link.open = false; renderLink(); return;
     case "dead": { const A = about(pid); A.dead = !A.dead; if (!A.dead) A.ghost = false; break; }
     case "ghost": about(pid).ghost = !about(pid).ghost; break;
     case "ph": S.ph = Math.max(0, S.ph + Number(el.dataset.v)); break;
@@ -538,9 +701,12 @@ document.addEventListener("keydown", ev => {
   if (ev.key !== "Enter") return;
   if (ev.target.id === "newName") { ev.preventDefault(); addNames(); }
   if (ev.target.id === "newInfo") { ev.preventDefault(); addInfo(); }
+  if (ev.target.id === "chatIn") { ev.preventDefault(); sendChat(); }
+  if (ev.target.id === "joinCode") { ev.preventDefault(); $("app").querySelector('[data-act="link-join"]').click(); }
 });
 
 render();
+if (L.code) linkStart();
 </script>
 </body>
 </html>
