@@ -1,6 +1,6 @@
 # Games
 
-Open `index.html` to choose between the *Blood on the Clocktower* apps: the **Storyteller**, the **Town Square** and the **Player**. They share their character list (`characters.js`).
+Open `index.html` to choose between the *Blood on the Clocktower* apps: the **Storyteller**, the **Town Square**, the **Player** and **Online Notes**. They share their character list (`characters.js`).
 
 **Updates**: browsers keep a copy of each app for a while, so a device can still be on an old version after an update. Every app checks the site every couple of minutes (and whenever it's brought back to the screen), and when there's a newer version it shows **🔄 A new version is ready. Tap to update**; the game is kept. A phone linked to a Storyteller app that's out of date says so, and works out the night by itself. (When changing the apps, raise the number in `version.json` and `window.APP_V` in each page together.)
 
@@ -79,6 +79,19 @@ A *Blood on the Clocktower* app for each player at a real table. Open `player.ht
    - **Who to kill** (Demons): living players not on your team, most dangerous first.
    - **My cover story**: a log by night and day of what really happened and, kept apart, what you'll say (🗣️), so your story stays the same.
    - **What the town claims**: every good player's claim, with double claims and claims of your bluffs flagged.
+
+## Online Notes
+
+A notepad for playing the official online game. Open `notes.html` (or **Online Notes** on the cover page). Nothing links to the other apps; everything is saved on the device.
+
+1. **Players**: choose the script (or **Another script**, where you type character names, with suggestions) and add everyone in seat order. Tap **Me** next to your name.
+2. **My character**: tap your character.
+3. **Notes**: the town in a circle, with **‹ Night 1 ›** to move through the nights and days.
+   - **My info**: what you learn, noted against the night or day it is.
+   - Tap a player to add a **soft claim** (a hint or a maybe) or a **hard claim** (they've said outright), with what they said. Their token shows their latest hard claim (gold) or, failing that, soft claim (dashed). A **!** flags a story that has changed, two players hard claiming the same character, or someone claiming your character.
+   - **Died?**: tap how they died (executed, died at night, Slayer shot, Virgin or other). It's noted for the current night or day, and the token greys out with a 👻 until you mark their ghost vote used.
+   - Notes for each player, **The town** (everyone's claim and fate at a glance) and **Deaths** in order.
+   - **New game** keeps the players.
 
 ## Town Square
 
