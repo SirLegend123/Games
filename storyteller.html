@@ -55,6 +55,7 @@ header h1 { margin: 0 auto 0 0; font-family: var(--font-display); font-weight: 4
 
 .btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 10px 16px; min-height: 46px; font-weight: 800; }
 .btn:hover:not(:disabled) { border-color: var(--brass); }
+a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: inherit; }
 .btn.primary { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
 .btn.danger { color: var(--evil); }
 .btn.evil { background: var(--evil); border-color: var(--evil); color: #fff; }
@@ -240,12 +241,20 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
 <body>
 <div class="wrap">
   <header>
+    <a class="btn home" id="homeBtn" href="index.html" aria-label="Back to the cover page" title="Back to the cover page">🏠</a>
     <h1>Storyteller</h1>
     <nav class="steps" id="steps" aria-label="Steps"></nav>
     <button class="btn" id="newBtn" data-act="new-game">＋ New game</button>
     <button class="btn" id="townBtn" data-act="town-open" aria-label="Town Square">📺</button>
   </header>
   <div id="townBox"></div>
+<script>
+// Everything is saved, so leaving is safe; just warn that linked phones and the TV drop until you come back.
+document.getElementById("homeBtn").addEventListener("click", e => {
+  const linked = typeof town !== "undefined" && (town.conns.length || Object.keys(town.players).length);
+  if (linked && !confirm("Go back to the cover page?\n\nYour game is saved. Phones and the TV will lose the Storyteller until you open it again, then reconnect.")) e.preventDefault();
+});
+</script>
   <main id="app"></main>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>

@@ -4,7 +4,7 @@ Open `index.html` to choose between the *Blood on the Clocktower* apps: the **St
 
 ## Storyteller: face to face
 
-**＋ New game** at the top starts again at any point (asking first if a game is under way), keeping the players.
+**＋ New game** at the top starts again at any point (asking first if a game is under way), keeping the players. **🏠** goes back to the cover page; the game is saved, so opening the Storyteller again carries on where you left off and the phones and TV reconnect.
 
 **Playing like a Jackbox game**: every game gets a 5-letter code as soon as it's created. Put the **Town Square** on a TV and it shows a QR code, the web address and the code; players scan it (or open the Player app and type the code) on their phones and tap their name, and each one lights up on the TV as they join. The Storyteller's Players and Bag screens show the code and who has joined (📱). When the bag is ready, **📱 Send tokens to phones** deals the characters at random and sends each player theirs, privately, to their own phone, which opens their Grimoire. Anyone without a phone gets their token by passing the Storyteller's phone round, as before. **＋ New game** clears everyone's phone for the next game.
 
