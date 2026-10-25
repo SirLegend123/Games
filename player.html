@@ -212,15 +212,16 @@ body.has-handbar .wrap { padding-bottom: 160px; }
 .chat-cover { position: fixed; inset: 0; z-index: 40; background: rgba(8,6,12,.7); display: grid; place-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
 .chat-panel { width: min(640px, 100%); background: var(--surface); border: 2px solid var(--brass); border-radius: 18px; padding: 18px; display: grid; gap: 14px; }
 .chat-panel h2 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.5rem; }
-.chat-panel.sheet { max-height: 100%; grid-template-rows: auto auto minmax(0, 1fr); }
-.sheet-list { overflow-y: auto; display: grid; gap: 10px; padding-right: 4px; }
+/* Fits the screen, with the list scrolling inside it */
+.chat-panel.sheet { max-height: calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); grid-template-rows: auto auto minmax(0, 1fr); }
+.sheet-list { overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; min-height: 0; display: grid; gap: 10px; padding-right: 4px; }
 .sheet-list h3 { margin: 6px 0 0; font-size: .9rem; letter-spacing: .08em; text-transform: uppercase; }
 .sh-townsfolk { color: var(--townsfolk); } .sh-outsider { color: var(--outsider); } .sh-minion { color: var(--minion); } .sh-demon { color: var(--demon); }
 .sh-r { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 10px; align-items: start; line-height: 1.3; }
 .sh-r .ico { font-size: 1.6rem; line-height: 1; }
 .sh-r.mine { background: var(--surface-2); border: 2px solid var(--brass); border-radius: 12px; padding: 8px; }
 .sh-r .tag { font-size: .75rem; font-weight: 800; background: var(--brass); color: var(--on-brass); border-radius: 999px; padding: 1px 8px; }
-.chat-panel.chat { height: min(720px, 100%); grid-template-rows: auto 1fr auto auto; }
+.chat-panel.chat { height: min(720px, calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))); height: min(720px, calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))); grid-template-rows: auto 1fr auto auto; }
 .msgs { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; min-height: 0; }
 .msg { align-self: flex-start; max-width: 80%; background: var(--surface-2); border-radius: 14px 14px 14px 4px; padding: 8px 12px; font-size: 1.1rem; overflow-wrap: anywhere; }
 .msgs.talk { max-height: 260px; }
@@ -686,7 +687,7 @@ function fromHost(m) {
     if (m.gameId) S.gameId = m.gameId;
     const fresh = S.role !== m.role || S.side !== m.side || S.step === "token";
     S.role = m.role; S.side = m.side;
-    if (fresh && S.step !== "grim") { S.step = "reveal"; ui.peek = false; buzz(); }
+    if (fresh && S.step !== "grim") { S.step = "reveal"; ui.peek = false; buzz(); if (link.lobby && link.lobby.night) ui.nightPeek = `${link.lobby.gameId}:${link.lobby.night}`; }
     save(); render();
   }
   if (m.t === "chat-req") { link.incoming = { id: m.id, from: m.from }; buzz(); }
@@ -890,7 +891,7 @@ function neighboursOf(lb, me) {
 }
 function sleepHtml() {
   const lb = link.lobby, me = lb && lb.you;
-  if (!me || S.step !== "grim") return "";
+  if (!me || S.step === "players") return "";
   if (lb.dawn && ui.dawnSeen !== `${lb.gameId}:${lb.dawn.n}`) {
     const ids = lb.dawn.ids, mine = ids.includes(me);
     return `<div class="night-ov dawn"><div class="draw-inner"><p class="lead">Wake up, everyone. It's the dawn of</p><h1>Day ${lb.dawn.n}</h1>
@@ -909,7 +910,7 @@ function sleepHtml() {
       : `<p class="hint">Quietly message a neighbour:</p>
       <div class="draw-foot">${nb.map(p => `<button class="btn huge" data-act="chat-ask" data-pid="${p.id}" ${(lb.chatOk || []).includes(p.id) && p.online && !p.busy && !link.waiting ? "" : "disabled"}>💬 ${esc(p.name)}${!p.online ? "<small>not here</small>" : p.busy ? "<small>in a chat</small>" : ""}</button>`).join("")}</div>`}
     ${link.note ? `<p class="warn">${esc(link.note)}</p>` : ""}
-    <button class="btn" data-act="night-peek">📖 My Grimoire</button>
+    <button class="btn" data-act="night-peek">📖 My character and notes</button>
   </div></div>`;
 }
 function handBarHtml() {
