@@ -194,6 +194,7 @@ body.has-handbar .wrap { padding-bottom: 160px; }
 .chat-panel.chat { height: min(720px, 100%); grid-template-rows: auto 1fr auto auto; }
 .msgs { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; min-height: 0; }
 .msg { align-self: flex-start; max-width: 80%; background: var(--surface-2); border-radius: 14px 14px 14px 4px; padding: 8px 12px; font-size: 1.1rem; overflow-wrap: anywhere; }
+.msgs.talk { max-height: 260px; }
 .msg.me { align-self: flex-end; background: var(--brass); color: var(--on-brass); border-radius: 14px 14px 4px 14px; }
 .pickgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
 .pick { min-height: 54px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface-2); font-weight: 800; }
@@ -255,6 +256,7 @@ function render() {
   const steps = [["players", "Players"], ["token", "My token"], ["grim", S.side === "evil" ? "Evil" : "Grimoire"]];
   $("steps").innerHTML = steps.map(([k, l]) => `<span class="${S.step === k || (k === "token" && S.step === "reveal") ? "on" : ""}">${l}</span>`).join("");
   $("app").innerHTML = S.step === "players" ? playersHtml() : S.step === "reveal" ? revealHtml() : S.step === "token" ? (L.code && link.lobby && link.lobby.you && !ui.pickOwn ? waitHtml() : tokenHtml()) : S.side === "evil" ? evilGrimHtml() : grimHtml();
+  const tc = $("talkCard"); if (tc) { tc.innerHTML = talkCardHtml(); tc.dataset.shape = tc.innerHTML ? "on" : ""; }
   save();
 }
 
@@ -416,7 +418,7 @@ function grimHtml() {
       ${circleHtml()}
       <p class="hint" style="text-align:center">Tap a player to note their claim, your read and whether they've died. Blue: you trust them. Red: you suspect them.</p>
     </div>
-    <div class="side">${ui.sel && ui.sel !== S.me ? playerPanel(ui.sel) : ""}<div id="linkCard">${linkCard()}</div>${myCard()}${claimsCard()}
+    <div class="side">${ui.sel && ui.sel !== S.me ? playerPanel(ui.sel) : ""}<div id="linkCard">${linkCard()}</div><div id="talkCard"></div>${myCard()}${claimsCard()}
       <section class="card"><div class="row"><button class="btn" data-act="to-token">← My token</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
     </div>
   </div>`;
@@ -555,7 +557,7 @@ function evilGrimHtml() {
       ${evilCircle()}
       <p class="hint" style="text-align:center">Red: your team. Tap a player to mark a teammate, rate how dangerous they are, or note their claim.</p>
     </div>
-    <div class="side">${sel}<div id="linkCard">${linkCard()}</div>${teamCard()}${bluffCard()}${killCard()}${coverCard()}${evilClaimsCard()}
+    <div class="side">${sel}<div id="linkCard">${linkCard()}</div><div id="talkCard"></div>${teamCard()}${bluffCard()}${killCard()}${coverCard()}${evilClaimsCard()}
       <section class="card"><div class="row"><button class="btn" data-act="to-token">← My token</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
     </div>
   </div>`;
@@ -766,7 +768,7 @@ function linkCard() {
     return `<div class="claim"><span class="ico">${p.online ? "🟢" : "⚪"}</span><span style="flex:1"><b>${esc(p.name)}</b>${p.dead ? ` <span class="hint">(dead)</span>` : ""}${p.busy ? ` <span class="hint">· in a chat</span>` : ""}</span><button class="btn" data-act="chat-ask" data-pid="${p.id}" ${can ? "" : "disabled"}>💬 Chat</button></div>`;
   }).join("");
   return `<section class="card">${head}
-    <p class="hint">You're <b>${esc(lname(me))}</b>. ${!lb.day ? "Private chats open when the day starts." : lb.noms ? "📢 Nominations are open: you can only chat privately with your neighbours now." : "Tap 💬 to ask someone for a private chat. Only the two of you see what's said."}</p>
+    <p class="hint">You're <b>${esc(lname(me))}</b>. ${!lb.day ? "Private chats open when the day starts." : lb.phase ? `${lb.phase === 2 ? "📢 Nominations" : "🗣️ Public discussion"}: you can only chat privately with your neighbours now.` : "💬 Private chats: tap 💬 to ask anyone for a private chat. Only the two of you see what's said."}</p>
     ${ch ? `<button class="btn primary" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>` : ""}
     ${link.note ? `<p class="warn">${esc(link.note)}</p>` : ""}
     <div class="claims">${rows}</div></section>`;
@@ -787,6 +789,21 @@ function chatBoxHtml() {
     <div class="msgs" id="msgs">${msgsHtml(ch)}</div>
     ${ch.ended ? `<p class="warn">${esc(ch.ended)}</p>` : `<div class="add"><input type="text" id="chatIn" placeholder="Message" autocomplete="off" enterkeyhint="send" aria-label="Message"><button class="btn primary" data-act="chat-send">Send</button></div>`}
   </div></div>`;
+}
+// 📣 Public chat: what's said here goes up on the TV for everyone
+const sayHtml = lb => (lb.say || []).length ? lb.say.map(x => `<div class="msg ${x[1] === lb.you ? "me" : ""}"><b>${esc(lname(x[1]))}:</b> ${esc(x[2])}</div>`).join("") : `<p class="hint">Nothing said yet.</p>`;
+function talkCardHtml() {
+  const lb = link.lobby;
+  if (!lb || !lb.you || !lb.day) return "";
+  return `<section class="card"><h2>📣 Town talk</h2><p class="hint">Say something to the whole town. It goes up on the TV for everyone to see.</p>
+    <div class="msgs talk" id="sayList">${sayHtml(lb)}</div>
+    <div class="add"><input type="text" id="sayIn" maxlength="200" placeholder="Say to everyone" autocomplete="off" enterkeyhint="send" aria-label="Say to everyone"><button class="btn primary" data-act="say-send">Say</button></div></section>`;
+}
+function sendSay() {
+  const box = $("sayIn"), t = box && box.value.trim();
+  if (!t) return;
+  toHost({ t: "say", text: t });
+  box.value = ""; box.focus();
 }
 function handBarHtml() {
   const lb = link.lobby, me = lb && lb.you, D = lb && lb.dayInfo;
@@ -826,6 +843,13 @@ function renderLink() {
       const m2 = $("msgs"); if (m2) m2.scrollTop = m2.scrollHeight;
     }
     if (ch && link.open) ch.unread = 0;
+  }
+  // Like the chat window: only the messages change, so the keyboard stays open while typing
+  const tc = $("talkCard");
+  if (tc) {
+    const h = talkCardHtml(), shape = h ? "on" : "";
+    if (tc.dataset.shape === shape && shape) { const sl = $("sayList"), list = sayHtml(link.lobby); if (sl && sl.innerHTML !== list) { sl.innerHTML = list; sl.scrollTop = sl.scrollHeight; } }
+    else { tc.innerHTML = h; tc.dataset.shape = shape; const sl = $("sayList"); if (sl) sl.scrollTop = sl.scrollHeight; }
   }
   const card = $("linkCard");
   if (card) { const h = linkCard(); if (card.dataset.html !== h) { const code = $("joinCode") && $("joinCode").value; card.innerHTML = h; card.dataset.html = h; if (code && $("joinCode")) $("joinCode").value = code; } }
@@ -878,6 +902,7 @@ document.addEventListener("click", ev => {
     case "chat-yes": toHost({ t: "chat-ans", id: link.incoming.id, ok: true }); link.incoming = null; renderLink(); return;
     case "chat-nope": toHost({ t: "chat-ans", id: link.incoming.id, ok: false }); link.incoming = null; renderLink(); return;
     case "chat-send": return sendChat();
+    case "say-send": return sendSay();
     case "nom-open": ui.nominating = true; renderLink(); return;
     case "nominate": ui.nominating = false; link.note = ""; toHost({ t: "nominate", of: pid }); return;
     case "nom-cancel-mine": ui.nominating = false; toHost({ t: "nominate-cancel" }); renderLink(); return;
@@ -916,6 +941,7 @@ document.addEventListener("keydown", ev => {
   if (ev.target.id === "newName") { ev.preventDefault(); addNames(); }
   if (ev.target.id === "newInfo") { ev.preventDefault(); addInfo(); }
   if (ev.target.id === "chatIn") { ev.preventDefault(); sendChat(); }
+  if (ev.target.id === "sayIn") { ev.preventDefault(); sendSay(); }
   if (ev.target.id === "joinCode") { ev.preventDefault(); $("app").querySelector('[data-act="link-join"]').click(); }
 });
 

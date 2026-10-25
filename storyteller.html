@@ -159,6 +159,15 @@ label.field { display: grid; gap: 6px; }
 .bignum { font-size: 1.8rem; font-weight: 800; min-width: 1.5em; text-align: center; }
 .tiles.small { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
 .tiles.small .tile { min-height: 70px; font-size: .82rem; }
+.phases { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.phase { display: grid; gap: 2px; justify-items: center; text-align: center; border: 1px solid var(--line); background: var(--surface-2); border-radius: 10px; padding: 8px 6px; min-height: 64px; font-weight: 800; color: inherit; }
+.phase small { color: var(--muted); font-weight: 500; }
+.phase.on { background: var(--brass); border-color: var(--brass); color: var(--on-brass); opacity: 1; }
+.phase.on small { color: inherit; }
+.phase.past { opacity: .6; }
+.phase:disabled { cursor: default; }
+.phase-clock { font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; min-width: 3.2em; }
+.phase-clock.low { color: var(--warn); } .phase-clock.up { color: var(--evil); }
 .notice { margin: 0; background: var(--surface-2); border-left: 4px solid var(--brass); border-radius: 8px; padding: 10px 12px; }
 .x-inline { background: none; border: 0; color: var(--muted); font-weight: 800; padding: 0 6px; }
 .seat.town .disc { border-color: var(--brass); }
@@ -1148,7 +1157,8 @@ const hasVote = pid => alive(pid) || !ghostSpent().has(pid);
 
 function startDay() {
   S.night = null; S.step = "day"; ui.sel = null; ui.reveal = false;
-  S.day = { n: S.n || 1, noms: [], draft: null, done: false, exec: null };
+  S.day = { n: S.n || 1, noms: [], draft: null, done: false, exec: null, phase: 0 };
+  phaseTimer(0, false);
 }
 // Who is on the block: the highest vote count that reached the threshold, unless it was tied
 function onBlock() {
@@ -1314,6 +1324,29 @@ function nomListHtml() {
     ${S.day.done ? "" : `<button class="x-inline" data-act="nom-del" data-i="${k}" aria-label="Delete this nomination">×</button>`}</li>`).join("")}</ol>`;
 }
 
+// The three parts of the day, the current one's timer, and moving on to the next
+function phaseHtml() {
+  const ph = dayPhase(), P = PHASES[ph], locked = S.day.noms.length || (S.day.draft && !S.day.draft.stage.startsWith("slayer"));
+  if (T.phase !== ph) phaseTimer(ph, false);
+  const l = timerLeft(), next = PHASES[ph + 1];
+  return `<div class="phases" role="list">${PHASES.map((x, k) => `<button class="phase ${k === ph ? "on" : k < ph ? "past" : ""}" role="listitem" data-act="phase-go" data-v="${k}" ${k === ph || (k < ph && locked) ? "disabled" : ""} ${k === ph ? 'aria-current="step"' : ""}><span>${x.icon}</span> ${x.name}<small>${phaseMins(k)} min</small></button>`).join("")}</div>
+    <p class="notice">${P.icon} <b>${P.name}.</b> ${P.tip}</p>
+    <div class="row">
+      <span class="phase-clock ${timerState()}" id="tBadge" role="timer">${fmtTime(l)}</span>
+      <button class="btn ${T.end ? "" : "primary"}" data-act="timer-go" ${l ? "" : "disabled"}>${T.end ? "⏸ Pause" : l < T.total ? "▶ Carry on" : "▶ Start the timer"}</button>
+      <button class="btn" data-act="timer-open">⏱ Full screen</button>
+      <label class="hint">Length <select data-phasemins="${ph}">${[1, 2, 3, 4, 5, 6, 8, 10, 12, 15].map(m => `<option value="${m}" ${m === phaseMins(ph) ? "selected" : ""}>${m} min</option>`).join("")}</select></label>
+      <span class="spacer"></span>
+      ${next ? `<button class="btn primary" data-act="phase-go" data-v="${ph + 1}">${next.icon} ${next.name} →</button>` : ""}
+    </div>`;
+}
+// 📣 What players have said to everyone from their phones
+function sayHtml() {
+  const L = S.day.say || [];
+  if (!L.length) return "";
+  return `<h3>📣 Said to everyone</h3><ol class="log say">${L.slice(-20).map(x => `<li><b>${esc(nameOf(x.by))}:</b> ${esc(x.text)} <button class="x-inline" data-act="say-del" data-id="${x.id}" aria-label="Remove this message">×</button></li>`).join("")}</ol>`;
+}
+
 function dayHtml() {
   const D = S.day, d = D.draft, need = votesNeeded();
   let card;
@@ -1332,11 +1365,12 @@ function dayHtml() {
     card = `<section class="card"><h2>Day ${D.n}</h2>
       <p class="lead">${aliveIds().length} alive · <b>${need}</b> votes needed to execute.</p>
       ${b.who ? `<p class="notice">On the block: <b>${esc(nameOf(b.who))}</b> with ${plural(b.best, "vote")}.</p>` : b.best ? `<p class="notice">Tied on ${plural(b.best, "vote")}: nobody is on the block.</p>` : ""}
-      ${nomsOpen() ? `<p class="notice">📢 Nominations are open. Private chats are only allowed between neighbours.</p>` : `<div class="row"><button class="btn primary" data-act="noms-open">📢 Open nominations</button><span class="hint" style="flex:1">Until then, players can chat privately with anyone. Afterwards, only with their neighbours.</span></div>`}
+      ${phaseHtml()}
       ${validHands().length ? `<h3>✋ Hands up to nominate</h3><div class="claims">${D.hands.map((h, k) => `<div class="row"><span style="flex:1"><b>${esc(nameOf(h.by))}</b> wants to nominate <b>${esc(nameOf(h.of))}</b></span><button class="btn primary" data-act="hand-start" data-i="${k}">Start</button><button class="icon" data-act="hand-drop" data-i="${k}" aria-label="Dismiss">×</button></div>`).join("")}</div>` : ""}
       <h3>Nominations</h3>${nomListHtml()}
+      ${sayHtml()}
       ${(D.shots || []).length ? `<h3>Slayer shots</h3><ol class="log">${shotLines().map((l, k) => `<li>${l} <button class="x-inline" data-act="slay-del" data-i="${k}" aria-label="Undo this shot">×</button></li>`).join("")}</ol>` : ""}
-      <div class="row"><button class="btn primary" data-act="nom-new">+ New nomination</button><button class="btn" data-act="slay-new">🏹 Slayer shot</button><button class="btn" data-act="timer-open">⏱ Timer${T.end || T.left ? ` <span id="tBadge">${fmtTime(timerLeft())}</span>` : ""}</button><span class="spacer"></span><button class="btn" data-act="day-end">End the day →</button></div>
+      <div class="row"><button class="btn primary" data-act="nom-new">+ New nomination</button><button class="btn" data-act="slay-new">🏹 Slayer shot</button><span class="spacer"></span><button class="btn" data-act="day-end">End the day →</button></div>
       ${historyHtml()}
     </section>`;
   } else if (d.stage.startsWith("slayer")) {
@@ -1630,7 +1664,7 @@ function timerHtml() {
   const l = timerLeft(), running = !!T.end;
   return `<p class="lead">Day ${S.day.n} · ${aliveIds().length} alive</p>
     <div class="clock" id="tDigits" role="timer" aria-live="off">${T.total ? fmtTime(l) : "0:00"}</div>
-    <p class="lead" id="tStatus">${!T.total ? "Choose how long" : l === 0 ? "Time's up!" : running ? "Discussion time" : "Paused"}</p>
+    <p class="lead" id="tStatus">${!T.total ? "Choose how long" : l === 0 ? "Time's up!" : running ? (T.phase != null ? PHASES[T.phase].name : "Discussion time") : "Paused"}</p>
     <div class="draw-foot">${[1, 2, 3, 5, 8, 10].map(m => `<button class="btn huge" data-act="timer-set" data-v="${m}">${m} min</button>`).join("")}</div>
     <div class="draw-foot">
       <button class="btn huge" data-act="timer-add" data-v="-1" ${T.total ? "" : "disabled"}>−1 min</button>
@@ -1653,7 +1687,7 @@ setInterval(() => {
   if (l === 0) { T.left = 0; T.end = 0; if (!T.rang) { T.rang = true; beep(); } render(); return; }
   const d = $("tDigits"), b = $("tBadge");
   if (d) { d.textContent = fmtTime(l); $("draw").className = `draw timer ${timerState()}`; }
-  if (b) b.textContent = fmtTime(l);
+  if (b) { b.textContent = fmtTime(l); b.className = `phase-clock ${timerState()}`; }
 }, 250);
 
 /* ---------- Town Square: a live public view for a TV, projector or spare tablet ---------- */
@@ -1681,10 +1715,10 @@ function publicState() {
     noms: D.noms.map(n => ({ by: n.by, of: n.of, count: n.count, virgin: n.virgin === "executed" })),
     shots: (D.shots || []).map(x => ({ by: x.by, at: x.at, died: x.died })),
     vote: d && d.stage === "vote" ? { by: d.by, of: d.of, votes: d.votes } : null,
-    hands: validHands().map(h => [h.by, h.of]), nomsOpen: nomsOpen(),
+    hands: validHands().map(h => [h.by, h.of]), nomsOpen: nomsOpen(), phase: dayPhase(), phaseName: PHASES[dayPhase()].name, say: sayList(6),
     block: D.done ? null : { who: b.who, best: b.best },
     done: D.done, exec: D.done && D.exec ? { pid: D.exec.pid, dies: D.exec.dies, virgin: D.exec.cause === "nominated the Virgin" } : null,
-    timer: T.total ? { left: timerLeft(), running: !!T.end, total: T.total, big: !!ui.timerOpen } : null,
+    timer: T.total ? { left: timerLeft(), running: !!T.end, total: T.total, big: !!ui.timerOpen, label: T.phase != null ? PHASES[T.phase].name : "Discussion" } : null,
     chats: town.chats.map(c => [c.a, c.b])
   };
 }
@@ -1692,7 +1726,7 @@ const TOWN_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const townId = code => `clocktower-town-${code}`;
 // For testing against a local PeerJS server: ?peer=localhost:9000
 const peerOpts = () => { const h = new URLSearchParams(location.search).get("peer"); if (!h) return {}; const [host, port] = h.split(":"); return { host, port: Number(port) || 9000, path: "/", secure: false }; };
-let town = { peer: null, conns: [], status: "off", last: "", players: {}, chats: [], reqs: {}, lobby: "" };
+let town = { peer: null, conns: [], status: "off", last: "", players: {}, chats: [], reqs: {}, lobby: "", said: {} };
 const townBC = "BroadcastChannel" in window ? new BroadcastChannel("clocktower-town") : null;
 function townStart() {
   if (!S.townCode) { S.townCode = Array.from({ length: 5 }, () => TOWN_CHARS[rnd(TOWN_CHARS.length)]).join(""); save(); }
@@ -1715,17 +1749,35 @@ function townStart() {
     if (S.townOn && e.type !== "peer-unavailable") setTimeout(() => { if (S.townOn && town.status === "error") townStart(); }, 4000);
   });
 }
-function townStop() { S.townOn = false; if (town.peer) town.peer.destroy(); town = { peer: null, conns: [], status: "off", last: "", players: {}, chats: [], reqs: {}, lobby: "" }; }
+function townStop() { S.townOn = false; if (town.peer) town.peer.destroy(); town = { peer: null, conns: [], status: "off", last: "", players: {}, chats: [], reqs: {}, lobby: "", said: {} }; }
 
 /* Players linked from the Player app, and their private chats.
    Chat messages pass through here, but they're encrypted end to end by the two phones
    (with a key only they share), so the Storyteller's device can't read them, and doesn't keep them. */
 const chatDay = () => S.step === "day" && !S.over;
-// Nominations are open once the Storyteller says so, or the first nomination starts, until night
-const nomsOpen = () => chatDay() && !!S.day && (S.day.nomsOpen || S.day.done || S.day.noms.length > 0 || !!S.day.draft);
+// The day has three parts, each with its own timer: private chats with anyone, then public discussion,
+// then nominations. After the first part, private chats are only allowed between neighbours.
+const PHASES = [
+  { icon: "💬", name: "Private chats", mins: 5, tip: "Players can chat privately with anyone." },
+  { icon: "🗣️", name: "Public discussion", started: "Public discussion has started.", mins: 3, tip: "Everyone talks together. Private chats only between neighbours." },
+  { icon: "📢", name: "Nominations", started: "Nominations are open.", mins: 5, tip: "Nominate and vote. Private chats only between neighbours." }
+];
+const phaseMins = k => (S.phaseMins || [])[k] || PHASES[k].mins;
+// Once a nomination has started, it's the nominations, whatever was chosen
+const dayPhase = () => { const D = S.day; if (!D) return 0; const d = D.draft; return D.done || D.noms.length || (d && !d.stage.startsWith("slayer")) || D.nomsOpen ? 2 : D.phase || 0; };
+const nomsOpen = () => chatDay() && !!S.day && dayPhase() === 2;
 const seatNeighbours = (a, b) => { const ids = S.players.map(p => p.id), n = ids.length, i = ids.indexOf(a), j = ids.indexOf(b); return i >= 0 && j >= 0 && (Math.abs(i - j) === 1 || Math.abs(i - j) === n - 1); };
-const canChat = (a, b) => chatDay() && (!nomsOpen() || seatNeighbours(a, b));
-const chatWhy = () => !chatDay() ? "Private chats are only allowed during the day." : "Nominations are open: you can only chat with your neighbours now.";
+const canChat = (a, b) => chatDay() && (dayPhase() === 0 || seatNeighbours(a, b));
+const chatWhy = () => !chatDay() ? "Private chats are only allowed during the day." : `${PHASES[dayPhase()].name}: you can only chat with your neighbours now.`;
+// Set the timer for a part of the day; it starts straight away when the Storyteller moves on to it
+function phaseTimer(k, run) {
+  const ms = phaseMins(k) * 60000;
+  Object.assign(T, { phase: k, total: ms, left: ms, end: run ? Date.now() + ms : 0, rang: false });
+}
+function enterPhase(k) {
+  S.day.phase = k; S.day.nomsOpen = k === 2;
+  phaseTimer(k, true);
+}
 const tellPlayer = (pid, m) => { const P = town.players[pid]; if (P && P.conn.open) try { P.conn.send(m); } catch (e) {} };
 const inChat = pid => town.chats.some(c => c.a === pid || c.b === pid);
 function fromPlayer(c, m) {
@@ -1774,6 +1826,16 @@ function fromPlayer(c, m) {
     return;
   }
   if (m.t === "chat-end") endChat(m.id, `${nameOf(me)} ended the chat.`);
+  // 📣 Said to everyone: shown on the TV, the phones and here
+  if (m.t === "say") {
+    const text = String(m.text || "").replace(/\s+/g, " ").trim().slice(0, 200);
+    if (!text) return;
+    if (!chatDay()) return c.send({ t: "note", why: "Public chat is only open during the day." });
+    if (Date.now() - (town.said[me] || 0) < 1500) return;
+    town.said[me] = Date.now();
+    S.day.say = [...(S.day.say || []), { id: uid(), by: me, text }].slice(-60);
+    render();
+  }
   // Keys and encrypted messages, passed on to the other player in the chat, unread
   if (m.t === "chat-key" || m.t === "chat-msg") {
     const ch = town.chats.find(x => x.id === m.id && (x.a === me || x.b === me));
@@ -1834,7 +1896,7 @@ function refreshJoin() {
 }
 function sendLobby(force) {
   // End the chats that aren't allowed any more: at night, or between non-neighbours once nominations open
-  const why = !chatDay() ? "Night has fallen. Private chats are over." : "Nominations are open. Private chats are over, except between neighbours.";
+  const why = !chatDay() ? "Night has fallen. Private chats are over." : `${PHASES[dayPhase()].started} Private chats are over, except between neighbours.`;
   town.chats.filter(x => !canChat(x.a, x.b)).forEach(x => endChat(x.id, why));
   for (const [id, r] of Object.entries(town.reqs)) if (!canChat(r.from, r.to)) { delete town.reqs[id]; tellPlayer(r.to, { t: "chat-gone", id }); tellPlayer(r.from, { t: "chat-no", to: r.to, why }); }
   const base = lobbyBase();
@@ -1862,14 +1924,16 @@ function dayInfo() {
 function startNomination(by, of) {
   const d = { stage: "of", votes: [], by, of };
   d.stage = virginIn(of) && !S.virginUsed && !S.day.noms.some(n => n.virgin) ? "virgin" : "vote";
-  S.day.draft = d; S.day.nomsOpen = true;
+  if (dayPhase() < 2) enterPhase(2);
+  S.day.draft = d;
   S.day.hands = (S.day.hands || []).filter(h => h.by !== by);
 }
 function lobbyBase() {
-  return { t: "lobby", gameId: S.gameId, dayInfo: dayInfo(), day: chatDay(), noms: nomsOpen(), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
+  return { t: "lobby", gameId: S.gameId, dayInfo: dayInfo(), day: chatDay(), noms: nomsOpen(), phase: chatDay() ? dayPhase() : null, say: sayList(30), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
     players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), online: !!town.players[p.id], busy: inChat(p.id), dead: !!(S.dead || {})[p.id] })),
     chats: town.chats.map(c => [c.a, c.b]) };
 }
+const sayList = n => (chatDay() && S.day && S.day.say || []).slice(-n).map(x => [x.id, x.by, x.text]);
 // Send the public view to every Town Square screen, and to other windows on this device
 function townSend(force) {
   const st = publicState(), json = JSON.stringify(st);
@@ -2050,8 +2114,9 @@ document.addEventListener("click", ev => {
     case "yn": S.night.cur.info.yes = el.dataset.v === "1"; break;
     case "st-kill": { const c = S.night.cur; c.stKilled = true; c.kills = [{ pid: c.stTarget, dies: true, why: "", instead: "" }]; nextStep(true); break; }
     case "reveal": ui.reveal = !ui.reveal; ui.sel = null; break;
-    case "nom-new": S.day.draft = { stage: "by", votes: [] }; S.day.nomsOpen = true; break;
-    case "noms-open": S.day.nomsOpen = true; break;
+    case "nom-new": if (dayPhase() < 2) enterPhase(2); S.day.draft = { stage: "by", votes: [] }; break;
+    case "phase-go": enterPhase(Number(el.dataset.v)); break;
+    case "say-del": S.day.say = (S.day.say || []).filter(x => x.id !== el.dataset.id); break;
     case "nom-cancel": S.day.draft = null; break;
     case "nom-by": S.day.draft.by = el.dataset.pid; S.day.draft.stage = "of"; break;
     case "hand-start": { const h = validHands()[i]; if (h) startNomination(h.by, h.of); break; }
@@ -2143,7 +2208,7 @@ document.addEventListener("click", ev => {
     case "new-game": {
       const playing = S.step !== "players" || S.bag.length;
       if (playing && !confirm(S.over ? "Start a new game with the same players?" : "Start a new game? This game ends now. The players stay; the bag, characters and everything that has happened are cleared.")) return;
-      S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn !== false, townCode: S.townCode, linkSecrets: S.linkSecrets };
+      S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn !== false, townCode: S.townCode, linkSecrets: S.linkSecrets, phaseMins: S.phaseMins };
       Object.assign(T, { end: 0, left: 0, total: 0, rang: false });
       Object.assign(ui, { sel: null, reveal: false, story: false, timerOpen: false }); show = null;
       break;
@@ -2162,6 +2227,10 @@ document.addEventListener("change", ev => {
   if (t.dataset.script !== undefined) { if (S.bag.length && !confirm("Changing the script empties the bag. Change it?")) { t.value = S.script; return; } S.script = t.value; S.bag = []; render(); }
   if (t.dataset.shown !== undefined) { S.bag[Number(t.dataset.shown)].shown = t.value; render(); }
   if (t.dataset.bluff !== undefined) { S.bluffs[Number(t.dataset.bluff)] = t.value; render(); }
+  if (t.dataset.phasemins !== undefined) { const k = Number(t.dataset.phasemins); S.phaseMins = PHASES.map((x, j) => phaseMins(j)); const was = phaseMins(k); S.phaseMins[k] = Number(t.value);
+    // Change the timer that's going by the same amount
+    if (T.phase === k) { const d = (S.phaseMins[k] - was) * 60000; if (T.end) T.end = Math.max(Date.now(), T.end + d); else T.left = Math.max(0, T.left + d); T.total = S.phaseMins[k] * 60000; }
+    render(); }
   if (t.dataset.redherring !== undefined) { S.redHerring = t.value; render(); }
   if (t.dataset.setrole) { const d = S.drawn[t.dataset.setrole]; d.role = t.value; d.align = alignOf(t.value); d.shown = ""; if (SHOWN[t.value]) d.shown = pickOne(scriptChars([SHOWN[t.value]]).filter(r => !inPlay().some(q => roleOf(q) === r))); render(); }
   if (t.dataset.setshown) { S.drawn[t.dataset.setshown].shown = t.value; render(); }
