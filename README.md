@@ -52,6 +52,8 @@ A *Blood on the Clocktower* Storyteller app for games round a real table. Open `
 
 A *Blood on the Clocktower* app for each player at a real table. Open `player.html`. Everything is saved on the device.
 
+**📜 Characters** at the top, on every screen, opens the script's characters and what they do, grouped by team, with how many of each team there are for this many players. Your own character is marked **You**. Close it with Close, Esc or by tapping outside.
+
 1. **Players**: scan the QR code on the Town Square, or type the Storyteller's code in **🔗 Join the game** and tap which player is you: the script and the players fill in by themselves, in seat order, and from then on deaths and the night and day follow the Storyteller's game (your own notes, claims and reads are kept). Otherwise, choose the script and add everyone in seat order, clockwise, including yourself (several at once with commas). Tap **Me** next to your own name.
 2. **My token**: when the Storyteller sends the tokens, yours arrives on your phone: **Your token has arrived** asks you to make sure nobody can see, then **Show me** reveals your character, its ability and your side, and **Open my Grimoire** takes you in (good or evil, set for you). If you're not linked, or were handed a physical token, then once the Storyteller hands you your character, tap it (its ability is shown), then choose your side: **Good** or **Evil**. You can come back and change either later.
 3. **Grimoire** (good players):

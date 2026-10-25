@@ -191,6 +191,14 @@ body.has-handbar .wrap { padding-bottom: 160px; }
 .chat-cover { position: fixed; inset: 0; z-index: 40; background: rgba(8,6,12,.7); display: grid; place-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
 .chat-panel { width: min(640px, 100%); background: var(--surface); border: 2px solid var(--brass); border-radius: 18px; padding: 18px; display: grid; gap: 14px; }
 .chat-panel h2 { margin: 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.5rem; }
+.chat-panel.sheet { max-height: 100%; grid-template-rows: auto auto minmax(0, 1fr); }
+.sheet-list { overflow-y: auto; display: grid; gap: 10px; padding-right: 4px; }
+.sheet-list h3 { margin: 6px 0 0; font-size: .9rem; letter-spacing: .08em; text-transform: uppercase; }
+.sh-townsfolk { color: var(--townsfolk); } .sh-outsider { color: var(--outsider); } .sh-minion { color: var(--minion); } .sh-demon { color: var(--demon); }
+.sh-r { display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 10px; align-items: start; line-height: 1.3; }
+.sh-r .ico { font-size: 1.6rem; line-height: 1; }
+.sh-r.mine { background: var(--surface-2); border: 2px solid var(--brass); border-radius: 12px; padding: 8px; }
+.sh-r .tag { font-size: .75rem; font-weight: 800; background: var(--brass); color: var(--on-brass); border-radius: 999px; padding: 1px 8px; }
 .chat-panel.chat { height: min(720px, 100%); grid-template-rows: auto 1fr auto auto; }
 .msgs { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; min-height: 0; }
 .msg { align-self: flex-start; max-width: 80%; background: var(--surface-2); border-radius: 14px 14px 14px 4px; padding: 8px 12px; font-size: 1.1rem; overflow-wrap: anywhere; }
@@ -217,10 +225,12 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
     <a class="home" href="index.html" aria-label="All apps">⌂</a>
     <h1>Player's Grimoire</h1>
     <nav class="steps" id="steps" aria-label="Steps"></nav>
+    <button class="btn" data-act="sheet-open" aria-label="Characters on the script">📜 Characters</button>
   </header>
   <main id="app"></main>
   <div id="chatBox"></div>
   <div id="handBar"></div>
+  <div id="sheetBox" class="chat-cover" hidden role="dialog" aria-modal="true" aria-label="Characters on the script"></div>
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
@@ -805,6 +815,13 @@ function sendSay() {
   toHost({ t: "say", text: t });
   box.value = ""; box.focus();
 }
+// 📜 Every character on the script and what they do, with mine marked
+function sheetHtml() {
+  const sc = SCRIPTS[S.script] || SCRIPTS.tb, n = S.players.length, c = COMP[Math.min(15, n)];
+  return `<div class="chat-panel sheet"><div class="row"><h2 style="margin-right:auto">📜 ${esc(sc.name)}</h2><button class="btn" data-act="sheet-close">Close</button></div>
+    ${c ? `<p class="hint">${n} players: ${TEAMS.map((t, i) => `${c[i]} ${c[i] === 1 ? TEAM_ONE[t] : TEAM_LABEL[t]}`).join(" · ")}. * means not the first night.</p>` : `<p class="hint">* means not the first night.</p>`}
+    <div class="sheet-list">${TEAMS.map(t => `<h3 class="sh-${t}">${TEAM_LABEL[t]}</h3>${sc.roles[t].map(([name, icon, text]) => `<div class="sh-r ${name === S.role ? "mine" : ""}"><span class="ico">${icon}</span><div><b>${esc(name)}</b>${name === S.role ? ` <span class="tag">You</span>` : ""}<br><span class="hint">${esc(text)}</span></div></div>`).join("")}`).join("")}</div></div>`;
+}
 function handBarHtml() {
   const lb = link.lobby, me = lb && lb.you, D = lb && lb.dayInfo;
   if (!me || !D || D.done) return "";
@@ -902,6 +919,8 @@ document.addEventListener("click", ev => {
     case "chat-yes": toHost({ t: "chat-ans", id: link.incoming.id, ok: true }); link.incoming = null; renderLink(); return;
     case "chat-nope": toHost({ t: "chat-ans", id: link.incoming.id, ok: false }); link.incoming = null; renderLink(); return;
     case "chat-send": return sendChat();
+    case "sheet-open": { const b = $("sheetBox"); b.innerHTML = sheetHtml(); b.hidden = false; document.body.style.overflow = "hidden"; b.querySelector(".sheet-list").scrollTop = 0; return; }
+    case "sheet-close": $("sheetBox").hidden = true; document.body.style.overflow = ""; return;
     case "say-send": return sendSay();
     case "nom-open": ui.nominating = true; renderLink(); return;
     case "nominate": ui.nominating = false; link.note = ""; toHost({ t: "nominate", of: pid }); return;
@@ -936,6 +955,8 @@ document.addEventListener("change", ev => {
   if (t.dataset.mybluff !== undefined) { S.myBluff = t.value; render(); }
   if (t.dataset.name !== undefined) render();
 });
+document.addEventListener("keydown", ev => { if (ev.key === "Escape" && !$("sheetBox").hidden) { $("sheetBox").hidden = true; document.body.style.overflow = ""; } });
+$("sheetBox").addEventListener("click", ev => { if (ev.target.id === "sheetBox") { ev.currentTarget.hidden = true; document.body.style.overflow = ""; } });
 document.addEventListener("keydown", ev => {
   if (ev.key !== "Enter") return;
   if (ev.target.id === "newName") { ev.preventDefault(); addNames(); }
