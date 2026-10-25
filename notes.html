@@ -147,6 +147,10 @@ label.field, .field { display: grid; gap: 6px; }
 .claim .ico { width: 1.6em; text-align: center; }
 
 /* Online Notes */
+.tiles.small { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; }
+.tiles.small .tile { min-height: 66px; font-size: .8rem; padding: 6px 4px; }
+.tiles.small .tile .ico { font-size: 1.4rem; }
+.pick-chars { display: grid; gap: 8px; }
 .card > .seg { display: grid; grid-template-columns: 1fr 1fr; }
 .card > .seg button + button { border-left: 1px solid var(--line); }
 .seat.soft .disc { border-style: dashed; border-color: var(--brass); }
@@ -182,7 +186,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <main id="app"></main>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 67;</script>
+<script>window.APP_V = 68;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -220,7 +224,7 @@ let S;
 try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
 if (!S || !S.step) S = fresh();
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
-const ui = { sel: null, kind: "hard" };
+const ui = { sel: null, kind: "hard", claimRole: "" };
 const about = pid => (S.P[pid] = S.P[pid] || { claims: [], death: null, ghost: false, notes: "" });
 const nameOf = pid => (S.players.find(p => p.id === pid) || {}).name || "?";
 const alive = () => S.players.filter(p => !about(p.id).death);
@@ -344,9 +348,10 @@ function panelHtml(pid) {
     ${ab ? `<p class="ability"><b>${ab.icon} ${esc(ab.name)}</b>: ${esc(ab.text)}</p>` : ""}
     <div class="seg" role="group" aria-label="Kind of claim"><button data-act="kind" data-v="soft" aria-pressed="${ui.kind === "soft"}">Soft claim</button><button data-act="kind" data-v="hard" aria-pressed="${ui.kind === "hard"}">Hard claim</button></div>
     <p class="hint">${ui.kind === "soft" ? "A hint or a maybe: \"I might be an info role\", \"I'm one of three\"." : "They've said outright which character they are."}</p>
-    ${roleInput("claimRole")}
+    ${S.script === "other" ? roleInput("claimRole") : `<div class="pick-chars">${TEAMS.map(t => `<h3 class="t-${t}">${TEAM_LABEL[t]}</h3>
+      <div class="tiles small">${SCRIPTS[S.script].roles[t].map(([name, icon]) => `<button class="tile ${t}" data-act="claim-role" data-role="${esc(name)}" aria-pressed="${ui.claimRole === name}"><span class="ico" aria-hidden="true">${icon}</span>${esc(name)}</button>`).join("")}</div>`).join("")}</div>`}
     <input type="text" id="claimNote" placeholder="What they said (optional)" autocomplete="off" enterkeyhint="done">
-    <button class="btn primary" data-act="claim-add" data-pid="${pid}">Add ${ui.kind} claim</button>`}
+    <button class="btn primary" data-act="claim-add" data-pid="${pid}" ${S.script === "other" || ui.claimRole ? "" : "disabled"}>${S.script === "other" || !ui.claimRole ? `Add ${ui.kind} claim` : `Add ${ui.kind} claim: ${esc(ui.claimRole)}`}</button>`}
     <h3>Died?</h3>
     ${d ? `<div class="dead-box"><p class="lead">${deathOf(d.how)[1]} <b>${deathOf(d.how)[2]}</b> · ${phaseName(d.ph)}</p>
       <div class="row"><button class="btn" data-act="ghost" data-pid="${pid}" aria-pressed="${A.ghost}">${A.ghost ? "👻 Ghost vote used" : "👻 Ghost vote still there"}</button><button class="btn" data-act="undead" data-pid="${pid}">Undo</button></div></div>`
@@ -401,10 +406,18 @@ function addInfo() {
   S.info.push({ id: uid(), ph: S.ph, text: t });
   render(); $("infoIn").focus();
 }
+// Redraw without losing what's been typed in the claim's note
+function keepDraft() {
+  const n = $("claimNote") && $("claimNote").value, y = window.scrollY;
+  render();
+  if ($("claimNote")) $("claimNote").value = n || "";
+  window.scrollTo(0, y);
+}
 function addClaim(pid) {
-  const role = ($("claimRole").value || "").trim();
-  if (!role) { $("claimRole").focus(); return; }
+  const role = S.script === "other" ? ($("claimRole").value || "").trim() : ui.claimRole;
+  if (!role) { if ($("claimRole")) $("claimRole").focus(); return; }
   about(pid).claims.push({ id: uid(), kind: ui.kind, role, note: ($("claimNote").value || "").trim(), ph: S.ph });
+  ui.claimRole = "";
   render();
 }
 document.addEventListener("click", ev => {
@@ -423,7 +436,8 @@ document.addEventListener("click", ev => {
     case "to-notes": S.step = "notes"; break;
     case "role": S.role = el.dataset.role; break;
     case "role-typed": S.role = ($("myRole").value || "").trim(); break;
-    case "sel": ui.sel = ui.sel === pid ? null : pid; render(); if (ui.sel && innerWidth < 900) { const c = document.querySelector(".grim-wrap > .side + .side"); if (c) c.scrollIntoView({ behavior: "smooth" }); } return;
+    case "sel": ui.claimRole = ""; ui.sel = ui.sel === pid ? null : pid; render(); if (ui.sel && innerWidth < 900) { const c = document.querySelector(".grim-wrap > .side + .side"); if (c) c.scrollIntoView({ behavior: "smooth" }); } return;
+    case "claim-role": ui.claimRole = ui.claimRole === el.dataset.role ? "" : el.dataset.role; keepDraft(); return;
     case "kind": ui.kind = el.dataset.v; { const r = $("claimRole") && $("claimRole").value, n = $("claimNote") && $("claimNote").value; render(); if ($("claimRole")) $("claimRole").value = r || ""; if ($("claimNote")) $("claimNote").value = n || ""; } return;
     case "claim-add": return addClaim(pid);
     case "claim-del": about(pid).claims = about(pid).claims.filter(c => c.id !== el.dataset.id); break;
