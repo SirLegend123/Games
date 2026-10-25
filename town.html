@@ -64,6 +64,8 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass)
 .panel { display: grid; gap: 2.4vmin; align-content: center; max-height: 100%; overflow: hidden; }
 .card { background: rgba(31,26,39,.85); border: 1px solid var(--line); border-radius: 18px; padding: 2.2vmin 2.8vmin; display: grid; gap: 1vmin; }
 .card h2 { font-size: 1.6em; }
+.card.say { border-color: var(--brass); }
+.card.say p { overflow-wrap: anywhere; }
 .big { font-size: 1.5em; margin: 0; }
 .huge { font-weight: 800; font-size: 4.4em; line-height: 1; margin: 0; font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); margin: 0; }
@@ -196,13 +198,21 @@ function circle(opts = {}) {
   </div>`;
 }
 
+const PH = [
+  { icon: "💬", name: "Private chats", tip: "Chat privately with anyone on your phone. 📣 to say something to the whole town." },
+  { icon: "🗣️", name: "Public discussion", tip: "Talk together. Private chats only with your neighbours now." },
+  { icon: "📢", name: "Nominations", tip: "Raise your hand on your phone to nominate. Private chats only with your neighbours." }
+];
 function dayPanel() {
   const cards = [];
-  const t = G.timer;
-  if (t && (t.running || timerLeft(t) < t.total)) {
-    const l = timerLeft(t);
-    cards.push(`<div class="card timer ${l === 0 ? "up" : l <= 30000 ? "low" : ""}"><p class="muted">Discussion</p><p class="huge" id="tDigits">${fmt(l)}</p>${l === 0 ? `<p class="big">Time's up!</p>` : ""}</div>`);
+  const t = G.timer, ph = PH[G.phase || 0];
+  // Which part of the day it is, with its timer once the Storyteller has started it
+  if (!G.done && !G.vote) {
+    const on = t && (t.running || timerLeft(t) < t.total), l = on ? timerLeft(t) : 0;
+    cards.push(`<div class="card timer ${on ? (l === 0 ? "up" : l <= 30000 ? "low" : "") : ""}"><h2>${ph.icon} ${esc(G.phaseName || ph.name)}</h2>
+      ${on ? `<p class="huge" id="tDigits">${fmt(l)}</p>${l === 0 ? `<p class="big">Time's up!</p>` : ""}` : ""}<p class="muted">${ph.tip}</p></div>`);
   }
+  if ((G.say || []).length) cards.push(`<div class="card say"><h2>📣 Town talk</h2>${G.say.map(x => `<p class="big"><b>${esc(nameOf(x[1]))}:</b> ${esc(x[2])}</p>`).join("")}</div>`);
   if (G.vote) {
     const v = G.vote, n = v.votes.length;
     cards.push(`<div class="card"><h2>Vote</h2><p class="big"><b>${esc(nameOf(v.by))}</b> nominated <b>${esc(nameOf(v.of))}</b></p>
@@ -218,8 +228,6 @@ function dayPanel() {
   if ((G.hands || []).length && !G.vote) cards.push(`<div class="card"><h2>✋ Hands up</h2>${G.hands.map(h => `<p class="big"><b>${esc(nameOf(h[0]))}</b> wants to nominate <b>${esc(nameOf(h[1]))}</b></p>`).join("")}</div>`);
   if ((G.chats || []).length) cards.push(`<div class="card"><h2>💬 Private chats</h2>${G.chats.map(c => `<p class="big">${esc(nameOf(c[0]))} ↔ ${esc(nameOf(c[1]))}</p>`).join("")}</div>`);
   if (lines.length) cards.push(`<div class="card"><h2>Today</h2><ol class="list">${lines.map(l => `<li>${l}</li>`).join("")}</ol></div>`);
-  if (!cards.length) cards.push(G.nomsOpen ? `<div class="card"><h2>📢 Nominations are open</h2><p class="big">Raise your hand on your phone to nominate.</p><p class="muted">Private chats only between neighbours now.</p></div>`
-    : `<div class="card"><h2>Day ${G.n}</h2><p class="big">Talk, plot, and find the Demon.</p><p class="muted">Private chats are open. Nominations will appear here.</p></div>`);
   return cards.join("");
 }
 
@@ -278,7 +286,7 @@ function render() {
     app.innerHTML = `<div class="screen full night"><div class="full-inner"><h1>Night ${G.n}</h1><p>Everyone, close your eyes.</p><p style="font-size:.8em;opacity:.7">${G.alive} alive</p></div></div>`;
   } else if (m === "day" && G.timer && G.timer.big) {
     const l = timerLeft(G.timer);
-    app.innerHTML = `<div class="screen full bigtimer ${l === 0 ? "up" : l <= 30000 ? "low" : ""}"><div class="full-inner"><p class="big">Day ${G.n} · ${G.alive} alive</p><p class="huge" id="tDigits">${fmt(l)}</p><p class="big">${l === 0 ? "Time's up!" : G.timer.running ? "Discussion time" : "Paused"}</p></div></div>`;
+    app.innerHTML = `<div class="screen full bigtimer ${l === 0 ? "up" : l <= 30000 ? "low" : ""}"><div class="full-inner"><p class="big">Day ${G.n} · ${G.alive} alive</p><p class="huge" id="tDigits">${fmt(l)}</p><p class="big">${l === 0 ? "Time's up!" : G.timer.running ? esc(G.timer.label || "Discussion time") : "Paused"}</p></div></div>`;
   } else if (m === "day") {
     app.innerHTML = `<div class="screen game"><div>${circle({ center: `<span class="ph">Day ${G.n}</span><span class="sub">${G.alive} alive · ${G.need} to execute</span>` })}</div><div class="panel">${dayPanel()}</div></div>`;
   } else if (m === "draw") {
