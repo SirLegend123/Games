@@ -6,12 +6,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Traitors">
 <title>The Traitors</title>
-<link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#15121b">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" href="icon-192.png">
-<script src="companion.js"></script>
-<script src="peerjs.min.js"></script>
+<script>window.APP_V = 68;</script>
+<script src="update.js"></script>
+<script src="vendor/peerjs.min.js"></script>
+<script src="vendor/qrcode.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
@@ -151,6 +150,8 @@ input[type="text"], textarea { background: var(--surface-2); border: 1px solid v
 .castle-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 860px) { .castle-grid { grid-template-columns: minmax(0, 1fr); } }
 .joincode { font-family: var(--font-display); font-size: clamp(3rem, 12vw, 6rem); letter-spacing: .12em; color: var(--brass); line-height: 1; text-align: center; }
+.qr { width: min(240px, 70%); margin: 0 auto; background: #fff; border-radius: 12px; padding: 8px; }
+.qr svg { display: block; width: 100%; height: auto; }
 .joinurl { font-weight: 700; text-align: center; overflow-wrap: anywhere; user-select: all; }
 .waitlist { display: flex; flex-wrap: wrap; gap: 6px; }
 .waitlist span { background: var(--surface-2); border: 1px solid var(--line); border-radius: 99px; padding: 3px 10px; font-weight: 700; }
@@ -808,6 +809,15 @@ function homeHtml() {
 }
 
 /* ---------- The castle screen ---------- */
+// A QR code for the join link, so phones can join by scanning the shared screen
+let qrCache = { url: '', svg: '' };
+function qrSvg(url) {
+  if (qrCache.url === url) return qrCache.svg;
+  let svg = '';
+  try { const q = qrcode(0, 'M'); q.addData(url); q.make(); svg = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true }); } catch (e) {}
+  qrCache = { url, svg };
+  return svg;
+}
 const netDot = s => `<span class="status"><span class="dot ${s === 'open' ? 'on' : s === 'failed' ? 'off' : ''}"></span>${s === 'open' ? 'Online' : s === 'failed' ? 'Can\'t reach the connection service' : 'Connecting…'}</span>`;
 function waitHtml(names, hide) {
   const w = waiting();
@@ -821,7 +831,7 @@ function sideHtml() {
   return `<section class="card">
       <p class="kicker center">Room code</p>
       <div class="joincode">${esc(H.code)}</div>
-      <p class="hint center">Join at</p>
+      ${qrSvg(joinLink(H.code)) ? `<div class="qr" aria-label="QR code to join">${qrSvg(joinLink(H.code))}</div><p class="hint center">Scan to join, or go to</p>` : '<p class="hint center">Join at</p>'}
       <p class="joinurl">${esc(joinLink(H.code))}</p>
       <div class="row center">${netDot(castleNet)}</div>
       ${H.phase !== 'lobby' ? `<p class="center">Day ${H.day} · ${plural(alive().length, 'player')} left · Pot <span class="gold">${money(H.pot)}</span></p>` : ''}
@@ -836,7 +846,7 @@ function castleMainHtml() {
       const n = H.players.length;
       return `<section class="card">
           <h2>Welcome to the castle</h2>
-          <p>Share this screen on your video call. Everyone joins on their own phone: open the link, type the room code <b>${esc(H.code)}</b> and their name. The host joins too.</p>
+          <p>Share this screen on your video call. Everyone joins on their own phone: scan the QR code or open the link (the room code <b>${esc(H.code)}</b> fills itself in), then type their name. The host joins too.</p>
           <h3>Rules</h3>
           <div class="set"><span>The Secret Traitor<small>One Traitor is hidden even from the other Traitors, and draws up the shortlists they must choose from</small></span>${seg('secretT', [[true, 'On'], [false, 'Off']])}</div>
           <div class="set"><span>Missions<small>A challenge on everyone's phone each day; right answers add gold</small></span>${seg('missions', [[true, 'On'], [false, 'Off']])}</div>
@@ -1077,7 +1087,7 @@ function menuHtml() {
     ${mode === 'castle' ? `<h3>Sound</h3><button class="btn sm" data-act="voice" aria-pressed="${prefs.voice}">Narrator voice: ${prefs.voice ? 'on' : 'off'}</button>
       <h3>Game</h3>${menu === 'quit' ? '<p>End this game and close the castle? Everyone will be disconnected.</p><div class="row"><button class="btn danger" data-act="quityes">Yes, end it</button><button class="btn" data-act="menu">Keep playing</button></div>' : '<button class="btn danger" data-act="quit">End this game</button>'}` : ''}
     ${mode === 'player' ? '<h3>Game</h3><button class="btn" data-act="leave">Leave this game</button><p class="hint">You can rejoin with the same code and name.</p>' : ''}
-    <p class="hint">Text size and light or dark are under ⚙.</p>`;
+    `;
 }
 
 /* ---------- Draw ---------- */
@@ -1213,6 +1223,14 @@ function playerTap(a, v) {
     case 'sendmeet': send('meeting', { choice: L.meet.c, choice2: s.two ? L.meet.c2 : null }); return;
   }
 }
+
+// Keep the screen awake while the castle or a phone is in a game (where the browser allows it)
+let wakeLock = null;
+async function keepAwake() {
+  try { if (mode !== 'home' && 'wakeLock' in navigator && document.visibilityState === 'visible' && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) { wakeLock = null; }
+}
+document.addEventListener('visibilitychange', keepAwake);
+document.addEventListener('click', keepAwake);
 
 /* ---------- Start ---------- */
 if (params.get('join')) { mode = 'home'; }

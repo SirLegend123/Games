@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#15121b">
+<title>Town Square</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+/* Shown on a TV or projector, so it's always dark and big */
+:root {
+  --bg: #120f17; --surface: #1f1a27; --surface-2: #2b2534; --line: #3b3346;
+  --fg: #f1ebf6; --muted: #b3a9c0; --brass: #e0b862; --on-brass: #1a1408;
+  --parch: #efe4c9; --parch-ink: #2a2118;
+  --good: #4c8ce4; --evil: #e04a62; --warn: #f0b245;
+  --townsfolk: #3e7fd6; --outsider: #5cb8ec; --minion: #d4485e; --demon: #b0263d;
+  --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: radial-gradient(circle at 50% 40%, #2a2235 0%, #18131f 60%, #0e0b12 100%); background-color: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: clamp(16px, 1.6vw, 26px); line-height: 1.4; overflow: hidden; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.screen { position: fixed; inset: 0; padding: 2vmin 3vmin; display: grid; }
+h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass); margin: 0; }
+
+/* Connecting */
+.join { place-items: center; text-align: center; }
+.join-inner { display: grid; gap: 22px; justify-items: center; width: min(700px, 100%); }
+.join h1 { font-size: clamp(2.6rem, 7vw, 5rem); }
+.join p { margin: 0; color: var(--muted); }
+.code-in { font-weight: 800; font-size: clamp(2.6rem, 9vw, 5rem); letter-spacing: .25em; text-align: center; text-transform: uppercase; width: min(520px, 100%); background: var(--surface); border: 3px solid var(--brass); border-radius: 18px; padding: 10px 20px; }
+.btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 12px; padding: 12px 24px; min-height: 56px; font-weight: 800; font-size: 1.1em; }
+.btn.primary { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
+.status { min-height: 1.5em; }
+.status.err { color: var(--warn); }
+
+/* The game */
+.game { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 3vmin; align-items: center; }
+@media (orientation: portrait) { .game { grid-template-columns: 1fr; grid-template-rows: auto 1fr; align-items: start; overflow: auto; } body { overflow: auto; } }
+.circle { position: relative; width: min(100%, 92vmin); margin: 0 auto; aspect-ratio: 1; container-type: inline-size; border-radius: 50%; background: radial-gradient(circle at 50% 45%, #2e2639 0%, #1c1724 65%, #15111b 100%); border: 1px solid var(--line); }
+.seat { position: absolute; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 4px; width: var(--tok); }
+.disc { width: var(--tok); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); border: 5px solid var(--brass); display: grid; place-content: center; justify-items: center; text-align: center; padding: 6%; box-shadow: 0 3px 10px rgba(0,0,0,.45); overflow: hidden; line-height: 1.02; transition: transform .2s ease, box-shadow .2s ease; }
+.disc .nm { font-family: var(--font-display); font-size: calc(var(--tok) * var(--fs)); overflow-wrap: anywhere; }
+.disc .ico { font-size: calc(var(--tok) * .3); line-height: 1.1; }
+.disc .rl { font-weight: 800; font-size: calc(var(--tok) * var(--fs)); }
+.plate { font-weight: 800; font-size: clamp(.8rem, 2.8cqi, 1.3rem); background: rgba(0,0,0,.4); border-radius: 8px; padding: 0 8px; white-space: nowrap; }
+.seat.dead .disc { filter: grayscale(1) brightness(.55); }
+.ghost { font-size: clamp(.7rem, 2.4cqi, 1.1rem); font-weight: 800; color: #fff; background: rgba(76,140,228,.85); border-radius: 999px; padding: 0 8px; }
+.ghost.used { background: rgba(0,0,0,.45); color: var(--muted); }
+.seat.nominee .disc { border-color: var(--evil); box-shadow: 0 0 0 6px rgba(224,74,98,.45), 0 0 28px rgba(224,74,98,.6); transform: scale(1.08); }
+.seat.nominator .disc { border-color: var(--warn); }
+.seat.voted .disc { box-shadow: 0 0 0 6px var(--good), 0 0 24px rgba(76,140,228,.7); }
+.seat.block .disc { border-color: var(--evil); border-width: 8px; }
+.seat.good .disc { border-color: var(--good); } .seat.evil .disc { border-color: var(--evil); }
+.center { position: absolute; inset: 28%; display: grid; place-content: center; justify-items: center; text-align: center; gap: 4px; }
+.center .ph { font-family: var(--font-display); color: var(--brass); font-size: clamp(1.6rem, 8cqi, 4rem); line-height: 1; }
+.center .sub { color: var(--muted); font-size: clamp(.9rem, 3.2cqi, 1.5rem); }
+.panel { display: grid; gap: 2.4vmin; align-content: center; max-height: 100%; overflow: hidden; }
+.card { background: rgba(31,26,39,.85); border: 1px solid var(--line); border-radius: 18px; padding: 2.2vmin 2.8vmin; display: grid; gap: 1vmin; }
+.card h2 { font-size: 1.6em; }
+.card.say { border-color: var(--brass); }
+.card.say p { overflow-wrap: anywhere; }
+.big { font-size: 1.5em; margin: 0; }
+.huge { font-weight: 800; font-size: 4.4em; line-height: 1; margin: 0; font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); margin: 0; }
+.list { margin: 0; padding-left: 1.2em; display: grid; gap: .3em; }
+.timer { text-align: center; }
+.timer .huge { font-size: 5.4em; }
+.timer.low .huge { color: var(--warn); }
+.timer.up .huge { color: var(--evil); }
+
+/* Full-screen moments */
+.full { place-items: center; text-align: center; }
+.full-inner { display: grid; gap: 3vmin; justify-items: center; width: 100%; }
+.night { background: radial-gradient(circle at 50% 30%, #1d2445 0%, #0d1124 60%, #05060d 100%); }
+.night h1 { font-size: clamp(3rem, 10vw, 8rem); color: #cfd7ff; }
+.night p { font-size: clamp(1.4rem, 3.4vw, 2.6rem); color: #aeb8e6; margin: 0; }
+.dawn { background: radial-gradient(circle at 50% 35%, #9b1b2f 0%, #5c0d1a 55%, #2a050c 100%); }
+.dawn h1 { color: #fff1e0; font-size: clamp(3rem, 9vw, 7rem); }
+.dawn p { font-size: clamp(1.4rem, 3.6vw, 2.8rem); margin: 0; }
+.dead-name { font-family: var(--font-display); font-size: clamp(4rem, 15vw, 12rem); line-height: 1.05; color: #fff; border: 4px solid #ffd27a; border-radius: 22px; padding: 1vmin 4vmin; background: rgba(0,0,0,.25); }
+.bigtimer .huge { font-size: clamp(8rem, 34vw, 26rem); }
+.bigtimer.low .huge { color: var(--warn); }
+.bigtimer.up { background: #5a0f1c; }
+.bigtimer.up .huge { color: #ff5c72; }
+.over h1 { font-size: clamp(3rem, 8vw, 6rem); }
+.over.good h1 { color: var(--good); } .over.evil h1 { color: var(--evil); }
+.spot { background: radial-gradient(circle at 50% 35%, #2a3f73 0%, #12203f 60%, #070b17 100%); }
+.spot.evil { background: radial-gradient(circle at 50% 35%, #8a1a2c 0%, #4a0c17 55%, #24050b 100%); }
+.spot p { font-size: clamp(1.6rem, 4vw, 3rem); margin: 0; }
+.spot-tok { display: grid; justify-items: center; gap: 1vmin; background: var(--parch); color: var(--parch-ink); border: 1.4vmin solid var(--good); border-radius: 50%; width: min(48vmin, 520px); aspect-ratio: 1; place-content: center; font-weight: 800; font-size: clamp(1.8rem, 5vmin, 4rem); animation: flip .6s ease; }
+.spot-tok.evil { border-color: var(--evil); }
+.spot-tok .ico { font-size: clamp(4rem, 16vmin, 12rem); line-height: 1; }
+@keyframes flip { from { transform: rotateY(90deg) scale(.8); } to { transform: none; } }
+/* The lobby */
+.lobby { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 4vmin; align-items: center; }
+@media (orientation: portrait) { .lobby { grid-template-columns: 1fr; } }
+.lobby-join { display: grid; gap: 1.6vmin; justify-items: center; text-align: center; }
+.lobby-join h1 { font-size: clamp(2rem, 5vw, 4rem); }
+.qr { background: #fff; padding: 1.4vmin; border-radius: 16px; width: min(40vmin, 420px); }
+.qr svg { display: block; width: 100%; height: auto; }
+.lobby-code { font-weight: 800; font-size: clamp(3rem, 10vmin, 7rem); letter-spacing: .2em; color: var(--brass); line-height: 1; }
+.lobby-players { display: grid; gap: 2vmin; }
+.lobby-players h2 { font-size: clamp(1.8rem, 4vw, 3rem); }
+.lobby-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.4vmin; }
+.lobby-p { background: var(--surface); border: 2px solid var(--line); border-radius: 14px; padding: 1.2vmin 2vmin; font-size: 1.4em; font-weight: 800; color: var(--muted); }
+.sheet { grid-template-rows: auto minmax(0, 1fr); gap: 1.4em; padding: 3vmin 4vmin 7vmin; overflow: hidden; align-content: start; }
+.sheet-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .4em 2em; }
+.sheet-head h1 { font-size: 2.6em; }
+.sheet-head .big { font-size: 1.3em; margin: 0; }
+.sheet-head .muted { margin: 0 0 0 auto; }
+.sheet-head .townsfolk, .sh-team.townsfolk h2 { color: var(--townsfolk); } .sheet-head .outsider, .sh-team.outsider h2 { color: var(--outsider); }
+.sheet-head .minion, .sh-team.minion h2 { color: var(--minion); } .sheet-head .demon, .sh-team.demon h2 { color: var(--demon); }
+.sheet-body { column-count: 3; column-gap: 3vmin; }
+@media (orientation: portrait) { .sheet-body { column-count: 2; } }
+.sh-team h2 { font-size: 1.5em; margin: 0 0 .3em; break-after: avoid; }
+.sh-team + .sh-team h2 { margin-top: .6em; }
+.sh-r { display: grid; grid-template-columns: 1.8em minmax(0, 1fr); gap: .5em; align-items: start; margin-bottom: .55em; break-inside: avoid; line-height: 1.25; }
+.sh-r .ico { font-size: 1.5em; line-height: 1; }
+.sh-r b { font-size: 1.1em; }
+.sh-r span:not(.ico) { color: var(--muted); }
+.lobby-p.in { border-color: var(--good); color: var(--fg); background: rgba(76,140,228,.18); }
+.corner { position: fixed; right: 12px; bottom: 10px; display: flex; gap: 8px; align-items: center; opacity: .55; font-size: .8rem; z-index: 5; }
+.corner button { background: none; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--good); display: inline-block; }
+.dot.off { background: var(--warn); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
+<script>window.APP_V = 68;</script>
+<script src="update.js"></script>
+<script src="characters.js"></script>
+<script src="vendor/peerjs.min.js"></script>
+<script src="vendor/qrcode.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+const listJoin = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+const LS = "botc-town-code";
+// For testing against a local PeerJS server: ?peer=localhost:9000
+const peerOpts = () => { const h = new URLSearchParams(location.search).get("peer"); if (!h) return {}; const [host, port] = h.split(":"); return { host, port: Number(port) || 9000, path: "/", secure: false }; };
+
+let G = null, gotAt = 0;               // the latest public view, and when it arrived
+let code = (new URLSearchParams(location.search).get("code") || (() => { try { return localStorage.getItem(LS) || ""; } catch (e) { return ""; } })()).toUpperCase();
+let peer = null, conn = null, status = "", err = "", retry = null, lastData = 0;
+// A newly revealed character fills the screen for a few seconds
+let spotKey = "", spotUntil = 0;
+function spotOn() {
+  if (!G.spot || !G.roles.some(r => r.id === G.spot.id)) return false;
+  const k = G.spot.id + G.spot.at;
+  if (k !== spotKey) { spotKey = k; spotUntil = Date.now() + 6000; setTimeout(render, 6100); }
+  return Date.now() < spotUntil;
+}
+const nameOf = id => ((G && G.players.find(p => p.id === id)) || {}).name || "someone";
+
+/* ---------- Connecting ---------- */
+function connect() {
+  clearTimeout(retry);
+  if (!code) return render();
+  try { localStorage.setItem(LS, code); } catch (e) {}
+  status = "connecting"; err = ""; render();
+  if (!window.Peer) { err = "The live link couldn't load. Check the internet connection."; return render(); }
+  if (peer) peer.destroy();
+  peer = new Peer(peerOpts());
+  peer.on("open", () => {
+    conn = peer.connect(`clocktower-town-${code}`, { reliable: true, serialization: "json", metadata: { kind: "town" } });
+    conn.on("open", () => { status = "live"; err = ""; render(); });
+    conn.on("data", st => { G = st; gotAt = Date.now(); lastData = Date.now(); status = "live"; render(); });
+    conn.on("close", () => { status = "lost"; render(); again(); });
+  });
+  peer.on("error", e => {
+    err = e.type === "peer-unavailable" ? `No Storyteller is sharing with code ${code} right now. Check the code, and that sharing is on.` : "Can't reach the link service. Check the internet connection.";
+    status = "lost"; render(); again();
+  });
+}
+const again = () => { clearTimeout(retry); retry = setTimeout(connect, 4000); };
+// If nothing arrives for a while, reconnect
+setInterval(() => { if (status === "live" && Date.now() - lastData > 15000) { status = "lost"; render(); connect(); } }, 5000);
+// The Storyteller in another window on this device
+if ("BroadcastChannel" in window) new BroadcastChannel("clocktower-town").onmessage = ev => { G = ev.data; gotAt = Date.now(); lastData = Date.now(); if (status !== "live") status = "local"; render(); };
+
+/* ---------- Showing the game ---------- */
+function timerLeft(t) { return t.running ? Math.max(0, t.left - (Date.now() - gotAt)) : t.left; }
+const fmt = ms => { const s = Math.ceil(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+
+function circle(opts = {}) {
+  const ps = G.players, n = ps.length, tok = n <= 7 ? 18 : n <= 10 ? 15.5 : n <= 13 ? 13 : 11.5;
+  const seat = id => (G.seats || []).find(s => s.id === id) || {};
+  const roles = opts.roles ? Object.fromEntries(G.roles.map(r => [r.id, r])) : null;
+  const v = G.vote;
+  return `<div class="circle" style="--tok:min(150px, ${tok}cqi)">${ps.map((p, i) => {
+    const a = (i / n) * 2 * Math.PI - Math.PI / 2, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
+    const s = seat(p.id), r = roles && roles[p.id], dead = r ? r.dead : roles ? (G.dead || []).includes(p.id) : s.dead;
+    const talking = (G.chats || []).some(c => c.includes(p.id));
+    const cls = [dead ? "dead" : "", v && v.of === p.id ? "nominee" : "", v && v.by === p.id ? "nominator" : "", v && v.votes.includes(p.id) ? "voted" : "", !v && G.block && G.block.who === p.id ? "block" : "", r ? r.side : ""].join(" ");
+    const word = Math.max(...(r ? r.role : p.name).split(/\s+/).map(w => w.length), 3);
+    const c = r && CHAR[r.role];
+    return `<div class="seat ${cls}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%">
+      <span class="disc">${r ? `<span class="ico">${c ? c.icon : ""}</span><span class="rl" style="--fs:${Math.min(.16, 1.4 / word).toFixed(3)}">${esc(r.role)}</span>` : `<span class="nm" style="--fs:${Math.min(.24, 1.5 / word).toFixed(3)}">${esc(p.name)}</span>`}</span>
+      ${r ? `<span class="plate">${esc(p.name)}</span>` : ""}
+      ${!roles && dead ? `<span class="ghost ${s.vote ? "" : "used"}">${s.vote ? "👻 ghost vote" : "no vote"}</span>` : ""}
+      ${talking ? `<span class="ghost">💬 talking</span>` : ""}
+    </div>`;
+  }).join("")}
+    <div class="center">${opts.center || ""}</div>
+  </div>`;
+}
+
+const PH = [
+  { icon: "💬", name: "Private chats", tip: "Chat privately with anyone on your phone. 📣 to say something to the whole town." },
+  { icon: "🗣️", name: "Public discussion", tip: "Talk together. Private chats only with your neighbours now." },
+  { icon: "📢", name: "Nominations", tip: "Raise your hand on your phone to nominate. Private chats only with your neighbours." }
+];
+function dayPanel() {
+  const cards = [];
+  const t = G.timer, ph = PH[G.phase || 0];
+  // Which part of the day it is, with its timer once the Storyteller has started it
+  if (!G.done && !G.vote) {
+    const on = t && (t.running || timerLeft(t) < t.total), l = on ? timerLeft(t) : 0;
+    cards.push(`<div class="card timer ${on ? (l === 0 ? "up" : l <= 30000 ? "low" : "") : ""}"><h2>${ph.icon} ${esc(G.phaseName || ph.name)}</h2>
+      ${on ? `<p class="huge" id="tDigits">${fmt(l)}</p>${l === 0 ? `<p class="big">Time's up!</p>` : ""}` : ""}<p class="muted">${ph.tip}</p></div>`);
+  }
+  if ((G.say || []).length) cards.push(`<div class="card say"><h2>📣 Town talk</h2>${G.say.map(x => `<p class="big"><b>${esc(nameOf(x[1]))}:</b> ${esc(x[2])}</p>`).join("")}</div>`);
+  if (G.vote) {
+    const v = G.vote, n = v.votes.length;
+    cards.push(`<div class="card"><h2>Vote</h2><p class="big"><b>${esc(nameOf(v.by))}</b> nominated <b>${esc(nameOf(v.of))}</b></p>
+      <p class="huge">${n} <span class="muted" style="font-size:.35em">of ${G.need} needed${G.block && G.block.best ? ` · ${G.block.best} to beat` : ""}</span></p>
+      ${n ? `<p class="muted">${esc(listJoin(v.votes.map(nameOf)))}</p>` : ""}</div>`);
+  } else if (G.done) {
+    const e = G.exec;
+    cards.push(`<div class="card"><h2>The day is over</h2><p class="big">${e ? (e.dies ? `<b>${esc(nameOf(e.pid))}</b> was executed${e.virgin ? " on the spot" : ""}.` : `<b>${esc(nameOf(e.pid))}</b> was executed, but did not die.`) : "Nobody was executed."}</p></div>`);
+  } else if (G.block && G.block.who) cards.push(`<div class="card"><h2>On the block</h2><p class="big"><b>${esc(nameOf(G.block.who))}</b> with ${plural(G.block.best, "vote")}</p></div>`);
+  else if (G.block && G.block.best) cards.push(`<div class="card"><h2>On the block</h2><p class="big">Tied on ${plural(G.block.best, "vote")}: nobody</p></div>`);
+  const lines = [...G.shots.map(x => `🏹 ${esc(nameOf(x.by))} shot ${esc(nameOf(x.at))}: ${x.died ? `${esc(nameOf(x.at))} died` : "nothing happened"}`),
+    ...G.noms.map(n => n.virgin ? `${esc(nameOf(n.by))} nominated ${esc(nameOf(n.of))}, and was executed on the spot` : `${esc(nameOf(n.by))} → ${esc(nameOf(n.of))}: ${plural(n.count, "vote")}`)];
+  if ((G.hands || []).length && !G.vote) cards.push(`<div class="card"><h2>✋ Hands up</h2>${G.hands.map(h => `<p class="big"><b>${esc(nameOf(h[0]))}</b> wants to nominate <b>${esc(nameOf(h[1]))}</b></p>`).join("")}</div>`);
+  if ((G.chats || []).length) cards.push(`<div class="card"><h2>💬 Private chats</h2>${G.chats.map(c => `<p class="big">${esc(nameOf(c[0]))} ↔ ${esc(nameOf(c[1]))}</p>`).join("")}</div>`);
+  if (lines.length) cards.push(`<div class="card"><h2>Today</h2><ol class="list">${lines.map(l => `<li>${l}</li>`).join("")}</ol></div>`);
+  return cards.join("");
+}
+
+// Like a Jackbox room: scan the code or type it in the Player app, and see who has joined
+function lobbyHtml() {
+  const base = location.href.replace(/town\.html.*$/, ""), url = `${base}player.html?code=${encodeURIComponent(G.code || code)}`;
+  let qr = "";
+  try { const q = qrcode(0, "M"); q.addData(url); q.make(); qr = q.createSvgTag({ cellSize: 8, margin: 2, scalable: true }); } catch (e) {}
+  const joined = new Set(G.joined || []);
+  return `<div class="screen lobby"><div class="lobby-join">
+      <h1>${esc(G.script)}</h1>
+      <p class="big">Join on your phone</p>
+      ${qr ? `<div class="qr">${qr}</div>` : ""}
+      <p class="muted">or go to <b>${esc(base.replace(/^https?:\/\//, ""))}player.html</b> and enter</p>
+      <div class="lobby-code">${esc(G.code || code)}</div>
+    </div>
+    <div class="lobby-players">
+      <h2>${G.dealt ? "Everyone has their token" : G.players.length ? `${joined.size} of ${G.players.length} joined` : "Waiting for the Storyteller to add the players"}</h2>
+      <div class="lobby-grid">${G.players.map(p => `<div class="lobby-p ${joined.has(p.id) ? "in" : ""}">${joined.has(p.id) ? "📱" : "⌛"} ${esc(p.name)}</div>`).join("")}</div>
+      ${G.dealt ? `<p class="big">The first night is about to begin.</p>` : G.players.length && joined.size === G.players.length ? `<p class="big">Everyone's here! The Storyteller will hand out the tokens.</p>` : ""}
+    </div></div>`;
+}
+function render() {
+  const app = $("app");
+  $("corner").hidden = !G;
+  $("dot").className = "dot" + (status === "live" || status === "local" ? "" : " off");
+  $("cstat").textContent = status === "live" ? `Live · ${code}` : status === "local" ? "Live on this device" : status === "lost" ? "Reconnecting…" : "";
+  if (!G) {
+    app.innerHTML = `<div class="screen join"><div class="join-inner">
+      <h1>Town Square</h1>
+      <p>On the Storyteller's iPad, tap 📺 and Start sharing. Then type the code here.</p>
+      <input class="code-in" id="codeIn" maxlength="5" value="${esc(code)}" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Code">
+      <button class="btn primary" id="joinBtn">Connect</button>
+      <p class="status ${err ? "err" : ""}">${err ? esc(err) : status === "connecting" ? "Connecting…" : status === "live" ? "Connected. Waiting for the game…" : ""}</p>
+    </div></div>`;
+    $("joinBtn").onclick = () => { code = $("codeIn").value.trim().toUpperCase(); connect(); };
+    $("codeIn").onkeydown = e => { if (e.key === "Enter") $("joinBtn").click(); };
+    return;
+  }
+  const m = G.mode;
+  $("sheetBtn").setAttribute("aria-pressed", String((G.sheet || mySheet) && m !== "over"));
+  // The characters go up when the Storyteller (or someone at the TV) asks, and once everyone has their token
+  if (m !== "over" && !G.announce && !G.vote && (G.sheet || mySheet || (m === "setup" && G.dealt))) { app.innerHTML = sheetHtml(); fitSheet(); return; }
+  if (m === "over" && spotOn()) {
+    const r = G.roles.find(x => x.id === G.spot.id), c = CHAR[r.role] || {};
+    app.innerHTML = `<div class="screen full spot ${r.side}"><div class="full-inner"><div class="dead-name">${esc(nameOf(r.id))}</div><p>was the</p>
+      <div class="spot-tok ${r.side}"><span class="ico">${c.icon || ""}</span><span>${esc(r.role)}</span></div><p class="big">${r.side === "evil" ? "Evil!" : "Good"}</p></div></div>`;
+  } else if (m === "over") {
+    const evil = G.roles.filter(r => r.side === "evil"), left = G.players.length - G.roles.length;
+    app.innerHTML = `<div class="screen game"><div>${circle({ roles: true, center: `<span class="ph">${G.winner === "good" ? "Good" : "Evil"} wins</span>` })}</div>
+      <div class="panel"><div class="card over ${G.winner}"><h1>${G.winner === "good" ? "Good wins!" : "Evil wins!"}</h1>${G.reason ? `<p class="big">${esc(G.reason)}</p>` : `<p class="big">The Storyteller is revealing the Grimoire…</p>`}</div>
+      ${evil.length ? `<div class="card"><h2>The evil team</h2><p class="big">${esc(listJoin(evil.map(r => `${nameOf(r.id)} the ${r.role}`)))}</p></div>` : ""}
+      ${left ? `<div class="card"><p class="big">${plural(left, "player")} still to reveal.</p></div>` : ""}</div></div>`;
+  } else if (G.announce) {
+    const ids = G.announce.ids;
+    app.innerHTML = `<div class="screen full dawn"><div class="full-inner"><p>Wake up, everyone. It's the dawn of</p><h1>Day ${G.announce.n}</h1>
+      ${ids.length ? `<p>In the night…</p>${ids.map(id => `<div class="dead-name">💀 ${esc(nameOf(id))}</div>`).join("")}<p>${ids.length === 1 ? "was" : "were"} found dead.</p>` : `<h1 style="font-size:clamp(2.6rem,8vw,6rem)">Nobody died</h1><p>The whole town survived the night.</p>`}</div></div>`;
+  } else if (m === "night") {
+    app.innerHTML = `<div class="screen full night"><div class="full-inner"><h1>Night ${G.n}</h1><p>Everyone, close your eyes.</p><p style="font-size:.8em;opacity:.7">${G.alive} alive</p></div></div>`;
+  } else if (m === "day" && G.timer && G.timer.big) {
+    const l = timerLeft(G.timer);
+    app.innerHTML = `<div class="screen full bigtimer ${l === 0 ? "up" : l <= 30000 ? "low" : ""}"><div class="full-inner"><p class="big">Day ${G.n} · ${G.alive} alive</p><p class="huge" id="tDigits">${fmt(l)}</p><p class="big">${l === 0 ? "Time's up!" : G.timer.running ? esc(G.timer.label || "Discussion time") : "Paused"}</p></div></div>`;
+  } else if (m === "day") {
+    app.innerHTML = `<div class="screen game"><div>${circle({ center: `<span class="ph">Day ${G.n}</span><span class="sub">${G.alive} alive · ${G.need} to execute</span>` })}</div><div class="panel">${dayPanel()}</div></div>`;
+  } else if (m === "draw") {
+    app.innerHTML = `<div class="screen full"><div class="full-inner"><h1 style="font-size:clamp(2.6rem,8vw,6rem)">Drawing characters</h1><p class="big">${G.drawn} of ${G.total} have their character.</p><p class="muted">Pass the Storyteller's phone round to anyone without a phone.</p></div></div>`;
+  } else {
+    app.innerHTML = lobbyHtml();
+  }
+}
+// 📜 The script's characters and what they do: who could be in play, never who is who
+const TEAM_MANY = { townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demons" };
+const countWord = (n, t) => `${n} ${n === 1 ? TEAM_ONE[t] : TEAM_MANY[t]}`;
+function sheetHtml() {
+  const sc = SCRIPTS[G.scriptKey];
+  if (!sc) return "";
+  const n = G.players.length, c = COMP[Math.min(15, n)];
+  return `<div class="screen sheet" id="sheet"><div class="sheet-head"><h1>${esc(sc.name)}</h1>
+      ${c ? `<p class="big">${n} players: ${TEAMS.map((t, i) => `<span class="${t}">${countWord(c[i], t)}</span>`).join(" · ")}</p>` : ""}<p class="muted">* Not the first night</p></div>
+    <div class="sheet-body">${TEAMS.map(t => `<section class="sh-team ${t}"><h2>${sc.roles[t].length === 1 ? TEAM_ONE[t] : TEAM_MANY[t]}</h2>
+      ${sc.roles[t].map(([name, icon, text]) => `<div class="sh-r"><span class="ico">${icon}</span><div><b>${esc(name)}</b> <span>${esc(text)}</span></div></div>`).join("")}</section>`).join("")}</div></div>`;
+}
+// Make the sheet fit the screen, however long the script
+function fitSheet() {
+  const el = $("sheet"), body = el && el.querySelector(".sheet-body"); if (!el) return;
+  // Too much text spills into an extra column off the side, or off the bottom
+  const over = () => body.scrollWidth > body.clientWidth + 2 || el.scrollHeight > el.clientHeight + 2;
+  let f = 3;
+  el.style.fontSize = f + "vmin";
+  while (f > 1 && over()) { f -= .1; el.style.fontSize = f.toFixed(1) + "vmin"; }
+}
+let mySheet = false;
+$("sheetBtn").onclick = () => { mySheet = !mySheet; render(); };
+window.addEventListener("resize", fitSheet);
+// Keep the timer counting between updates
+setInterval(() => {
+  if (!G || !G.timer || !G.timer.running) return;
+  const d = $("tDigits"); if (!d) return;
+  const l = timerLeft(G.timer); d.textContent = fmt(l);
+  if (l === 0 || l <= 30000) render();
+}, 250);
+
+$("fsBtn").onclick = () => { const el = document.documentElement; (el.requestFullscreen || el.webkitRequestFullscreen || (() => {})).call(el); };
+$("leaveBtn").onclick = () => { G = null; status = ""; if (peer) peer.destroy(); try { localStorage.removeItem(LS); } catch (e) {} code = ""; render(); };
+// Keep the screen on
+let lock = null;
+async function wake() { try { if (navigator.wakeLock && !lock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => (lock = null)); } } catch (e) {} }
+document.addEventListener("click", wake);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") wake(); });
+
+render();
+if (code) connect();
+</script>
+</body>
+</html>
