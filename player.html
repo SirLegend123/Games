@@ -275,7 +275,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 69;</script>
+<script>window.APP_V = 70;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -669,7 +669,7 @@ function linkStart() {
   link.status = "connecting"; link.err = ""; link.asked = false; renderLink();
   const peer = link.peer = new Peer(peerOpts());
   peer.on("open", () => {
-    const h = link.host = peer.connect(`clocktower-town-${L.code}`, { reliable: true, serialization: "json", metadata: { kind: "player" } });
+    const h = link.host = peer.connect(`clocktower-town-${L.code}`, { reliable: true, serialization: "json", metadata: { kind: "player", pid: L.pid || "", secret: L.pid ? L.secret : "" } });
     h.on("open", () => { link.status = "on"; renderLink(); });
     h.on("data", fromHost);
     h.on("close", () => { if (link.host === h) { link.status = "lost"; renderLink(); linkAgain(); } });
@@ -687,6 +687,12 @@ const toHost = m => { if (link.host && link.host.open) link.host.send(m); };
 function fromHost(m) {
   if (!m || !m.t) return;
   if (m.t === "lobby") {
+    // Back after a dropped connection: keep my seat (and the night screen) while the Storyteller catches up
+    const was = link.lobby;
+    if (!m.you && was && was.you && was.you === L.pid && was.gameId === m.gameId && m.players.some(p => p.id === L.pid)) {
+      if (!link.asked) { link.asked = true; joinAs(L.pid); }
+      m = { ...m, you: L.pid, chatOk: was.chatOk };
+    }
     link.lobby = m;
     syncFromLobby(m);
     // Join as the seat we had before, or the seat with my name

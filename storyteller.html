@@ -270,7 +270,7 @@ document.getElementById("homeBtn").addEventListener("click", e => {
 </div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
-<script>window.APP_V = 69;</script>
+<script>window.APP_V = 70;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -1751,7 +1751,14 @@ function townStart() {
   peer.on("open", () => { town.status = "on"; town.err = ""; renderTown(); refreshJoin(); });
   peer.on("connection", c => {
     const isPlayer = c.metadata && c.metadata.kind === "player";
-    c.on("open", () => { if (isPlayer) c.send({ ...lobbyBase(), you: null }); else { town.conns.push(c); c.send(publicState()); } renderTown(); });
+    c.on("open", () => {
+      // A phone coming back says who it is, so it's seated straight away (its night screen stays up)
+      const md = c.metadata || {};
+      if (isPlayer && md.pid && S.players.some(p => p.id === md.pid) && (S.linkSecrets || {})[md.pid] === md.secret) fromPlayer(c, { t: "join", pid: md.pid, secret: md.secret });
+      else if (isPlayer) c.send({ ...lobbyBase(), you: null });
+      else { town.conns.push(c); c.send(publicState()); }
+      renderTown();
+    });
     c.on("data", m => { if (isPlayer) fromPlayer(c, m); });
     c.on("close", () => { town.conns = town.conns.filter(x => x !== c); if (isPlayer) playerLeft(c); renderTown(); });
   });
