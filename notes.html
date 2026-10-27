@@ -151,6 +151,15 @@ label.field, .field { display: grid; gap: 6px; }
 .tiles.small .tile { min-height: 66px; font-size: .8rem; padding: 6px 4px; }
 .tiles.small .tile .ico { font-size: 1.4rem; }
 .pick-chars { display: grid; gap: 8px; }
+.infoform { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+.infoform > .seg, .modal .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.pick-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.pbtn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 8px 14px; min-height: 44px; font-weight: 800; }
+.pbtn.num { min-width: 48px; }
+.pbtn[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
+.next-btn { justify-self: center; }
+.modal { position: fixed; inset: 0; z-index: 50; background: rgba(8,6,12,.7); display: grid; place-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); overflow-y: auto; }
+.modal-in { width: min(560px, 100%); border: 2px solid var(--brass); }
 .disc .ico.multi { font-size: calc(var(--tok) * .2); letter-spacing: -.1em; }
 .card > .seg { display: grid; grid-template-columns: 1fr 1fr; }
 .card > .seg button + button { border-left: 1px solid var(--line); }
@@ -187,7 +196,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <main id="app"></main>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 71;</script>
+<script>window.APP_V = 72;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -225,7 +234,7 @@ let S;
 try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
 if (!S || !S.step) S = fresh();
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
-const ui = { sel: null, kind: "hard", claimRoles: [] };
+const ui = { sel: null, kind: "hard", claimRoles: [], inf: { char: "", form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }, next: null };
 const about = pid => (S.P[pid] = S.P[pid] || { claims: [], death: null, ghost: false, notes: "" });
 const nameOf = pid => (S.players.find(p => p.id === pid) || {}).name || "?";
 const alive = () => S.players.filter(p => !about(p.id).death);
@@ -372,7 +381,7 @@ function myCard() {
   return `<section class="card">
     <h2>My info</h2>
     <div class="mine"><span class="big" aria-hidden="true">${iconOf(S.role)}</span><div><b class="${teamCls(S.role)}">${esc(S.role)}</b>${c ? `<p class="hint">${esc(c.text)}</p>` : ""}</div></div>
-    <div class="add"><input type="text" id="infoIn" placeholder="What did you learn on ${phaseName(S.ph)}?" autocomplete="off" enterkeyhint="done" aria-label="What you learnt"><button class="btn primary" data-act="info-add">Add</button></div>
+    ${infoFormHtml()}
     ${S.info.length ? `<ol class="log">${S.info.map(e => `<li><span class="ph">${phaseName(e.ph)}</span><span class="t">${esc(e.text)}</span><button class="x" data-act="info-del" data-id="${e.id}" aria-label="Delete">×</button></li>`).join("")}</ol>` : `<p class="hint">Write down what you learn each night.</p>`}
     <div class="row"><button class="btn" data-act="to-role">Change my character</button></div>
   </section>`;
@@ -388,13 +397,27 @@ function summaryCard() {
     ${dead.length ? `<section class="card"><h2>Deaths</h2><ol class="log">${dead.map(p => { const d = about(p.id).death; return `<li><span class="ph">${phaseName(d.ph)}</span><span class="t">${deathOf(d.how)[1]} <b>${esc(p.name)}</b>: ${deathOf(d.how)[2].toLowerCase()}</span></li>`; }).join("")}</ol></section>` : ""}`;
 }
 
+// Moving on to the next phase: who was executed today, or who died in the night
+function nextHtml() {
+  const day = S.ph % 2 === 1, n = Math.floor(S.ph / 2) + 1, picks = ui.next;
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Next phase"><div class="modal-in card">
+    <h2>${day ? `🌙 End of Day ${n}` : `☀️ Morning of Day ${n}`}</h2>
+    <p class="lead">${day ? "Who was executed today?" : "Who died in the night?"}</p>
+    <p class="hint">${day ? "Tap one player. (A Slayer shot or the Virgin? Mark it on their panel first.)" : "Tap everyone who died."}</p>
+    <div class="pick-row">${alive().map(p => `<button class="pbtn" data-act="next-pick" data-pid="${p.id}" aria-pressed="${picks.includes(p.id)}">${esc(p.name)}</button>`).join("")}</div>
+    <div class="row"><button class="btn" data-act="next-cancel">Cancel</button><span class="spacer"></span>
+      <button class="btn primary" data-act="next-go">${picks.length ? `${andList(picks.map(nameOf))} ${day ? "was executed" : picks.length === 1 ? "died" : "died"} → ${day ? `Night ${n + 1}` : `Day ${n}`}` : `${day ? "Nobody was executed" : "Nobody died"} → ${day ? `Night ${n + 1}` : `Day ${n}`}`}</button></div>
+  </div></div>`;
+}
 function notesHtml() {
   return `<div class="grim-wrap">
     <div class="side">
-      <div class="phase" style="justify-content:center"><button class="icon" data-act="ph" data-v="-1" aria-label="Back a phase" ${S.ph ? "" : "disabled"}>‹</button><b>${phaseName(S.ph)}</b><button class="icon" data-act="ph" data-v="1" aria-label="Next phase">›</button></div>
+      <div class="phase" style="justify-content:center"><button class="icon" data-act="ph" data-v="-1" aria-label="Back a phase" ${S.ph ? "" : "disabled"}>‹</button><b>${phaseName(S.ph)}</b><button class="icon" data-act="ph" data-v="1" aria-label="Next phase without marking deaths">›</button></div>
+      <button class="btn primary next-btn" data-act="next-open">${S.ph % 2 ? `🌙 End the day: who was executed? →` : `☀️ Morning: who died in the night? →`}</button>
       ${circleHtml()}
       <p class="hint" style="text-align:center">Tap a player to note their claims, or how they died. Dashed: soft claim. Gold: hard claim. ! : something doesn't add up.</p>
     </div>
+    ${ui.next ? nextHtml() : ""}
     <div class="side">${ui.sel ? panelHtml(ui.sel) : ""}${myCard()}${summaryCard()}
       <section class="card"><div class="row"><button class="btn" data-act="to-players">← Players</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
     </div></div>`;
@@ -408,16 +431,105 @@ function addNames() {
   render(); $("newName").focus();
 }
 function addInfo() {
-  const t = ($("infoIn").value || "").trim();
-  if (!t) return;
-  S.info.push({ id: uid(), ph: S.ph, text: t });
-  render(); $("infoIn").focus();
+  if (S.script === "other" && $("infRoles")) ui.inf.rs = $("infRoles").value.split(",").map(x => x.trim()).filter(Boolean).slice(0, infForm().r);
+  const note = ($("infoIn").value || "").trim(), line = infLine();
+  const t = line && note ? `${line}. ${note}` : line || note;
+  if (!t) { $("infoIn").focus(); return; }
+  const ch = infChar() !== S.role ? infChar() : "";
+  S.info.push({ id: uid(), ph: S.ph, text: ch ? `(${ch}) ${t}` : t, ps: ui.inf.ps.slice() });
+  Object.assign(ui.inf, { ps: [], rs: [], n: null, yn: null, none: false });
+  render();
 }
+/* ---------- What each character learns or does ---------- */
+// A form for each character: players to pick (p, at least pMin), characters (r, from the teams rt),
+// a number (n, up to nMax), or one of two answers (yn). say() turns the picks into a line for the log.
+const andList = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+const nm = n => `${n}`;
+const chose = verb => ({ p: 1, say: f => `${verb} ${f.ps[0]}` });
+const pair = team => ({ p: 2, r: 1, rt: [team], say: f => `${orList(f.ps)} is the ${f.rs[0]}` });
+const ALL_TEAMS = ["townsfolk", "outsider", "minion", "demon"];
+const INFO = {
+  Washerwoman: pair("townsfolk"), Librarian: { ...pair("outsider"), none: "No Outsiders in play" }, Investigator: pair("minion"),
+  Chef: { n: true, say: f => `${f.n} pair${f.n === 1 ? "" : "s"} of evil players` },
+  Empath: { n: true, nMax: 2, say: f => `${f.n} evil neighbour${f.n === 1 ? "" : "s"}` },
+  "Fortune Teller": { p: 2, yn: ["Yes, a Demon", "No Demon"], say: f => `${andList(f.ps)}: ${f.yn === 0 ? "one of them is the Demon" : "no Demon"}` },
+  Undertaker: { r: 1, rt: ALL_TEAMS, say: f => `The executed player was the ${f.rs[0]}` },
+  Monk: chose("I protected"), Ravenkeeper: { p: 1, r: 1, rt: ALL_TEAMS, say: f => `${f.ps[0]} is the ${f.rs[0]}` },
+  Slayer: { p: 1, yn: ["They died", "Nothing happened"], say: f => `I shot ${f.ps[0]}: ${f.yn === 0 ? "they died" : "nothing happened"}` },
+  Butler: chose("My master is"), Poisoner: chose("I poisoned"), Imp: chose("I attacked"),
+  Grandmother: { p: 1, r: 1, rt: ["townsfolk", "outsider"], say: f => `My grandchild is ${f.ps[0]}, the ${f.rs[0]}` },
+  Sailor: chose("I chose"), Chambermaid: { p: 2, n: true, nMax: 2, say: f => `${andList(f.ps)}: ${f.n} woke tonight` },
+  Exorcist: chose("I chose"), Innkeeper: { p: 2, say: f => `I protected ${andList(f.ps)}` },
+  Gambler: { p: 1, r: 1, rt: ALL_TEAMS, say: f => `I guessed ${f.ps[0]} is the ${f.rs[0]}` },
+  Courtier: { r: 1, rt: ALL_TEAMS, say: f => `I made the ${f.rs[0]} drunk` },
+  Professor: chose("I tried to revive"), Moonchild: chose("I chose"),
+  Godfather: { r: 4, rMin: 0, rt: ["outsider"], say: f => f.rs.length ? `Outsiders in play: ${andList(f.rs)}` : "No Outsiders in play" },
+  "Devil's Advocate": chose("I protected"), Assassin: chose("I assassinated"),
+  Zombuul: chose("I attacked"), Pukka: chose("I poisoned"), Shabaloth: { p: 2, say: f => `I attacked ${andList(f.ps)}` },
+  Po: { p: 3, pMin: 0, say: f => f.ps.length ? `I attacked ${andList(f.ps)}` : "I charged up" },
+  Clockmaker: { n: true, say: f => `The Demon is ${f.n} step${f.n === 1 ? "" : "s"} from its nearest Minion` },
+  Dreamer: { p: 1, r: 2, rt: ALL_TEAMS, say: f => `${f.ps[0]} is the ${orList(f.rs)}` },
+  "Snake Charmer": chose("I chose"), Mathematician: { n: true, say: f => `${f.n} abilit${f.n === 1 ? "y" : "ies"} worked abnormally` },
+  Flowergirl: { yn: ["A Demon voted", "No Demon voted"], say: f => f.yn === 0 ? "A Demon voted today" : "No Demon voted today" },
+  "Town Crier": { yn: ["A Minion nominated", "No Minion nominated"], say: f => f.yn === 0 ? "A Minion nominated today" : "No Minion nominated today" },
+  Oracle: { n: true, say: f => `${f.n} dead player${f.n === 1 ? " is" : "s are"} evil` },
+  Seamstress: { p: 2, yn: ["Same alignment", "Different"], say: f => `${andList(f.ps)}: ${f.yn === 0 ? "same alignment" : "different alignments"}` },
+  Philosopher: { r: 1, rt: ["townsfolk", "outsider"], say: f => `I became the ${f.rs[0]}` },
+  Juggler: { n: true, nMax: 5, say: f => `${f.n} of my guesses were right` },
+  Sage: { p: 2, say: f => `The Demon is ${orList(f.ps)}` },
+  "Evil Twin": chose("My twin is"), Witch: chose("I cursed"), Klutz: chose("I chose"),
+  Cerenovus: { p: 1, r: 1, rt: ["townsfolk", "outsider"], say: f => `I made ${f.ps[0]} mad about being the ${f.rs[0]}` },
+  "Pit-Hag": { p: 1, r: 1, rt: ALL_TEAMS, say: f => `I turned ${f.ps[0]} into the ${f.rs[0]}` },
+  Barber: { p: 2, say: f => `I swapped ${andList(f.ps)}` },
+  "Fang Gu": chose("I attacked"), Vigormortis: chose("I attacked"), "No Dashii": chose("I attacked"), Vortox: chose("I attacked")
+};
+// Anything else: players, characters or a number, as you like
+const GENERIC = { p: 3, pMin: 0, r: 2, rMin: 0, rt: ALL_TEAMS, n: true, nOpt: true, say: f => [andList(f.ps), orList(f.rs), f.n != null ? nm(f.n) : ""].filter(Boolean).join(" · ") };
+const EVIL_TEAM = { label: "👿 Evil team", p: 4, pMin: 1, say: f => `Evil team: ${andList(f.ps)}` };
+const BLUFFS = { label: "🎭 Bluffs", r: 3, rMin: 1, rt: ["townsfolk", "outsider"], say: f => `Demon bluffs: ${andList(f.rs)}` };
+function formsFor(ch) {
+  const c = CHAR[ch], own = INFO[ch] ? { ...INFO[ch], label: `${iconOf(ch)} ${ch}` } : { ...GENERIC, label: c ? `${iconOf(ch)} ${ch}` : "📝 Info" };
+  return [own, ...(c && c.team === "minion" ? [EVIL_TEAM] : c && c.team === "demon" ? [EVIL_TEAM, BLUFFS] : [])];
+}
+const infChar = () => ui.inf.char || S.role;
+const infForm = () => { const fs = formsFor(infChar()); return fs[Math.min(ui.inf.form, fs.length - 1)]; };
+// The line the picks make (without the note)
+function infLine() {
+  const F = infForm(), I = ui.inf, f = { ps: I.ps.map(nameOf), rs: I.rs, n: I.n, yn: I.yn };
+  if (I.none && F.none) return F.none;
+  const ready = (!F.p || I.ps.length >= (F.pMin ?? F.p)) && (!F.r || I.rs.length >= (F.rMin ?? F.r)) && (!F.n || F.nOpt || I.n != null) && (!F.yn || I.yn != null);
+  if (!ready) return "";
+  return F.p || F.r || F.n || F.yn ? F.say(f) : "";
+}
+function infoFormHtml() {
+  const F = infForm(), I = ui.inf, fs = formsFor(infChar()), ch = infChar(), typed = S.script === "other";
+  const need = [F.p ? `${F.pMin === 0 ? "up to " : ""}${F.p} player${F.p === 1 ? "" : "s"}` : "", F.r ? `${F.rMin === 0 ? "up to " : ""}${F.r} character${F.r === 1 ? "" : "s"}` : "", F.n && !F.nOpt ? "a number" : "", F.yn ? "an answer" : ""].filter(Boolean);
+  const nMax = Math.min(F.nMax ?? 10, Math.max(S.players.length, 1));
+  return `<div class="infoform">
+    <div class="row"><b>${F.label.startsWith("👿") || F.label.startsWith("🎭") ? `${iconOf(ch)} ${esc(ch)}` : esc(F.label)}: what I learnt or did</b><span class="spacer"></span><button class="btn" data-act="inf-pick">${I.pick ? "Close" : "Another character…"}</button></div>
+    ${I.pick ? `<p class="hint">Whose form? (If you were drunk, or your character changed.)</p>${typed ? `<div class="add"><input type="text" id="infChar" list="allChars" placeholder="Character" autocomplete="off"><button class="btn" data-act="inf-char-typed">Use</button></div><datalist id="allChars">${Object.keys(CHAR).sort().map(n => `<option value="${esc(n)}">`).join("")}</datalist>`
+      : `<div class="tiles small">${TEAMS.flatMap(t => SCRIPTS[S.script].roles[t].map(([name, icon]) => `<button class="tile ${t}" data-act="inf-char" data-role="${esc(name)}" aria-pressed="${ch === name}"><span class="ico" aria-hidden="true">${icon}</span>${esc(name)}</button>`)).join("")}</div>`}` : ""}
+    ${fs.length > 1 ? `<div class="seg" role="group">${fs.map((x, k) => `<button data-act="inf-form" data-v="${k}" aria-pressed="${x === F}">${esc(x.label)}</button>`).join("")}</div>` : ""}
+    ${need.length ? `<p class="hint">Pick ${andList(need)}.</p>` : `<p class="hint">Write it down below.</p>`}
+    ${F.p ? `<div class="pick-row">${S.players.map(p => `<button class="pbtn" data-act="inf-p" data-pid="${p.id}" aria-pressed="${I.ps.includes(p.id)}">${esc(p.name)}</button>`).join("")}</div>` : ""}
+    ${F.none ? `<div class="pick-row"><button class="pbtn" data-act="inf-none" aria-pressed="${I.none}">${esc(F.none)}</button></div>` : ""}
+    ${F.r ? (typed ? `<input type="text" id="infRoles" list="allChars" value="${esc(I.rs.join(", "))}" placeholder="Character${F.r > 1 ? "s, separated by commas" : ""}" autocomplete="off"><datalist id="allChars">${Object.keys(CHAR).sort().map(n => `<option value="${esc(n)}">`).join("")}</datalist>`
+      : `<div class="pick-chars">${(F.rt || ALL_TEAMS).filter(t => SCRIPTS[S.script].roles[t].length).map(t => `<h3 class="t-${t}">${TEAM_LABEL[t]}</h3><div class="tiles small">${SCRIPTS[S.script].roles[t].map(([name, icon]) => `<button class="tile ${t}" data-act="inf-r" data-role="${esc(name)}" aria-pressed="${I.rs.includes(name)}"><span class="ico" aria-hidden="true">${icon}</span>${esc(name)}</button>`).join("")}</div>`).join("")}</div>`) : ""}
+    ${F.n ? `<div class="pick-row">${Array.from({ length: nMax + 1 }, (_, k) => `<button class="pbtn num" data-act="inf-n" data-v="${k}" aria-pressed="${I.n === k}">${k}</button>`).join("")}</div>` : ""}
+    ${F.yn ? `<div class="seg" role="group">${F.yn.map((l, k) => `<button data-act="inf-yn" data-v="${k}" aria-pressed="${I.yn === k}">${esc(l)}</button>`).join("")}</div>` : ""}
+    <input type="text" id="infoIn" placeholder="${F.p || F.r || F.n || F.yn ? "Anything else (optional)" : `What did you learn on ${phaseName(S.ph)}?`}" autocomplete="off" enterkeyhint="done" aria-label="What you learnt">
+    ${infLine() ? `<p class="ability" id="infPrev">${esc(infLine())}</p>` : ""}
+    <button class="btn primary" data-act="info-add">Add to ${phaseName(S.ph)}</button>
+  </div>`;
+}
+
 // Redraw without losing what's been typed in the claim's note
 function keepDraft() {
-  const n = $("claimNote") && $("claimNote").value, y = window.scrollY;
+  const n = $("claimNote") && $("claimNote").value, m = $("infoIn") && $("infoIn").value, y = window.scrollY;
+  if (S.script === "other" && $("infRoles")) ui.inf.rs = $("infRoles").value.split(",").map(x => x.trim()).filter(Boolean);
   render();
   if ($("claimNote")) $("claimNote").value = n || "";
+  if ($("infoIn")) $("infoIn").value = m || "";
   window.scrollTo(0, y);
 }
 function addClaim(pid) {
@@ -460,6 +572,25 @@ document.addEventListener("click", ev => {
     case "ghost": about(pid).ghost = !about(pid).ghost; break;
     case "ph": S.ph = Math.max(0, S.ph + Number(el.dataset.v)); break;
     case "info-add": return addInfo();
+    case "inf-pick": ui.inf.pick = !ui.inf.pick; keepDraft(); return;
+    case "inf-char": Object.assign(ui.inf, { char: el.dataset.role === S.role ? "" : el.dataset.role, form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }); keepDraft(); return;
+    case "inf-char-typed": { const v = ($("infChar").value || "").trim(); Object.assign(ui.inf, { char: v === S.role ? "" : v, form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }); keepDraft(); return; }
+    case "inf-form": Object.assign(ui.inf, { form: Number(el.dataset.v), ps: [], rs: [], n: null, yn: null, none: false }); keepDraft(); return;
+    case "inf-p": { const F = infForm(), I = ui.inf; I.ps = I.ps.includes(pid) ? I.ps.filter(x => x !== pid) : [...I.ps, pid].slice(-F.p); keepDraft(); return; }
+    case "inf-r": { const F = infForm(), I = ui.inf, r = el.dataset.role; I.rs = I.rs.includes(r) ? I.rs.filter(x => x !== r) : [...I.rs, r].slice(-F.r); I.none = false; keepDraft(); return; }
+    case "inf-n": ui.inf.n = ui.inf.n === Number(el.dataset.v) ? null : Number(el.dataset.v); keepDraft(); return;
+    case "inf-yn": ui.inf.yn = ui.inf.yn === Number(el.dataset.v) ? null : Number(el.dataset.v); keepDraft(); return;
+    case "inf-none": ui.inf.none = !ui.inf.none; if (ui.inf.none) { ui.inf.ps = []; ui.inf.rs = []; } keepDraft(); return;
+    case "next-open": ui.next = []; keepDraft(); return;
+    case "next-pick": { const day = S.ph % 2 === 1; ui.next = ui.next.includes(pid) ? ui.next.filter(x => x !== pid) : day ? [pid] : [...ui.next, pid]; keepDraft(); return; }
+    case "next-cancel": ui.next = null; keepDraft(); return;
+    case "next-go": {
+      // Mark who died, then move on: an execution at the end of the day, deaths in the night by morning
+      const day = S.ph % 2 === 1;
+      for (const q of ui.next) about(q).death = { how: day ? "executed" : "night", ph: S.ph };
+      S.ph++; ui.next = null; Object.assign(ui.inf, { ps: [], rs: [], n: null, yn: null, none: false });
+      break;
+    }
     case "info-del": S.info = S.info.filter(e => e.id !== el.dataset.id); break;
     case "new-game": if (!confirm("Start a new game? The players stay; your character, notes, claims and deaths are cleared.")) return; S = { ...fresh(), script: S.script, players: S.players, me: S.me, step: "role" }; ui.sel = null; break;
     default: return;
