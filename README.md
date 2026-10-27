@@ -91,7 +91,9 @@ A notepad for playing the official online game. Open `notes.html` (or **Online N
    - **☀️ Morning: who died in the night?** / **🌙 End the day: who was executed?** under the circle asks who died, marks them, and moves on to the next phase. (‹ and › still move without asking.)
    - Tap a player to add a **soft claim** (a hint or a maybe) or a **hard claim** (they've said outright): tap the character's button (for a soft claim, tap every character they might be, like "the Slayer, Soldier or Mayor"), add what they said if you like, then **Add claim**. The ! for a changed story only shows when two claims can't both be true. Their token shows their latest hard claim (gold) or, failing that, soft claim (dashed). A **!** flags a story that has changed, two players hard claiming the same character, or someone claiming your character.
    - **Died?**: tap how they died (executed, died at night, Slayer shot, Virgin or other). It's noted for the current night or day, and the token greys out with a 👻 until you mark their ghost vote used.
-   - Notes for each player, **The town** (everyone's claim and fate at a glance) and **Deaths** in order.
+   - **Their info**: on a player's panel, **＋ Add what (name) says they learnt** opens the same form for the character they claim.
+   - **📊 Information matrix**: every player in a row, with their soft claims, hard claims and info (yours on your own row), each marked with the night or day (N1, D1…), plus deaths and ⚠ flags. Tap a name to open their panel. On a phone each player is shown as a block.
+   - Notes for each player, and **Deaths** in order.
    - **New game** keeps the players.
 
 ## Table Notes
@@ -99,7 +101,7 @@ A notepad for playing the official online game. Open `notes.html` (or **Online N
 The same notepad as Online Notes, for a player at a face-to-face game. Open `table.html` (or **Table Notes** on the cover page). It doesn't connect to anything; everything is saved on the device.
 
 - Players in seat order, your character, your night info, soft and hard claims, and who died and how, just as in Online Notes.
-- **👋 Signal** (at the top, or on a player's panel) fills the screen with a big, bright card: their name and "Can we talk?", to hold up or slide across the table. Switch the message (Later?, After this vote?, Come and find me, Yes!, No) and the colour, then **Done**.
+- **👋 Signal** at the top fills the screen with a big, bright card saying "Can we talk?", to hold up when you want a word, with no names on it. Switch the message (Later?, After this vote?, Come and find me, Yes!, No) and the colour, then **Done**.
 
 ## Town Square
 
