@@ -1,6 +1,6 @@
 # Games
 
-Open `index.html` to choose between the *Blood on the Clocktower* apps: the **Storyteller**, the **Town Square**, the **Player** and **Online Notes**. They share their character list (`characters.js`). It also has **The Traitors**, an online party game for family and friends (see the end).
+Open `index.html` to choose between the *Blood on the Clocktower* apps: the **Storyteller**, the **Town Square**, the **Player**, **Online Notes** and **Table Notes**. They share their character list (`characters.js`). It also has **The Traitors**, an online party game for family and friends (see the end).
 
 **Updates**: browsers keep a copy of each app for a while, so a device can still be on an old version after an update. Every app checks the site every couple of minutes (and whenever it's brought back to the screen), and when there's a newer version it shows **🔄 A new version is ready. Tap to update**; the game is kept. A phone linked to a Storyteller app that's out of date says so, and works out the night by itself. (When changing the apps, raise the number in `version.json` and `window.APP_V` in each page together.)
 
@@ -92,6 +92,13 @@ A notepad for playing the official online game. Open `notes.html` (or **Online N
    - **Died?**: tap how they died (executed, died at night, Slayer shot, Virgin or other). It's noted for the current night or day, and the token greys out with a 👻 until you mark their ghost vote used.
    - Notes for each player, **The town** (everyone's claim and fate at a glance) and **Deaths** in order.
    - **New game** keeps the players.
+
+## Table Notes
+
+The same notepad as Online Notes, for a player at a face-to-face game. Open `table.html` (or **Table Notes** on the cover page). It doesn't connect to anything; everything is saved on the device.
+
+- Players in seat order, your character, your night info, soft and hard claims, and who died and how, just as in Online Notes.
+- **👋 Signal** (at the top, or on a player's panel) fills the screen with a big, bright card: their name and "Can we talk?", to hold up or slide across the table. Switch the message (Later?, After this vote?, Come and find me, Yes!, No) and the colour, then **Done**.
 
 ## Town Square
 
