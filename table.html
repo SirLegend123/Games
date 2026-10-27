@@ -147,25 +147,44 @@ label.field, .field { display: grid; gap: 6px; }
 .claim .ico { width: 1.6em; text-align: center; }
 
 /* Table Notes */
-/* 👋 The signal: a big card to hold up so a player knows you want a word */
+/* 👋 The signal: a big card to hold up when you want a word */
 .signal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: calc(20px + env(safe-area-inset-top, 0px)) 16px calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--sig, #d4ab55); color: #1a1408; text-align: center; animation: sigpulse 1.6s ease-in-out infinite; }
 .signal .in { display: grid; gap: 3vh; justify-items: center; width: min(900px, 100%); }
 .signal .hand { font-size: clamp(4rem, 20vmin, 9rem); line-height: 1; }
-.signal .who { font-family: var(--font-display); font-size: clamp(3rem, 16vw, 9rem); line-height: 1; overflow-wrap: anywhere; }
-.signal .msg { font-weight: 800; font-size: clamp(2rem, 9vw, 5rem); line-height: 1.1; }
+.signal .msg { font-weight: 800; font-size: clamp(3rem, 14vw, 8rem); line-height: 1.05; }
 .signal .opts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .signal .opts button { border: 2px solid rgba(0,0,0,.35); background: rgba(255,255,255,.35); color: inherit; border-radius: 999px; padding: 8px 14px; font-weight: 800; min-height: 44px; }
 .signal .opts button[aria-pressed="true"] { background: #1a1408; color: #fff; border-color: #1a1408; }
 .signal .close { background: #1a1408; color: #fff; border: 0; border-radius: 12px; padding: 12px 28px; font-weight: 800; font-size: 1.1rem; min-height: 50px; }
 @keyframes sigpulse { 50% { filter: brightness(1.15); } }
 @media (prefers-reduced-motion: reduce) { .signal { animation: none; } }
-.sig-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
 .tiles.small { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; }
 .tiles.small .tile { min-height: 66px; font-size: .8rem; padding: 6px 4px; }
 .tiles.small .tile .ico { font-size: 1.4rem; }
 .pick-chars { display: grid; gap: 8px; }
 .infoform { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
 .infoform > .seg, .modal .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.notes-page { display: grid; gap: 16px; }
+.mx { border-collapse: collapse; width: 100%; font-size: .95rem; }
+.mx th:first-child { width: 9em; }
+.mx th, .mx td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+.mx thead th { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.mx .c > div + div { margin-top: 4px; }
+.mx small { color: var(--muted); font-weight: 700; }
+.mx th small { display: block; font-weight: 700; }
+.mx tr.dead .mx-name { text-decoration: line-through; color: var(--muted); }
+.mx tr.on th { box-shadow: inset 4px 0 0 var(--brass); }
+/* Phones: each player as a block, with the column names beside the lines */
+@media (max-width: 640px) {
+  .mx thead { display: none; }
+  .mx, .mx tbody, .mx tr, .mx th, .mx td { display: block; width: auto; }
+  .mx tr { border-bottom: 1px solid var(--line); padding: 8px 0; }
+  .mx th, .mx td { border: 0; padding: 3px 0; }
+  .mx td { display: grid; grid-template-columns: 3.5em minmax(0, 1fr); gap: 8px; }
+  .mx td::before { content: attr(data-l); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 800; padding-top: 2px; }
+  .mx th small { display: inline; margin-left: 8px; }
+}
+.mx-name { background: none; border: 0; padding: 0; font-weight: 800; color: inherit; text-align: left; }
 .pick-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .pbtn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 8px 14px; min-height: 44px; font-weight: 800; }
 .pbtn.num { min-width: 48px; }
@@ -190,10 +209,6 @@ label.field, .field { display: grid; gap: 6px; }
 .deaths { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
 .deaths .btn { min-height: 52px; }
 .dead-box { background: var(--surface-2); border-left: 4px solid var(--evil); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
-.sum { display: grid; gap: 6px; }
-.sum .r { display: grid; grid-template-columns: minmax(5em, auto) minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); }
-.sum .r:last-child { border-bottom: 0; }
-.sum .r.dead b { text-decoration: line-through; color: var(--muted); }
 .flagtxt { color: var(--warn); font-weight: 800; font-size: .85rem; }
 footer { color: var(--muted); font-size: .8rem; text-align: center; }
 </style>
@@ -204,19 +219,19 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
     <a class="home" href="index.html" aria-label="All apps">⌂</a>
     <h1>Table Notes</h1>
     <nav class="steps" id="steps" aria-label="Steps"></nav>
-    <span class="head-btns"><button class="btn" data-act="sig-pick" id="sigBtn">👋 Signal</button><button class="btn" id="themeBtn" data-act="theme"></button></span>
+    <span class="head-btns"><button class="btn" data-act="signal" id="sigBtn">👋 Signal</button><button class="btn" id="themeBtn" data-act="theme"></button></span>
   </header>
   <main id="app"></main>
   <div id="sigBox" hidden></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 72;</script>
+<script>window.APP_V = 73;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
 /* A notepad for playing Blood on the Clocktower round a real table: the players, your character,
    what you learn each night, who claims what, and who died and how. Everything stays on this device.
-   👋 Signal fills the screen with a big card to hold up, to let a player know you want a word. */
+   👋 Signal fills the screen with a big card to hold up when you want a word. */
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -249,7 +264,7 @@ let S;
 try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
 if (!S || !S.step) S = fresh();
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
-const ui = { sel: null, kind: "hard", claimRoles: [], inf: { char: "", form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }, next: null };
+const ui = { sel: null, kind: "hard", claimRoles: [], inf: { by: "", char: "", form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }, next: null };
 const about = pid => (S.P[pid] = S.P[pid] || { claims: [], death: null, ghost: false, notes: "" });
 const nameOf = pid => (S.players.find(p => p.id === pid) || {}).name || "?";
 const alive = () => S.players.filter(p => !about(p.id).death);
@@ -383,7 +398,8 @@ function panelHtml(pid) {
       <div class="tiles small">${SCRIPTS[S.script].roles[t].map(([name, icon]) => `<button class="tile ${t}" data-act="claim-role" data-role="${esc(name)}" aria-pressed="${ui.claimRoles.includes(name)}"><span class="ico" aria-hidden="true">${icon}</span>${esc(name)}</button>`).join("")}</div>`).join("")}</div>`}
     <input type="text" id="claimNote" placeholder="What they said (optional)" autocomplete="off" enterkeyhint="done">
     <button class="btn primary" data-act="claim-add" data-pid="${pid}" ${S.script === "other" || ui.claimRoles.length ? "" : "disabled"}>${S.script === "other" || !ui.claimRoles.length ? `Add ${ui.kind} claim` : `Add ${ui.kind} claim: ${esc(orList(ui.claimRoles))}`}</button>`}
-    ${me ? "" : `<button class="btn" data-act="signal" data-pid="${pid}">👋 Signal ${esc(nameOf(pid))}: I want a word</button>`}
+    ${me ? "" : `<h3>Their info</h3>${infoLog(pid) || `<p class="hint">Nothing yet. What do they say they learnt?</p>`}
+    ${ui.inf.by === pid ? infoFormHtml() : `<button class="btn" data-act="inf-by" data-pid="${pid}">＋ Add what ${esc(nameOf(pid))} says they learnt</button>`}`}
     <h3>Died?</h3>
     ${d ? `<div class="dead-box"><p class="lead">${deathOf(d.how)[1]} <b>${deathOf(d.how)[2]}</b> · ${phaseName(d.ph)}</p>
       <div class="row"><button class="btn" data-act="ghost" data-pid="${pid}" aria-pressed="${A.ghost}">${A.ghost ? "👻 Ghost vote used" : "👻 Ghost vote still there"}</button><button class="btn" data-act="undead" data-pid="${pid}">Undo</button></div></div>`
@@ -397,19 +413,32 @@ function myCard() {
   return `<section class="card">
     <h2>My info</h2>
     <div class="mine"><span class="big" aria-hidden="true">${iconOf(S.role)}</span><div><b class="${teamCls(S.role)}">${esc(S.role)}</b>${c ? `<p class="hint">${esc(c.text)}</p>` : ""}</div></div>
-    ${infoFormHtml()}
-    ${S.info.length ? `<ol class="log">${S.info.map(e => `<li><span class="ph">${phaseName(e.ph)}</span><span class="t">${esc(e.text)}</span><button class="x" data-act="info-del" data-id="${e.id}" aria-label="Delete">×</button></li>`).join("")}</ol>` : `<p class="hint">Write down what you learn each night.</p>`}
+    ${ui.inf.by ? `<button class="btn" data-act="inf-by" data-pid="">＋ Add my info</button>` : infoFormHtml()}
+    ${infoLog("") || `<p class="hint">Write down what you learn each night.</p>`}
     <div class="row"><button class="btn" data-act="to-role">Change my character</button></div>
   </section>`;
 }
 
-function summaryCard() {
+// 📊 Everyone at a glance: their soft claims, hard claims and the info they've shared
+function matrixCard() {
+  const short = ph => `${ph % 2 ? "D" : "N"}${Math.floor(ph / 2) + 1}`;
+  const claimCell = (cs) => cs.length ? cs.map(c => `<div>${rolesOf(c).map(iconOf).join("")} ${esc(claimText(c))} <small>${short(c.ph)}</small></div>`).join("") : `<span class="hint">–</span>`;
   const rows = S.players.map(p => {
-    const A = about(p.id), cur = p.id === S.me ? { role: S.role, kind: "me" } : currentClaim(p.id), f = p.id === S.me ? [] : flagsOf(p.id);
-    return `<div class="r ${A.death ? "dead" : ""}"><b>${esc(p.name)}</b><span>${cur ? `${rolesOf(cur).map(iconOf).join("")} ${esc(claimText(cur))} ${cur.kind === "me" ? `<span class="kind hard">You</span>` : `<span class="kind ${cur.kind}">${cur.kind}</span>`}` : `<span class="hint">no claim</span>`}${A.death ? ` · ${deathOf(A.death.how)[1]} ${phaseName(A.death.ph)}` : ""}${f.length ? `<br><span class="flagtxt">⚠ ${esc(f.join("; "))}</span>` : ""}</span></div>`;
+    const A = about(p.id), me = p.id === S.me, cs = A.claims, f = me ? [] : flagsOf(p.id), info = infoOf(me ? "" : p.id);
+    return `<tr class="${A.death ? "dead" : ""} ${ui.sel === p.id ? "on" : ""}">
+      <th scope="row"><button class="mx-name" data-act="sel" data-pid="${p.id}">${me ? "★ " : ""}${esc(p.name)}</button>${A.death ? `<small>${deathOf(A.death.how)[1]} ${short(A.death.ph)}</small>` : ""}${f.length ? `<small class="flagtxt" title="${esc(f.join("; "))}">⚠ ${esc(f.join("; "))}</small>` : ""}</th>
+      <td data-l="Soft"><div class="c">${me ? `<span class="hint">–</span>` : claimCell(cs.filter(c => c.kind === "soft"))}</div></td>
+      <td data-l="Hard"><div class="c">${me ? `<div>${iconOf(S.role)} ${esc(S.role)} <span class="kind hard">You</span></div>` : claimCell(cs.filter(c => c.kind === "hard"))}</div></td>
+      <td data-l="Info"><div class="c">${info.length ? info.map(e => `<div><small>${short(e.ph)}</small> ${esc(e.text)}</div>`).join("") : `<span class="hint">–</span>`}</div></td>
+    </tr>`;
   }).join("");
+  return `<section class="card"><h2>📊 Information matrix</h2>
+    <div class="mx-wrap"><table class="mx"><thead><tr><th scope="col">Player</th><th scope="col">Soft claims</th><th scope="col">Hard claims</th><th scope="col">Info</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="hint">Tap a name to add claims or info. N1 is Night 1, D1 is Day 1.</p></section>`;
+}
+function summaryCard() {
   const dead = S.players.filter(p => about(p.id).death).sort((a, b) => about(a.id).death.ph - about(b.id).death.ph);
-  return `<section class="card"><h2>The town</h2><div class="sum">${rows}</div></section>
+  return `
     ${dead.length ? `<section class="card"><h2>Deaths</h2><ol class="log">${dead.map(p => { const d = about(p.id).death; return `<li><span class="ph">${phaseName(d.ph)}</span><span class="t">${deathOf(d.how)[1]} <b>${esc(p.name)}</b>: ${deathOf(d.how)[2].toLowerCase()}</span></li>`; }).join("")}</ol></section>` : ""}`;
 }
 
@@ -426,7 +455,7 @@ function nextHtml() {
   </div></div>`;
 }
 function notesHtml() {
-  return `<div class="grim-wrap">
+  return `<div class="notes-page"><div class="grim-wrap">
     <div class="side">
       <div class="phase" style="justify-content:center"><button class="icon" data-act="ph" data-v="-1" aria-label="Back a phase" ${S.ph ? "" : "disabled"}>‹</button><b>${phaseName(S.ph)}</b><button class="icon" data-act="ph" data-v="1" aria-label="Next phase without marking deaths">›</button></div>
       <button class="btn primary next-btn" data-act="next-open">${S.ph % 2 ? `🌙 End the day: who was executed? →` : `☀️ Morning: who died in the night? →`}</button>
@@ -434,9 +463,10 @@ function notesHtml() {
       <p class="hint" style="text-align:center">Tap a player to note their claims, or how they died. Dashed: soft claim. Gold: hard claim. ! : something doesn't add up.</p>
     </div>
     ${ui.next ? nextHtml() : ""}
-    <div class="side">${ui.sel ? panelHtml(ui.sel) : ""}${myCard()}${summaryCard()}
-      <section class="card"><div class="row"><button class="btn" data-act="to-players">← Players</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
-    </div></div>`;
+    <div class="side">${ui.sel ? panelHtml(ui.sel) : ""}${myCard()}${summaryCard()}</div></div>
+    ${matrixCard()}
+    <section class="card"><div class="row"><button class="btn" data-act="to-players">← Players</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
+  </div>`;
 }
 
 /* ---------- Actions ---------- */
@@ -451,8 +481,8 @@ function addInfo() {
   const note = ($("infoIn").value || "").trim(), line = infLine();
   const t = line && note ? `${line}. ${note}` : line || note;
   if (!t) { $("infoIn").focus(); return; }
-  const ch = infChar() !== S.role ? infChar() : "";
-  S.info.push({ id: uid(), ph: S.ph, text: ch ? `(${ch}) ${t}` : t, ps: ui.inf.ps.slice() });
+  const ch = infChar() && infChar() !== baseChar(ui.inf.by) ? infChar() : "";
+  S.info.push({ id: uid(), ph: S.ph, text: ch ? `(${ch}) ${t}` : t, ps: ui.inf.ps.slice(), ...(ui.inf.by ? { by: ui.inf.by } : {}) });
   Object.assign(ui.inf, { ps: [], rs: [], n: null, yn: null, none: false });
   render();
 }
@@ -507,7 +537,11 @@ function formsFor(ch) {
   const c = CHAR[ch], own = INFO[ch] ? { ...INFO[ch], label: `${iconOf(ch)} ${ch}` } : { ...GENERIC, label: c ? `${iconOf(ch)} ${ch}` : "📝 Info" };
   return [own, ...(c && c.team === "minion" ? [EVIL_TEAM] : c && c.team === "demon" ? [EVIL_TEAM, BLUFFS] : [])];
 }
-const infChar = () => ui.inf.char || S.role;
+const baseChar = by => by ? (currentClaim(by) ? rolesOf(currentClaim(by))[0] : "") : S.role;
+const infChar = () => ui.inf.char || baseChar(ui.inf.by);
+const resetInf = by => Object.assign(ui.inf, { by, char: "", form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false });
+const infoOf = by => S.info.filter(e => (e.by || "") === by);
+const infoLog = by => { const L = infoOf(by); return L.length ? `<ol class="log">${L.map(e => `<li><span class="ph">${phaseName(e.ph)}</span><span class="t">${esc(e.text)}</span><button class="x" data-act="info-del" data-id="${e.id}" aria-label="Delete">×</button></li>`).join("")}</ol>` : ""; };
 const infForm = () => { const fs = formsFor(infChar()); return fs[Math.min(ui.inf.form, fs.length - 1)]; };
 // The line the picks make (without the note)
 function infLine() {
@@ -522,7 +556,7 @@ function infoFormHtml() {
   const need = [F.p ? `${F.pMin === 0 ? "up to " : ""}${F.p} player${F.p === 1 ? "" : "s"}` : "", F.r ? `${F.rMin === 0 ? "up to " : ""}${F.r} character${F.r === 1 ? "" : "s"}` : "", F.n && !F.nOpt ? "a number" : "", F.yn ? "an answer" : ""].filter(Boolean);
   const nMax = Math.min(F.nMax ?? 10, Math.max(S.players.length, 1));
   return `<div class="infoform">
-    <div class="row"><b>${F.label.startsWith("👿") || F.label.startsWith("🎭") ? `${iconOf(ch)} ${esc(ch)}` : esc(F.label)}: what I learnt or did</b><span class="spacer"></span><button class="btn" data-act="inf-pick">${I.pick ? "Close" : "Another character…"}</button></div>
+    <div class="row"><b>${F.label.startsWith("👿") || F.label.startsWith("🎭") ? `${iconOf(ch)} ${esc(ch)}` : esc(F.label)}: ${ui.inf.by ? `what ${esc(nameOf(ui.inf.by))} says they learnt` : "what I learnt or did"}</b><span class="spacer"></span><button class="btn" data-act="inf-pick">${I.pick ? "Close" : "Another character…"}</button></div>
     ${I.pick ? `<p class="hint">Whose form? (If you were drunk, or your character changed.)</p>${typed ? `<div class="add"><input type="text" id="infChar" list="allChars" placeholder="Character" autocomplete="off"><button class="btn" data-act="inf-char-typed">Use</button></div><datalist id="allChars">${Object.keys(CHAR).sort().map(n => `<option value="${esc(n)}">`).join("")}</datalist>`
       : `<div class="tiles small">${TEAMS.flatMap(t => SCRIPTS[S.script].roles[t].map(([name, icon]) => `<button class="tile ${t}" data-act="inf-char" data-role="${esc(name)}" aria-pressed="${ch === name}"><span class="ico" aria-hidden="true">${icon}</span>${esc(name)}</button>`)).join("")}</div>`}` : ""}
     ${fs.length > 1 ? `<div class="seg" role="group">${fs.map((x, k) => `<button data-act="inf-form" data-v="${k}" aria-pressed="${x === F}">${esc(x.label)}</button>`).join("")}</div>` : ""}
@@ -573,7 +607,7 @@ document.addEventListener("click", ev => {
     case "to-notes": S.step = "notes"; break;
     case "role": S.role = el.dataset.role; break;
     case "role-typed": S.role = ($("myRole").value || "").trim(); break;
-    case "sel": ui.claimRoles = []; ui.sel = ui.sel === pid ? null : pid; render(); if (ui.sel && innerWidth < 900) { const c = document.querySelector(".grim-wrap > .side + .side"); if (c) c.scrollIntoView({ behavior: "smooth" }); } return;
+    case "sel": ui.claimRoles = []; if (ui.inf.by) resetInf(""); ui.sel = ui.sel === pid ? null : pid; render(); if (ui.sel && innerWidth < 900) { const c = document.querySelector(".grim-wrap > .side + .side"); if (c) c.scrollIntoView({ behavior: "smooth" }); } return;
     case "claim-role": {
       // Soft: tap as many as they might be. Hard: just the one.
       const r = el.dataset.role, on = ui.claimRoles.includes(r);
@@ -588,6 +622,7 @@ document.addEventListener("click", ev => {
     case "ghost": about(pid).ghost = !about(pid).ghost; break;
     case "ph": S.ph = Math.max(0, S.ph + Number(el.dataset.v)); break;
     case "info-add": return addInfo();
+    case "inf-by": resetInf(pid || ""); keepDraft(); return;
     case "inf-pick": ui.inf.pick = !ui.inf.pick; keepDraft(); return;
     case "inf-char": Object.assign(ui.inf, { char: el.dataset.role === S.role ? "" : el.dataset.role, form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }); keepDraft(); return;
     case "inf-char-typed": { const v = ($("infChar").value || "").trim(); Object.assign(ui.inf, { char: v === S.role ? "" : v, form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }); keepDraft(); return; }
@@ -631,21 +666,16 @@ document.addEventListener("keydown", ev => {
   if (ev.target.id === "claimNote") { ev.preventDefault(); addClaim(ui.sel); }
 });
 /* ---------- 👋 Signal ---------- */
+// A big card to hold up at the table: no names, so anyone who catches your eye knows you want a word
 const SIG_MSGS = ["Can we talk?", "Later?", "After this vote?", "Come and find me", "Yes!", "No"];
 const SIG_COLOURS = ["#f0c66a", "#7fd1ff", "#ff9aa9", "#9ef0a8"];
-const sig = { pid: null, msg: 0, colour: 0 };
+const sig = { on: false, msg: 0, colour: 0 };
 function showSignal() {
   const box = $("sigBox");
-  if (!sig.pid && sig.pid !== "") { box.hidden = true; box.innerHTML = ""; document.body.style.overflow = ""; return; }
+  if (!sig.on) { box.hidden = true; box.innerHTML = ""; document.body.style.overflow = ""; return; }
   box.hidden = false; document.body.style.overflow = "hidden";
-  // Pick who it's for, or show the card
-  box.innerHTML = sig.pid === "" ? `<div class="signal" style="--sig:#2b2534;color:#f6f2fa;animation:none"><div class="in">
-      <div class="hand">👋</div><p class="msg" style="font-size:clamp(1.6rem,6vw,3rem)">Who do you want a word with?</p>
-      <div class="sig-pick" style="width:100%">${S.players.filter(p => p.id !== S.me).map(p => `<button class="btn" data-act="signal" data-pid="${p.id}">${esc(p.name)}</button>`).join("")}</div>
-      <button class="close" data-act="sig-close" style="background:#f0c66a;color:#1a1408">Cancel</button></div></div>`
-    : `<div class="signal" style="--sig:${SIG_COLOURS[sig.colour]}" role="dialog" aria-label="Signal"><div class="in">
+  box.innerHTML = `<div class="signal" style="--sig:${SIG_COLOURS[sig.colour]}" role="dialog" aria-label="Signal"><div class="in">
       <div class="hand" aria-hidden="true">👋</div>
-      <div class="who">${esc(nameOf(sig.pid))}</div>
       <div class="msg">${esc(SIG_MSGS[sig.msg])}</div>
       <div class="opts">${SIG_MSGS.map((m, k) => `<button data-act="sig-msg" data-v="${k}" aria-pressed="${k === sig.msg}">${esc(m)}</button>`).join("")}</div>
       <div class="opts">${SIG_COLOURS.map((c, k) => `<button data-act="sig-colour" data-v="${k}" aria-pressed="${k === sig.colour}" aria-label="Colour ${k + 1}" style="background:${c};width:44px"></button>`).join("")}</div>
@@ -655,16 +685,15 @@ document.addEventListener("click", ev => {
   const el = ev.target.closest("[data-act]");
   if (!el) return;
   const a = el.dataset.act;
-  if (a === "sig-pick") { if (!S.players.length) return; sig.pid = ""; }
-  else if (a === "signal") { sig.pid = el.dataset.pid; sig.msg = 0; }
+  if (a === "signal") sig.on = true;
   else if (a === "sig-msg") sig.msg = Number(el.dataset.v);
   else if (a === "sig-colour") sig.colour = Number(el.dataset.v);
-  else if (a === "sig-close") sig.pid = null;
+  else if (a === "sig-close") sig.on = false;
   else return;
   ev.stopImmediatePropagation();
   showSignal();
 }, true);
-document.addEventListener("keydown", ev => { if (ev.key === "Escape" && sig.pid != null) { sig.pid = null; showSignal(); } }, true);
+document.addEventListener("keydown", ev => { if (ev.key === "Escape" && sig.on) { sig.on = false; showSignal(); } }, true);
 render();
 </script>
 </body>
