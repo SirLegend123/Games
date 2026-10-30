@@ -196,10 +196,15 @@ label.field, .field { display: grid; gap: 6px; }
 .card > .seg { display: grid; grid-template-columns: 1fr 1fr; }
 .card > .seg button + button { border-left: 1px solid var(--line); }
 .seat.soft .disc { border-style: dashed; border-color: var(--brass); }
+/* Dead players are greyed out, but keep their blue or red glow */
+.seat.dead .disc { filter: none; background: #b3aa97; }
+.seat.dead .disc > * { filter: grayscale(1) brightness(.75); }
 /* Likely good (blue) or likely evil (red), from the notes or your own read */
 .seat.lean-good .disc { box-shadow: 0 0 0 4px rgba(76,140,228,.55), 0 0 14px rgba(76,140,228,.45); }
 .seat.lean-good.sure-2 .disc { box-shadow: 0 0 0 6px var(--good), 0 0 22px rgba(76,140,228,.8); }
 .seat.lean-evil .disc { box-shadow: 0 0 0 4px rgba(216,67,90,.55), 0 0 14px rgba(216,67,90,.45); }
+.seat.lean-good.sure-3 .disc { box-shadow: 0 0 0 8px var(--good), 0 0 30px rgba(76,140,228,.95); }
+.seat.lean-evil.sure-3 .disc { box-shadow: 0 0 0 8px var(--evil), 0 0 30px rgba(216,67,90,.95); }
 .seat.lean-evil.sure-2 .disc { box-shadow: 0 0 0 6px var(--evil), 0 0 22px rgba(216,67,90,.8); }
 .seat.sel .disc { outline: 3px solid var(--fg); outline-offset: 3px; }
 .lean { margin: 0; font-size: 1.05rem; }
@@ -219,6 +224,7 @@ label.field, .field { display: grid; gap: 6px; }
 .cl-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .cl-list li { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
 .cl-list .ico { font-size: 1.5rem; }
+.cl-list li.old { opacity: .55; } .cl-list li.old b { text-decoration: line-through; }
 .cl-list small { color: var(--muted); display: block; }
 .deaths { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
 .deaths .btn { min-height: 52px; }
@@ -239,7 +245,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="sigBox" hidden></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 74;</script>
+<script>window.APP_V = 75;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -278,7 +284,7 @@ let S;
 try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
 if (!S || !S.step) S = fresh();
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
-const ui = { sel: null, kind: "hard", claimRoles: [], inf: { by: "", char: "", form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }, next: null };
+const ui = { dying: null, sel: null, kind: "hard", claimRoles: [], inf: { by: "", char: "", form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }, next: null };
 const about = pid => (S.P[pid] = S.P[pid] || { claims: [], death: null, ghost: false, notes: "" });
 const nameOf = pid => (S.players.find(p => p.id === pid) || {}).name || "?";
 const alive = () => S.players.filter(p => !about(p.id).death);
@@ -304,17 +310,31 @@ function currentClaim(pid) {
   const cs = about(pid).claims;
   return [...cs].reverse().find(c => c.kind === "hard") || cs[cs.length - 1] || null;
 }
+// A new soft claim replaces the soft claims before it: only the latest one stands
+const latestSoft = pid => [...about(pid).claims].reverse().find(c => c.kind === "soft") || null;
+const replaced = (pid, c) => c.kind === "soft" && c !== latestSoft(pid);
+// Every character a player is claiming now: their hard claims and their latest soft claim
+const claimedNow = pid => { const cs = about(pid).claims, h = cs.filter(c => c.kind === "hard"), s = latestSoft(pid); return [...h, ...(s ? [s] : [])]; };
 // ⚠ when someone's story has changed, or two players hard claim the same character
 function flagsOf(pid) {
-  const f = [], cs = about(pid).claims;
-  // Two claims that can't both be true: no character in common
-  if (cs.some((a, i) => cs.slice(i + 1).some(b => !rolesOf(a).some(r => rolesOf(b).includes(r))))) f.push("Claims have changed");
+  const f = [], hard = about(pid).claims.filter(c => c.kind === "hard");
+  // Two hard claims that can't both be true. (Updating a soft claim is fine.)
+  if (hard.some((a, i) => hard.slice(i + 1).some(b => a.role !== b.role))) f.push("Hard claim has changed");
   const c = currentClaim(pid);
   if (c && c.kind === "hard") {
     const others = S.players.filter(p => p.id !== pid && (currentClaim(p.id) || {}).role === c.role && currentClaim(p.id).kind === "hard");
     if (others.length) f.push(`${others.map(p => p.name).join(", ")} also hard claims the ${c.role}`);
-    if (pid !== S.me && c.role === S.role) f.push("Claims your character");
   }
+  // Shared claims, soft ones included
+  const mine = new Set(c ? rolesOf(c) : []);
+  for (const p of S.players) {
+    if (p.id === pid || p.id === S.me) continue;
+    const oc = currentClaim(p.id);
+    if (!oc || (c && c.kind === "hard" && oc.kind === "hard")) continue;
+    const both = rolesOf(oc).filter(r => mine.has(r));
+    if (both.length) f.push(`${p.name} also ${oc.kind === "soft" ? "soft-" : ""}claims the ${orList(both)}`);
+  }
+  if (pid !== S.me && c && !iAmEvil() && rolesOf(c).includes(S.role)) f.push(c.kind === "hard" ? "Claims your character" : "Soft-claims your character");
   return f;
 }
 
@@ -402,13 +422,20 @@ function leanings() {
       case "Empath": if (f.n != null) { const src2 = e.by || S.me; neighboursAt(src2, e.ph).forEach(q => add(q, f.n === 0 ? -1 * w : f.n === 2 ? 2 * w : 0.5 * w, say)); } break;
     }
   }
+  // A Virgin execution proves the Virgin good; the nominator was a Townsfolk, so leans good.
+  // A Slayer shot that kills proves the Slayer good and the target the Demon.
+  for (const p of S.players) {
+    const d = about(p.id).death; if (!d || !d.by) continue;
+    if (d.how === "virgin") { add(d.by, -6, `Confirmed Virgin: ${p.name} was executed for nominating them (${phaseName(d.ph)})`); add(p.id, -1.5, `Executed by the Virgin's ability, so a Townsfolk (${phaseName(d.ph)})`); }
+    if (d.how === "slayer") { add(d.by, -6, `Confirmed Slayer: their shot killed ${p.name} (${phaseName(d.ph)})`); add(p.id, 6, `Killed by the Slayer's shot: the Demon (${phaseName(d.ph)})`); }
+  }
   if (!iAmEvil()) for (const p of S.players) {
     const c = currentClaim(p.id);
     if (p.id !== S.me && c && c.kind === "hard" && c.role === S.role) add(p.id, 3, `Claims your character, the ${S.role}`);
   }
   for (const p of S.players) {
     if (p.id === S.me) continue;
-    for (const f of flagsOf(p.id)) if (!f.startsWith("Claims your character")) add(p.id, 1, f);
+    for (const f of flagsOf(p.id)) if (f === "Hard claim has changed" || f.includes("also hard claims")) add(p.id, 1, f);
   }
   for (const p of S.players) { const r = about(p.id).read; if (r) (L[p.id] = L[p.id] || { score: 0, why: [] }).read = r; }
   return L;
@@ -417,7 +444,7 @@ function leanings() {
 function leanOf(L, pid) {
   const x = L[pid]; if (!x) return ["", 0];
   if (x.read === "good" || x.read === "evil") return [x.read, 2];
-  return x.score >= 2 ? ["evil", 2] : x.score >= 0.75 ? ["evil", 1] : x.score <= -2 ? ["good", 2] : x.score <= -0.75 ? ["good", 1] : ["", 0];
+  return x.score >= 5 ? ["evil", 3] : x.score <= -5 ? ["good", 3] : x.score >= 2 ? ["evil", 2] : x.score >= 0.75 ? ["evil", 1] : x.score <= -2 ? ["good", 2] : x.score <= -0.75 ? ["good", 1] : ["", 0];
 }
 // 🧭 Who to speak to next, and why: the three things that most need following up
 function adviceHtml() {
@@ -430,6 +457,7 @@ function adviceHtml() {
     else if (mine.length && !c) push(p.id, `is in your info (${mine[mine.length - 1].text}) but hasn't claimed. Ask what they are.`, 2);
     const dup = c && c.kind === "hard" ? S.players.find(q => q.id !== p.id && !about(q.id).death && (currentClaim(q.id) || {}).kind === "hard" && currentClaim(q.id).role === c.role) : null;
     if (dup) push(p.id, `and ${dup.name} both claim the ${c.role}. Get them to compare their info: one of them is lying.`, 3);
+    else { const sh = flagsOf(p.id).find(f => / also (soft-)?claims the /.test(f)); if (sh) push(p.id, `overlaps with another claim (${sh}). Ask them both to narrow it down.`, 5.5); }
     if (c && c.kind === "hard" && INFO[c.role] && CHAR[c.role] && ["townsfolk", "outsider"].includes(CHAR[c.role].team) && !S.info.some(e => e.by === p.id)) push(p.id, `claims the ${c.role} but you haven't noted their info. Ask what they've learnt.`, 4);
     if (!c) push(p.id, `hasn't claimed anything yet. Ask what they are.`, 5);
     else if (c.kind === "soft") push(p.id, `has only soft-claimed (${claimText(c)}). Push them for a hard claim.`, 6);
@@ -468,14 +496,14 @@ function circleHtml() {
 function readHtml(pid) {
   const L = leanings(), x = L[pid] || { score: 0, why: [] }, [lean, sure] = leanOf(L, pid), r = about(pid).read || "";
   return `<h3>Good or evil?</h3>
-    <p class="lean ${lean}">${lean ? `${lean === "evil" ? "🔴" : "🔵"} ${x.read ? "You've marked them" : sure === 2 ? "Likely" : "Leaning"} <b>${lean}</b>` : "⚪ No lean yet"}</p>
+    <p class="lean ${lean}">${lean ? `${lean === "evil" ? "🔴" : "🔵"} ${x.read ? "You've marked them" : sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} <b>${lean}</b>` : "⚪ No lean yet"}</p>
     ${x.why.length ? `<ul class="why">${x.why.map(([v, w]) => `<li>${v > 0 ? "🔺" : "🔹"} ${esc(w)}</li>`).join("")}</ul>` : ""}
     <div class="seg seg3" role="group" aria-label="Your read"><button data-act="read" data-pid="${pid}" data-v="" aria-pressed="${!r}">From the notes</button><button class="g" data-act="read" data-pid="${pid}" data-v="good" aria-pressed="${r === "good"}">Good</button><button class="e" data-act="read" data-pid="${pid}" data-v="evil" aria-pressed="${r === "evil"}">Evil</button></div>`;
 }
 function panelHtml(pid) {
   const A = about(pid), d = A.death, me = pid === S.me;
-  const claims = A.claims.map(c => `<li><span class="ico">${rolesOf(c).map(iconOf).join("")}</span>
-      <span><span class="kind ${c.kind}">${c.kind === "hard" ? "Hard" : "Soft"}</span> <b>${esc(claimText(c))}</b> <small>${phaseName(c.ph)}${c.note ? ` · ${esc(c.note)}` : ""}</small></span>
+  const claims = A.claims.map(c => `<li class="${replaced(pid, c) ? "old" : ""}"><span class="ico">${rolesOf(c).map(iconOf).join("")}</span>
+      <span><span class="kind ${c.kind}">${c.kind === "hard" ? "Hard" : "Soft"}</span> <b>${esc(claimText(c))}</b> <small>${phaseName(c.ph)}${c.note ? ` · ${esc(c.note)}` : ""}${replaced(pid, c) ? " · replaced" : ""}</small></span>
       <button class="x" data-act="claim-del" data-pid="${pid}" data-id="${c.id}" aria-label="Remove this claim">×</button></li>`).join("");
   const cur = currentClaim(pid), abs = cur ? rolesOf(cur).map(r => CHAR[r]).filter(Boolean) : [];
   return `<section class="card">
@@ -494,8 +522,11 @@ function panelHtml(pid) {
     ${me ? "" : `<h3>Their info</h3>${infoLog(pid) || `<p class="hint">Nothing yet. What do they say they learnt?</p>`}
     ${ui.inf.by === pid ? infoFormHtml() : `<button class="btn" data-act="inf-by" data-pid="${pid}">＋ Add what ${esc(nameOf(pid))} says they learnt</button>`}`}
     <h3>Died?</h3>
-    ${d ? `<div class="dead-box"><p class="lead">${deathOf(d.how)[1]} <b>${deathOf(d.how)[2]}</b> · ${phaseName(d.ph)}</p>
+    ${d ? `<div class="dead-box"><p class="lead">${deathOf(d.how)[1]} <b>${deathOf(d.how)[2]}</b> · ${phaseName(d.ph)}${d.by ? ` · ${d.how === "virgin" ? "nominated" : "shot by"} <b>${esc(nameOf(d.by))}</b>` : ""}</p>
       <div class="row"><button class="btn" data-act="ghost" data-pid="${pid}" aria-pressed="${A.ghost}">${A.ghost ? "👻 Ghost vote used" : "👻 Ghost vote still there"}</button><button class="btn" data-act="undead" data-pid="${pid}">Undo</button></div></div>`
+      : ui.dying && ui.dying.pid === pid ? `<p class="lead">${ui.dying.how === "virgin" ? `Which player is the Virgin ${esc(nameOf(pid))} nominated?` : `Who shot ${esc(nameOf(pid))}?`}</p>
+        <div class="pick-row">${S.players.filter(p => p.id !== pid).map(p => `<button class="pbtn" data-act="die-by" data-pid="${pid}" data-by="${p.id}">${esc(p.name)}</button>`).join("")}</div>
+        <div class="row"><button class="btn" data-act="die-by" data-pid="${pid}" data-by="">Not sure</button><button class="btn" data-act="die-cancel">Cancel</button></div>`
       : `<p class="hint">Tap how they died. It's noted for ${phaseName(S.ph)}.</p><div class="deaths">${DEATHS.map(([k, ic, l]) => `<button class="btn" data-act="die" data-pid="${pid}" data-v="${k}">${ic} ${l}</button>`).join("")}</div>`}
     <label class="field"><span class="label">Notes</span><textarea data-notes="${pid}" placeholder="Anything else about ${esc(nameOf(pid))}">${esc(A.notes)}</textarea></label>
   </section>`;
@@ -520,7 +551,7 @@ function matrixCard() {
     const A = about(p.id), me = p.id === S.me, cs = A.claims, f = me ? [] : flagsOf(p.id), info = infoOf(me ? "" : p.id);
     return `<tr class="${A.death ? "dead" : ""} ${ui.sel === p.id ? "on" : ""}">
       <th scope="row"><button class="mx-name" data-act="sel" data-pid="${p.id}">${me ? "★ " : ""}${esc(p.name)}</button>${A.death ? `<small>${deathOf(A.death.how)[1]} ${short(A.death.ph)}</small>` : ""}${f.length ? `<small class="flagtxt" title="${esc(f.join("; "))}">⚠ ${esc(f.join("; "))}</small>` : ""}</th>
-      <td data-l="Soft"><div class="c">${me ? `<span class="hint">–</span>` : claimCell(cs.filter(c => c.kind === "soft"))}</div></td>
+      <td data-l="Soft"><div class="c">${me ? `<span class="hint">–</span>` : claimCell(latestSoft(p.id) ? [latestSoft(p.id)] : [])}</div></td>
       <td data-l="Hard"><div class="c">${me ? `<div>${iconOf(S.role)} ${esc(S.role)} <span class="kind hard">You</span></div>` : claimCell(cs.filter(c => c.kind === "hard"))}</div></td>
       <td data-l="Info"><div class="c">${info.length ? info.map(e => `<div><small>${short(e.ph)}</small> ${esc(e.text)}</div>`).join("") : `<span class="hint">–</span>`}</div></td>
     </tr>`;
@@ -532,7 +563,7 @@ function matrixCard() {
 function summaryCard() {
   const dead = S.players.filter(p => about(p.id).death).sort((a, b) => about(a.id).death.ph - about(b.id).death.ph);
   return `
-    ${dead.length ? `<section class="card"><h2>Deaths</h2><ol class="log">${dead.map(p => { const d = about(p.id).death; return `<li><span class="ph">${phaseName(d.ph)}</span><span class="t">${deathOf(d.how)[1]} <b>${esc(p.name)}</b>: ${deathOf(d.how)[2].toLowerCase()}</span></li>`; }).join("")}</ol></section>` : ""}`;
+    ${dead.length ? `<section class="card"><h2>Deaths</h2><ol class="log">${dead.map(p => { const d = about(p.id).death; return `<li><span class="ph">${phaseName(d.ph)}</span><span class="t">${deathOf(d.how)[1]} <b>${esc(p.name)}</b>: ${d.how === "virgin" ? `executed for nominating the Virgin${d.by ? `, ${esc(nameOf(d.by))}` : ""}` : d.how === "slayer" ? `shot by the Slayer${d.by ? `, ${esc(nameOf(d.by))}` : ""}` : deathOf(d.how)[2].toLowerCase()}</span></li>`; }).join("")}</ol></section>` : ""}`;
 }
 
 // Moving on to the next phase: who was executed today, or who died in the night
@@ -714,7 +745,12 @@ document.addEventListener("click", ev => {
     case "claim-add": return addClaim(pid);
     case "read": about(pid).read = el.dataset.v; keepDraft(); return;
     case "claim-del": about(pid).claims = about(pid).claims.filter(c => c.id !== el.dataset.id); break;
-    case "die": about(pid).death = { how: el.dataset.v, ph: S.ph }; break;
+    case "die":
+      // The Virgin and the Slayer: ask who, as that proves who's good (and who's the Demon)
+      if (el.dataset.v === "virgin" || el.dataset.v === "slayer") { ui.dying = { pid, how: el.dataset.v }; keepDraft(); return; }
+      about(pid).death = { how: el.dataset.v, ph: S.ph }; break;
+    case "die-by": about(pid).death = { how: ui.dying.how, ph: S.ph, ...(el.dataset.by ? { by: el.dataset.by } : {}) }; ui.dying = null; break;
+    case "die-cancel": ui.dying = null; keepDraft(); return;
     case "undead": about(pid).death = null; about(pid).ghost = false; break;
     case "ghost": about(pid).ghost = !about(pid).ghost; break;
     case "ph": S.ph = Math.max(0, S.ph + Number(el.dataset.v)); break;
