@@ -227,6 +227,14 @@ label.field, .field { display: grid; gap: 6px; }
 .ob.e span { background: linear-gradient(90deg, var(--unsure), var(--evil)); } .ob.d span { background: var(--demon); } .ob.g span { background: var(--good); }
 .ping { display: grid; gap: 2px; }
 .lean-row b.pc { color: var(--fg); }
+/* Tabs */
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 6px 0; }
+.tabs button { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; min-height: 48px; font-weight: 800; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
+/* The critical realist layers */
+.cr-layers { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+.cr-layers > div { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; display: grid; gap: 2px; }
+.cr-layers small { color: var(--muted); font-size: .78rem; }
 .pick-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .pbtn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 8px 14px; min-height: 44px; font-weight: 800; }
 .pbtn.num { min-width: 48px; }
@@ -286,7 +294,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <main id="app"></main>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 80;</script>
+<script>window.APP_V = 81;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -710,20 +718,34 @@ function worldsOf() {
   all.forEach(x => (x.p = Math.exp(x.score - top) / sum));
   return { list: all.slice(0, 3), all, chk: checks, total: all.length, checks: checks.length + hard.length + Object.keys(reads).length + S.players.filter(p => about(p.id).death).length };
 }
+// 🌍 Worlds, read the critical realist way: what's been observed (the empirical), what has happened
+// (the actual), and the hidden structure that would produce both (the real): each world is a guess at that
+// structure, and lists the mechanisms it needs (lies, drunkenness or poisoning) to explain what you've seen
 function worldsCard(WS) {
   if (!WS) return "";
   const pct = x => x >= 0.995 ? ">99%" : x < 0.01 ? "<1%" : `${Math.round(x * 100)}%`;
-  if (!WS.checks) return `<section class="card worlds"><h2>🌍 Most likely worlds</h2><p class="hint">Add some info, claims or deaths and the most likely evil teams will show here.</p></section>`;
-  if (!WS.list.length) return `<section class="card worlds"><h2>🌍 Most likely worlds</h2><p class="warn">No evil team fits everything marked as confirmed. Check the Virgin and Slayer deaths.</p></section>`;
+  const claims = S.players.filter(p => p.id !== S.me && about(p.id).claims.length).length, infos = S.info.length, deaths = S.players.filter(p => about(p.id).death).length;
+  const layers = `<div class="cr-layers">
+      <div><b>🔍 Observed</b><span>${plural(claims, "player")} claiming, ${plural(infos, "piece")} of info</span><small>the empirical: what's been said</small></div>
+      <div><b>⚡ Happened</b><span>${plural(deaths, "death")}${S.over ? `, ${S.over.winner} won` : ""}</span><small>the actual: events in the game</small></div>
+      <div><b>⚙️ Underlying</b><span>${plural(WS.total || 0, "possible evil team")}</span><small>the real: the hidden structure behind it all</small></div>
+    </div>`;
+  if (!WS.checks) return `<section class="card worlds"><h2>🌍 Worlds</h2>${layers}<p class="hint">Add some info, claims or deaths, and the structures that best explain them will show here.</p></section>`;
+  if (!WS.list.length) return `<section class="card worlds"><h2>🌍 Worlds</h2>${layers}<p class="warn">No evil team fits everything marked as confirmed. Check the Virgin and Slayer deaths.</p></section>`;
   const close = WS.list.length > 1 && WS.list[0].p < 0.15;
-  return `<section class="card worlds"><h2>🌍 Most likely worlds</h2>
-    <p class="hint">Out of ${WS.total} possible evil teams, the ones that fit your notes best. Each says what would have to be true for it.</p>
+  const group = needs => {
+    const lies = needs.filter(t => t.includes("bluffing") || t.includes("is evil but")), drunk = needs.filter(t => t.includes("drunk or poisoned") || t.includes("the Drunk")), other = needs.filter(t => !lies.includes(t) && !drunk.includes(t));
+    const sec = (ic, title, list) => list.length ? `<p class="w-sub">${ic} ${title}</p><ul class="w-need">${list.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : "";
+    return sec("🎭", "Deception: who's lying", lies) + sec("🍺", "Misinformation: whose info is wrong (drunk or poisoned)", drunk) + sec("⚠️", "Other conditions", other);
+  };
+  return `<section class="card worlds"><h2>🌍 Worlds</h2>${layers}
+    <p class="hint">Working back from what you've observed to what could be causing it: the three hidden structures that explain your notes best, and the mechanisms each one needs.</p>
     ${close ? `<p class="hint">⚖️ These are close: there isn't enough info yet to separate them much.</p>` : ""}
     <ol class="wl">${WS.list.map((W, k) => `<li class="world">
       <div class="w-head"><span class="w-rank">${k + 1}</span><span class="w-team"><span class="chip evil">😈 ${esc(nameOf(W.demon))} <small>Demon</small></span>${[...W.minions].map(q => `<span class="chip evil soft">🧪 ${esc(nameOf(q))} <small>Minion</small></span>`).join("")}</span><span class="w-pc">${pct(W.p)}</span></div>
       <div class="w-bar" aria-hidden="true"><span style="width:${Math.max(2, Math.round(W.p * 100))}%"></span></div>
-      ${W.needs.length ? `<p class="w-sub">For this world to be true:</p><ul class="w-need">${W.needs.map(t => `<li>${t.includes("bluffing") ? "🎭" : "✘"} ${esc(t)}</li>`).join("")}</ul>` : `<p class="w-sub">✔ Nothing has to be wrong: everything you've noted fits.</p>`}
-      ${W.fits.length ? `<details><summary>What fits (${W.fits.length})</summary><ul class="w-fit">${W.fits.map(t => `<li>✔ ${esc(t)}</li>`).join("")}</ul></details>` : ""}
+      ${W.needs.length ? `<p class="w-sub">For this to be the real structure, it needs:</p>${group(W.needs)}` : `<p class="w-sub">✔ It needs nothing extra: it explains everything you've observed as it stands.</p>`}
+      ${W.fits.length ? `<details><summary>✔ What it explains (${W.fits.length})</summary><ul class="w-fit">${W.fits.map(t => `<li>✔ ${esc(t)}</li>`).join("")}</ul></details>` : ""}
     </li>`).join("")}</ol></section>`;
 }
 
@@ -837,20 +859,26 @@ function overHtml() {
     <p class="lead">${phaseName(O.ph)}${who.length ? `: ${esc(andList(who))} ${O.how === "night" ? "died in the night" : O.how === "virgin" ? "was executed by the Virgin" : O.how === "slayer" ? "was shot by the Slayer" : "was executed"}` : ""}.</p>
     <div class="row"><button class="btn" data-act="over-undo">Undo: the game went on</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>`;
 }
+// Three tabs: 🌙 the Grimoire and your own night info, ☀️ the day's conversations, 📊 the analysis
+const TABS = [["grim", "🌙 Grimoire"], ["day", "☀️ Day"], ["analysis", "📊 Analysis"]];
+const tabOf = () => TABS.some(t => t[0] === S.tab) ? S.tab : "grim";
 function notesHtml() {
-  return `<div class="notes-page"><div class="grim-wrap">
-    <div class="side">
-      <div class="phase" style="justify-content:center"><button class="icon" data-act="ph" data-v="-1" aria-label="Back a phase" ${S.ph ? "" : "disabled"}>‹</button><b>${phaseName(S.ph)}</b><button class="icon" data-act="ph" data-v="1" aria-label="Next phase without marking deaths">›</button></div>
-      ${S.over ? overHtml() : `<button class="btn primary next-btn" data-act="next-open">${S.ph % 2 ? `🌙 End the day: who was executed? →` : `☀️ Morning: who died in the night? →`}</button>`}
-      ${circleHtml()}
-      <p class="hint" style="text-align:center">Tap a player to note their claims, or how they died. Dashed: soft claim. Gold: hard claim. Blue glow: likely good. Red glow: likely evil. ! : something doesn't add up.</p>
-      ${adviceHtml()}
-    </div>
-    ${ui.next ? nextHtml() : ""}${ui.slayEnd ? slayEndHtml() : ""}
-    <div class="side">${ui.sel ? panelHtml(ui.sel) : ""}${myCard()}${summaryCard()}</div></div>
-    ${(() => { const WS = worldsOf(); return matrixCard(WS) + oddsCard(WS) + worldsCard(WS); })()}
-    <section class="card"><div class="row"><button class="btn" data-act="to-players">← Players</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
-  </div>`;
+  const tab = tabOf();
+  const bar = `<nav class="tabs" role="tablist">${TABS.map(([k, l]) => `<button role="tab" data-act="tab" data-v="${k}" aria-selected="${tab === k}">${l}</button>`).join("")}</nav>`;
+  const phase = `<div class="phase" style="justify-content:center"><button class="icon" data-act="ph" data-v="-1" aria-label="Back a phase" ${S.ph ? "" : "disabled"}>‹</button><b>${phaseName(S.ph)}</b><button class="icon" data-act="ph" data-v="1" aria-label="Next phase without marking deaths">›</button></div>`;
+  const next = S.over ? overHtml() : `<button class="btn primary next-btn" data-act="next-open">${S.ph % 2 ? `🌙 End the day: who was executed? →` : `☀️ Morning: who died in the night? →`}</button>`;
+  const key = `<p class="hint" style="text-align:center">Dashed: soft claim. Gold: hard claim. Blue glow: likely good. Red glow: likely evil. ! : something doesn't add up.</p>`;
+  const modals = `${ui.next ? nextHtml() : ""}${ui.slayEnd ? slayEndHtml() : ""}`;
+  const foot = `<section class="card"><div class="row"><button class="btn" data-act="to-players">← Players</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>`;
+  let body;
+  if (tab === "grim") body = `<div class="grim-wrap">
+      <div class="side">${phase}${next}${circleHtml()}<p class="hint" style="text-align:center">Tap a player to note what they say in the ☀️ Day tab.</p>${key}</div>
+      <div class="side">${myCard()}${summaryCard()}</div></div>`;
+  else if (tab === "day") body = `<div class="grim-wrap">
+      <div class="side">${phase}${next}${circleHtml()}<p class="hint" style="text-align:center">Tap a player to add their claims, what they say they learnt, or how they died.</p>${key}</div>
+      <div class="side">${ui.sel ? panelHtml(ui.sel) : `<section class="card"><h2>☀️ After a conversation</h2><p class="hint">Tap the player you spoke to. You can note their soft or hard claim, what they say they learnt (on any night), your read on them, and anything else.</p></section>`}${adviceHtml()}</div></div>`;
+  else { const WS = worldsOf(); body = `${phase}${matrixCard(WS)}${oddsCard(WS)}${worldsCard(WS)}`; }
+  return `<div class="notes-page">${bar}${body}${modals}${foot}</div>`;
 }
 
 /* ---------- Actions ---------- */
@@ -1003,7 +1031,8 @@ document.addEventListener("click", ev => {
     case "to-notes": S.step = "notes"; break;
     case "role": S.role = el.dataset.role; break;
     case "role-typed": S.role = ($("myRole").value || "").trim(); break;
-    case "sel": ui.claimRoles = []; if (ui.inf.by) resetInf(""); ui.sel = ui.sel === pid ? null : pid; render(); if (ui.sel && innerWidth < 900) { const c = document.querySelector(".grim-wrap > .side + .side"); if (c) c.scrollIntoView({ behavior: "smooth" }); } return;
+    case "tab": S.tab = el.dataset.v; render(); window.scrollTo({ top: 0 }); return;
+    case "sel": ui.claimRoles = []; if (ui.inf.by) resetInf(""); ui.sel = ui.sel === pid ? null : pid; if (ui.sel) S.tab = "day"; render(); if (ui.sel && innerWidth < 900) { const c = document.querySelector(".grim-wrap > .side + .side"); if (c) c.scrollIntoView({ behavior: "smooth" }); } return;
     case "claim-role": {
       // Soft: tap as many as they might be. Hard: just the one.
       const r = el.dataset.role, on = ui.claimRoles.includes(r);
