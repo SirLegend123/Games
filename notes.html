@@ -233,7 +233,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <main id="app"></main>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 75;</script>
+<script>window.APP_V = 76;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -559,10 +559,14 @@ function nextHtml() {
   return `<div class="modal" role="dialog" aria-modal="true" aria-label="Next phase"><div class="modal-in card">
     <h2>${day ? `🌙 End of Day ${n}` : `☀️ Morning of Day ${n}`}</h2>
     <p class="lead">${day ? "Who was executed today?" : "Who died in the night?"}</p>
-    <p class="hint">${day ? "Tap one player. (A Slayer shot or the Virgin? Mark it on their panel first.)" : "Tap everyone who died."}</p>
+    <p class="hint">${day ? "Tap one player. (Someone shot by the Slayer? Mark it on their panel.)" : "Tap everyone who died."}</p>
     <div class="pick-row">${alive().map(p => `<button class="pbtn" data-act="next-pick" data-pid="${p.id}" aria-pressed="${picks.includes(p.id)}">${esc(p.name)}</button>`).join("")}</div>
+    ${day && picks.length ? `<p class="lead">How?</p>
+      <div class="seg" role="group"><button data-act="next-how" data-v="executed" aria-pressed="${ui.nextHow !== "virgin"}">🪓 Voted out</button><button data-act="next-how" data-v="virgin" aria-pressed="${ui.nextHow === "virgin"}">🕊️ Nominated the Virgin</button></div>
+      ${ui.nextHow === "virgin" ? `<p class="hint">Which player is the Virgin they nominated?</p>
+        <div class="pick-row">${S.players.filter(p => p.id !== picks[0]).map(p => `<button class="pbtn" data-act="next-by" data-pid="${p.id}" aria-pressed="${ui.nextBy === p.id}">${esc(p.name)}</button>`).join("")}</div>` : ""}` : ""}
     <div class="row"><button class="btn" data-act="next-cancel">Cancel</button><span class="spacer"></span>
-      <button class="btn primary" data-act="next-go">${picks.length ? `${andList(picks.map(nameOf))} ${day ? "was executed" : picks.length === 1 ? "died" : "died"} → ${day ? `Night ${n + 1}` : `Day ${n}`}` : `${day ? "Nobody was executed" : "Nobody died"} → ${day ? `Night ${n + 1}` : `Day ${n}`}`}</button></div>
+      <button class="btn primary" data-act="next-go">${picks.length ? `${andList(picks.map(nameOf))} ${day ? (ui.nextHow === "virgin" ? `was executed by the Virgin${ui.nextBy ? ` (${esc(nameOf(ui.nextBy))})` : ""}` : "was executed") : "died"} → ${day ? `Night ${n + 1}` : `Day ${n}`}` : `${day ? "Nobody was executed" : "Nobody died"} → ${day ? `Night ${n + 1}` : `Day ${n}`}`}</button></div>
   </div></div>`;
 }
 function notesHtml() {
@@ -752,13 +756,16 @@ document.addEventListener("click", ev => {
     case "inf-n": ui.inf.n = ui.inf.n === Number(el.dataset.v) ? null : Number(el.dataset.v); keepDraft(); return;
     case "inf-yn": ui.inf.yn = ui.inf.yn === Number(el.dataset.v) ? null : Number(el.dataset.v); keepDraft(); return;
     case "inf-none": ui.inf.none = !ui.inf.none; if (ui.inf.none) { ui.inf.ps = []; ui.inf.rs = []; } keepDraft(); return;
-    case "next-open": ui.next = []; keepDraft(); return;
-    case "next-pick": { const day = S.ph % 2 === 1; ui.next = ui.next.includes(pid) ? ui.next.filter(x => x !== pid) : day ? [pid] : [...ui.next, pid]; keepDraft(); return; }
+    case "next-open": ui.next = []; ui.nextHow = "executed"; ui.nextBy = ""; keepDraft(); return;
+    case "next-how": ui.nextHow = el.dataset.v; if (ui.nextHow !== "virgin") ui.nextBy = ""; keepDraft(); return;
+    case "next-by": ui.nextBy = ui.nextBy === pid ? "" : pid; keepDraft(); return;
+    case "next-pick": { const day = S.ph % 2 === 1; ui.next = ui.next.includes(pid) ? ui.next.filter(x => x !== pid) : day ? [pid] : [...ui.next, pid]; if (ui.nextBy === pid) ui.nextBy = ""; keepDraft(); return; }
     case "next-cancel": ui.next = null; keepDraft(); return;
     case "next-go": {
       // Mark who died, then move on: an execution at the end of the day, deaths in the night by morning
       const day = S.ph % 2 === 1;
-      for (const q of ui.next) about(q).death = { how: day ? "executed" : "night", ph: S.ph };
+      const virgin = day && ui.nextHow === "virgin";
+      for (const q of ui.next) about(q).death = { how: day ? (virgin ? "virgin" : "executed") : "night", ph: S.ph, ...(virgin && ui.nextBy ? { by: ui.nextBy } : {}) };
       S.ph++; ui.next = null; Object.assign(ui.inf, { ps: [], rs: [], n: null, yn: null, none: false });
       break;
     }
