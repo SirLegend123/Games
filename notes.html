@@ -216,6 +216,17 @@ label.field, .field { display: grid; gap: 6px; }
 .center .os { font-size: clamp(.6rem, 2.5cqi, .82rem); color: var(--muted); }
 .center .os.over { color: var(--warn); font-weight: 800; }
 .os-box { margin: 0; }
+/* The odds */
+.or-row, .or-head { display: grid; grid-template-columns: minmax(5em, 8em) minmax(0, 1fr) 3.2em 5.5em; gap: 8px; align-items: center; padding: 3px 0; font-size: .92rem; }
+@media (max-width: 640px) { .or-row, .or-head { grid-template-columns: 5.5em minmax(0, 1fr) 2.8em 4.6em; gap: 6px; } }
+.or-head { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; }
+.or-row.dead .mx-name { text-decoration: line-through; color: var(--muted); }
+.or-row small { color: var(--muted); }
+.ob { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.ob span { display: block; height: 100%; }
+.ob.e span { background: linear-gradient(90deg, var(--unsure), var(--evil)); } .ob.d span { background: var(--demon); } .ob.g span { background: var(--good); }
+.ping { display: grid; gap: 2px; }
+.lean-row b.pc { color: var(--fg); }
 .pick-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .pbtn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 8px 14px; min-height: 44px; font-weight: 800; }
 .pbtn.num { min-width: 48px; }
@@ -275,7 +286,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <main id="app"></main>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 78;</script>
+<script>window.APP_V = 79;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -597,7 +608,6 @@ function myCard() {
   </section>`;
 }
 
-// 📊 Everyone at a glance: their soft claims, hard claims and the info they've shared
 /* ---------- 🌍 Worlds: who could the evil team be? ---------- */
 // Every evil team the player count allows (a Demon and the right number of Minions), tested against
 // what's been noted. Info only counts from players who'd be good in that world (evil players can lie);
@@ -627,7 +637,9 @@ function worldChecks() {
       case "Ravenkeeper": case "Grandmother": if (ps[0] && f.rs[0]) test = W => W.evil.has(ps[0]) === evilChar(f.rs[0]); break;
       case "Seamstress": if (ps.length === 2 && f.yn != null) test = W => (W.evil.has(ps[0]) === W.evil.has(ps[1])) === (f.yn === 0); break;
     }
-    if (test) out.push({ src, test, w: ww, fit, miss });
+    // Info that, if true, points at an evil player: an evil player wouldn't give that away
+    const acc = ["Investigator", "Sage"].includes(f.c) || (f.c === "Fortune Teller" && f.yn === 0) || (["Empath", "Chef", "Oracle"].includes(f.c) && f.n > 0) || (["Ravenkeeper", "Grandmother"].includes(f.c) && evilChar(f.rs[0]));
+    if (test) out.push({ src, test, w: ww, fit, miss, acc, text: e.text, c: f.c, e });
   }
   return out;
 }
@@ -655,8 +667,15 @@ function worldsOf() {
       const W = { demon, minions, evil }, needs = [], fits = [];
       let score = 0;
       for (const c of checks) {
-        if (c.src && evil.has(c.src)) continue; // an evil player's info proves nothing
-        if (c.test(W)) fits.push(c.fit); else { score -= c.w; needs.push(c.miss); }
+        const ok = c.test(W);
+        // Evil players are likely lying: in a world where they're evil, their info being true counts against it,
+        // most of all when it would point at their own team
+        if (c.src && evil.has(c.src)) {
+          if (ok) { score -= c.acc ? 1.5 : 0.5; needs.push(`${nameOf(c.src)} is evil but ${c.acc ? "pointed at their own team" : "told the truth"} ("${c.text}")`); }
+          else fits.push(`${nameOf(c.src)}'s ${c.c} info is a lie ("${c.text}"): they're evil`);
+          continue;
+        }
+        if (ok) fits.push(c.fit); else { score -= c.w; needs.push(c.miss); if (!c.src && !(c.c === "Fortune Teller" && c.e.f.yn === 0)) W.mineWrong = true; }
       }
       // Claims: a good player wouldn't claim your character; two good players can't both be the same character
       for (const [q, c] of hard) {
@@ -686,7 +705,7 @@ function worldsOf() {
   all.sort((a, b) => b.score - a.score);
   const top = all[0].score, sum = all.reduce((t, x) => t + Math.exp(x.score - top), 0);
   all.forEach(x => (x.p = Math.exp(x.score - top) / sum));
-  return { list: all.slice(0, 3), total: all.length, checks: checks.length + hard.length + Object.keys(reads).length + S.players.filter(p => about(p.id).death).length };
+  return { list: all.slice(0, 3), all, chk: checks, total: all.length, checks: checks.length + hard.length + Object.keys(reads).length + S.players.filter(p => about(p.id).death).length };
 }
 function worldsCard(WS) {
   if (!WS) return "";
@@ -705,18 +724,59 @@ function worldsCard(WS) {
     </li>`).join("")}</ol></section>`;
 }
 
+// 📈 The odds: each player's chance of being evil, or the Demon, and of your own info being wrong,
+// adding up every world by how likely it is
+function oddsOf(WS) {
+  const P = {};
+  for (const p of S.players) P[p.id] = { evil: 0, demon: 0 };
+  let wrong = 0;
+  for (const W of WS.all) {
+    for (const q of W.evil) P[q].evil += W.p;
+    P[W.demon].demon += W.p;
+    if (W.mineWrong) wrong += W.p;
+  }
+  return { P, wrong };
+}
+const pc = x => x >= 0.995 ? "99%" : x < 0.005 ? "0%" : `${Math.round(x * 100)}%`;
+function oddsCard(WS) {
+  if (!WS || !WS.all || !WS.all.length || !WS.checks) return "";
+  const { P, wrong } = oddsOf(WS), mine = WS.chk.filter(c => !c.src);
+  const bar = (x, cls) => `<span class="ob ${cls}"><span style="width:${Math.round(x * 100)}%"></span></span>`;
+  const rows = S.players.filter(p => p.id !== S.me).sort((a, b) => P[b.id].evil - P[a.id].evil)
+    .map(p => `<div class="or-row ${about(p.id).death ? "dead" : ""}"><button class="mx-name" data-act="sel" data-pid="${p.id}">${esc(p.name)}</button>${bar(P[p.id].evil, "e")}<b>${pc(P[p.id].evil)}</b><small>😈 ${pc(P[p.id].demon)}</small></div>`).join("");
+  // Your own character's info, looked at through the odds
+  let mineHtml = "";
+  if (S.role === "Empath") {
+    const nb = neighboursAt(S.me, S.ph);
+    mineHtml = `<h3>💞 Your neighbours</h3>${nb.map(q => `<div class="or-row"><b>${esc(nameOf(q))}</b>${bar(P[q].evil, "e")}<b>${pc(P[q].evil)}</b><small>evil</small></div>`).join("")}`;
+  }
+  const pings = mine.filter(c => c.c === "Fortune Teller" && c.e.f.yn === 0);
+  if (pings.length) mineHtml += `<h3>🔮 Your "yes" readings</h3>${pings.map(c => {
+    const ps = c.e.ps || [], d = ps.map(q => WS.all.reduce((t, W) => t + (W.demon === q ? W.p : 0), 0)), rest = Math.max(0, 1 - d.reduce((a, b) => a + b, 0));
+    return `<div class="ping"><p class="w-sub">${phaseName(c.e.ph)}: ${esc(andList(ps.map(nameOf)))}</p>${ps.map((q, k) => `<div class="or-row"><b>${esc(nameOf(q))}</b>${bar(d[k], "d")}<b>${pc(d[k])}</b><small>the Demon</small></div>`).join("")}
+      <div class="or-row"><b>Neither</b>${bar(rest, "g")}<b>${pc(rest)}</b><small>red herring, or you're drunk</small></div></div>`;
+  }).join("")}`;
+  const invs = mine.filter(c => c.c === "Investigator");
+  if (invs.length) mineHtml += `<h3>🔍 Your Investigator info</h3>${invs.map(c => { const ps = c.e.ps || []; return ps.map(q => { const m = WS.all.reduce((t, W) => t + (W.minions.has(q) ? W.p : 0), 0); return `<div class="or-row"><b>${esc(nameOf(q))}</b>${bar(m, "e")}<b>${pc(m)}</b><small>a Minion</small></div>`; }).join(""); }).join("")}`;
+  return `<section class="card odds"><h2>📈 The odds</h2>
+    <p class="hint">Adding up every possible evil team by how well it fits your notes. Evil players are taken to be lying.</p>
+    ${mine.some(c => !(c.c === "Fortune Teller" && c.e.f.yn === 0)) ? `<p class="lead">🎲 Chance your own info is wrong (drunk or poisoned): <b>${pc(wrong)}</b></p>` : ""}
+    ${mineHtml}
+    <h3>Everyone</h3><div class="or-head"><span></span><span>Evil</span><span></span><small>😈 Demon</small></div>${rows}</section>`;
+}
+
 // 📊 Everyone at a glance: lean, claims and info, in colour
 function matrixCard(WS) {
   const short = ph => `${ph % 2 ? "D" : "N"}${Math.floor(ph / 2) + 1}`, L = leanings();
   const chip = (c, soft) => rolesOf(c).map(r => `<span class="chip ${CHAR[r] ? `t-${CHAR[r].team}` : ""} ${soft ? "soft" : ""}">${iconOf(r)} ${esc(r)}</span>`).join(soft && rolesOf(c).length > 1 ? `<span class="or">or</span>` : "") + ` <small>${short(c.ph)}</small>`;
-  const tops = WS && WS.list || [];
+  const tops = WS && WS.list || [], odds = WS && WS.all && WS.all.length && WS.checks ? oddsOf(WS) : null;
   const rows = S.players.map(p => {
     const A = about(p.id), me = p.id === S.me, f = me ? [] : flagsOf(p.id), info = infoOf(me ? "" : p.id), soft = latestSoft(p.id), hard = A.claims.filter(c => c.kind === "hard");
     const sc = me ? 0 : ((L[p.id] || {}).score || 0), [lean, sure] = me ? ["", 0] : leanOf(L, p.id), pos = Math.max(0, Math.min(100, 50 + sc * 8));
     const dots = me ? "" : tops.map((W, k) => `<span class="wdot ${W.demon === p.id ? "d" : W.minions.has(p.id) ? "m" : "g"}" title="World ${k + 1}: ${W.demon === p.id ? "Demon" : W.minions.has(p.id) ? "Minion" : "good"}">${W.demon === p.id ? "D" : W.minions.has(p.id) ? "M" : ""}</span>`).join("");
     return `<tr class="${A.death ? "dead" : ""} ${ui.sel === p.id ? "on" : ""} ${lean ? `lean-${lean} sure-${sure}` : ""}">
       <th scope="row"><button class="mx-name" data-act="sel" data-pid="${p.id}">${me ? "★ " : ""}${esc(p.name)}</button>${A.death ? `<small>${deathOf(A.death.how)[1]} ${short(A.death.ph)}</small>` : ""}${f.length ? `<small class="flagtxt">⚠ ${esc(f.join("; "))}</small>` : ""}</th>
-      <td data-l="Lean"><div class="c">${me ? `<span class="chip ${evilChar(S.role) ? "evil" : "good"}">You</span>` : `<div class="meter" title="${lean ? `${sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} ${lean}` : "No lean"}"><span style="left:${pos}%"></span></div><div class="lean-row">${lean ? `<b class="${lean}">${sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} ${lean}</b>` : `<span class="hint">no lean</span>`}${dots ? `<span class="wdots" aria-label="In the top worlds">${dots}</span>` : ""}</div>`}</div></td>
+      <td data-l="Lean"><div class="c">${me ? `<span class="chip ${evilChar(S.role) ? "evil" : "good"}">You</span>` : `<div class="meter" title="${lean ? `${sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} ${lean}` : "No lean"}"><span style="left:${pos}%"></span></div><div class="lean-row">${odds ? `<b class="pc">${pc(odds.P[p.id].evil)} evil</b>` : ""}${lean ? `<b class="${lean}">${sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} ${lean}</b>` : `<span class="hint">no lean</span>`}${dots ? `<span class="wdots" aria-label="In the top worlds">${dots}</span>` : ""}</div>`}</div></td>
       <td data-l="Soft"><div class="c">${me ? `<span class="hint">–</span>` : soft ? `<div>${chip(soft, true)}</div>` : `<span class="hint">–</span>`}</div></td>
       <td data-l="Hard"><div class="c">${me ? `<div><span class="chip ${CHAR[S.role] ? `t-${CHAR[S.role].team}` : ""}">${iconOf(S.role)} ${esc(S.role)}</span></div>` : hard.length ? hard.map(c => `<div>${chip(c, false)}</div>`).join("") : `<span class="hint">–</span>`}</div></td>
       <td data-l="Info"><div class="c">${info.length ? info.map(e => `<div class="info-chip"><small>${short(e.ph)}</small> ${esc(e.text)}</div>`).join("") : `<span class="hint">–</span>`}</div></td>
@@ -776,7 +836,7 @@ function notesHtml() {
     </div>
     ${ui.next ? nextHtml() : ""}
     <div class="side">${ui.sel ? panelHtml(ui.sel) : ""}${myCard()}${summaryCard()}</div></div>
-    ${(() => { const WS = worldsOf(); return matrixCard(WS) + worldsCard(WS); })()}
+    ${(() => { const WS = worldsOf(); return matrixCard(WS) + oddsCard(WS) + worldsCard(WS); })()}
     <section class="card"><div class="row"><button class="btn" data-act="to-players">← Players</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
   </div>`;
 }
@@ -853,7 +913,8 @@ function formsFor(ch) {
 }
 const baseChar = by => by ? (currentClaim(by) ? rolesOf(currentClaim(by))[0] : "") : S.role;
 // Info is usually from the night just gone; it can be filed against any earlier night or day
-const infPh = () => ui.inf.ph != null && ui.inf.ph <= S.ph ? ui.inf.ph : S.ph % 2 ? S.ph - 1 : S.ph;
+const lastNight = () => S.ph % 2 ? S.ph - 1 : S.ph;
+const infPh = () => ui.inf.ph != null && ui.inf.ph <= lastNight() && ui.inf.ph % 2 === 0 ? ui.inf.ph : lastNight();
 const infChar = () => ui.inf.char || baseChar(ui.inf.by);
 const resetInf = by => Object.assign(ui.inf, { by, char: "", form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false });
 const infoOf = by => S.info.filter(e => (e.by || "") === by).sort((a, b) => a.ph - b.ph);
@@ -885,8 +946,8 @@ function infoFormHtml() {
     ${F.yn ? `<div class="seg" role="group">${F.yn.map((l, k) => `<button data-act="inf-yn" data-v="${k}" aria-pressed="${I.yn === k}">${esc(l)}</button>`).join("")}</div>` : ""}
     <input type="text" id="infoIn" placeholder="${F.p || F.r || F.n || F.yn ? "Anything else (optional)" : `What did you learn on ${phaseName(S.ph)}?`}" autocomplete="off" enterkeyhint="done" aria-label="What you learnt">
     ${infLine() ? `<p class="ability" id="infPrev">${esc(infLine())}</p>` : ""}
-    <p class="hint">Which night or day is it from?</p>
-    <div class="pick-row">${Array.from({ length: S.ph + 1 }, (_, k) => k).map(k => `<button class="pbtn ${k % 2 ? "" : "num"}" data-act="inf-ph" data-v="${k}" aria-pressed="${infPh() === k}">${phaseName(k)}</button>`).join("")}</div>
+    <p class="hint">Which night is it from?</p>
+    <div class="pick-row">${Array.from({ length: lastNight() / 2 + 1 }, (_, k) => 2 * k).map(k => `<button class="pbtn" data-act="inf-ph" data-v="${k}" aria-pressed="${infPh() === k}">${phaseName(k)}</button>`).join("")}</div>
     <button class="btn primary" data-act="info-add">Add to ${phaseName(infPh())}</button>
   </div>`;
 }
