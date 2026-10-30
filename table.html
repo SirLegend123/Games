@@ -199,6 +199,7 @@ label.field, .field { display: grid; gap: 6px; }
 .chip.t-townsfolk { border-color: var(--townsfolk); } .chip.t-outsider { border-color: var(--outsider); } .chip.t-minion, .chip.t-demon, .chip.evil { border-color: var(--evil); } .chip.good { border-color: var(--good); }
 .chip small { color: var(--muted); font-weight: 700; }
 .or { color: var(--muted); font-size: .8rem; margin: 0 4px; }
+.talk-chip { border-left: 3px solid var(--brass); }
 .info-chip { background: var(--surface-2); border-radius: 8px; padding: 3px 8px; }
 .meter { position: relative; height: 8px; border-radius: 999px; background: linear-gradient(90deg, var(--good), var(--unsure) 50%, var(--evil)); min-width: 90px; margin: 6px 0; }
 .meter span { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--fg); border: 2px solid var(--surface); transform: translate(-50%, -50%); }
@@ -306,7 +307,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="sigBox" hidden></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 81;</script>
+<script>window.APP_V = 82;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -340,12 +341,12 @@ matchMedia("(prefers-color-scheme: light)").addEventListener("change", themeBtn)
 
 /* ---------- State ---------- */
 const LS = "botc-table-v1";
-const fresh = () => ({ step: "players", script: "tb", players: [], me: "", role: "", ph: 0, P: {}, info: [] });
+const fresh = () => ({ step: "players", script: "tb", players: [], me: "", role: "", ph: 0, P: {}, info: [], talk: [] });
 let S;
 try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
 if (!S || !S.step) S = fresh();
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
-const ui = { dying: null, sel: null, kind: "hard", claimRoles: [], inf: { by: "", char: "", form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }, next: null };
+const ui = { talk: { tag: "", ps: [], by: "" }, dying: null, sel: null, kind: "hard", claimRoles: [], inf: { by: "", char: "", form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }, next: null };
 const about = pid => (S.P[pid] = S.P[pid] || { claims: [], death: null, ghost: false, notes: "" });
 const nameOf = pid => (S.players.find(p => p.id === pid) || {}).name || "?";
 const alive = () => S.players.filter(p => !about(p.id).death);
@@ -486,6 +487,8 @@ function leanings() {
   }
   // A Virgin execution proves the Virgin good; the nominator was a Townsfolk, so leans good.
   // A Slayer shot that kills proves the Slayer good and the target the Demon.
+  // What town says: counts less when nobody said who it came from
+  for (const t of talkList()) add(t.pid, talkOf(t.tag)[2] * (t.by ? 1 : 0.6), `Town (${phaseName(t.ph)}): ${talkLine(t)}`);
   if (S.over && S.over.winner === "good" && S.over.how !== "night") for (const q of S.over.deaths || []) add(q, 6, `Good won when they were executed: the Demon (${phaseName(S.over.ph)})`);
   for (const p of S.players) {
     const d = about(p.id).death; if (!d || !d.by) continue;
@@ -608,6 +611,7 @@ function panelHtml(pid) {
     <button class="btn primary" data-act="claim-add" data-pid="${pid}" ${S.script === "other" || ui.claimRoles.length ? "" : "disabled"}>${S.script === "other" || !ui.claimRoles.length ? `Add ${ui.kind} claim` : `Add ${ui.kind} claim: ${esc(orList(ui.claimRoles))}`}</button>`}
     ${me ? "" : `<h3>Their info</h3>${infoLog(pid) || `<p class="hint">Nothing yet. What do they say they learnt?</p>`}
     ${ui.inf.by === pid ? infoFormHtml() : `<button class="btn" data-act="inf-by" data-pid="${pid}">＋ Add what ${esc(nameOf(pid))} says they learnt</button>`}`}
+    ${(() => { const L = talkList().filter(t => t.pid === pid); return L.length ? `<h3>📣 What town says</h3><ol class="log">${L.map(t => `<li><span class="ph">${phaseName(t.ph)}</span><span class="t">${esc(talkLine(t))}</span><button class="x" data-act="talk-del" data-id="${t.id}" aria-label="Delete">×</button></li>`).join("")}</ol>` : ""; })()}
     <h3>Died?</h3>
     ${d ? `<div class="dead-box"><p class="lead">${deathOf(d.how)[1]} <b>${deathOf(d.how)[2]}</b> · ${phaseName(d.ph)}${d.by ? ` · ${d.how === "virgin" ? "nominated" : "shot by"} <b>${esc(nameOf(d.by))}</b>` : ""}${A.sw ? " · the game went on (Scarlet Woman?)" : ""}</p>
       <div class="row"><button class="btn" data-act="ghost" data-pid="${pid}" aria-pressed="${A.ghost}">${A.ghost ? "👻 Ghost vote used" : "👻 Ghost vote still there"}</button><button class="btn" data-act="undead" data-pid="${pid}">Undo</button></div></div>`
@@ -700,6 +704,12 @@ function worldsOf() {
         }
         if (ok) fits.push(c.fit); else { score -= c.w; needs.push(c.miss); if (!c.src && !(c.c === "Fortune Teller" && c.e.f.yn === 0)) W.mineWrong = true; }
       }
+      // What town says: it should fit, unless whoever said it is evil in this world (then it's a likely lie)
+      for (const t of talkList()) {
+        const what = talkOf(t.tag)[3], is = what === "demon" ? W.demon === t.pid : what === "minion" ? W.minions.has(t.pid) : what === "evil" ? evil.has(t.pid) : !evil.has(t.pid);
+        if (t.by && evil.has(t.by)) { if (!is) fits.push(`${nameOf(t.by)}'s "${talkOf(t.tag)[1]}" on ${nameOf(t.pid)} is a lie: they're evil`); continue; }
+        if (is) fits.push(`Town: ${talkLine(t)}`); else { const w = t.tag === "sus" ? 0.3 : t.by ? 0.75 : 0.5; score -= w; needs.push(`what town said is wrong: ${talkLine(t)}`); }
+      }
       // Claims: a good player wouldn't claim your character; two good players can't both be the same character
       for (const [q, c] of hard) {
         if (!evil.has(q) && c.role === S.role) { score -= 3; needs.push(`${nameOf(q)} is good but claims your character, the ${S.role}`); }
@@ -729,7 +739,7 @@ function worldsOf() {
   all.sort((a, b) => b.score - a.score);
   const top = all[0].score, sum = all.reduce((t, x) => t + Math.exp(x.score - top), 0);
   all.forEach(x => (x.p = Math.exp(x.score - top) / sum));
-  return { list: all.slice(0, 3), all, chk: checks, total: all.length, checks: checks.length + hard.length + Object.keys(reads).length + S.players.filter(p => about(p.id).death).length };
+  return { list: all.slice(0, 3), all, chk: checks, total: all.length, checks: checks.length + hard.length + Object.keys(reads).length + S.players.filter(p => about(p.id).death).length + talkList().length };
 }
 // 🌍 Worlds, read the critical realist way: what's been observed (the empirical), what has happened
 // (the actual), and the hidden structure that would produce both (the real): each world is a guess at that
@@ -739,7 +749,7 @@ function worldsCard(WS) {
   const pct = x => x >= 0.995 ? ">99%" : x < 0.01 ? "<1%" : `${Math.round(x * 100)}%`;
   const claims = S.players.filter(p => p.id !== S.me && about(p.id).claims.length).length, infos = S.info.length, deaths = S.players.filter(p => about(p.id).death).length;
   const layers = `<div class="cr-layers">
-      <div><b>🔍 Observed</b><span>${plural(claims, "player")} claiming, ${plural(infos, "piece")} of info</span><small>the empirical: what's been said</small></div>
+      <div><b>🔍 Observed</b><span>${plural(claims, "player")} claiming, ${plural(infos, "piece")} of info${talkList().length ? `, ${plural(talkList().length, "remark")} in town` : ""}</span><small>the empirical: what's been said</small></div>
       <div><b>⚡ Happened</b><span>${plural(deaths, "death")}${S.over ? `, ${S.over.winner} won` : ""}</span><small>the actual: events in the game</small></div>
       <div><b>⚙️ Underlying</b><span>${plural(WS.total || 0, "possible evil team")}</span><small>the real: the hidden structure behind it all</small></div>
     </div>`;
@@ -817,7 +827,7 @@ function matrixCard(WS) {
       <td data-l="Lean"><div class="c">${me ? `<span class="chip ${evilChar(S.role) ? "evil" : "good"}">You</span>` : `<div class="meter" title="${lean ? `${sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} ${lean}` : "No lean"}"><span style="left:${pos}%"></span></div><div class="lean-row">${odds ? `<b class="pc">${pc(odds.P[p.id].evil)} evil</b>` : ""}${lean ? `<b class="${lean}">${sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} ${lean}</b>` : `<span class="hint">no lean</span>`}${dots ? `<span class="wdots" aria-label="In the top worlds">${dots}</span>` : ""}</div>`}</div></td>
       <td data-l="Soft"><div class="c">${me ? `<span class="hint">–</span>` : soft ? `<div>${chip(soft, true)}</div>` : `<span class="hint">–</span>`}</div></td>
       <td data-l="Hard"><div class="c">${me ? `<div><span class="chip ${CHAR[S.role] ? `t-${CHAR[S.role].team}` : ""}">${iconOf(S.role)} ${esc(S.role)}</span></div>` : hard.length ? hard.map(c => `<div>${chip(c, false)}</div>`).join("") : `<span class="hint">–</span>`}</div></td>
-      <td data-l="Info"><div class="c">${info.length ? info.map(e => `<div class="info-chip"><small>${short(e.ph)}</small> ${esc(e.text)}</div>`).join("") : `<span class="hint">–</span>`}</div></td>
+      <td data-l="Info"><div class="c">${info.length || talkList().some(t => t.pid === p.id) ? info.map(e => `<div class="info-chip"><small>${short(e.ph)}</small> ${esc(e.text)}</div>`).join("") + talkList().filter(t => t.pid === p.id).map(t => `<div class="info-chip talk-chip"><small>${short(t.ph)}</small> ${esc(talkOf(t.tag)[1])}${t.by ? ` <small>from ${esc(nameOf(t.by))}</small>` : ""}</div>`).join("") : `<span class="hint">–</span>`}</div></td>
     </tr>`;
   }).join("");
   return `<section class="card"><h2>📊 Information matrix</h2>
@@ -889,7 +899,7 @@ function notesHtml() {
       <div class="side">${myCard()}${summaryCard()}</div></div>`;
   else if (tab === "day") body = `<div class="grim-wrap">
       <div class="side">${phase}${next}${circleHtml()}<p class="hint" style="text-align:center">Tap a player to add their claims, what they say they learnt, or how they died.</p>${key}</div>
-      <div class="side">${ui.sel ? panelHtml(ui.sel) : `<section class="card"><h2>☀️ After a conversation</h2><p class="hint">Tap the player you spoke to. You can note their soft or hard claim, what they say they learnt (on any night), your read on them, and anything else.</p></section>`}${adviceHtml()}</div></div>`;
+      <div class="side">${ui.sel ? panelHtml(ui.sel) : `<section class="card"><h2>☀️ After a conversation</h2><p class="hint">Tap the player you spoke to. You can note their soft or hard claim, what they say they learnt (on any night), your read on them, and anything else.</p></section>`}${talkCard()}${adviceHtml()}</div></div>`;
   else { const WS = worldsOf(); body = `${phase}${matrixCard(WS)}${oddsCard(WS)}${worldsCard(WS)}`; }
   return `<div class="notes-page">${bar}${body}${modals}${foot}</div>`;
 }
@@ -1011,12 +1021,44 @@ function infoFormHtml() {
 }
 
 // Redraw without losing what's been typed in the claim's note
+/* ---------- 📣 Nomination talk: what town says about players ---------- */
+// [key, label, how strongly it says evil (+) or good (−), what it says they are]
+const TALK = [
+  ["evil", "🔴 Evil ping", 1, "evil"], ["demon", "😈 Demon ping", 1.5, "demon"], ["minion", "🧪 Minion ping", 1, "minion"],
+  ["good", "🔵 Good ping", -1, "good"], ["confirmed", "✅ Confirmed good", -2, "good"], ["ww", "🧺 WW confirmed", -1.5, "good"],
+  ["lib", "📚 Librarian confirmed", -1, "good"], ["sus", "👀 Suspicious", 0.5, "evil"]
+];
+const talkOf = k => TALK.find(t => t[0] === k) || TALK[0];
+const talkList = () => (S.talk = S.talk || []);
+const talkLine = t => `${talkOf(t.tag)[1]}: ${nameOf(t.pid)}${t.by ? ` (from ${nameOf(t.by)})` : ""}${t.note ? `. ${t.note}` : ""}`;
+function talkCard() {
+  const T = ui.talk, ready = T.tag && T.ps.length, today = talkList().filter(t => t.ph === S.ph);
+  return `<section class="card talk"><h2>📣 Nomination talk</h2>
+    <p class="hint">What's said in town around the nominations: who's been pinged, cleared or confirmed.</p>
+    <div class="pick-row">${TALK.map(([k, l]) => `<button class="pbtn" data-act="talk-tag" data-v="${k}" aria-pressed="${T.tag === k}">${l}</button>`).join("")}</div>
+    <p class="hint">About who?</p>
+    <div class="pick-row">${S.players.map(p => `<button class="pbtn" data-act="talk-p" data-pid="${p.id}" aria-pressed="${T.ps.includes(p.id)}">${esc(p.name)}</button>`).join("")}</div>
+    <p class="hint">Who said it? (optional)</p>
+    <div class="pick-row">${S.players.map(p => `<button class="pbtn" data-act="talk-by" data-pid="${p.id}" aria-pressed="${T.by === p.id}">${esc(p.name)}</button>`).join("")}</div>
+    <input type="text" id="talkNote" placeholder="Anything else (optional)" autocomplete="off" enterkeyhint="done">
+    <button class="btn primary" data-act="talk-add" ${ready ? "" : "disabled"}>${ready ? `Add: ${esc(talkOf(T.tag)[1])} on ${esc(andList(T.ps.map(nameOf)))}${T.by ? ` (from ${esc(nameOf(T.by))})` : ""}` : "Pick what was said and who it's about"}</button>
+    ${today.length ? `<h3>Today</h3><ol class="log">${today.map(t => `<li><span class="t">${esc(talkLine(t))}</span><button class="x" data-act="talk-del" data-id="${t.id}" aria-label="Delete">×</button></li>`).join("")}</ol>` : ""}
+  </section>`;
+}
+function addTalk() {
+  const T = ui.talk, note = ($("talkNote") && $("talkNote").value || "").trim();
+  if (!T.tag || !T.ps.length) return;
+  for (const pid of T.ps) talkList().push({ id: uid(), ph: S.ph, tag: T.tag, pid, ...(T.by ? { by: T.by } : {}), ...(note ? { note } : {}) });
+  ui.talk = { tag: T.tag, ps: [], by: "" };
+  render();
+}
 function keepDraft() {
-  const n = $("claimNote") && $("claimNote").value, m = $("infoIn") && $("infoIn").value, y = window.scrollY;
+  const n = $("claimNote") && $("claimNote").value, m = $("infoIn") && $("infoIn").value, tn = $("talkNote") && $("talkNote").value, y = window.scrollY;
   if (S.script === "other" && $("infRoles")) ui.inf.rs = $("infRoles").value.split(",").map(x => x.trim()).filter(Boolean);
   render();
   if ($("claimNote")) $("claimNote").value = n || "";
   if ($("infoIn")) $("infoIn").value = m || "";
+  if ($("talkNote")) $("talkNote").value = tn || "";
   window.scrollTo(0, y);
 }
 function addClaim(pid) {
@@ -1044,6 +1086,11 @@ document.addEventListener("click", ev => {
     case "to-notes": S.step = "notes"; break;
     case "role": S.role = el.dataset.role; break;
     case "role-typed": S.role = ($("myRole").value || "").trim(); break;
+    case "talk-tag": ui.talk.tag = ui.talk.tag === el.dataset.v ? "" : el.dataset.v; keepDraft(); return;
+    case "talk-p": ui.talk.ps = ui.talk.ps.includes(pid) ? ui.talk.ps.filter(x => x !== pid) : [...ui.talk.ps, pid]; if (ui.talk.by === pid) ui.talk.by = ""; keepDraft(); return;
+    case "talk-by": ui.talk.by = ui.talk.by === pid ? "" : pid; ui.talk.ps = ui.talk.ps.filter(x => x !== pid); keepDraft(); return;
+    case "talk-add": return addTalk();
+    case "talk-del": S.talk = talkList().filter(t => t.id !== el.dataset.id); break;
     case "tab": S.tab = el.dataset.v; render(); window.scrollTo({ top: 0 }); return;
     case "sel": ui.claimRoles = []; if (ui.inf.by) resetInf(""); ui.sel = ui.sel === pid ? null : pid; if (ui.sel) S.tab = "day"; render(); if (ui.sel && innerWidth < 900) { const c = document.querySelector(".grim-wrap > .side + .side"); if (c) c.scrollIntoView({ behavior: "smooth" }); } return;
     case "claim-role": {
@@ -1120,6 +1167,7 @@ document.addEventListener("keydown", ev => {
   if (ev.key !== "Enter") return;
   if (ev.target.id === "newName") { ev.preventDefault(); addNames(); }
   if (ev.target.id === "infoIn") { ev.preventDefault(); addInfo(); }
+  if (ev.target.id === "talkNote") { ev.preventDefault(); addTalk(); }
   if (ev.target.id === "claimNote") { ev.preventDefault(); addClaim(ui.sel); }
 });
 /* ---------- 👋 Signal ---------- */
