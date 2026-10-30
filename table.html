@@ -298,7 +298,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="sigBox" hidden></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 79;</script>
+<script>window.APP_V = 80;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -471,6 +471,7 @@ function leanings() {
       // "One of these two is…": a lean towards both, not a certainty about either
       case "Investigator": case "Sage": ps.forEach(q => add(q, 0.5 * w, say)); break;
       case "Fortune Teller": if (f.yn != null) ps.forEach(q => add(q, f.yn === 0 ? 0.5 * w : -0.5 * w, say)); break;
+      case "Slayer": if (ps[0] && f.yn === 1) add(ps[0], -0.5 * w, say); break;
       case "Ravenkeeper": case "Grandmother": if (ps[0] && f.rs[0]) add(ps[0], evilChar(f.rs[0]) ? 3 * w : -1.5 * w, say); break;
       case "Empath": if (f.n != null) { const src2 = e.by || S.me; neighboursAt(src2, e.ph).forEach(q => add(q, f.n === 0 ? -1 * w : f.n === 2 ? 2 * w : 0.5 * w, say)); } break;
     }
@@ -600,7 +601,7 @@ function panelHtml(pid) {
     ${me ? "" : `<h3>Their info</h3>${infoLog(pid) || `<p class="hint">Nothing yet. What do they say they learnt?</p>`}
     ${ui.inf.by === pid ? infoFormHtml() : `<button class="btn" data-act="inf-by" data-pid="${pid}">＋ Add what ${esc(nameOf(pid))} says they learnt</button>`}`}
     <h3>Died?</h3>
-    ${d ? `<div class="dead-box"><p class="lead">${deathOf(d.how)[1]} <b>${deathOf(d.how)[2]}</b> · ${phaseName(d.ph)}${d.by ? ` · ${d.how === "virgin" ? "nominated" : "shot by"} <b>${esc(nameOf(d.by))}</b>` : ""}</p>
+    ${d ? `<div class="dead-box"><p class="lead">${deathOf(d.how)[1]} <b>${deathOf(d.how)[2]}</b> · ${phaseName(d.ph)}${d.by ? ` · ${d.how === "virgin" ? "nominated" : "shot by"} <b>${esc(nameOf(d.by))}</b>` : ""}${A.sw ? " · the game went on (Scarlet Woman?)" : ""}</p>
       <div class="row"><button class="btn" data-act="ghost" data-pid="${pid}" aria-pressed="${A.ghost}">${A.ghost ? "👻 Ghost vote used" : "👻 Ghost vote still there"}</button><button class="btn" data-act="undead" data-pid="${pid}">Undo</button></div></div>`
       : ui.dying && ui.dying.pid === pid ? `<p class="lead">${ui.dying.how === "virgin" ? `Which player is the Virgin ${esc(nameOf(pid))} nominated?` : `Who shot ${esc(nameOf(pid))}?`}</p>
         <div class="pick-row">${S.players.filter(p => p.id !== pid).map(p => `<button class="pbtn" data-act="die-by" data-pid="${pid}" data-by="${p.id}">${esc(p.name)}</button>`).join("")}</div>
@@ -648,6 +649,7 @@ function worldChecks() {
       case "Clockmaker": if (f.n != null) test = W => Math.min(...[...W.minions].map(q => seatDist(W.demon, q))) === f.n; break;
       case "Oracle": if (f.n != null) { const dead = S.players.filter(p => { const d = about(p.id).death; return d && d.ph < e.ph; }).map(p => p.id); test = W => dead.filter(q => W.evil.has(q)).length === f.n; } break;
       case "Ravenkeeper": case "Grandmother": if (ps[0] && f.rs[0]) test = W => W.evil.has(ps[0]) === evilChar(f.rs[0]); break;
+      case "Slayer": if (ps[0] && f.yn != null) test = W => (W.demon === ps[0]) === (f.yn === 0); break;
       case "Seamstress": if (ps.length === 2 && f.yn != null) test = W => (W.evil.has(ps[0]) === W.evil.has(ps[1])) === (f.yn === 0); break;
     }
     // Info that, if true, points at an evil player: an evil player wouldn't give that away
@@ -704,6 +706,7 @@ function worldsOf() {
         const d = about(p.id).death; if (!d) continue;
         if (d.how === "night" && evil.has(p.id)) { score -= p.id === demon ? 2 : 1; needs.push(p.id === demon ? `${p.name}, the Demon, died at night (they killed themselves to pass it on?)` : `the Demon killed their own Minion, ${p.name}`); }
         if ((d.how === "executed" || d.how === "virgin") && p.id === demon && !(S.over && S.over.winner === "good" && (S.over.deaths || []).includes(p.id))) { score -= 3; needs.push(`${p.name}, the Demon, was executed and the game went on (a Scarlet Woman took over?)`); }
+        if (d.how === "slayer" && p.id === demon && about(p.id).sw) needs.push(`${p.name} was the Demon, shot by the Slayer, and a Scarlet Woman took over`);
         if (d.how === "slayer" && p.id !== demon) { score -= 1.5; needs.push(`${p.name} was shot as a Minion who registered as the Demon, or the Demon has passed on`); }
       }
       for (const [q, r] of Object.entries(reads)) {
@@ -805,6 +808,15 @@ function summaryCard() {
     ${dead.length ? `<section class="card"><h2>Deaths</h2><ol class="log">${dead.map(p => { const d = about(p.id).death; return `<li><span class="ph">${phaseName(d.ph)}</span><span class="t">${deathOf(d.how)[1]} <b>${esc(p.name)}</b>: ${d.how === "virgin" ? `executed for nominating the Virgin${d.by ? `, ${esc(nameOf(d.by))}` : ""}` : d.how === "slayer" ? `shot by the Slayer${d.by ? `, ${esc(nameOf(d.by))}` : ""}` : deathOf(d.how)[2].toLowerCase()}</span></li>`; }).join("")}</ol></section>` : ""}`;
 }
 
+// 🏹 After a Slayer shot kills: did the game end?
+function slayEndHtml() {
+  const q = ui.slayEnd, d = about(q).death || {};
+  return `<div class="modal" role="dialog" aria-modal="true" aria-label="Slayer shot"><div class="modal-in card">
+    <h2>🏹 ${esc(nameOf(q))} was shot dead</h2>
+    <p class="lead">${d.by && d.by !== S.me ? `${esc(nameOf(d.by))}'s` : d.by === S.me ? "Your" : "The"} Slayer shot killed them, so they were the Demon. Did the game end?</p>
+    <div class="row"><button class="btn" data-act="slay-end" data-v="on">No, it goes on (a Scarlet Woman took over?)</button><span class="spacer"></span><button class="btn primary" data-act="slay-end" data-v="good">🏆 Yes, Good won</button></div>
+  </div></div>`;
+}
 // What the button in the next-phase box says
 function goLabel(picks, day, n) {
   const who = andList(picks.map(nameOf));
@@ -835,7 +847,7 @@ function nextHtml() {
 function overHtml() {
   const O = S.over, who = (O.deaths || []).map(nameOf);
   return `<section class="card over ${O.winner}"><h2>${O.winner === "good" ? "🏆 Good won" : "😈 Evil won"}</h2>
-    <p class="lead">${phaseName(O.ph)}${who.length ? `: ${esc(andList(who))} ${O.how === "night" ? "died in the night" : O.how === "virgin" ? "was executed by the Virgin" : "was executed"}` : ""}.</p>
+    <p class="lead">${phaseName(O.ph)}${who.length ? `: ${esc(andList(who))} ${O.how === "night" ? "died in the night" : O.how === "virgin" ? "was executed by the Virgin" : O.how === "slayer" ? "was shot by the Slayer" : "was executed"}` : ""}.</p>
     <div class="row"><button class="btn" data-act="over-undo">Undo: the game went on</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>`;
 }
 function notesHtml() {
@@ -847,7 +859,7 @@ function notesHtml() {
       <p class="hint" style="text-align:center">Tap a player to note their claims, or how they died. Dashed: soft claim. Gold: hard claim. Blue glow: likely good. Red glow: likely evil. ! : something doesn't add up.</p>
       ${adviceHtml()}
     </div>
-    ${ui.next ? nextHtml() : ""}
+    ${ui.next ? nextHtml() : ""}${ui.slayEnd ? slayEndHtml() : ""}
     <div class="side">${ui.sel ? panelHtml(ui.sel) : ""}${myCard()}${summaryCard()}</div></div>
     ${(() => { const WS = worldsOf(); return matrixCard(WS) + oddsCard(WS) + worldsCard(WS); })()}
     <section class="card"><div class="row"><button class="btn" data-act="to-players">← Players</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
@@ -870,6 +882,11 @@ function addInfo() {
   const F = infForm(), I = ui.inf, kind = F === EVIL_TEAM ? "team" : F === BLUFFS ? "bluffs" : "own";
   S.info.push({ id: uid(), ph: infPh(), text: ch ? `(${ch}) ${t}` : t, ps: I.ps.slice(), ...(I.by ? { by: I.by } : {}),
     ...(line ? { f: { c: infChar(), kind, rs: I.rs.slice(), n: I.n, yn: I.yn, none: I.none } } : {}) });
+  // A Slayer shot that killed: mark the death (today), then ask whether the game ended
+  if (line && infChar() === "Slayer" && I.yn === 0 && I.ps[0] && !about(I.ps[0]).death) {
+    about(I.ps[0]).death = { how: "slayer", ph: S.ph, by: I.by || S.me };
+    ui.slayEnd = I.ps[0];
+  }
   Object.assign(ui.inf, { ps: [], rs: [], n: null, yn: null, none: false, ph: null });
   render();
 }
@@ -1014,9 +1031,14 @@ document.addEventListener("click", ev => {
       // The Virgin and the Slayer: ask who, as that proves who's good (and who's the Demon)
       if (el.dataset.v === "virgin" || el.dataset.v === "slayer") { ui.dying = { pid, how: el.dataset.v }; keepDraft(); return; }
       about(pid).death = { how: el.dataset.v, ph: S.ph }; break;
-    case "die-by": about(pid).death = { how: ui.dying.how, ph: S.ph, ...(el.dataset.by ? { by: el.dataset.by } : {}) }; ui.dying = null; break;
+    case "die-by": about(pid).death = { how: ui.dying.how, ph: S.ph, ...(el.dataset.by ? { by: el.dataset.by } : {}) }; if (ui.dying.how === "slayer") ui.slayEnd = pid; ui.dying = null; break;
+    case "slay-end":
+      // Good wins when the Demon is shot; if the game went on, a Scarlet Woman (or similar) took over
+      if (el.dataset.v === "good") S.over = { winner: "good", ph: S.ph, deaths: [ui.slayEnd], how: "slayer" };
+      else about(ui.slayEnd).sw = true;
+      ui.slayEnd = null; break;
     case "die-cancel": ui.dying = null; keepDraft(); return;
-    case "undead": about(pid).death = null; about(pid).ghost = false; break;
+    case "undead": about(pid).death = null; about(pid).ghost = false; about(pid).sw = false; break;
     case "ghost": about(pid).ghost = !about(pid).ghost; break;
     case "ph": S.ph = Math.max(0, S.ph + Number(el.dataset.v)); break;
     case "info-add": return addInfo();
