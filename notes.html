@@ -156,6 +156,7 @@ label.field, .field { display: grid; gap: 6px; }
 .notes-page { display: grid; gap: 16px; }
 .mx { border-collapse: collapse; width: 100%; font-size: .95rem; }
 .mx th:first-child { width: 9em; }
+.mx td[data-l="Lean"] { width: 11em; }
 .mx th, .mx td { text-align: left; vertical-align: top; padding: 8px 6px; border-bottom: 1px solid var(--line); }
 .mx thead th { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .mx .c > div + div { margin-top: 4px; }
@@ -170,10 +171,45 @@ label.field, .field { display: grid; gap: 6px; }
   .mx tr { border-bottom: 1px solid var(--line); padding: 8px 0; }
   .mx th, .mx td { border: 0; padding: 3px 0; }
   .mx td { display: grid; grid-template-columns: 3.5em minmax(0, 1fr); gap: 8px; }
+  .mx th { padding-left: 12px; }
+  .mx td[data-l="Lean"] { width: auto; }
+  .meter { max-width: 220px; }
   .mx td::before { content: attr(data-l); font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 800; padding-top: 2px; }
   .mx th small { display: inline; margin-left: 8px; }
 }
 .mx-name { background: none; border: 0; padding: 0; font-weight: 800; color: inherit; text-align: left; }
+/* The matrix, in colour */
+.mx tr.lean-good th { box-shadow: inset 5px 0 0 rgba(76,140,228,.6); } .mx tr.lean-good.sure-2 th, .mx tr.lean-good.sure-3 th { box-shadow: inset 7px 0 0 var(--good); }
+.mx tr.lean-evil th { box-shadow: inset 5px 0 0 rgba(216,67,90,.6); } .mx tr.lean-evil.sure-2 th, .mx tr.lean-evil.sure-3 th { box-shadow: inset 7px 0 0 var(--evil); }
+.mx tr.lean-good td, .mx tr.lean-good th { background: rgba(76,140,228,.07); } .mx tr.lean-evil td, .mx tr.lean-evil th { background: rgba(216,67,90,.08); }
+.mx th:first-child { padding-left: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; border: 2px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 1px 9px; font-weight: 800; font-size: .85rem; white-space: nowrap; margin: 1px 0; }
+.chip.soft { border-style: dashed; }
+.chip.t-townsfolk { border-color: var(--townsfolk); } .chip.t-outsider { border-color: var(--outsider); } .chip.t-minion, .chip.t-demon, .chip.evil { border-color: var(--evil); } .chip.good { border-color: var(--good); }
+.chip small { color: var(--muted); font-weight: 700; }
+.or { color: var(--muted); font-size: .8rem; margin: 0 4px; }
+.info-chip { background: var(--surface-2); border-radius: 8px; padding: 3px 8px; }
+.meter { position: relative; height: 8px; border-radius: 999px; background: linear-gradient(90deg, var(--good), var(--unsure) 50%, var(--evil)); min-width: 90px; margin: 6px 0; }
+.meter span { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; background: var(--fg); border: 2px solid var(--surface); transform: translate(-50%, -50%); }
+.lean-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .85rem; }
+.lean-row b.good { color: var(--good); } .lean-row b.evil { color: var(--evil); }
+.wdots { display: inline-flex; gap: 3px; }
+.wdot { width: 18px; height: 18px; border-radius: 50%; display: inline-grid; place-items: center; font-size: .65rem; font-weight: 800; color: #fff; }
+.wdot.g { background: rgba(76,140,228,.55); } .wdot.m { background: rgba(216,67,90,.65); } .wdot.d { background: var(--evil); }
+/* Worlds */
+.wl { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.world { background: var(--surface-2); border-radius: 12px; padding: 12px; display: grid; gap: 8px; border-left: 5px solid var(--evil); }
+.world:first-child { border-left-width: 8px; }
+.w-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.w-rank { width: 30px; height: 30px; border-radius: 50%; background: var(--brass); color: var(--on-brass); display: grid; place-items: center; font-weight: 800; flex: none; }
+.w-team { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.w-pc { font-weight: 800; font-size: 1.3rem; color: var(--brass); }
+.w-bar { height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.w-bar span { display: block; height: 100%; background: var(--brass); }
+.w-sub { margin: 0; font-weight: 800; font-size: .9rem; }
+.w-need, .w-fit { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 4px; font-size: .9rem; }
+.w-fit { color: var(--muted); }
+.world details summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
 .pick-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .pbtn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 8px 14px; min-height: 44px; font-weight: 800; }
 .pbtn.num { min-width: 48px; }
@@ -233,7 +269,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <main id="app"></main>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 76;</script>
+<script>window.APP_V = 77;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -531,21 +567,130 @@ function myCard() {
 }
 
 // 📊 Everyone at a glance: their soft claims, hard claims and the info they've shared
-function matrixCard() {
-  const short = ph => `${ph % 2 ? "D" : "N"}${Math.floor(ph / 2) + 1}`;
-  const claimCell = (cs) => cs.length ? cs.map(c => `<div>${rolesOf(c).map(iconOf).join("")} ${esc(claimText(c))} <small>${short(c.ph)}</small></div>`).join("") : `<span class="hint">–</span>`;
+/* ---------- 🌍 Worlds: who could the evil team be? ---------- */
+// Every evil team the player count allows (a Demon and the right number of Minions), tested against
+// what's been noted. Info only counts from players who'd be good in that world (evil players can lie);
+// good players' wrong info means they'd have to be drunk or poisoned. The best-fitting worlds come first.
+function combos(arr, k, start = 0, pre = [], out = []) {
+  if (pre.length === k) { out.push(pre.slice()); return out; }
+  for (let i = start; i <= arr.length - (k - pre.length); i++) { pre.push(arr[i]); combos(arr, k, i + 1, pre, out); pre.pop(); }
+  return out;
+}
+const seatDist = (a, b) => { const ids = S.players.map(p => p.id), n = ids.length, d = Math.abs(ids.indexOf(a) - ids.indexOf(b)); return Math.min(d, n - d); };
+function worldChecks() {
+  const out = [];
+  for (const e of S.info) {
+    const f = e.f; if (!f || f.kind !== "own") continue;
+    const src = e.by || "", who = src ? `${nameOf(src)}'s ${f.c}` : `your ${f.c}`, ps = e.ps || [], w = src ? 2 : 2.5;
+    const fit = `${who} info: ${e.text}`, miss = src ? `${nameOf(src)}'s ${f.c} info ("${e.text}") is wrong: they're drunk or poisoned` : `your ${f.c} info ("${e.text}") is wrong: you're drunk or poisoned`;
+    let test = null, ww = w;
+    switch (f.c) {
+      case "Investigator": test = W => ps.some(q => W.minions.has(q)); break;
+      case "Washerwoman": case "Librarian": if (!f.none) test = W => ps.some(q => !W.evil.has(q)); break;
+      case "Fortune Teller": if (f.yn === 0) { test = W => ps.includes(W.demon); ww = 1; } else if (f.yn === 1) test = W => !ps.includes(W.demon); break;
+      case "Sage": test = W => ps.includes(W.demon); break;
+      case "Empath": if (f.n != null) { const nb = neighboursAt(src || S.me, e.ph); test = W => nb.filter(q => W.evil.has(q)).length === f.n; } break;
+      case "Chef": if (f.n != null) test = W => { const ids = S.players.map(p => p.id); return ids.filter((q, i) => W.evil.has(q) && W.evil.has(ids[(i + 1) % ids.length])).length === f.n; }; break;
+      case "Clockmaker": if (f.n != null) test = W => Math.min(...[...W.minions].map(q => seatDist(W.demon, q))) === f.n; break;
+      case "Oracle": if (f.n != null) { const dead = S.players.filter(p => { const d = about(p.id).death; return d && d.ph < e.ph; }).map(p => p.id); test = W => dead.filter(q => W.evil.has(q)).length === f.n; } break;
+      case "Ravenkeeper": case "Grandmother": if (ps[0] && f.rs[0]) test = W => W.evil.has(ps[0]) === evilChar(f.rs[0]); break;
+      case "Seamstress": if (ps.length === 2 && f.yn != null) test = W => (W.evil.has(ps[0]) === W.evil.has(ps[1])) === (f.yn === 0); break;
+    }
+    if (test) out.push({ src, test, w: ww, fit, miss });
+  }
+  return out;
+}
+function worldsOf() {
+  const n = S.players.length, comp = COMP[Math.min(15, n)];
+  if (!comp || iAmEvil() || n < 5) return null;
+  const m = comp[2], cand = S.players.map(p => p.id).filter(q => q !== S.me), checks = worldChecks();
+  const confirmedGood = new Set(), mustEvil = new Set(), reads = {};
+  for (const p of S.players) {
+    const d = about(p.id).death, r = about(p.id).read;
+    if (d && d.by && (d.how === "virgin" || d.how === "slayer")) confirmedGood.add(d.by);
+    if (d && d.by && d.how === "slayer") mustEvil.add(p.id);
+    if (r) reads[p.id] = r;
+  }
+  const hard = S.players.filter(p => p.id !== S.me).map(p => [p.id, currentClaim(p.id)]).filter(([, c]) => c && c.kind === "hard");
+  const all = [];
+  for (const demon of cand) {
+    if (confirmedGood.has(demon)) continue;
+    for (const ms of combos(cand.filter(q => q !== demon && !confirmedGood.has(q)), m)) {
+      const minions = new Set(ms), evil = new Set([demon, ...ms]);
+      if ([...mustEvil].some(q => !evil.has(q))) continue;
+      const W = { demon, minions, evil }, needs = [], fits = [];
+      let score = 0;
+      for (const c of checks) {
+        if (c.src && evil.has(c.src)) continue; // an evil player's info proves nothing
+        if (c.test(W)) fits.push(c.fit); else { score -= c.w; needs.push(c.miss); }
+      }
+      // Claims: a good player wouldn't claim your character; two good players can't both be the same character
+      for (const [q, c] of hard) {
+        if (!evil.has(q) && c.role === S.role) { score -= 3; needs.push(`${nameOf(q)} is good but claims your character, the ${S.role}`); }
+        if (evil.has(q)) needs.push(`${nameOf(q)} is bluffing as the ${c.role}`);
+      }
+      for (let a = 0; a < hard.length; a++) for (let b = a + 1; b < hard.length; b++) {
+        const [qa, ca] = hard[a], [qb, cb] = hard[b];
+        if (ca.role === cb.role && !evil.has(qa) && !evil.has(qb)) { score -= 2; needs.push(`${nameOf(qa)} and ${nameOf(qb)} both really think they're the ${ca.role}: one is the Drunk`); }
+      }
+      // Deaths: the Demon kills good players at night; an executed Demon would usually end the game
+      for (const p of S.players) {
+        const d = about(p.id).death; if (!d) continue;
+        if (d.how === "night" && evil.has(p.id)) { score -= p.id === demon ? 2 : 1; needs.push(p.id === demon ? `${p.name}, the Demon, died at night (they killed themselves to pass it on?)` : `the Demon killed their own Minion, ${p.name}`); }
+        if ((d.how === "executed" || d.how === "virgin") && p.id === demon) { score -= 3; needs.push(`${p.name}, the Demon, was executed and the game went on (a Scarlet Woman took over?)`); }
+        if (d.how === "slayer" && p.id !== demon) { score -= 1.5; needs.push(`${p.name} was shot as a Minion who registered as the Demon, or the Demon has passed on`); }
+      }
+      for (const [q, r] of Object.entries(reads)) {
+        if (q === S.me) continue;
+        if (r === "good" && evil.has(q)) { score -= 3; needs.push(`${nameOf(q)}, who you read as good, is evil`); }
+        if (r === "evil" && !evil.has(q)) { score -= 2; needs.push(`${nameOf(q)}, who you read as evil, is good`); }
+      }
+      all.push({ ...W, score, needs, fits });
+    }
+  }
+  if (!all.length) return { list: [], total: 0, checks: checks.length };
+  all.sort((a, b) => b.score - a.score);
+  const top = all[0].score, sum = all.reduce((t, x) => t + Math.exp(x.score - top), 0);
+  all.forEach(x => (x.p = Math.exp(x.score - top) / sum));
+  return { list: all.slice(0, 3), total: all.length, checks: checks.length + hard.length + Object.keys(reads).length + S.players.filter(p => about(p.id).death).length };
+}
+function worldsCard(WS) {
+  if (!WS) return "";
+  const pct = x => x >= 0.995 ? ">99%" : x < 0.01 ? "<1%" : `${Math.round(x * 100)}%`;
+  if (!WS.checks) return `<section class="card worlds"><h2>🌍 Most likely worlds</h2><p class="hint">Add some info, claims or deaths and the most likely evil teams will show here.</p></section>`;
+  if (!WS.list.length) return `<section class="card worlds"><h2>🌍 Most likely worlds</h2><p class="warn">No evil team fits everything marked as confirmed. Check the Virgin and Slayer deaths.</p></section>`;
+  const close = WS.list.length > 1 && WS.list[0].p < 0.15;
+  return `<section class="card worlds"><h2>🌍 Most likely worlds</h2>
+    <p class="hint">Out of ${WS.total} possible evil teams, the ones that fit your notes best. Each says what would have to be true for it.</p>
+    ${close ? `<p class="hint">⚖️ These are close: there isn't enough info yet to separate them much.</p>` : ""}
+    <ol class="wl">${WS.list.map((W, k) => `<li class="world">
+      <div class="w-head"><span class="w-rank">${k + 1}</span><span class="w-team"><span class="chip evil">😈 ${esc(nameOf(W.demon))} <small>Demon</small></span>${[...W.minions].map(q => `<span class="chip evil soft">🧪 ${esc(nameOf(q))} <small>Minion</small></span>`).join("")}</span><span class="w-pc">${pct(W.p)}</span></div>
+      <div class="w-bar" aria-hidden="true"><span style="width:${Math.max(2, Math.round(W.p * 100))}%"></span></div>
+      ${W.needs.length ? `<p class="w-sub">For this world to be true:</p><ul class="w-need">${W.needs.map(t => `<li>${t.includes("bluffing") ? "🎭" : "✘"} ${esc(t)}</li>`).join("")}</ul>` : `<p class="w-sub">✔ Nothing has to be wrong: everything you've noted fits.</p>`}
+      ${W.fits.length ? `<details><summary>What fits (${W.fits.length})</summary><ul class="w-fit">${W.fits.map(t => `<li>✔ ${esc(t)}</li>`).join("")}</ul></details>` : ""}
+    </li>`).join("")}</ol></section>`;
+}
+
+// 📊 Everyone at a glance: lean, claims and info, in colour
+function matrixCard(WS) {
+  const short = ph => `${ph % 2 ? "D" : "N"}${Math.floor(ph / 2) + 1}`, L = leanings();
+  const chip = (c, soft) => rolesOf(c).map(r => `<span class="chip ${CHAR[r] ? `t-${CHAR[r].team}` : ""} ${soft ? "soft" : ""}">${iconOf(r)} ${esc(r)}</span>`).join(soft && rolesOf(c).length > 1 ? `<span class="or">or</span>` : "") + ` <small>${short(c.ph)}</small>`;
+  const tops = WS && WS.list || [];
   const rows = S.players.map(p => {
-    const A = about(p.id), me = p.id === S.me, cs = A.claims, f = me ? [] : flagsOf(p.id), info = infoOf(me ? "" : p.id);
-    return `<tr class="${A.death ? "dead" : ""} ${ui.sel === p.id ? "on" : ""}">
-      <th scope="row"><button class="mx-name" data-act="sel" data-pid="${p.id}">${me ? "★ " : ""}${esc(p.name)}</button>${A.death ? `<small>${deathOf(A.death.how)[1]} ${short(A.death.ph)}</small>` : ""}${f.length ? `<small class="flagtxt" title="${esc(f.join("; "))}">⚠ ${esc(f.join("; "))}</small>` : ""}</th>
-      <td data-l="Soft"><div class="c">${me ? `<span class="hint">–</span>` : claimCell(latestSoft(p.id) ? [latestSoft(p.id)] : [])}</div></td>
-      <td data-l="Hard"><div class="c">${me ? `<div>${iconOf(S.role)} ${esc(S.role)} <span class="kind hard">You</span></div>` : claimCell(cs.filter(c => c.kind === "hard"))}</div></td>
-      <td data-l="Info"><div class="c">${info.length ? info.map(e => `<div><small>${short(e.ph)}</small> ${esc(e.text)}</div>`).join("") : `<span class="hint">–</span>`}</div></td>
+    const A = about(p.id), me = p.id === S.me, f = me ? [] : flagsOf(p.id), info = infoOf(me ? "" : p.id), soft = latestSoft(p.id), hard = A.claims.filter(c => c.kind === "hard");
+    const sc = me ? 0 : ((L[p.id] || {}).score || 0), [lean, sure] = me ? ["", 0] : leanOf(L, p.id), pos = Math.max(0, Math.min(100, 50 + sc * 8));
+    const dots = me ? "" : tops.map((W, k) => `<span class="wdot ${W.demon === p.id ? "d" : W.minions.has(p.id) ? "m" : "g"}" title="World ${k + 1}: ${W.demon === p.id ? "Demon" : W.minions.has(p.id) ? "Minion" : "good"}">${W.demon === p.id ? "D" : W.minions.has(p.id) ? "M" : ""}</span>`).join("");
+    return `<tr class="${A.death ? "dead" : ""} ${ui.sel === p.id ? "on" : ""} ${lean ? `lean-${lean} sure-${sure}` : ""}">
+      <th scope="row"><button class="mx-name" data-act="sel" data-pid="${p.id}">${me ? "★ " : ""}${esc(p.name)}</button>${A.death ? `<small>${deathOf(A.death.how)[1]} ${short(A.death.ph)}</small>` : ""}${f.length ? `<small class="flagtxt">⚠ ${esc(f.join("; "))}</small>` : ""}</th>
+      <td data-l="Lean"><div class="c">${me ? `<span class="chip ${evilChar(S.role) ? "evil" : "good"}">You</span>` : `<div class="meter" title="${lean ? `${sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} ${lean}` : "No lean"}"><span style="left:${pos}%"></span></div><div class="lean-row">${lean ? `<b class="${lean}">${sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} ${lean}</b>` : `<span class="hint">no lean</span>`}${dots ? `<span class="wdots" aria-label="In the top worlds">${dots}</span>` : ""}</div>`}</div></td>
+      <td data-l="Soft"><div class="c">${me ? `<span class="hint">–</span>` : soft ? `<div>${chip(soft, true)}</div>` : `<span class="hint">–</span>`}</div></td>
+      <td data-l="Hard"><div class="c">${me ? `<div><span class="chip ${CHAR[S.role] ? `t-${CHAR[S.role].team}` : ""}">${iconOf(S.role)} ${esc(S.role)}</span></div>` : hard.length ? hard.map(c => `<div>${chip(c, false)}</div>`).join("") : `<span class="hint">–</span>`}</div></td>
+      <td data-l="Info"><div class="c">${info.length ? info.map(e => `<div class="info-chip"><small>${short(e.ph)}</small> ${esc(e.text)}</div>`).join("") : `<span class="hint">–</span>`}</div></td>
     </tr>`;
   }).join("");
   return `<section class="card"><h2>📊 Information matrix</h2>
-    <div class="mx-wrap"><table class="mx"><thead><tr><th scope="col">Player</th><th scope="col">Soft claims</th><th scope="col">Hard claims</th><th scope="col">Info</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="hint">Tap a name to add claims or info. N1 is Night 1, D1 is Day 1.</p></section>`;
+    <div class="mx-wrap"><table class="mx"><thead><tr><th scope="col">Player</th><th scope="col">Good or evil?</th><th scope="col">Soft claim</th><th scope="col">Hard claims</th><th scope="col">Info</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="hint">Tap a name to add claims or info. The bar runs from 🔵 good to 🔴 evil. ${tops.length ? "The dots are the top worlds below: D the Demon, M a Minion, blue good. " : ""}N1 is Night 1, D1 is Day 1.</p></section>`;
 }
 function summaryCard() {
   const dead = S.players.filter(p => about(p.id).death).sort((a, b) => about(a.id).death.ph - about(b.id).death.ph);
@@ -580,7 +725,7 @@ function notesHtml() {
     </div>
     ${ui.next ? nextHtml() : ""}
     <div class="side">${ui.sel ? panelHtml(ui.sel) : ""}${myCard()}${summaryCard()}</div></div>
-    ${matrixCard()}
+    ${(() => { const WS = worldsOf(); return matrixCard(WS) + worldsCard(WS); })()}
     <section class="card"><div class="row"><button class="btn" data-act="to-players">← Players</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>
   </div>`;
 }
