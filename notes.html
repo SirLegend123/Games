@@ -210,6 +210,12 @@ label.field, .field { display: grid; gap: 6px; }
 .w-need, .w-fit { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 4px; font-size: .9rem; }
 .w-fit { color: var(--muted); }
 .world details summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+.card.over { border: 2px solid var(--brass); text-align: center; justify-items: center; }
+.card.over.good h2 { color: var(--good); font-size: 2rem; } .card.over.evil h2 { color: var(--evil); font-size: 2rem; }
+.center .base { font-size: clamp(.6rem, 2.6cqi, .85rem); font-weight: 800; }
+.center .os { font-size: clamp(.6rem, 2.5cqi, .82rem); color: var(--muted); }
+.center .os.over { color: var(--warn); font-weight: 800; }
+.os-box { margin: 0; }
 .pick-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .pbtn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 8px 14px; min-height: 44px; font-weight: 800; }
 .pbtn.num { min-width: 48px; }
@@ -269,7 +275,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <main id="app"></main>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 77;</script>
+<script>window.APP_V = 78;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -447,6 +453,7 @@ function leanings() {
   }
   // A Virgin execution proves the Virgin good; the nominator was a Townsfolk, so leans good.
   // A Slayer shot that kills proves the Slayer good and the target the Demon.
+  if (S.over && S.over.winner === "good" && S.over.how !== "night") for (const q of S.over.deaths || []) add(q, 6, `Good won when they were executed: the Demon (${phaseName(S.over.ph)})`);
   for (const p of S.players) {
     const d = about(p.id).death; if (!d || !d.by) continue;
     if (d.how === "virgin") { add(d.by, -6, `Confirmed Virgin: ${p.name} was executed for nominating them (${phaseName(d.ph)})`); add(p.id, -1.5, `Executed by the Virgin's ability, so a Townsfolk (${phaseName(d.ph)})`); }
@@ -486,6 +493,11 @@ function adviceHtml() {
     else if (c.kind === "soft") push(p.id, `has only soft-claimed (${claimText(c)}). Push them for a hard claim.`, 6);
     if (lean === "good") push(p.id, `looks good. A good person to share your info with${iAmEvil() ? " (or to win over)" : ""}.`, 7);
   }
+  const comp = COMP[Math.min(15, S.players.length)], oc = outsiderClaims();
+  if (comp && oc.out.length > comp[1]) {
+    const q = oc.out.find(x => x !== S.me && !about(x).death);
+    if (q) push(q, `is one of ${oc.out.length} Outsider claims, but this game only has ${comp[1]}. A Baron (+2), or someone's lying: ask the Outsiders to compare notes.`, 2.5);
+  }
   out.sort((a, b) => a.pri - b.pri);
   const pick = [];
   for (const o of out) if (!used.has(o.pid) && pick.length < 3) { used.add(o.pid); pick.push(o); }
@@ -494,6 +506,25 @@ function adviceHtml() {
       : `<p class="hint">Nothing stands out yet. Keep noting claims and info.</p>`}</section>`;
 }
 
+// The usual setup for this many players, and how many Outsiders have been claimed against it
+function outsiderClaims() {
+  const out = [], maybe = [];
+  for (const p of S.players) {
+    if (p.id === S.me) { if (CHAR[S.role] && CHAR[S.role].team === "outsider") out.push(p.id); continue; }
+    const c = currentClaim(p.id); if (!c) continue;
+    const rs = rolesOf(c).filter(r => CHAR[r]);
+    if (c.kind === "hard" && rs.length && CHAR[rs[0]].team === "outsider") out.push(p.id);
+    else if (c.kind === "soft" && rs.length && rs.every(r => CHAR[r].team === "outsider")) maybe.push(p.id);
+  }
+  return { out, maybe };
+}
+function baseHtml() {
+  const c = COMP[Math.min(15, S.players.length)];
+  if (!c) return "";
+  const { out, maybe } = outsiderClaims(), over = out.length > c[1];
+  return `<span class="base"><span class="t-townsfolk">${c[0]} TF</span> · <span class="t-outsider">${c[1]} OS</span> · <span class="t-minion">${c[2]} M</span> · <span class="t-demon">${c[3]} D</span></span>
+    <span class="os ${over ? "over" : ""}" title="${esc(out.map(nameOf).join(", "))}">🧩 Outsiders claimed: <b>${out.length}</b>${maybe.length ? ` (+${maybe.length}?)` : ""} of ${c[1]}${over ? " ⚠" : ""}</span>`;
+}
 function circleHtml() {
   const L = leanings();
   const n = S.players.length, tok = n <= 7 ? 19 : n <= 10 ? 16.5 : n <= 13 ? 14 : 12.5;
@@ -512,7 +543,7 @@ function circleHtml() {
   }).join("");
   const live = alive().length;
   return `<div class="circle" style="--tok:min(96px, ${tok}cqi)">${seats}
-    <div class="center"><span class="ph">${phaseName(S.ph)}</span><span class="hint">${live} alive · ${Math.ceil(live / 2)} votes to execute</span></div></div>`;
+    <div class="center"><span class="ph">${phaseName(S.ph)}</span><span class="hint">${live} alive · ${Math.ceil(live / 2)} votes to execute</span>${baseHtml()}</div></div>`;
 }
 
 // Good or evil? What the notes suggest, and your own read
@@ -609,12 +640,15 @@ function worldsOf() {
     const d = about(p.id).death, r = about(p.id).read;
     if (d && d.by && (d.how === "virgin" || d.how === "slayer")) confirmedGood.add(d.by);
     if (d && d.by && d.how === "slayer") mustEvil.add(p.id);
+    if (S.over && S.over.winner === "good" && S.over.how !== "night" && (S.over.deaths || []).includes(p.id)) mustEvil.add(p.id);
     if (r) reads[p.id] = r;
   }
   const hard = S.players.filter(p => p.id !== S.me).map(p => [p.id, currentClaim(p.id)]).filter(([, c]) => c && c.kind === "hard");
   const all = [];
   for (const demon of cand) {
     if (confirmedGood.has(demon)) continue;
+    // Good won on an execution: the Demon is the one who was executed
+    if (S.over && S.over.winner === "good" && S.over.how !== "night" && (S.over.deaths || []).length && !S.over.deaths.includes(demon)) continue;
     for (const ms of combos(cand.filter(q => q !== demon && !confirmedGood.has(q)), m)) {
       const minions = new Set(ms), evil = new Set([demon, ...ms]);
       if ([...mustEvil].some(q => !evil.has(q))) continue;
@@ -637,7 +671,7 @@ function worldsOf() {
       for (const p of S.players) {
         const d = about(p.id).death; if (!d) continue;
         if (d.how === "night" && evil.has(p.id)) { score -= p.id === demon ? 2 : 1; needs.push(p.id === demon ? `${p.name}, the Demon, died at night (they killed themselves to pass it on?)` : `the Demon killed their own Minion, ${p.name}`); }
-        if ((d.how === "executed" || d.how === "virgin") && p.id === demon) { score -= 3; needs.push(`${p.name}, the Demon, was executed and the game went on (a Scarlet Woman took over?)`); }
+        if ((d.how === "executed" || d.how === "virgin") && p.id === demon && !(S.over && S.over.winner === "good" && (S.over.deaths || []).includes(p.id))) { score -= 3; needs.push(`${p.name}, the Demon, was executed and the game went on (a Scarlet Woman took over?)`); }
         if (d.how === "slayer" && p.id !== demon) { score -= 1.5; needs.push(`${p.name} was shot as a Minion who registered as the Demon, or the Demon has passed on`); }
       }
       for (const [q, r] of Object.entries(reads)) {
@@ -698,6 +732,14 @@ function summaryCard() {
     ${dead.length ? `<section class="card"><h2>Deaths</h2><ol class="log">${dead.map(p => { const d = about(p.id).death; return `<li><span class="ph">${phaseName(d.ph)}</span><span class="t">${deathOf(d.how)[1]} <b>${esc(p.name)}</b>: ${d.how === "virgin" ? `executed for nominating the Virgin${d.by ? `, ${esc(nameOf(d.by))}` : ""}` : d.how === "slayer" ? `shot by the Slayer${d.by ? `, ${esc(nameOf(d.by))}` : ""}` : deathOf(d.how)[2].toLowerCase()}</span></li>`; }).join("")}</ol></section>` : ""}`;
 }
 
+// What the button in the next-phase box says
+function goLabel(picks, day, n) {
+  const who = andList(picks.map(nameOf));
+  if (ui.nextEnd) return `${picks.length ? `${esc(who)} ${day ? "executed" : "died"}: ` : ""}${ui.nextEnd === "good" ? "Good" : "Evil"} wins`;
+  const next = day ? `Night ${n + 1}` : `Day ${n}`;
+  if (!picks.length) return `${day ? "Nobody was executed" : "Nobody died"} → ${next}`;
+  return `${esc(who)} ${day ? (ui.nextHow === "virgin" ? `was executed by the Virgin${ui.nextBy ? ` (${esc(nameOf(ui.nextBy))})` : ""}` : "was executed") : "died"} → ${next}`;
+}
 // Moving on to the next phase: who was executed today, or who died in the night
 function nextHtml() {
   const day = S.ph % 2 === 1, n = Math.floor(S.ph / 2) + 1, picks = ui.next;
@@ -710,15 +752,24 @@ function nextHtml() {
       <div class="seg" role="group"><button data-act="next-how" data-v="executed" aria-pressed="${ui.nextHow !== "virgin"}">🪓 Voted out</button><button data-act="next-how" data-v="virgin" aria-pressed="${ui.nextHow === "virgin"}">🕊️ Nominated the Virgin</button></div>
       ${ui.nextHow === "virgin" ? `<p class="hint">Which player is the Virgin they nominated?</p>
         <div class="pick-row">${S.players.filter(p => p.id !== picks[0]).map(p => `<button class="pbtn" data-act="next-by" data-pid="${p.id}" aria-pressed="${ui.nextBy === p.id}">${esc(p.name)}</button>`).join("")}</div>` : ""}` : ""}
+    <p class="lead">Did the game end?</p>
+    <div class="seg seg3" role="group"><button data-act="next-end" data-v="" aria-pressed="${!ui.nextEnd}">No, it goes on</button><button class="g" data-act="next-end" data-v="good" aria-pressed="${ui.nextEnd === "good"}">🏆 Good won</button><button class="e" data-act="next-end" data-v="evil" aria-pressed="${ui.nextEnd === "evil"}">😈 Evil won</button></div>
     <div class="row"><button class="btn" data-act="next-cancel">Cancel</button><span class="spacer"></span>
-      <button class="btn primary" data-act="next-go">${picks.length ? `${andList(picks.map(nameOf))} ${day ? (ui.nextHow === "virgin" ? `was executed by the Virgin${ui.nextBy ? ` (${esc(nameOf(ui.nextBy))})` : ""}` : "was executed") : "died"} → ${day ? `Night ${n + 1}` : `Day ${n}`}` : `${day ? "Nobody was executed" : "Nobody died"} → ${day ? `Night ${n + 1}` : `Day ${n}`}`}</button></div>
+      <button class="btn primary" data-act="next-go">${goLabel(picks, day, n)}</button></div>
   </div></div>`;
+}
+// 🏆 The game is over
+function overHtml() {
+  const O = S.over, who = (O.deaths || []).map(nameOf);
+  return `<section class="card over ${O.winner}"><h2>${O.winner === "good" ? "🏆 Good won" : "😈 Evil won"}</h2>
+    <p class="lead">${phaseName(O.ph)}${who.length ? `: ${esc(andList(who))} ${O.how === "night" ? "died in the night" : O.how === "virgin" ? "was executed by the Virgin" : "was executed"}` : ""}.</p>
+    <div class="row"><button class="btn" data-act="over-undo">Undo: the game went on</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>`;
 }
 function notesHtml() {
   return `<div class="notes-page"><div class="grim-wrap">
     <div class="side">
       <div class="phase" style="justify-content:center"><button class="icon" data-act="ph" data-v="-1" aria-label="Back a phase" ${S.ph ? "" : "disabled"}>‹</button><b>${phaseName(S.ph)}</b><button class="icon" data-act="ph" data-v="1" aria-label="Next phase without marking deaths">›</button></div>
-      <button class="btn primary next-btn" data-act="next-open">${S.ph % 2 ? `🌙 End the day: who was executed? →` : `☀️ Morning: who died in the night? →`}</button>
+      ${S.over ? overHtml() : `<button class="btn primary next-btn" data-act="next-open">${S.ph % 2 ? `🌙 End the day: who was executed? →` : `☀️ Morning: who died in the night? →`}</button>`}
       ${circleHtml()}
       <p class="hint" style="text-align:center">Tap a player to note their claims, or how they died. Dashed: soft claim. Gold: hard claim. Blue glow: likely good. Red glow: likely evil. ! : something doesn't add up.</p>
       ${adviceHtml()}
@@ -744,9 +795,9 @@ function addInfo() {
   if (!t) { $("infoIn").focus(); return; }
   const ch = infChar() && infChar() !== baseChar(ui.inf.by) ? infChar() : "";
   const F = infForm(), I = ui.inf, kind = F === EVIL_TEAM ? "team" : F === BLUFFS ? "bluffs" : "own";
-  S.info.push({ id: uid(), ph: S.ph, text: ch ? `(${ch}) ${t}` : t, ps: I.ps.slice(), ...(I.by ? { by: I.by } : {}),
+  S.info.push({ id: uid(), ph: infPh(), text: ch ? `(${ch}) ${t}` : t, ps: I.ps.slice(), ...(I.by ? { by: I.by } : {}),
     ...(line ? { f: { c: infChar(), kind, rs: I.rs.slice(), n: I.n, yn: I.yn, none: I.none } } : {}) });
-  Object.assign(ui.inf, { ps: [], rs: [], n: null, yn: null, none: false });
+  Object.assign(ui.inf, { ps: [], rs: [], n: null, yn: null, none: false, ph: null });
   render();
 }
 /* ---------- What each character learns or does ---------- */
@@ -801,9 +852,11 @@ function formsFor(ch) {
   return [own, ...(c && c.team === "minion" ? [EVIL_TEAM] : c && c.team === "demon" ? [EVIL_TEAM, BLUFFS] : [])];
 }
 const baseChar = by => by ? (currentClaim(by) ? rolesOf(currentClaim(by))[0] : "") : S.role;
+// Info is usually from the night just gone; it can be filed against any earlier night or day
+const infPh = () => ui.inf.ph != null && ui.inf.ph <= S.ph ? ui.inf.ph : S.ph % 2 ? S.ph - 1 : S.ph;
 const infChar = () => ui.inf.char || baseChar(ui.inf.by);
 const resetInf = by => Object.assign(ui.inf, { by, char: "", form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false });
-const infoOf = by => S.info.filter(e => (e.by || "") === by);
+const infoOf = by => S.info.filter(e => (e.by || "") === by).sort((a, b) => a.ph - b.ph);
 const infoLog = by => { const L = infoOf(by); return L.length ? `<ol class="log">${L.map(e => `<li><span class="ph">${phaseName(e.ph)}</span><span class="t">${esc(e.text)}</span><button class="x" data-act="info-del" data-id="${e.id}" aria-label="Delete">×</button></li>`).join("")}</ol>` : ""; };
 const infForm = () => { const fs = formsFor(infChar()); return fs[Math.min(ui.inf.form, fs.length - 1)]; };
 // The line the picks make (without the note)
@@ -832,7 +885,9 @@ function infoFormHtml() {
     ${F.yn ? `<div class="seg" role="group">${F.yn.map((l, k) => `<button data-act="inf-yn" data-v="${k}" aria-pressed="${I.yn === k}">${esc(l)}</button>`).join("")}</div>` : ""}
     <input type="text" id="infoIn" placeholder="${F.p || F.r || F.n || F.yn ? "Anything else (optional)" : `What did you learn on ${phaseName(S.ph)}?`}" autocomplete="off" enterkeyhint="done" aria-label="What you learnt">
     ${infLine() ? `<p class="ability" id="infPrev">${esc(infLine())}</p>` : ""}
-    <button class="btn primary" data-act="info-add">Add to ${phaseName(S.ph)}</button>
+    <p class="hint">Which night or day is it from?</p>
+    <div class="pick-row">${Array.from({ length: S.ph + 1 }, (_, k) => k).map(k => `<button class="pbtn ${k % 2 ? "" : "num"}" data-act="inf-ph" data-v="${k}" aria-pressed="${infPh() === k}">${phaseName(k)}</button>`).join("")}</div>
+    <button class="btn primary" data-act="info-add">Add to ${phaseName(infPh())}</button>
   </div>`;
 }
 
@@ -892,6 +947,7 @@ document.addEventListener("click", ev => {
     case "ph": S.ph = Math.max(0, S.ph + Number(el.dataset.v)); break;
     case "info-add": return addInfo();
     case "inf-by": resetInf(pid || ""); keepDraft(); return;
+    case "inf-ph": ui.inf.ph = Number(el.dataset.v); keepDraft(); return;
     case "inf-pick": ui.inf.pick = !ui.inf.pick; keepDraft(); return;
     case "inf-char": Object.assign(ui.inf, { char: el.dataset.role === S.role ? "" : el.dataset.role, form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }); keepDraft(); return;
     case "inf-char-typed": { const v = ($("infChar").value || "").trim(); Object.assign(ui.inf, { char: v === S.role ? "" : v, form: 0, ps: [], rs: [], n: null, yn: null, none: false, pick: false }); keepDraft(); return; }
@@ -901,7 +957,9 @@ document.addEventListener("click", ev => {
     case "inf-n": ui.inf.n = ui.inf.n === Number(el.dataset.v) ? null : Number(el.dataset.v); keepDraft(); return;
     case "inf-yn": ui.inf.yn = ui.inf.yn === Number(el.dataset.v) ? null : Number(el.dataset.v); keepDraft(); return;
     case "inf-none": ui.inf.none = !ui.inf.none; if (ui.inf.none) { ui.inf.ps = []; ui.inf.rs = []; } keepDraft(); return;
-    case "next-open": ui.next = []; ui.nextHow = "executed"; ui.nextBy = ""; keepDraft(); return;
+    case "next-open": ui.next = []; ui.nextHow = "executed"; ui.nextBy = ""; ui.nextEnd = ""; keepDraft(); return;
+    case "next-end": ui.nextEnd = el.dataset.v; keepDraft(); return;
+    case "over-undo": S.over = null; break;
     case "next-how": ui.nextHow = el.dataset.v; if (ui.nextHow !== "virgin") ui.nextBy = ""; keepDraft(); return;
     case "next-by": ui.nextBy = ui.nextBy === pid ? "" : pid; keepDraft(); return;
     case "next-pick": { const day = S.ph % 2 === 1; ui.next = ui.next.includes(pid) ? ui.next.filter(x => x !== pid) : day ? [pid] : [...ui.next, pid]; if (ui.nextBy === pid) ui.nextBy = ""; keepDraft(); return; }
@@ -911,7 +969,9 @@ document.addEventListener("click", ev => {
       const day = S.ph % 2 === 1;
       const virgin = day && ui.nextHow === "virgin";
       for (const q of ui.next) about(q).death = { how: day ? (virgin ? "virgin" : "executed") : "night", ph: S.ph, ...(virgin && ui.nextBy ? { by: ui.nextBy } : {}) };
-      S.ph++; ui.next = null; Object.assign(ui.inf, { ps: [], rs: [], n: null, yn: null, none: false });
+      // The game is over: who won, and how
+      if (ui.nextEnd) { S.over = { winner: ui.nextEnd, ph: S.ph, deaths: ui.next.slice(), how: day ? (virgin ? "virgin" : "executed") : "night" }; ui.next = null; break; }
+      S.ph++; ui.next = null; Object.assign(ui.inf, { ps: [], rs: [], n: null, yn: null, none: false, ph: null });
       break;
     }
     case "info-del": S.info = S.info.filter(e => e.id !== el.dataset.id); break;
