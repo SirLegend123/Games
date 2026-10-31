@@ -270,10 +270,11 @@ document.getElementById("homeBtn").addEventListener("click", e => {
 </div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
-<script>window.APP_V = 82;</script>
+<script>window.APP_V = 83;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
+<script src="net.js"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -1738,8 +1739,6 @@ function publicState() {
 }
 const TOWN_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const townId = code => `clocktower-town-${code}`;
-// For testing against a local PeerJS server: ?peer=localhost:9000
-const peerOpts = () => { const h = new URLSearchParams(location.search).get("peer"); if (!h) return {}; const [host, port] = h.split(":"); return { host, port: Number(port) || 9000, path: "/", secure: false }; };
 let town = { peer: null, conns: [], status: "off", last: "", players: {}, chats: [], reqs: {}, lobby: "", said: {} };
 const townBC = "BroadcastChannel" in window ? new BroadcastChannel("clocktower-town") : null;
 function townStart() {
@@ -1971,6 +1970,12 @@ function townSend(force) {
 // Check for changes every few seconds, but only send everything again every 20 seconds:
 // the less there is on the line, the quicker the chats get through
 let beat = 0;
+// A heartbeat every 8 seconds, so a quiet spell never looks like a lost link: the TV gets the
+// screen again (older TVs only understand that), phones get a tiny "still here"
+setInterval(() => {
+  if (town.conns.length) townSend(true);
+  for (const P of Object.values(town.players)) if (P.conn && P.conn.open) try { P.conn.send({ t: "ping" }); } catch (e) {}
+}, 8000);
 setInterval(() => { const all = ++beat % 5 === 0; townSend(all); sendLobby(all); }, 4000);
 // 📜 Every character on the script and what they do, full screen on the TV (never who has which)
 const sheetBtn = () => `<button class="btn" data-act="tv-sheet" aria-pressed="${!!ui.tvSheet}">📜 ${ui.tvSheet ? "Hide the characters on the TV" : "Show the characters on the TV"}</button>`;
