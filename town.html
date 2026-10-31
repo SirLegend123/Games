@@ -135,10 +135,11 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass)
 <body>
 <div id="app"></div>
 <div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
-<script>window.APP_V = 82;</script>
+<script>window.APP_V = 83;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
+<script src="net.js"></script>
 <script src="vendor/qrcode.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -146,8 +147,6 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 const listJoin = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
 const LS = "botc-town-code";
-// For testing against a local PeerJS server: ?peer=localhost:9000
-const peerOpts = () => { const h = new URLSearchParams(location.search).get("peer"); if (!h) return {}; const [host, port] = h.split(":"); return { host, port: Number(port) || 9000, path: "/", secure: false }; };
 
 let G = null, gotAt = 0;               // the latest public view, and when it arrived
 let code = (new URLSearchParams(location.search).get("code") || (() => { try { return localStorage.getItem(LS) || ""; } catch (e) { return ""; } })()).toUpperCase();
@@ -174,8 +173,11 @@ function connect() {
   peer.on("open", () => {
     conn = peer.connect(`clocktower-town-${code}`, { reliable: true, serialization: "json", metadata: { kind: "town" } });
     conn.on("open", () => { status = "live"; err = ""; render(); });
-    conn.on("data", st => { G = st; gotAt = Date.now(); lastData = Date.now(); status = "live"; render(); });
+    conn.on("data", st => { if (st && st.t === "ping") { lastData = Date.now(); return; } G = st; gotAt = Date.now(); lastData = Date.now(); status = "live"; render(); });
     conn.on("close", () => { status = "lost"; render(); again(); });
+    conn.on("error", () => { status = "lost"; render(); again(); });
+    // A link that never opens (no route between the devices): try again rather than wait for ever
+    const c0 = conn; setTimeout(() => { if (conn === c0 && !c0.open) { status = "lost"; render(); connect(); } }, 15000);
   });
   peer.on("error", e => {
     err = e.type === "peer-unavailable" ? `No Storyteller is sharing with code ${code} right now. Check the code, and that sharing is on.` : "Can't reach the link service. Check the internet connection.";
@@ -184,7 +186,7 @@ function connect() {
 }
 const again = () => { clearTimeout(retry); retry = setTimeout(connect, 4000); };
 // If nothing arrives for a while, reconnect
-setInterval(() => { if (status === "live" && Date.now() - lastData > 15000) { status = "lost"; render(); connect(); } }, 5000);
+setInterval(() => { if (status === "live" && Date.now() - lastData > 30000) { status = "lost"; render(); connect(); } }, 5000);
 // The Storyteller in another window on this device
 if ("BroadcastChannel" in window) new BroadcastChannel("clocktower-town").onmessage = ev => { G = ev.data; gotAt = Date.now(); lastData = Date.now(); if (status !== "live") status = "local"; render(); };
 

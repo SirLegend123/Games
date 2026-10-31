@@ -2,6 +2,8 @@
 
 Open `index.html` to choose between the *Blood on the Clocktower* apps: the **Storyteller**, the **Town Square**, the **Player**, **Online Notes** and **Table Notes**. They share their character list (`characters.js`). It also has **The Traitors**, an online party game for family and friends (see the end).
 
+**Connections**: the live link (`net.js`) uses several STUN servers to find a direct route between devices, and TURN relay servers (including one on port 443) for when there isn't one, such as on some mobile networks and routers. The Storyteller sends a small heartbeat every 8 seconds. A phone or TV reconnects by itself after 30 seconds of silence, after 15 seconds if a link never opens, and straight away when it comes back from the lock screen. While linked, the Player app keeps the screen on where the phone allows.
+
 **Updates**: browsers keep a copy of each app for a while, so a device can still be on an old version after an update. Every app checks the site every couple of minutes (and whenever it's brought back to the screen), and when there's a newer version it shows **🔄 A new version is ready. Tap to update**; the game is kept. A phone linked to a Storyteller app that's out of date says so, and works out the night by itself. (When changing the apps, raise the number in `version.json` and `window.APP_V` in each page together.)
 
 ## Storyteller: face to face

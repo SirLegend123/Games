@@ -275,10 +275,11 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 82;</script>
+<script>window.APP_V = 83;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
+<script src="net.js"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -655,8 +656,6 @@ let L = {};
 try { L = JSON.parse(localStorage.getItem(LINK)) || {}; } catch (e) {}
 if (!L.secret) L.secret = uid() + uid();
 const saveLink = () => { try { localStorage.setItem(LINK, JSON.stringify(L)); } catch (e) {} };
-// For testing against a local PeerJS server: ?peer=localhost:9000
-const peerOpts = () => { const h = new URLSearchParams(location.search).get("peer"); if (!h) return {}; const [host, port] = h.split(":"); return { host, port: Number(port) || 9000, path: "/", secure: false }; };
 const link = { peer: null, host: null, status: "off", err: "", lobby: null, chat: null, incoming: null, waiting: null, open: false, retry: null };
 const lname = id => ((link.lobby && link.lobby.players.find(p => p.id === id)) || {}).name || "someone";
 const buzz = () => { try { navigator.vibrate && navigator.vibrate([150, 80, 150]); } catch (e) {} };
@@ -670,9 +669,12 @@ function linkStart() {
   const peer = link.peer = new Peer(peerOpts());
   peer.on("open", () => {
     const h = link.host = peer.connect(`clocktower-town-${L.code}`, { reliable: true, serialization: "json", metadata: { kind: "player", pid: L.pid || "", secret: L.pid ? L.secret : "" } });
-    h.on("open", () => { link.status = "on"; renderLink(); });
-    h.on("data", fromHost);
+    h.on("open", () => { link.status = "on"; link.last = Date.now(); renderLink(); wake(); });
+    h.on("data", m => { link.last = Date.now(); if (m && m.t === "ping") return; fromHost(m); });
     h.on("close", () => { if (link.host === h) { link.status = "lost"; renderLink(); linkAgain(); } });
+    h.on("error", () => { if (link.host === h) { link.status = "lost"; renderLink(); linkAgain(); } });
+    // A link that never opens (no route between the phone and the Storyteller): try again rather than wait for ever
+    setTimeout(() => { if (link.host === h && !h.open) { link.status = "lost"; renderLink(); linkStart(); } }, 15000);
   });
   peer.on("error", e => {
     link.status = "error";
@@ -680,7 +682,17 @@ function linkStart() {
     renderLink(); linkAgain();
   });
 }
-const linkAgain = () => { clearTimeout(link.retry); if (L.code) link.retry = setTimeout(linkStart, 5000); };
+const linkAgain = () => { clearTimeout(link.retry); if (L.code) link.retry = setTimeout(linkStart, 3000); };
+// Nothing from the Storyteller for half a minute: the link has quietly died, so start again
+setInterval(() => { if (L.code && link.status === "on" && Date.now() - (link.last || 0) > 30000) linkStart(); }, 5000);
+// Back from the lock screen or another app: reconnect straight away, and keep the screen on while linked
+let lock = null;
+async function wake() { try { if (L.code && navigator.wakeLock && !lock && document.visibilityState === "visible") { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => (lock = null)); } } catch (e) {} }
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !L.code) return;
+  wake();
+  if (link.status !== "on" || !(link.host && link.host.open)) linkStart();
+});
 function linkStop() { clearTimeout(link.retry); if (link.peer) link.peer.destroy(); Object.assign(link, { peer: null, host: null, status: "off", lobby: null, chat: null, incoming: null, waiting: null }); L.code = ""; L.pid = ""; saveLink(); renderLink(); }
 const toHost = m => { if (link.host && link.host.open) link.host.send(m); };
 
