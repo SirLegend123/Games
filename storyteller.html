@@ -270,7 +270,7 @@ document.getElementById("homeBtn").addEventListener("click", e => {
 </div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
-<script>window.APP_V = 83;</script>
+<script>window.APP_V = 84;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -1734,7 +1734,8 @@ function publicState() {
     block: D.done ? null : { who: b.who, best: b.best },
     done: D.done, exec: D.done && D.exec ? { pid: D.exec.pid, dies: D.exec.dies, virgin: D.exec.cause === "nominated the Virgin" } : null,
     timer: T.total ? { left: timerLeft(), running: !!T.end, total: T.total, big: !!ui.timerOpen, label: T.phase != null ? PHASES[T.phase].name : "Discussion" } : null,
-    chats: town.chats.map(c => [c.a, c.b])
+    chats: town.chats.map(c => [c.a, c.b]),
+    notes: (town.noteFeed || []).filter(x => Date.now() - x.at < 90000).map(x => [x.from, x.to])
   };
 }
 const TOWN_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -1778,9 +1779,9 @@ const chatDay = () => S.step === "day" && !S.over;
 // The day has three parts, each with its own timer: private chats with anyone, then public discussion,
 // then nominations. After the first part, private chats are only allowed between neighbours.
 const PHASES = [
-  { icon: "💬", name: "Private chats", mins: 5, tip: "Players can chat privately with anyone." },
-  { icon: "🗣️", name: "Public discussion", started: "Public discussion has started.", mins: 3, tip: "Everyone talks together. Private chats only between neighbours." },
-  { icon: "📢", name: "Nominations", started: "Nominations are open.", mins: 5, tip: "Nominate and vote. Private chats only between neighbours." }
+  { icon: "💬", name: "Private chats", mins: 5, tip: "Players can pass private notes to anyone." },
+  { icon: "🗣️", name: "Public discussion", started: "Public discussion has started.", mins: 3, tip: "Everyone talks together. Private notes only between neighbours." },
+  { icon: "📢", name: "Nominations", started: "Nominations are open.", mins: 5, tip: "Nominate and vote. Private notes only between neighbours." }
 ];
 const phaseMins = k => (S.phaseMins || [])[k] || PHASES[k].mins;
 // Once a nomination has started, it's the nominations, whatever was chosen
@@ -1790,7 +1791,7 @@ const seatNeighbours = (a, b) => { const ids = S.players.map(p => p.id), n = ids
 // At night, players can quietly message the neighbours either side of them
 const chatNight = () => S.step === "night" && !S.over;
 const canChat = (a, b) => (chatDay() && (dayPhase() === 0 || seatNeighbours(a, b))) || (chatNight() && seatNeighbours(a, b));
-const chatWhy = () => chatNight() ? "At night you can only chat with your neighbours." : !chatDay() ? "Private chats aren't open yet." : `${PHASES[dayPhase()].name}: you can only chat with your neighbours now.`;
+const chatWhy = () => chatNight() ? "At night you can only pass notes to your neighbours." : !chatDay() ? "Private notes aren't open yet." : `${PHASES[dayPhase()].name}: you can only pass notes to your neighbours now.`;
 // Set the timer for a part of the day; it starts straight away when the Storyteller moves on to it
 function phaseTimer(k, run) {
   const ms = phaseMins(k) * 60000;
@@ -1809,7 +1810,9 @@ function fromPlayer(c, m) {
     if (!S.players.some(p => p.id === pid)) return c.send({ t: "error", why: "That seat isn't in this game." });
     S.linkSecrets = S.linkSecrets || {};
     if (S.linkSecrets[pid] && S.linkSecrets[pid] !== m.secret) return c.send({ t: "error", why: `Someone else has already joined as ${nameOf(pid)}.` });
-    S.linkSecrets[pid] = m.secret; save();
+    S.linkSecrets[pid] = m.secret;
+    if (m.key) (S.noteKeys = S.noteKeys || {})[pid] = m.key;
+    save();
     const old = town.players[pid];
     if (old && old.conn !== c) try { old.conn.close(); } catch (e) {}
     town.players[pid] = { conn: c, peer: c.peer };
@@ -1818,10 +1821,25 @@ function fromPlayer(c, m) {
     if (S.drawn[pid] && !(S.draw && S.draw.queue.includes(pid))) sendToken(pid);
     town.chats.filter(x => x.a === pid || x.b === pid).forEach(x => c.send({ t: "chat-open", id: x.id, with: x.a === pid ? x.b : x.a }));
     town.remote = null; // the night screen is sent again below
+    deliverNotes(pid);
     renderTown(); refreshJoin(); remoteSync(); return;
   }
   const me = c.pid;
   if (!me) return;
+  // ✉️ Notes: the phone's public key, a note to pass on (still sealed: only the two players can read it), and "got it"
+  if (m.t === "key" && m.key) { (S.noteKeys = S.noteKeys || {})[me] = m.key; save(); sendLobby(true); return; }
+  if (m.t === "note-send") {
+    const to = m.to;
+    if (!S.players.some(p => p.id === to) || to === me) return;
+    if (!canChat(me, to)) return c.send({ t: "note-no", cid: m.cid, why: chatWhy() });
+    const n = { id: uid(), from: me, to, iv: String(m.iv).slice(0, 64), data: String(m.data).slice(0, 8000), at: Date.now() };
+    (S.noteQ = S.noteQ || []).push(n); save();
+    c.send({ t: "note-sent", cid: m.cid });
+    town.noteFeed = [...(town.noteFeed || []), { from: me, to, at: Date.now() }].filter(x => Date.now() - x.at < 90000);
+    deliverNotes(to); townSend(true);
+    return;
+  }
+  if (m.t === "note-ack") { S.noteQ = (S.noteQ || []).filter(n => !(n.id === m.id && n.to === me)); save(); return; }
   if (m.t === "chat-req") {
     const to = m.to, no = why => c.send({ t: "chat-no", to, why });
     if (!canChat(me, to)) return no(chatWhy());
@@ -1891,6 +1909,12 @@ function fromPlayer(c, m) {
     render();
   }
 }
+// Pass on every note waiting for a player whose phone is connected (they stay here until it says "got it")
+function deliverNotes(pid) {
+  const P = town.players[pid];
+  if (!P || !P.conn.open) return;
+  for (const n of (S.noteQ || []).filter(n => n.to === pid)) try { P.conn.send({ t: "pnote", id: n.id, from: n.from, iv: n.iv, data: n.data, at: n.at }); } catch (e) {}
+}
 function endChat(id, why) {
   const ch = town.chats.find(x => x.id === id);
   if (!ch) return;
@@ -1953,7 +1977,7 @@ function startNomination(by, of) {
 function lobbyBase() {
   return { t: "lobby", v: window.APP_V, gameId: S.gameId, dayInfo: dayInfo(), day: chatDay(), night: chatNight() ? S.n : null,
     dawn: S.announce && S.step === "day" && !S.over ? { n: S.announce.n, ids: S.announce.pids } : null, noms: nomsOpen(), phase: chatDay() ? dayPhase() : null, say: sayList(30), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
-    players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), online: !!town.players[p.id], busy: inChat(p.id), dead: !!(S.dead || {})[p.id] })),
+    players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), online: !!town.players[p.id], busy: inChat(p.id), dead: !!(S.dead || {})[p.id], k: (S.noteKeys || {})[p.id] || null })),
     chats: town.chats.map(c => [c.a, c.b]) };
 }
 const sayList = n => (chatDay() && S.day && S.day.say || []).slice(-n).map(x => [x.id, x.by, x.text]);
@@ -1991,7 +2015,7 @@ function townCard() {
       <p class="hint">The Town Square shows names, deaths, ghost votes, nominations, votes, the timer and the dawn news. It never shows anyone's character until you reveal them at the end.</p>
       ${sheetBtn()}
       <h3>Players linked</h3>
-      <p class="hint">Players can join from the Player app with the same code, and ask each other for private chats during the day. You see who is talking, never what they say.</p>
+      <p class="hint">Players can join from the Player app with the same code, and pass each other private notes during the day. You see who passed a note to whom, never what it says: notes are sealed so only the two players can read them.</p>
       <p>${Object.keys(town.players).length ? esc(listJoin(Object.keys(town.players).map(nameOf))) : `<span class="hint">Nobody yet.</span>`}</p>
       ${town.chats.length ? `<p>💬 ${town.chats.map(c => `${esc(nameOf(c.a))} ↔ ${esc(nameOf(c.b))}`).join(" · ")}</p>` : ""}
       <div class="row"><button class="btn danger" data-act="town-stop">Stop sharing</button></div>`
@@ -2244,7 +2268,7 @@ document.addEventListener("click", ev => {
     case "new-game": {
       const playing = S.step !== "players" || S.bag.length;
       if (playing && !confirm(S.over ? "Start a new game with the same players?" : "Start a new game? This game ends now. The players stay; the bag, characters and everything that has happened are cleared.")) return;
-      S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn !== false, townCode: S.townCode, linkSecrets: S.linkSecrets, phaseMins: S.phaseMins };
+      S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn !== false, townCode: S.townCode, linkSecrets: S.linkSecrets, noteKeys: S.noteKeys, phaseMins: S.phaseMins };
       Object.assign(T, { end: 0, left: 0, total: 0, rang: false });
       Object.assign(ui, { sel: null, reveal: false, story: false, timerOpen: false }); show = null;
       break;

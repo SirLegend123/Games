@@ -133,14 +133,14 @@ A live public view of the Storyteller's game for a TV, projector or spare tablet
 
 ### Private chats between players
 
-Players can link the Player app to the Storyteller's game and text each other privately during the day.
+Players can link the Player app to the Storyteller's game and pass each other private notes.
 
 - **Joining**: on the Player app's first screen or in its Grimoire, the **🔗 Join the game** card takes the same code as the Town Square. The app joins you as the player with your name (or asks which one is you). Only one device can be each player: once you've joined as Sophie, nobody else can.
-- **Chatting**: during the day, tap **💬 Chat** next to a player. They get a request on their phone to **Accept** or **Decline**. Once accepted, you text each other in a chat window; **Hide** tucks it away (new messages show on the button) and **End chat** finishes it. One chat at a time each.
-- **When**: private chats are allowed with anyone during the day's first part, 💬 Private chats. From 🗣️ Public discussion, through 📢 Nominations, until nightfall, players can only chat with their neighbours, the players sitting either side of them; other chats end with a message, and the other 💬 buttons are switched off. At night, players can only chat with their neighbours; other chats end when night falls. The ✋ Nominate button on the phones only appears once nominations are open.
+- **✉️ Passing notes**: tap **✉️ Note** next to a player (or a neighbour's button on the night screen) to open your notes with them. Write a note, or build one with the quick buttons: 🎭 I'm the …, 🔍 I learnt … is the …, 👀 I suspect …, 🤝 I trust …, ✋ Vote with me on …, 🙏 Trust me, 🗳️ Talk after this vote?, 🚫 Don't nominate me, ❓ What are you?, 📋 What have you learnt? (the ones with … ask you to pick a player or character). They go into the box, so you can add to them before tapping **Pass**. Each note shows **✓ Passed** once the Storyteller's device has it.
+- **Arriving**: a note waits on the Storyteller's device until the other phone is connected, then arrives, even if their phone dropped out or was locked when you sent it. A **✉️ New note from …** button pops up, and the player's ✉️ button shows how many are new. The TV shows "✉️ Notes passed: Sophie → Coll" for a minute or so, never what they say.
+- **When**: anyone during the day's first part, 💬 Private chats. From 🗣️ Public discussion, through 📢 Nominations and the night, only to your neighbours (either side). A note that isn't allowed comes back as "Not passed", with the reason.
+- **Private**: each phone keeps its own key pair. Two players' keys make a secret only they share (ECDH), and every note is sealed with it (AES-GCM) before it leaves the phone. The Storyteller's device only ever holds sealed notes, and passes them on unread.
 - **📣 Town talk**: during the day, players can also say something to everyone from their phone. It goes up on the Town Square TV, and every phone and the Storyteller see it too. Messages are up to 200 characters, and they're cleared when night falls.
-- **Private**: chats are encrypted end to end. The two phones agree a secret key between themselves (ECDH), and every message is scrambled with it (AES-GCM) before it leaves the phone. Messages travel through the Storyteller's device, which passes them on without being able to read them, and doesn't keep them. It knows who is talking to whom (shown on the Town Square and on the 📺 card), never what is said.
-- **Dropping out**: a phone that loses its link (a locked screen, a reload) has 30 seconds to come back before its chat ends; when it does, the two phones agree a new key and carry on.
 
 ## The Traitors
 
