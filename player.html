@@ -164,6 +164,9 @@ label.field, .field { display: grid; gap: 6px; }
 /* The night screen while you sleep, and the dawn news */
 #sleepBox .night-ov { z-index: 35; }
 #sleepBox .night-ov.dawn { z-index: 45; } /* the dawn news comes over an open chat */
+.night-ov.sleep.trav-evil { background: radial-gradient(circle at 50% 30%, #8a1a2c 0%, #4a0c17 60%, #24050b 100%); }
+.night-ov.sleep.trav-good { background: radial-gradient(circle at 50% 30%, #2456a8 0%, #12305f 60%, #0a1730 100%); }
+.night-ov .trav-side { margin: 0; font-size: 1.2rem; background: rgba(0,0,0,.3); border-radius: 999px; padding: 6px 16px; }
 .night-ov.sleep { background: radial-gradient(circle at 50% 30%, #1d2547 0%, #0e1226 60%, #06070f 100%); }
 .night-ov.dawn { background: radial-gradient(circle at 50% 35%, #9b1b2f 0%, #5c0d1a 55%, #2a050c 100%); --brass: #ffd27a; }
 .night-ov.dawn h1 { color: #fff1e0; }
@@ -192,6 +195,7 @@ label.field, .field { display: grid; gap: 6px; }
 .night-ov .names, .night-ov .chars, .night-ov .draw-foot { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
 .night-ov .nmchip { font-family: var(--font-display); font-size: clamp(2rem, 8vw, 3rem); background: var(--surface); border: 3px solid var(--brass); border-radius: 14px; padding: 6px 20px; }
 .night-ov .charchip { display: grid; justify-items: center; gap: 2px; background: var(--parch); color: var(--parch-ink); border: 5px solid var(--townsfolk); border-radius: 14px; padding: 12px 18px; font-weight: 800; font-size: 1.4rem; min-width: 140px; }
+.night-ov .charchip.t-traveller { border-color: #c9a227; }
 .night-ov .charchip.t-outsider { border-color: var(--outsider); } .night-ov .charchip.t-minion, .night-ov .charchip.t-demon { border-color: var(--evil); }
 .night-ov .charchip .ico { font-size: 3rem; line-height: 1.1; }
 .night-ov .answer { font-weight: 800; font-size: clamp(5rem, 26vw, 9rem); line-height: 1; color: var(--brass); }
@@ -282,7 +286,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 85;</script>
+<script>window.APP_V = 86;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -1050,7 +1054,10 @@ function sleepHtml() {
   if (!night) return "";
   if (ui.nightPeek === `${lb.gameId}:${night}`) return `<button class="night-pill" data-act="night-unpeek">🌙 Night ${night} · Back to the night screen</button>`;
   const ch = link.chat, nb = neighboursOf(lb, me);
-  return `<div class="night-ov sleep"><div class="draw-inner">
+  // ✈️ A Traveller sleeps on red if they're evil, blue if they're good, so they always know their side
+  const tv = CHAR[S.role] && CHAR[S.role].team === "traveller";
+  return `<div class="night-ov sleep ${tv ? (S.side === "evil" ? "trav-evil" : "trav-good") : ""}"><div class="draw-inner">
+    ${tv ? `<p class="trav-side">✈️ You're the ${esc(S.role)} · <b>${S.side === "evil" ? "Evil" : "Good"}</b></p>` : ""}
     <div class="moon" aria-hidden="true">🌙</div><h1>Night ${night}</h1>
     <p class="lead">Close your eyes. The Storyteller will wake you if you need to act.</p>
     ${ch && !ch.ended ? `<button class="btn primary huge" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>`

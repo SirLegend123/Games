@@ -201,6 +201,7 @@ label.field { display: grid; gap: 6px; }
 .charchip { display: grid; justify-items: center; gap: 2px; background: var(--parch); color: var(--parch-ink); border-radius: 14px; padding: 10px 16px; font-weight: 800; font-size: 1.1rem; min-width: 110px; }
 .charchip .ico { font-size: 2.4rem; line-height: 1.1; }
 .charchip { border: 5px solid var(--townsfolk); }
+.charchip.t-traveller { border-color: #c9a227; }
 .charchip.t-outsider { border-color: var(--outsider); } .charchip.t-minion, .charchip.t-demon { border-color: var(--evil); }
 /* A woken player's screen is tinted with their team's colour */
 .draw.tint-evil { background: radial-gradient(circle at 50% 35%, #8a1a2c 0%, #4a0c17 55%, #24050b 100%); }
@@ -274,7 +275,7 @@ document.getElementById("homeBtn").addEventListener("click", e => {
 </div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
-<script>window.APP_V = 85;</script>
+<script>window.APP_V = 86;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -593,7 +594,7 @@ const logHtml = () => S.log.length ? `<ol class="log">${S.log.map(l => `<li>${l}
 
 /* ---------- Nights ---------- */
 // First night wake order. MINION and DEMON are the evil team's info (7 or more players).
-const FIRST_NIGHT = ["TOLD", "Philosopher", "Barista", "Bureaucrat", "Thief", "Apprentice", "MINION", "Lunatic", "DEMON", "Sailor", "Courtier", "Poisoner", "Snake Charmer", "Godfather", "Devil's Advocate", "Evil Twin", "Witch", "Cerenovus", "Pukka", "Washerwoman", "Librarian", "Investigator", "Chef", "Empath", "Fortune Teller", "Butler", "Grandmother", "Clockmaker", "Dreamer", "Seamstress", "Spy", "Chambermaid", "Mathematician"];
+const FIRST_NIGHT = ["TOLD", "TRAVEL", "Philosopher", "Barista", "Bureaucrat", "Thief", "Apprentice", "MINION", "Lunatic", "DEMON", "Sailor", "Courtier", "Poisoner", "Snake Charmer", "Godfather", "Devil's Advocate", "Evil Twin", "Witch", "Cerenovus", "Pukka", "Washerwoman", "Librarian", "Investigator", "Chef", "Empath", "Fortune Teller", "Butler", "Grandmother", "Clockmaker", "Dreamer", "Seamstress", "Spy", "Chambermaid", "Mathematician"];
 // Every other night. TOLD wakes a player whose character changed, to tell them.
 const OTHER_NIGHTS = ["TOLD", "Philosopher", "Barista", "Bureaucrat", "Thief", "Bone Collector", "Poisoner", "Sailor", "Courtier", "Innkeeper", "Gambler", "Snake Charmer", "Monk", "Devil's Advocate", "Witch", "Cerenovus", "Pit-Hag", "Exorcist", "Lunatic", "Imp", "Zombuul", "Pukka", "Shabaloth", "Po", "Fang Gu", "No Dashii", "Vortox", "Vigormortis", "Harlot", "Assassin", "Godfather", "Gossip", "Tinker", "Sage", "Professor", "Ravenkeeper", "Empath", "Fortune Teller", "Undertaker", "Dreamer", "Flowergirl", "Town Crier", "Oracle", "Seamstress", "Juggler", "Butler", "Spy", "Chambermaid", "Mathematician"];
 // pick: how many players they choose. chars: they choose a character too. rem: the reminder their choice gets.
@@ -626,6 +627,8 @@ const ACT = {
   Chambermaid: { pick: 2, notSelf: true, result: "chamber", say: "Choose 2 players (not yourself): you learn how many of them woke tonight because of their own ability." },
   Mathematician: { info: "number", calc: "math", say: "Players whose abilities worked abnormally tonight" },
   MINION: { info: "minion" }, DEMON: { info: "demon" }, Lunatic: { info: "lunatic" },
+  // ✈️ Each Traveller learns their side on their first night
+  TRAVEL: { info: "trav" },
   // ✈️ Travellers who act at night
   Bureaucrat: { pick: 1, notSelf: true, rem: "3 votes", say: "Choose a player (not yourself): their vote counts as 3 votes tomorrow." },
   Thief: { pick: 1, notSelf: true, rem: "Negative vote", say: "Choose a player (not yourself): their vote counts negatively tomorrow." },
@@ -679,6 +682,7 @@ function buildNight(after = -1) {
   nightOrder().forEach((k, ki) => {
     if (ki <= after) return;
     if (k === "TOLD") { for (const pid of S.toTell || []) steps.push({ key: k, pid }); return; }
+    if (k === "TRAVEL") { for (const pid of travIds().filter(q => roleOf(q))) steps.push({ key: k, pid }); return; }
     if (k === "MINION") { if (evilInfo && minions().length) steps.push({ key: k, pid: minions()[0] }); return; }
     if (k === "DEMON") { if (evilInfo && demons().length) steps.push({ key: k, pid: demons()[0] }); return; }
     if (k === "Lunatic" && S.n === 1 && !evilInfo) return;
@@ -887,7 +891,7 @@ function nightHtml() {
       <div class="row"><button class="btn" data-act="night-show">← Show them again</button><span class="spacer"></span><button class="btn primary" data-act="night-apply">Next →</button></div></section>`;
     else if (a.st) card = `<section class="card">${head}${stOnlyHtml(st, c)}</section>`;
     else {
-      const truthSeg = (a.info && !["minion", "demon", "lunatic", "grim", "twin", "told"].includes(a.info)) || (a.result && !["gamble", "pithag", "professor", "exorcist"].includes(a.result)) ? `<div class="field"><span class="label">Their info</span>
+      const truthSeg = (a.info && !["minion", "demon", "lunatic", "grim", "twin", "told", "trav"].includes(a.info)) || (a.result && !["gamble", "pithag", "professor", "exorcist"].includes(a.result)) ? `<div class="field"><span class="label">Their info</span>
         <span class="seg"><button data-act="truth" data-v="1" aria-pressed="${c.truth}">True</button><button data-act="truth" data-v="0" aria-pressed="${!c.truth}">False</button></span></div>` : "";
       card = `<section class="card">${head}
         ${why.length && !a.kill && st.key !== "TOLD" ? `<p class="warn">⚠ ${esc(cap(listJoin(why)))}: their ability may not work, and you may give them false info.</p>` : ""}
@@ -914,6 +918,7 @@ function stNote(st) {
   if (a.info === "lunatic") return `The Lunatic thinks they are the ${esc(shownOf(i))}. Show them fake Minions and the bluffs, just as if they were the Demon.`;
   if (a.info === "twin") return `Wake the Evil Twin and their good twin together, so they see each other.`;
   if (a.info === "grim") return `The phone shows them the whole Grimoire. Give them time to look.`;
+  if (a.info === "trav") return `The phone shows them their Traveller character and their side, ${sideOf(st.pid) === "evil" ? "evil" : "good"}.`;
   if (a.info === "told") return `The phone shows them their new character: the ${esc(roleOf(i))}, ${sideOf(i)}.`;
   if (a.fake) return `The Lunatic thinks they are the ${esc(shownOf(i))}. Let them choose as if they were: nothing happens.`;
   if (a.info) return `Check the info below, then show them.`;
@@ -993,6 +998,7 @@ function nightTint() {
   if (!st || st.key === "MINION") return "evil";
   const seen = st.key === "TOLD" ? roleOf(st.pid) : roleOf(st.pid) === "Lunatic" ? shownOf(st.pid) : wakesAs(st.pid);
   const t = teamOf(seen);
+  if (t === "traveller" || st.key === "TRAVEL") return sideOf(st.pid) === "evil" ? "evil" : "townsfolk";
   return t === "minion" || t === "demon" || (st.key === "TOLD" && sideOf(st.pid) === "evil") ? "evil" : t;
 }
 // The Grimoire as a list, for the Spy's phone: the circle only lays out in this app
@@ -1034,6 +1040,7 @@ function nightPlayerHtml(phone) {
       <p class="lead">These characters are not in play:</p>${chars(S.bluffs.filter(Boolean))}
       ${a.info === "demon" && lun ? `<p class="lead">The Lunatic is</p>${nameList([lun])}` : ""}${done}`;
   }
+  else if (a.info === "trav") { const ev = sideOf(st.pid) === "evil"; body = `<p class="lead">You are a Traveller: the</p>${chars([roleOf(st.pid)])}<p class="lead">You are</p><div class="answer small ${ev ? "evil-t" : ""}">${ev ? "Evil" : "Good"}</div>${done}`; }
   else if (a.info === "grim") body = `<p class="lead">The Grimoire</p>${phone ? grimListHtml() : `<div class="spy">${circleHtml()}</div>`}${done}`;
   else if (c.done) body = resultHtml(st, c) + done;
   else {
@@ -1121,6 +1128,7 @@ function logLine(st, c) {
   if (a.info === "grandchild") return `${who} was shown ${esc(nameOf(I.pid))} as their grandchild, the ${esc(I.role)}.${lie}`;
   if (a.info === "twin") return `${who} and ${esc(nameOf(I.pid))} learnt they are twins.`;
   if (a.info === "grim") return `${who} saw the Grimoire.`;
+  if (a.info === "trav") return `${who} learnt they're ${sideOf(st.pid) === "evil" ? "evil" : "good"}.`;
   if (a.st) return c.stTarget && c.stKilled ? `${esc(nameOf(c.stTarget))} died (${a.st === "gossip" ? "the Gossip" : "the Tinker"}).` : "";
   if (S.night.exorcised === st.pid && a.kill) return `${who} was exorcised and didn't act.`;
   if (c.skipped) return a.kill ? `${who} chose no-one.` : `${who} chose not to use their ability.`;
@@ -1651,6 +1659,7 @@ function evilDeed(r) {
   const a = (r.n > 1 && ACT_LATER[r.key]) || ACT[r.key] || {}, names = qs => listJoin((qs || []).map(q => `<b>${esc(nameOf(q))}</b>`));
   if (r.key === "TOLD") return [[`became the ${esc(r.now || r.role)}`, ""]];
   if (a.info === "grim") return [["looked at the Grimoire", ""]];
+  if (a.info === "trav") return [];
   if (a.info === "outsiders") return [["learnt which Outsiders were in play", ""]];
   if (a.info === "lunatic" || a.info === "twin") return [];
   if (r.skipped) return a.kill ? [["chose to kill no-one", ""]] : [];
