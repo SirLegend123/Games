@@ -135,7 +135,7 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass)
 <body>
 <div id="app"></div>
 <div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
-<script>window.APP_V = 84;</script>
+<script>window.APP_V = 85;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -210,6 +210,7 @@ function circle(opts = {}) {
       <span class="disc">${r ? `<span class="ico">${c ? c.icon : ""}</span><span class="rl" style="--fs:${Math.min(.16, 1.4 / word).toFixed(3)}">${esc(r.role)}</span>` : `<span class="nm" style="--fs:${Math.min(.24, 1.5 / word).toFixed(3)}">${esc(p.name)}</span>`}</span>
       ${r ? `<span class="plate">${esc(p.name)}</span>` : ""}
       ${!roles && dead ? `<span class="ghost ${s.vote ? "" : "used"}">${s.vote ? "👻 ghost vote" : "no vote"}</span>` : ""}
+      ${p.trav && !r ? `<span class="ghost trav">✈️ ${esc(p.trav)}</span>` : ""}
       ${talking ? `<span class="ghost">💬 talking</span>` : ""}
     </div>`;
   }).join("")}
@@ -233,7 +234,7 @@ function dayPanel() {
   }
   if ((G.say || []).length) cards.push(`<div class="card say"><h2>📣 Town talk</h2>${G.say.map(x => `<p class="big"><b>${esc(nameOf(x[1]))}:</b> ${esc(x[2])}</p>`).join("")}</div>`);
   if (G.vote) {
-    const v = G.vote, n = v.votes.length;
+    const v = G.vote, n = v.count != null ? v.count : v.votes.length;
     cards.push(`<div class="card"><h2>Vote</h2><p class="big"><b>${esc(nameOf(v.by))}</b> nominated <b>${esc(nameOf(v.of))}</b></p>
       <p class="huge">${n} <span class="muted" style="font-size:.35em">of ${G.need} needed${G.block && G.block.best ? ` · ${G.block.best} to beat` : ""}</span></p>
       ${n ? `<p class="muted">${esc(listJoin(v.votes.map(nameOf)))}</p>` : ""}</div>`);

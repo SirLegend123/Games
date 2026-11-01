@@ -252,7 +252,7 @@ body.has-handbar .wrap { padding-bottom: 160px; }
 .btn.huge { font-size: 1.2rem; min-height: 60px; padding: 12px 28px; }
 .token-big { width: min(300px, 74vw); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); border: 12px solid var(--townsfolk); display: grid; place-content: center; justify-items: center; gap: 6px; font-family: var(--font-display); font-size: 2rem; box-shadow: 0 6px 22px rgba(0,0,0,.45); animation: flip .45s ease; }
 .token-big .ico { font-size: 5rem; line-height: 1; }
-.token-big.outsider { border-color: var(--outsider); } .token-big.evil { border-color: var(--evil); }
+.token-big.outsider { border-color: var(--outsider); } .token-big.traveller { border-color: #c9a227; } .token-big.evil { border-color: var(--evil); }
 @keyframes flip { from { transform: rotateY(90deg); } to { transform: none; } }
 .welcome { text-align: center; justify-items: center; padding: 28px 18px; }
 .welcome h2 { font-size: 2rem; }
@@ -282,7 +282,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 84;</script>
+<script>window.APP_V = 85;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -442,7 +442,7 @@ function circleHtml() {
     const read = me ? (S.side === "evil" ? "suspect" : "trust") : A.read;
     return `<button class="seat ${read} ${me ? "me" : ""} ${A.dead ? "dead" : ""} ${ui.sel === p.id ? "sel" : ""}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" data-act="sel" data-pid="${p.id}" aria-label="Seat ${i + 1}: ${esc(nameOf(p.id))}${role ? `, ${me ? "you are" : "claims"} the ${esc(role)}` : ""}">
       <span class="disc">${c ? `<span class="ico" aria-hidden="true">${c.icon}</span><span class="nm" style="--fs:${Math.min(.17, 1.45 / word).toFixed(3)}">${esc(role)}</span>` : `<span class="q">?</span>`}</span>
-      <span class="plate">${me ? "★ " : ""}${esc(nameOf(p.id))}</span>
+      <span class="plate">${me ? "★ " : ""}${A.trav ? "✈️ " : ""}${esc(nameOf(p.id))}</span>
       ${A.read === "demon" && !me ? `<span class="badge demon">Demon?</span>` : A.dead && !A.ghost ? `<span class="badge">👻 vote</span>` : ""}
     </button>`;
   }).join("");
@@ -541,7 +541,7 @@ function evilCircle() {
     const badge = mate && claimOf(p.id) ? `<span class="badge">as ${esc(claimOf(p.id))}</span>` : !mate && A.threat === "target" ? `<span class="badge demon">🎯 Target</span>` : A.dead && !A.ghost ? `<span class="badge">👻 vote</span>` : "";
     return `<button class="seat ${cls} ${me ? "me" : ""} ${A.dead ? "dead" : ""} ${ui.sel === p.id ? "sel" : ""}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" data-act="sel" data-pid="${p.id}" aria-label="Seat ${i + 1}: ${esc(nameOf(p.id))}${mate ? ", on your team" : ""}${role ? `, ${esc(role)}` : ""}">
       <span class="disc">${c ? `<span class="ico" aria-hidden="true">${c.icon}</span><span class="nm" style="--fs:${Math.min(.17, 1.45 / word).toFixed(3)}">${esc(role)}</span>` : `<span class="q">${mate ? "😈" : "?"}</span>`}</span>
-      <span class="plate">${me ? "★ " : ""}${esc(nameOf(p.id))}</span>
+      <span class="plate">${me ? "★ " : ""}${A.trav ? "✈️ " : ""}${esc(nameOf(p.id))}</span>
       ${badge}
     </button>`;
   }).join("");
@@ -783,7 +783,12 @@ function syncFromLobby(lb) {
   S.P = P;
   S.players = lb.players.map(hp => ({ id: hp.id, name: hp.name }));
   if (lb.you) S.me = lb.you; else if (me) S.me = me;
-  for (const hp of lb.players) { const A = about(hp.id); A.dead = !!hp.dead; if (!A.dead) A.ghost = false; }
+  for (const hp of lb.players) {
+    const A = about(hp.id); A.dead = !!hp.dead; if (!A.dead) A.ghost = false;
+    // ✈️ A Traveller's character is public: it goes on their token
+    A.trav = !!hp.trav;
+    if (hp.trav && hp.trav !== "Traveller" && hp.id !== lb.you) A.claim = hp.trav;
+  }
   if (lb.ph != null) S.ph = lb.ph;
   if (lb.you && S.step === "players") S.step = "token";
   const changed = newGame || JSON.stringify([S.step, S.players, S.me, S.script, S.ph, S.players.map(p => about(p.id).dead)]) !== before;
