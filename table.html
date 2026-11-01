@@ -286,6 +286,10 @@ label.field, .field { display: grid; gap: 6px; }
 .cl-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .cl-list li { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
 .cl-list .ico { font-size: 1.5rem; }
+.rule { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
+.rchip { border: 1px dashed var(--brass); background: var(--surface); color: inherit; border-radius: 999px; padding: 2px 9px; font-weight: 800; font-size: .85rem; }
+.rchip.out { border-style: solid; border-color: var(--line); color: var(--muted); text-decoration: line-through; }
+.rchip.out small { text-decoration: none; display: inline-block; }
 .cl-list li.old { opacity: .55; } .cl-list li.old b { text-decoration: line-through; }
 .cl-list small { color: var(--muted); display: block; }
 .deaths { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
@@ -307,7 +311,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="sigBox" hidden></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 87;</script>
+<script>window.APP_V = 88;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -364,13 +368,16 @@ const roleInput = (id, val = "") => S.script === "other"
   : `<select id="${id}"><option value="">Character…</option>${charGroups().map(([l, rs]) => `<optgroup label="${l}">${rs.map(r => `<option ${r === val ? "selected" : ""}>${esc(r)}</option>`).join("")}</optgroup>`).join("")}</select>`;
 
 // A soft claim can be one of several characters ("I'm the Slayer, Soldier or Mayor")
-const rolesOf = c => c.roles || [c.role];
+// The characters a claim still stands for: a soft claim's characters can be ruled out one by one, day by day
+const allRolesOf = c => c.roles || [c.role];
+const rolesOf = c => allRolesOf(c).filter(r => !(c.out || []).some(o => o.r === r));
 const orList = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " or " + a[a.length - 1];
 const claimText = c => orList(rolesOf(c));
 // What each player is claiming: their latest hard claim, or else their latest soft one
 function currentClaim(pid) {
   const cs = about(pid).claims;
-  return [...cs].reverse().find(c => c.kind === "hard") || cs[cs.length - 1] || null;
+  const live = cs.filter(c => rolesOf(c).length);
+  return [...live].reverse().find(c => c.kind === "hard") || live[live.length - 1] || null;
 }
 // A new soft claim replaces the soft claims before it: only the latest one stands
 const latestSoft = pid => [...about(pid).claims].reverse().find(c => c.kind === "soft") || null;
@@ -592,8 +599,10 @@ function readHtml(pid) {
 }
 function panelHtml(pid) {
   const A = about(pid), d = A.death, me = pid === S.me;
+  // The current soft claim: tap a character to rule it out (and tap again to bring it back)
+  const ruling = c => c.kind === "soft" && !replaced(pid, c) && allRolesOf(c).length > 1;
   const claims = A.claims.map(c => `<li class="${replaced(pid, c) ? "old" : ""}"><span class="ico">${rolesOf(c).map(iconOf).join("")}</span>
-      <span><span class="kind ${c.kind}">${c.kind === "hard" ? "Hard" : "Soft"}</span> <b>${esc(claimText(c))}</b> <small>${phaseName(c.ph)}${c.note ? ` · ${esc(c.note)}` : ""}${replaced(pid, c) ? " · replaced" : ""}</small></span>
+      <span><span class="kind ${c.kind}">${c.kind === "hard" ? "Hard" : "Soft"}</span> ${ruling(c) ? `<span class="rule">${allRolesOf(c).map(r => { const o = (c.out || []).find(x => x.r === r); return `<button class="rchip ${o ? "out" : ""}" data-act="soft-out" data-pid="${pid}" data-id="${c.id}" data-role="${esc(r)}" aria-pressed="${!!o}" title="${o ? `Ruled out on ${phaseName(o.ph)}: tap to bring back` : "Tap to rule out"}">${iconOf(r)} ${esc(r)}${o ? ` <small>✕ ${o.ph % 2 ? "D" : "N"}${Math.floor(o.ph / 2) + 1}</small>` : ""}</button>`; }).join("")}</span>` : `<b>${esc(claimText(c) || orList(allRolesOf(c)))}</b>`} <small>${phaseName(c.ph)}${c.note ? ` · ${esc(c.note)}` : ""}${replaced(pid, c) ? " · replaced" : ""}${ruling(c) ? " · tap a character to rule it out" : ""}</small></span>
       <button class="x" data-act="claim-del" data-pid="${pid}" data-id="${c.id}" aria-label="Remove this claim">×</button></li>`).join("");
   const cur = currentClaim(pid), abs = cur ? rolesOf(cur).map(r => CHAR[r]).filter(Boolean) : [];
   return `<section class="card">
@@ -1101,6 +1110,12 @@ document.addEventListener("click", ev => {
     }
     case "kind": ui.kind = el.dataset.v; if (ui.kind === "hard") ui.claimRoles = ui.claimRoles.slice(-1); { const r = $("claimRole") && $("claimRole").value, n = $("claimNote") && $("claimNote").value; render(); if ($("claimRole")) $("claimRole").value = r || ""; if ($("claimNote")) $("claimNote").value = n || ""; } return;
     case "claim-add": return addClaim(pid);
+    case "soft-out": {
+      const c = about(pid).claims.find(x => x.id === el.dataset.id), r = el.dataset.role, isOut = (c.out || []).some(o => o.r === r);
+      if (!isOut && rolesOf(c).length <= 1) return; // keep at least one (× deletes the whole claim)
+      c.out = (c.out || []).some(o => o.r === r) ? c.out.filter(o => o.r !== r) : [...(c.out || []), { r, ph: S.ph }];
+      keepDraft(); return;
+    }
     case "read": about(pid).read = el.dataset.v; keepDraft(); return;
     case "claim-del": about(pid).claims = about(pid).claims.filter(c => c.id !== el.dataset.id); break;
     case "die":
