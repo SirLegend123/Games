@@ -106,11 +106,35 @@ const SCRIPTS = {
     ]
   } }
 };
+// ✈️ Travellers: for players who arrive late or leave early. They're not in the bag or the setup numbers;
+// the Storyteller gives them a character (which everyone knows) and a side (which only they know).
+SCRIPTS.tb.travellers = [
+  ["Scapegoat", "🐐", "If a player of your alignment is executed, you might be executed instead."],
+  ["Gunslinger", "🔫", "Each day, after the 1st vote has been tallied, you may choose a player that voted: they die."],
+  ["Beggar", "🥣", "You must use a vote token to vote. If a dead player gives you theirs, you learn their alignment. You are sober & healthy."],
+  ["Bureaucrat", "📜", "Each night, choose a player (not yourself): their vote counts as 3 votes tomorrow."],
+  ["Thief", "🦹", "Each night, choose a player (not yourself): their vote counts negatively tomorrow."]
+];
+SCRIPTS.bmr.travellers = [
+  ["Apprentice", "🎓", "On your 1st night, you gain a Townsfolk ability (if good) or a Minion ability (if evil)."],
+  ["Matron", "👵", "Each day, you may choose up to 3 sets of 2 players to swap seats. Players may not leave their seats to talk in private."],
+  ["Judge", "⚖️", "Once per game, if another player nominated, you may choose to force the current execution to pass or fail."],
+  ["Bishop", "⛪", "Only the Storyteller can nominate. At least 1 opposing player must be nominated each day."],
+  ["Voudon", "🪆", "Only you & the dead can vote. They don't need a vote token to do so. A 50% majority is not required."]
+];
+SCRIPTS.snv.travellers = [
+  ["Barista", "☕", "Each night, until dusk, 1) a player becomes sober, healthy & gets true info, or 2) their ability works twice. They learn which."],
+  ["Harlot", "💋", "Each night*, choose a living player: if they agree, you learn their character, but you both might die."],
+  ["Butcher", "🔪", "Each day, after the 1st execution, you may nominate again."],
+  ["Bone Collector", "⚱️", "Once per game, at night*, choose a dead player: they regain their ability until dusk."],
+  ["Deviant", "🤡", "If you were funny today, you cannot die by exile."]
+];
 const TEAMS = ["townsfolk", "outsider", "minion", "demon"];
-const TEAM_LABEL = { townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demon" };
-const TEAM_ONE = { townsfolk: "Townsfolk", outsider: "Outsider", minion: "Minion", demon: "Demon" };
+const TEAM_LABEL = { townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demon", traveller: "Travellers" };
+const TEAM_ONE = { townsfolk: "Townsfolk", outsider: "Outsider", minion: "Minion", demon: "Demon", traveller: "Traveller" };
 const CHAR = {};
 for (const sc of Object.values(SCRIPTS)) for (const t of TEAMS) for (const [name, icon, text] of sc.roles[t]) CHAR[name] = { name, icon, text, team: t };
+for (const sc of Object.values(SCRIPTS)) for (const [name, icon, text] of sc.travellers || []) CHAR[name] = { name, icon, text, team: "traveller" };
 const teamOf = r => (CHAR[r] || {}).team || "townsfolk";
 const alignOf = r => ["minion", "demon"].includes(teamOf(r)) ? "evil" : "good";
 // Townsfolk / Outsiders / Minions / Demon by player count

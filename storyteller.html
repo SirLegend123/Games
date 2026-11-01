@@ -178,6 +178,10 @@ label.field { display: grid; gap: 6px; }
 .story-text { font-size: 1.15rem; line-height: 1.6; max-width: 70ch; }
 .story-text h3 { margin: 18px 0 4px; font-family: var(--font-display); font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 1.4rem; color: var(--brass); }
 .story-text p { margin: 0 0 10px; }
+.trav-btn[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
+.trav-row { display: grid; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.trav-row:last-child { border-bottom: 0; }
+.trav-day { display: grid; gap: 4px; }
 #townBtn.live { background: var(--good); border-color: var(--good); color: #fff; }
 .town-card { border-color: var(--brass); }
 .join-banner { border-color: var(--brass); }
@@ -270,7 +274,7 @@ document.getElementById("homeBtn").addEventListener("click", e => {
 </div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
-<script>window.APP_V = 84;</script>
+<script>window.APP_V = 85;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -297,6 +301,18 @@ if (S.step === "done") S.step = "grim";
 let show = null; // a player looking at their character again, after the draw
 const ui = { sel: null, reveal: false, story: false, timerOpen: false };
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {} };
+
+/* ---------- ✈️ Travellers ---------- */
+// Travellers sit in the circle and vote, but they're not in the bag or the setup numbers. The Storyteller
+// gives each one a Traveller character (public) and a side (secret). They can be exiled instead of executed.
+const isTrav = pid => !!(S.players.find(p => p.id === pid) || {}).trav;
+const townIds = () => S.players.filter(p => !p.trav).map(p => p.id);
+const tCount = () => townIds().length;
+const travIds = () => S.players.filter(p => p.trav).map(p => p.id);
+const travChars = () => [...(SCRIPTS[S.script].travellers || []), ...Object.entries(SCRIPTS).filter(([k]) => k !== S.script).flatMap(([, v]) => v.travellers || [])];
+// Bureaucrat (3 votes) and Thief (a negative vote): how much each raised hand counts
+const voteWeight = pid => remsOf(pid).includes("3 votes") ? 3 : remsOf(pid).includes("Negative vote") ? -1 : 1;
+const voteCount = votes => votes.reduce((t, q) => t + voteWeight(q), 0);
 
 /* ---------- Setup counts ---------- */
 // What the setup should be for these characters, after Baron, Godfather, Fang Gu and Vigormortis
@@ -375,17 +391,18 @@ function joinBanner() {
   </section>`;
 }
 function playersHtml() {
-  const n = S.players.length;
+  const all = S.players.length, n = tCount();
   const rows = S.players.map((p, i) => `<div class="prow" data-i="${i}">
       <span class="n">${town.players[p.id] ? "📱" : i + 1}</span>
       <input type="text" data-name="${i}" value="${esc(p.name)}" placeholder="Player name" aria-label="Seat ${i + 1} name" autocomplete="off">
       <span class="btns">
         <button class="icon" data-act="up" data-i="${i}" aria-label="Move up" ${i === 0 ? "disabled" : ""}>↑</button>
-        <button class="icon" data-act="down" data-i="${i}" aria-label="Move down" ${i === n - 1 ? "disabled" : ""}>↓</button>
+        <button class="icon" data-act="down" data-i="${i}" aria-label="Move down" ${i === all - 1 ? "disabled" : ""}>↓</button>
+        <button class="icon trav-btn" data-act="trav" data-i="${i}" aria-pressed="${!!p.trav}" aria-label="Traveller" title="Traveller">✈️</button>
         <button class="icon" data-act="del" data-i="${i}" aria-label="Remove">×</button>
       </span>
     </div>`).join("");
-  const ex = expected(n, []);
+  const ex = expected(n, []), tv = all - n;
   return `${joinBanner()}<section class="card">
     <h2>Who's playing?</h2>
     <label class="field"><span class="label">Script</span>
@@ -396,10 +413,11 @@ function playersHtml() {
       <input type="text" id="newName" placeholder="Name" autocomplete="off" enterkeyhint="done" aria-label="New player's name">
       <button class="btn primary" data-act="add">Add</button>
     </div>
-    ${n ? `<div class="players">${rows}</div>` : ""}
-    <p class="hint">${n < 5 ? `${plural(n, "player")}. You need at least 5.` : n > 15 ? `${n} players. The most is 15.` : `${plural(n, "player")}: ${ex.c.map((x, i) => `${x} ${i === 3 ? "Demon" : TEAM_LABEL[TEAMS[i]]}`).join(", ")}.`}</p>
+    ${all ? `<div class="players">${rows}</div>` : ""}
+    <p class="hint">Tap ✈️ to make a player a Traveller: they're not in the bag, and you give them a Traveller character on the Grimoire.</p>
+    <p class="hint">${tv ? `✈️ ${plural(tv, "Traveller")}, plus ` : ""}${n < 5 ? `${plural(n, "player")}. You need at least 5.` : n > 15 ? `${n} players. The most is 15.` : `${plural(n, "player")}: ${ex.c.map((x, i) => `${x} ${i === 3 ? "Demon" : TEAM_LABEL[TEAMS[i]]}`).join(", ")}.`}</p>
     <div class="row">
-      ${n ? `<button class="btn danger" data-act="clear-players">Clear all</button>` : ""}
+      ${all ? `<button class="btn danger" data-act="clear-players">Clear all</button>` : ""}
       <span class="spacer"></span>
       <button class="btn primary" data-act="to-bag" ${COMP[n] ? "" : "disabled"}>Build the bag →</button>
     </div>
@@ -407,7 +425,7 @@ function playersHtml() {
 }
 
 function bagHtml() {
-  const n = S.players.length, R = SCRIPTS[S.script].roles;
+  const n = tCount(), R = SCRIPTS[S.script].roles;
   const inBag = new Set(S.bag.map(b => b.role)), roles = S.bag.map(b => b.role);
   const shownSel = S.bag.map((b, i) => {
     if (!SHOWN[b.role]) return "";
@@ -488,7 +506,7 @@ function circleHtml(opts = {}) {
     const hl = opts.hl && opts.hl.includes(p.id);
     return `<button class="seat ${sideOf(p.id)} ${S.dead[p.id] ? "dead" : ""} ${ui.sel === p.id || hl ? "sel" : ""}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" data-act="sel" data-pid="${p.id}" aria-label="Seat ${i + 1}: ${esc(nameOf(p.id))}, ${esc(role || "no character")}">
       <span class="disc">${role ? `<span class="ico" aria-hidden="true">${c.icon}</span><span class="nm" style="--fs:${Math.min(.17, 1.45 / word).toFixed(3)}">${esc(role)}</span>${shownOf(p.id) ? `<span class="th">${esc(shownOf(p.id))}</span>` : ""}` : `<span class="nm" style="--fs:.12">?</span>`}</span>
-      <span class="plate">${esc(nameOf(p.id))}</span>
+      <span class="plate">${isTrav(p.id) ? "✈️ " : ""}${esc(nameOf(p.id))}</span>
       ${rems.length ? `<span class="rems">${rems.map(r => `<span class="rem ${REM_CLS[r] ?? "info"}">${esc(r)}</span>`).join("")}</span>` : ""}
     </button>`;
   }).join("");
@@ -519,6 +537,23 @@ function playerPanel(pid) {
   </section>`;
 }
 
+function travCardHtml() {
+  const ids = travIds();
+  if (!ids.length) return "";
+  const own = SCRIPTS[S.script].travellers || [];
+  const rows = ids.map(pid => {
+    const d = S.drawn[pid] || {}, c = CHAR[d.role];
+    return `<div class="trav-row"><b>✈️ ${esc(nameOf(pid))}${town.players[pid] ? " 📱" : ""}</b>
+      <select data-trav-role="${pid}" aria-label="${esc(nameOf(pid))}'s Traveller character"><option value="">Choose a Traveller…</option>
+        <optgroup label="${esc(SCRIPTS[S.script].name)}">${own.map(([r, ic]) => `<option value="${esc(r)}" ${d.role === r ? "selected" : ""}>${ic} ${esc(r)}</option>`).join("")}</optgroup>
+        <optgroup label="Other scripts">${travChars().filter(t => !own.includes(t)).map(([r, ic]) => `<option value="${esc(r)}" ${d.role === r ? "selected" : ""}>${ic} ${esc(r)}</option>`).join("")}</optgroup></select>
+      <span class="seg"><button class="g" data-act="trav-side" data-pid="${pid}" data-v="good" aria-pressed="${!!d.sideSet && d.align !== "evil"}">Good</button><button class="e" data-act="trav-side" data-pid="${pid}" data-v="evil" aria-pressed="${!!d.sideSet && d.align === "evil"}">Evil</button></span>
+      ${d.role && !d.sideSet ? `<p class="hint">Choose their side to send their token.</p>` : d.role && d.sideSet ? `<p class="hint">${town.players[pid] ? "📱 Token sent to their phone." : "Not on a phone: show them their token."}</p>` : ""}
+      ${c ? `<p class="hint">${c.icon} ${esc(c.text)}</p>` : ""}</div>`;
+  }).join("");
+  return `<section class="card trav-card"><h2>✈️ Travellers</h2>
+    <p class="hint">Give each Traveller a character (everyone may know it) and a side (only they know it). Their token goes to their phone as soon as both are set.</p>${rows}</section>`;
+}
 function grimHtml() {
   const bluffSel = i => {
     const free = new Set(freeGood());
@@ -551,16 +586,16 @@ function grimHtml() {
     <section class="card"><div class="row"><button class="btn danger" data-act="new-game">New game</button></div></section>`;
   return `<div class="grim-wrap">
     <div>${circleHtml()}<p class="hint" style="text-align:center">Tap a player to change their character, reminders or alive/dead.</p></div>
-    <div class="side">${side}${setup}</div>
+    <div class="side">${side}${travCardHtml()}${setup}</div>
   </div>`;
 }
 const logHtml = () => S.log.length ? `<ol class="log">${S.log.map(l => `<li>${l}</li>`).join("")}</ol>` : `<p class="hint">Nothing logged.</p>`;
 
 /* ---------- Nights ---------- */
 // First night wake order. MINION and DEMON are the evil team's info (7 or more players).
-const FIRST_NIGHT = ["TOLD", "Philosopher", "MINION", "Lunatic", "DEMON", "Sailor", "Courtier", "Poisoner", "Snake Charmer", "Godfather", "Devil's Advocate", "Evil Twin", "Witch", "Cerenovus", "Pukka", "Washerwoman", "Librarian", "Investigator", "Chef", "Empath", "Fortune Teller", "Butler", "Grandmother", "Clockmaker", "Dreamer", "Seamstress", "Spy", "Chambermaid", "Mathematician"];
+const FIRST_NIGHT = ["TOLD", "Philosopher", "Barista", "Bureaucrat", "Thief", "Apprentice", "MINION", "Lunatic", "DEMON", "Sailor", "Courtier", "Poisoner", "Snake Charmer", "Godfather", "Devil's Advocate", "Evil Twin", "Witch", "Cerenovus", "Pukka", "Washerwoman", "Librarian", "Investigator", "Chef", "Empath", "Fortune Teller", "Butler", "Grandmother", "Clockmaker", "Dreamer", "Seamstress", "Spy", "Chambermaid", "Mathematician"];
 // Every other night. TOLD wakes a player whose character changed, to tell them.
-const OTHER_NIGHTS = ["TOLD", "Philosopher", "Poisoner", "Sailor", "Courtier", "Innkeeper", "Gambler", "Snake Charmer", "Monk", "Devil's Advocate", "Witch", "Cerenovus", "Pit-Hag", "Exorcist", "Lunatic", "Imp", "Zombuul", "Pukka", "Shabaloth", "Po", "Fang Gu", "No Dashii", "Vortox", "Vigormortis", "Assassin", "Godfather", "Gossip", "Tinker", "Sage", "Professor", "Ravenkeeper", "Empath", "Fortune Teller", "Undertaker", "Dreamer", "Flowergirl", "Town Crier", "Oracle", "Seamstress", "Juggler", "Butler", "Spy", "Chambermaid", "Mathematician"];
+const OTHER_NIGHTS = ["TOLD", "Philosopher", "Barista", "Bureaucrat", "Thief", "Bone Collector", "Poisoner", "Sailor", "Courtier", "Innkeeper", "Gambler", "Snake Charmer", "Monk", "Devil's Advocate", "Witch", "Cerenovus", "Pit-Hag", "Exorcist", "Lunatic", "Imp", "Zombuul", "Pukka", "Shabaloth", "Po", "Fang Gu", "No Dashii", "Vortox", "Vigormortis", "Harlot", "Assassin", "Godfather", "Gossip", "Tinker", "Sage", "Professor", "Ravenkeeper", "Empath", "Fortune Teller", "Undertaker", "Dreamer", "Flowergirl", "Town Crier", "Oracle", "Seamstress", "Juggler", "Butler", "Spy", "Chambermaid", "Mathematician"];
 // pick: how many players they choose. chars: they choose a character too. rem: the reminder their choice gets.
 // once: once per game. when: whether they wake (default: alive). kill: their choice can kill.
 const ACT = {
@@ -590,7 +625,12 @@ const ACT = {
   Spy: { info: "grim" },
   Chambermaid: { pick: 2, notSelf: true, result: "chamber", say: "Choose 2 players (not yourself): you learn how many of them woke tonight because of their own ability." },
   Mathematician: { info: "number", calc: "math", say: "Players whose abilities worked abnormally tonight" },
-  MINION: { info: "minion" }, DEMON: { info: "demon" }, Lunatic: { info: "lunatic" }
+  MINION: { info: "minion" }, DEMON: { info: "demon" }, Lunatic: { info: "lunatic" },
+  // ✈️ Travellers who act at night
+  Bureaucrat: { pick: 1, notSelf: true, rem: "3 votes", say: "Choose a player (not yourself): their vote counts as 3 votes tomorrow." },
+  Thief: { pick: 1, notSelf: true, rem: "Negative vote", say: "Choose a player (not yourself): their vote counts negatively tomorrow." },
+  Barista: { st: "barista" },
+  Apprentice: { st: "apprentice" }
 };
 const diedToday = () => (S.today && S.today.deaths) || [];
 const demonKill = say => ({ pick: 1, kill: "demon", say });
@@ -622,7 +662,9 @@ const ACT_LATER = {
   Flowergirl: { info: "yesno", calc: "flower", say: "Did a Demon vote today?" },
   "Town Crier": { info: "yesno", calc: "crier", say: "Did a Minion nominate today?" },
   Oracle: { info: "number", calc: "oracle", say: "Dead players who are evil" },
-  Juggler: { info: "number", calc: "juggler", when: pid => alive(pid) && S.n === 2, say: "How many of your guesses today were right" }
+  Juggler: { info: "number", calc: "juggler", when: pid => alive(pid) && S.n === 2, say: "How many of your guesses today were right" },
+  Harlot: { pick: 1, notSelf: true, say: "Choose a living player: if they agree, you learn their character, but you both might die." },
+  "Bone Collector": { pick: 1, deadOnly: true, optional: true, once: true, rem: "Has ability", when: pid => alive(pid) && S.players.some(p => S.dead[p.id]), say: "Once per game: you may choose a dead player. They regain their ability until dusk." }
 };
 const actOf = key => (S.n > 1 && ACT_LATER[key]) || ACT[key];
 const pickN = a => typeof a.pick === "function" ? a.pick() : a.pick || 0;
@@ -633,7 +675,7 @@ const demons = () => inPlay().filter(pid => teamOf(roleOf(pid)) === "demon");
 const nightOrder = () => S.n > 1 ? OTHER_NIGHTS : FIRST_NIGHT;
 
 function buildNight(after = -1) {
-  const evilInfo = S.players.length >= 7 || S.evilAlways !== false, steps = [];
+  const evilInfo = tCount() >= 7 || S.evilAlways !== false, steps = [];
   nightOrder().forEach((k, ki) => {
     if (ki <= after) return;
     if (k === "TOLD") { for (const pid of S.toTell || []) steps.push({ key: k, pid }); return; }
@@ -765,7 +807,7 @@ function startNight() {
     S.history.push({ h: `Day ${D.n}`, lines: dayLines() });
     S.chron = [...(S.chron || []), dayRecord()];
     // Reminders that last until dusk
-    for (const pid of Object.keys(S.rem)) S.rem[pid] = S.rem[pid].filter(r => !["Protected", "Safe", "Cursed", "Mad", "Master", "Poisoned"].includes(r) || (r === "Poisoned" && pid === S.pukkaPrev));
+    for (const pid of Object.keys(S.rem)) S.rem[pid] = S.rem[pid].filter(r => !["Protected", "Safe", "Cursed", "Mad", "Master", "Poisoned", "3 votes", "Negative vote", "Has ability", "Sober & true", "Works twice"].includes(r) || (r === "Poisoned" && pid === S.pukkaPrev));
   }
   if (S.n === 1) S.start = Object.fromEntries(inPlay().map(q => [q, roleOf(q)]));
   S.preNight = null;
@@ -877,9 +919,21 @@ function stNote(st) {
   if (a.info) return `Check the info below, then show them.`;
   return `They choose on the phone: “${esc(sayOf(a))}”${a.kill ? " Then you'll see who dies." : a.result && a.result !== "gamble" ? " The phone then gives them their answer." : ""}`;
 }
-// Things only the Storyteller decides: the Gossip's and the Tinker's deaths
+// Things only the Storyteller decides: the Gossip's and the Tinker's deaths, the Barista's gift, the Apprentice's ability
 function stOnlyHtml(st, c) {
   const a = actOf(st.key);
+  const done = `<div class="row"><button class="btn" data-act="night-back">← Back</button><span class="spacer"></span><button class="btn primary" data-act="st-mark">Done →</button></div>`;
+  if (a.st === "barista") {
+    const ids = aliveIds(); c.stTarget = c.stTarget || ids[0]; c.bar = c.bar || "Sober & true";
+    return `<p>Choose a player. Until dusk, either they are sober, healthy and get true info, or their ability works twice. Wake them and tell them which.</p>${playerSel("data-sttarget", c.stTarget, ids, "Who")}
+      <span class="seg"><button data-act="bar-mode" data-v="Sober & true" aria-pressed="${c.bar === "Sober & true"}">Sober, healthy, true info</button><button data-act="bar-mode" data-v="Works twice" aria-pressed="${c.bar === "Works twice"}">Ability works twice</button></span>${done}`;
+  }
+  if (a.st === "apprentice") {
+    const team = sideOf(st.pid) === "evil" ? "minion" : "townsfolk", opts = scriptChars([team]);
+    c.stChar = c.stChar || opts[0];
+    return `<p>The Apprentice is ${sideOf(st.pid)}, so they gain a ${team === "minion" ? "Minion" : "Townsfolk"} ability. Choose one, then wake them and tell them.</p>
+      <label class="field"><span class="label">Their ability</span><select data-stchar>${opts.map(r => `<option ${r === c.stChar ? "selected" : ""}>${esc(r)}</option>`).join("")}</select></label>${done}`;
+  }
   const text = a.st === "gossip" ? "If the Gossip's public statement today was true, a player of your choice dies tonight." : "The Tinker might die at any time. Kill them tonight?";
   const ids = a.st === "tinker" ? [st.pid] : aliveIds();
   c.stTarget = c.stTarget || ids[0];
@@ -931,7 +985,7 @@ function stControls(st) {
 // The Minions a Demon was shown (fake ones for the Lunatic), so they don't kill their own team by mistake
 function knownMinions(pid) {
   if (roleOf(pid) === "Lunatic") return S.lunaticFake || [];
-  return teamOf(roleOf(pid)) === "demon" && S.players.length >= 7 ? minions() : [];
+  return teamOf(roleOf(pid)) === "demon" && tCount() >= 7 ? minions() : [];
 }
 // The colour of the team the woken player believes they're on
 function nightTint() {
@@ -1213,9 +1267,9 @@ function sendToken(pid) {
   const d = (S.dealt && S.dealt[pid]) || S.drawn[pid];
   if (!d || !town.players[pid]) return;
   S.dealt = S.dealt || {};
-  S.dealt[pid] = { role: d.role, shown: d.shown || "" };
+  S.dealt[pid] = { role: d.role, shown: d.shown || "", align: d.align || "" };
   const believe = d.shown || d.role;
-  tellPlayer(pid, { t: "token", gameId: S.gameId, role: believe, side: alignOf(believe) });
+  tellPlayer(pid, { t: "token", gameId: S.gameId, role: believe, side: teamOf(believe) === "traveller" ? (d.align || "good") : alignOf(believe) });
 }
 // When the Demon dies with 5 or more alive, the Scarlet Woman becomes the Demon and is told at night
 function scarletTakeover(demon) {
@@ -1362,6 +1416,22 @@ function sayHtml() {
   return `<h3>📣 Said to everyone</h3><ol class="log say">${L.slice(-20).map(x => `<li><b>${esc(nameOf(x.by))}:</b> ${esc(x.text)} <button class="x-inline" data-act="say-del" data-id="${x.id}" aria-label="Remove this message">×</button></li>`).join("")}</ol>`;
 }
 
+// ✈️ The Travellers today: their day abilities, as reminders
+function travDayHtml() {
+  const ids = travIds().filter(q => alive(q) && roleOf(q));
+  const unset = travIds().filter(q => !roleOf(q));
+  if (!ids.length && !unset.length) return "";
+  return `<div class="trav-day">${ids.map(q => { const c = CHAR[roleOf(q)] || {}; return `<p class="hint">✈️ <b>${esc(nameOf(q))}</b>, the ${c.icon || ""} ${esc(roleOf(q))}: ${esc(c.text || "")}</p>`; }).join("")}
+    ${unset.length ? `<p class="warn">✈️ ${esc(listJoin(unset.map(nameOf)))} ${unset.length === 1 ? "has" : "have"} no Traveller character yet. Set it on the Grimoire.</p>` : ""}</div>`;
+}
+// ✈️ Exile: anyone can call for a Traveller to be exiled. It's a vote, but not an execution
+function exileHtml(d) {
+  const ids = travIds().filter(alive);
+  return `<section class="card"><h2>✈️ Exile a Traveller</h2>
+    <p class="hint">Any player, alive or dead, can call for an exile. Everyone may vote, dead players without using their vote, and it needs votes from at least half of all players (${Math.ceil(S.players.length / 2)}). An exile isn't an execution, and doesn't stop one today.</p>
+    <div class="pickgrid">${ids.map(q => `<button class="pick" data-act="exile-do" data-pid="${q}">${esc(nameOf(q))}<small>${esc(roleOf(q) || "Traveller")}</small></button>`).join("")}</div>
+    <div class="row"><button class="btn" data-act="nom-cancel">Cancel</button></div></section>`;
+}
 function dayHtml() {
   const D = S.day, d = D.draft, need = votesNeeded();
   let card;
@@ -1381,13 +1451,16 @@ function dayHtml() {
       <p class="lead">${aliveIds().length} alive · <b>${need}</b> votes needed to execute.</p>
       ${b.who ? `<p class="notice">On the block: <b>${esc(nameOf(b.who))}</b> with ${plural(b.best, "vote")}.</p>` : b.best ? `<p class="notice">Tied on ${plural(b.best, "vote")}: nobody is on the block.</p>` : ""}
       ${phaseHtml()}
+      ${travDayHtml()}
       ${validHands().length ? `<h3>✋ Hands up to nominate</h3><div class="claims">${D.hands.map((h, k) => `<div class="row"><span style="flex:1"><b>${esc(nameOf(h.by))}</b> wants to nominate <b>${esc(nameOf(h.of))}</b></span><button class="btn primary" data-act="hand-start" data-i="${k}">Start</button><button class="icon" data-act="hand-drop" data-i="${k}" aria-label="Dismiss">×</button></div>`).join("")}</div>` : ""}
       <h3>Nominations</h3>${nomListHtml()}
       ${sayHtml()}
       ${(D.shots || []).length ? `<h3>Slayer shots</h3><ol class="log">${shotLines().map((l, k) => `<li>${l} <button class="x-inline" data-act="slay-del" data-i="${k}" aria-label="Undo this shot">×</button></li>`).join("")}</ol>` : ""}
-      <div class="row"><button class="btn primary" data-act="nom-new">+ New nomination</button><button class="btn" data-act="slay-new">🏹 Slayer shot</button>${sheetBtn()}<span class="spacer"></span><button class="btn" data-act="day-end">End the day →</button></div>
+      <div class="row"><button class="btn primary" data-act="nom-new">+ New nomination</button><button class="btn" data-act="slay-new">🏹 Slayer shot</button>${travIds().some(alive) ? `<button class="btn" data-act="exile-new">✈️ Exile</button>` : ""}${sheetBtn()}<span class="spacer"></span><button class="btn" data-act="day-end">End the day →</button></div>
       ${historyHtml()}
     </section>`;
+  } else if (d.stage === "exile") {
+    card = exileHtml(d);
   } else if (d.stage.startsWith("slayer")) {
     card = slayerHtml(d);
   } else if (d.stage === "by") {
@@ -1411,7 +1484,7 @@ function dayHtml() {
       <div class="row"><button class="btn ${fires ? "primary" : ""}" data-act="virgin-exec">Execute ${esc(nameOf(d.by))}</button><button class="btn ${fires ? "" : "primary"}" data-act="virgin-no">Nothing happens: vote</button><span class="spacer"></span><button class="btn" data-act="nom-cancel">Cancel</button></div>
       <p class="hint">Either way, the Virgin's ability is now used up.</p></section>`;
   } else {
-    const voters = S.players.map(p => p.id).filter(hasVote), count = d.votes.length;
+    const voters = S.players.map(p => p.id).filter(hasVote), count = voteCount(d.votes);
     const br = butlerRule();
     const locked = br && !d.votes.includes(br.master) ? [br.butler] : [];
     card = `<section class="card"><h2>Votes for ${esc(nameOf(d.of))}</h2>
@@ -1709,7 +1782,7 @@ setInterval(() => {
 // Only public information ever leaves this device: names, deaths, ghost votes, nominations, votes,
 // the timer and the dawn news. Characters are sent only once the game is over, for the reveal.
 function publicState() {
-  const st = { v: 1, script: SCRIPTS[S.script].name, scriptKey: S.script, sheet: !!ui.tvSheet, players: S.players.map(p => ({ id: p.id, name: nameOf(p.id) })) };
+  const st = { v: 1, script: SCRIPTS[S.script].name, scriptKey: S.script, sheet: !!ui.tvSheet, players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), ...(p.trav ? { trav: roleOf(p.id) || "Traveller" } : {}) })) };
   if (S.over) {
     // Characters go out one at a time, as the Storyteller reveals them
     const shown = S.revealed || [], all = shown.length === S.players.length;
@@ -1729,7 +1802,7 @@ function publicState() {
     ...st, mode: "day", n: D.n,
     noms: D.noms.map(n => ({ by: n.by, of: n.of, count: n.count, virgin: n.virgin === "executed" })),
     shots: (D.shots || []).map(x => ({ by: x.by, at: x.at, died: x.died })),
-    vote: d && d.stage === "vote" ? { by: d.by, of: d.of, votes: d.votes } : null,
+    vote: d && d.stage === "vote" ? { by: d.by, of: d.of, votes: d.votes, count: voteCount(d.votes) } : null,
     hands: validHands().map(h => [h.by, h.of]), nomsOpen: nomsOpen(), phase: dayPhase(), phaseName: PHASES[dayPhase()].name, say: sayList(6),
     block: D.done ? null : { who: b.who, best: b.best },
     done: D.done, exec: D.done && D.exec ? { pid: D.exec.pid, dies: D.exec.dies, virgin: D.exec.cause === "nominated the Virgin" } : null,
@@ -1785,7 +1858,7 @@ const PHASES = [
 ];
 const phaseMins = k => (S.phaseMins || [])[k] || PHASES[k].mins;
 // Once a nomination has started, it's the nominations, whatever was chosen
-const dayPhase = () => { const D = S.day; if (!D) return 0; const d = D.draft; return D.done || D.noms.length || (d && !d.stage.startsWith("slayer")) || D.nomsOpen ? 2 : D.phase || 0; };
+const dayPhase = () => { const D = S.day; if (!D) return 0; const d = D.draft; return D.done || D.noms.length || (d && !d.stage.startsWith("slayer") && d.stage !== "exile") || D.nomsOpen ? 2 : D.phase || 0; };
 const nomsOpen = () => chatDay() && !!S.day && dayPhase() === 2;
 const seatNeighbours = (a, b) => { const ids = S.players.map(p => p.id), n = ids.length, i = ids.indexOf(a), j = ids.indexOf(b); return i >= 0 && j >= 0 && (Math.abs(i - j) === 1 || Math.abs(i - j) === n - 1); };
 // At night, players can quietly message the neighbours either side of them
@@ -1977,7 +2050,7 @@ function startNomination(by, of) {
 function lobbyBase() {
   return { t: "lobby", v: window.APP_V, gameId: S.gameId, dayInfo: dayInfo(), day: chatDay(), night: chatNight() ? S.n : null,
     dawn: S.announce && S.step === "day" && !S.over ? { n: S.announce.n, ids: S.announce.pids } : null, noms: nomsOpen(), phase: chatDay() ? dayPhase() : null, say: sayList(30), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
-    players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), online: !!town.players[p.id], busy: inChat(p.id), dead: !!(S.dead || {})[p.id], k: (S.noteKeys || {})[p.id] || null })),
+    players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), online: !!town.players[p.id], busy: inChat(p.id), dead: !!(S.dead || {})[p.id], k: (S.noteKeys || {})[p.id] || null, ...(p.trav ? { trav: roleOf(p.id) || "Traveller" } : {}) })),
     chats: town.chats.map(c => [c.a, c.b]) };
 }
 const sayList = n => (chatDay() && S.day && S.day.say || []).slice(-n).map(x => [x.id, x.by, x.text]);
@@ -2101,8 +2174,13 @@ document.addEventListener("click", ev => {
     case "del": S.players.splice(i, 1); break;
     case "clear-players": if (!confirm("Remove every player?")) return; S.players = []; break;
     case "to-bag": S.step = "bag"; break;
+    case "trav-side": {
+      const q = el.dataset.pid; S.drawn[q] = { ...(S.drawn[q] || { role: "", shown: "" }), align: el.dataset.v, sideSet: true };
+      if (S.drawn[q].role) sendToken(q); break;
+    }
+    case "trav": { const P = S.players[i]; P.trav = !P.trav; if (!P.trav && S.drawn[P.id] && teamOf(S.drawn[P.id].role) === "traveller") delete S.drawn[P.id]; break; }
     case "to-players": S.step = "players"; break;
-    case "random": S.bag = randomBag(S.players.length); break;
+    case "random": S.bag = randomBag(tCount()); break;
     case "empty-bag": S.bag = []; break;
     case "toggle": {
       const r = el.dataset.role;
@@ -2111,9 +2189,9 @@ document.addEventListener("click", ev => {
       break;
     }
     case "start-draw":
-      if (!countsOk(S.players.length, S.bag.map(b => b.role)) && !confirm("The bag doesn't match the usual setup for this many players. Draw anyway?")) return;
+      if (!countsOk(tCount(), S.bag.map(b => b.role)) && !confirm("The bag doesn't match the usual setup for this many players. Draw anyway?")) return;
       S.drawn = {};
-      S.draw = { left: shuffle(S.bag.map(b => ({ ...b }))), queue: S.players.map(p => p.id), step: "pass" };
+      S.draw = { left: shuffle(S.bag.map(b => ({ ...b }))), queue: townIds(), step: "pass" };
       wake();
       break;
     case "draw-me": D.step = "pick"; break;
@@ -2125,8 +2203,8 @@ document.addEventListener("click", ev => {
     case "draw-stop": D.step = "stop"; break;
     case "draw-stop-yes": S.draw = null; S.step = "grim"; break;
     case "deal": {
-      if (!countsOk(S.players.length, S.bag.map(b => b.role)) && !confirm("The bag doesn't match the usual setup for this many players. Deal anyway?")) return;
-      const on = S.players.map(p => p.id).filter(q => town.players[q]), off = S.players.map(p => p.id).filter(q => !town.players[q]);
+      if (!countsOk(tCount(), S.bag.map(b => b.role)) && !confirm("The bag doesn't match the usual setup for this many players. Deal anyway?")) return;
+      const on = townIds().filter(q => town.players[q]), off = townIds().filter(q => !town.players[q]);
       if (off.length && !confirm(`${listJoin(off.map(nameOf))} ${off.length === 1 ? "hasn't" : "haven't"} joined on a phone. Send tokens to everyone who has, then pass this phone round to ${off.length === 1 ? "them" : "the rest"}?`)) return;
       const tokens = shuffle(S.bag.map(b => ({ ...b })));
       S.drawn = {}; S.dealt = {};
@@ -2144,10 +2222,18 @@ document.addEventListener("click", ev => {
     case "evil-always": S.evilAlways = el.dataset.v === "1"; break;
     case "bluffs-random": S.bluffs = ["", "", ""]; autoBluffs(); break;
     case "start-night":
-      if (S.bluffs.filter(Boolean).length < 3 && S.players.length >= 7 && !confirm("You haven't chosen 3 bluffs for the Demon. Start anyway?")) return;
+      if (S.bluffs.filter(Boolean).length < 3 && tCount() >= 7 && !confirm("You haven't chosen 3 bluffs for the Demon. Start anyway?")) return;
       S.n = 1; startNight(); wake(); break;
     case "night-cancel": if (S.preNight) S = JSON.parse(S.preNight); else { S.night = null; S.step = "grim"; } break;
     case "night-next": { const N = S.night, st = N.steps[N.i]; nextStep(!!(st && st.key === "MINION" && N.view === "remote")); break; }
+    case "bar-mode": S.night.cur.bar = el.dataset.v; break;
+    case "st-mark": {
+      // The Barista's player, or the Apprentice's new ability, as a reminder; then on to the next step
+      const N = S.night, st = N.steps[N.i], a = actOf(st.key), c = N.cur;
+      if (a.st === "barista" && c.stTarget) { addRem(c.stTarget, c.bar || "Sober & true"); S.log.push(`The Barista chose ${esc(nameOf(c.stTarget))}: ${esc((c.bar || "Sober & true").toLowerCase())}.`); }
+      if (a.st === "apprentice" && c.stChar) { addRem(st.pid, `Is the ${c.stChar}`); S.log.push(`The Apprentice, ${esc(nameOf(st.pid))}, gained the ${esc(c.stChar)} ability.`); }
+      nextStep(false); break;
+    }
     case "night-back": prevStep(); break;
     case "night-show": S.night.view = "player"; S.night.cur.skipped = false; break;
     case "night-phone": S.night.view = "remote"; S.night.cur.skipped = false; break;
@@ -2173,6 +2259,13 @@ document.addEventListener("click", ev => {
     case "yn": S.night.cur.info.yes = el.dataset.v === "1"; break;
     case "st-kill": { const c = S.night.cur; c.stKilled = true; c.kills = [{ pid: c.stTarget, dies: true, why: "", instead: "" }]; nextStep(true); break; }
     case "reveal": ui.reveal = !ui.reveal; ui.sel = null; break;
+    case "exile-new": S.day.draft = { stage: "exile", votes: [] }; break;
+    case "exile-do": {
+      const q = el.dataset.pid;
+      if (!confirm(`Exile ${nameOf(q)}? They die (it's not an execution).`)) return;
+      S.dead[q] = true; S.deathCause[q] = "exiled"; (S.day.exiles = S.day.exiles || []).push(q); S.day.draft = null;
+      S.log.push(`${esc(nameOf(q))} was exiled.`); break;
+    }
     case "nom-new": if (dayPhase() < 2) enterPhase(2); S.day.draft = { stage: "by", votes: [] }; break;
     case "tv-sheet": ui.tvSheet = !ui.tvSheet; break;
     case "phase-go": enterPhase(Number(el.dataset.v)); break;
@@ -2197,7 +2290,7 @@ document.addEventListener("click", ev => {
     }
     case "vote-ok": {
       const d = S.day.draft;
-      S.day.noms.push({ by: d.by, of: d.of, votes: d.votes, ghosts: d.votes.filter(q => !alive(q)), count: d.votes.length, need: votesNeeded(), ...(d.virginNothing ? { virgin: "nothing" } : {}) });
+      S.day.noms.push({ by: d.by, of: d.of, votes: d.votes, ghosts: d.votes.filter(q => !alive(q)), count: voteCount(d.votes), need: votesNeeded(), ...(d.virginNothing ? { virgin: "nothing" } : {}) });
       S.day.draft = null; break;
     }
     case "nom-del": {
@@ -2300,6 +2393,13 @@ document.addEventListener("change", ev => {
   if (I && t.dataset.infoRole !== undefined) { I.role = t.value; render(); }
   const C = S.night && S.night.cur;
   if (C && t.dataset.sttarget !== undefined) { C.stTarget = t.value; render(); }
+  if (C && t.dataset.stchar !== undefined) { C.stChar = t.value; render(); }
+  if (t.dataset.travRole !== undefined) {
+    const q = t.dataset.travRole;
+    // The token goes to their phone once both the character and the side are chosen
+    if (!t.value) delete S.drawn[q]; else { S.drawn[q] = { ...(S.drawn[q] || {}), role: t.value, shown: "", align: (S.drawn[q] || {}).align || "good" }; if (S.drawn[q].sideSet) sendToken(q); }
+    render();
+  }
   if (C && t.dataset.killInstead !== undefined) { C.kills[Number(t.dataset.killInstead)].instead = t.value; render(); }
   if (C && t.dataset.starpass !== undefined) { C.starpass = t.value; render(); }
   if (I && t.dataset.infoNone !== undefined) { I.none = t.checked; if (!t.checked && !I.pids) Object.assign(I, makeInfo({ ...S.night.steps[S.night.i] }, false), { none: false }); render(); }
