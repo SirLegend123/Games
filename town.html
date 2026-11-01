@@ -135,7 +135,7 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass)
 <body>
 <div id="app"></div>
 <div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
-<script>window.APP_V = 83;</script>
+<script>window.APP_V = 84;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -202,7 +202,7 @@ function circle(opts = {}) {
   return `<div class="circle" style="--tok:min(150px, ${tok}cqi)">${ps.map((p, i) => {
     const a = (i / n) * 2 * Math.PI - Math.PI / 2, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
     const s = seat(p.id), r = roles && roles[p.id], dead = r ? r.dead : roles ? (G.dead || []).includes(p.id) : s.dead;
-    const talking = (G.chats || []).some(c => c.includes(p.id));
+    const talking = (G.chats || []).some(c => c.includes(p.id)) || (G.notes || []).some(c => c.includes(p.id));
     const cls = [dead ? "dead" : "", v && v.of === p.id ? "nominee" : "", v && v.by === p.id ? "nominator" : "", v && v.votes.includes(p.id) ? "voted" : "", !v && G.block && G.block.who === p.id ? "block" : "", r ? r.side : ""].join(" ");
     const word = Math.max(...(r ? r.role : p.name).split(/\s+/).map(w => w.length), 3);
     const c = r && CHAR[r.role];
@@ -218,9 +218,9 @@ function circle(opts = {}) {
 }
 
 const PH = [
-  { icon: "💬", name: "Private chats", tip: "Chat privately with anyone on your phone. 📣 to say something to the whole town." },
-  { icon: "🗣️", name: "Public discussion", tip: "Talk together. Private chats only with your neighbours now." },
-  { icon: "📢", name: "Nominations", tip: "Raise your hand on your phone to nominate. Private chats only with your neighbours." }
+  { icon: "💬", name: "Private chats", tip: "Pass private ✉️ notes to anyone on your phone. 📣 to say something to the whole town." },
+  { icon: "🗣️", name: "Public discussion", tip: "Talk together. Private notes only to your neighbours now." },
+  { icon: "📢", name: "Nominations", tip: "Raise your hand on your phone to nominate. Private notes only to your neighbours." }
 ];
 function dayPanel() {
   const cards = [];
@@ -245,6 +245,7 @@ function dayPanel() {
   const lines = [...G.shots.map(x => `🏹 ${esc(nameOf(x.by))} shot ${esc(nameOf(x.at))}: ${x.died ? `${esc(nameOf(x.at))} died` : "nothing happened"}`),
     ...G.noms.map(n => n.virgin ? `${esc(nameOf(n.by))} nominated ${esc(nameOf(n.of))}, and was executed on the spot` : `${esc(nameOf(n.by))} → ${esc(nameOf(n.of))}: ${plural(n.count, "vote")}`)];
   if ((G.hands || []).length && !G.vote) cards.push(`<div class="card"><h2>✋ Hands up</h2>${G.hands.map(h => `<p class="big"><b>${esc(nameOf(h[0]))}</b> wants to nominate <b>${esc(nameOf(h[1]))}</b></p>`).join("")}</div>`);
+  if ((G.notes || []).length) cards.push(`<div class="card"><h2>✉️ Notes passed</h2>${G.notes.slice(-4).map(c => `<p class="big">${esc(nameOf(c[0]))} → ${esc(nameOf(c[1]))}</p>`).join("")}</div>`);
   if ((G.chats || []).length) cards.push(`<div class="card"><h2>💬 Private chats</h2>${G.chats.map(c => `<p class="big">${esc(nameOf(c[0]))} ↔ ${esc(nameOf(c[1]))}</p>`).join("")}</div>`);
   if (lines.length) cards.push(`<div class="card"><h2>Today</h2><ol class="list">${lines.map(l => `<li>${l}</li>`).join("")}</ol></div>`);
   return cards.join("");

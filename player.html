@@ -232,6 +232,12 @@ body.has-handbar .wrap { padding-bottom: 160px; }
 .sh-r .ico { font-size: 1.6rem; line-height: 1; }
 .sh-r.mine { background: var(--surface-2); border: 2px solid var(--brass); border-radius: 12px; padding: 8px; }
 .sh-r .tag { font-size: .75rem; font-weight: 800; background: var(--brass); color: var(--on-brass); border-radius: 999px; padding: 1px 8px; }
+.chat-panel.note { grid-template-rows: auto minmax(0, 1fr) auto auto auto; }
+.quick { display: flex; flex-wrap: wrap; gap: 6px; max-height: 24vh; overflow-y: auto; }
+.quick .pbtn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 6px 12px; min-height: 40px; font-weight: 700; font-size: .92rem; }
+.quick.chars .pbtn.t-townsfolk { border-color: var(--townsfolk); } .quick.chars .pbtn.t-outsider { border-color: var(--outsider); } .quick.chars .pbtn.t-minion, .quick.chars .pbtn.t-demon { border-color: var(--evil); }
+.msg .nst { display: block; font-size: .72rem; opacity: .75; margin-top: 2px; }
+.note-toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 45; background: var(--brass); color: var(--on-brass); border: 0; border-radius: 999px; padding: 12px 20px; font-weight: 800; box-shadow: 0 6px 20px rgba(0,0,0,.45); }
 .chat-panel.chat { height: min(720px, calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))); height: min(720px, calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))); grid-template-rows: auto 1fr auto auto; }
 .msgs { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; min-height: 0; }
 .msg { align-self: flex-start; max-width: 80%; background: var(--surface-2); border-radius: 14px 14px 14px 4px; padding: 8px 12px; font-size: 1.1rem; overflow-wrap: anywhere; }
@@ -269,13 +275,14 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   </header>
   <main id="app"></main>
   <div id="chatBox"></div>
+  <div id="noteBox"></div>
   <div id="handBar"></div>
   <div id="sleepBox" hidden></div>
   <div id="sheetBox" class="chat-cover" hidden role="dialog" aria-modal="true" aria-label="Characters on the script"></div>
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 83;</script>
+<script>window.APP_V = 84;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -707,6 +714,9 @@ function fromHost(m) {
     }
     link.lobby = m;
     syncFromLobby(m);
+    // Notes that came before the sender's key: try again now; and make sure the Storyteller has my key
+    if (link.waitingNotes.length) { const w = link.waitingNotes; link.waitingNotes = []; w.forEach(receiveNote); }
+    if (m.you && NK) { const meP = m.players.find(p => p.id === m.you); if (meP && !meP.k) toHost({ t: "key", key: NK.pub }); }
     // Join as the seat we had before, or the seat with my name
     if (!m.you) {
       const mine = L.pid && m.players.some(p => p.id === L.pid) ? L.pid : (m.players.find(p => S.me && p.name.trim().toLowerCase() === nameOf(S.me).trim().toLowerCase()) || {}).id;
@@ -745,6 +755,8 @@ function fromHost(m) {
     save(); render();
   }
   if (m.t === "night-off") hideNight();
+  if (m.t === "pnote") receiveNote(m);
+  if (m.t === "note-sent" || m.t === "note-no") for (const L of Object.values(S.notes || {})) for (const x of L) if (x.cid === m.cid) { x.state = m.t === "note-sent" ? "sent" : "no"; if (m.why) x.why = m.why; save(); }
   renderLink();
 }
 // The Storyteller's game is the source of truth for who's playing, who's dead and what phase it is.
@@ -753,7 +765,7 @@ function syncFromLobby(lb) {
   // A new game on the Storyteller: clear last game's character, notes and reads
   const newGame = lb.gameId && S.gameId && lb.gameId !== S.gameId;
   if (newGame) {
-    Object.assign(S, { role: "", side: "", P: {}, info: [], bluffs: ["", "", ""], myBluff: "", ph: 0, step: lb.you ? "token" : "players" });
+    Object.assign(S, { role: "", side: "", P: {}, info: [], bluffs: ["", "", ""], myBluff: "", ph: 0, step: lb.you ? "token" : "players", notes: {}, noteUnread: {} });
     ui.sel = null; ui.pickOwn = false;
   }
   if (lb.gameId) S.gameId = lb.gameId;
@@ -779,7 +791,64 @@ function syncFromLobby(lb) {
   // Redraw only when something changed, and never while the player is typing
   if (changed && !(document.activeElement && ["TEXTAREA", "INPUT"].includes(document.activeElement.tagName) && document.activeElement.id !== "joinCode")) render();
 }
-function joinAs(pid) { L.pid = pid; saveLink(); toHost({ t: "join", pid, secret: L.secret }); }
+function joinAs(pid) { L.pid = pid; saveLink(); toHost({ t: "join", pid, secret: L.secret, ...(NK ? { key: NK.pub } : {}) }); }
+
+/* ---------- ✉️ Notes: private messages passed via the Storyteller, sealed so only the two players can read them ---------- */
+// Each phone keeps one key pair. Two players' keys make a secret only they share (ECDH), which seals the note (AES-GCM).
+// The Storyteller's device holds a note until the other phone is connected, then passes it on, unread.
+let NK = null;
+const NK_LS = "botc-note-keys";
+(async () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(NK_LS) || "null");
+    if (saved && saved.pub && saved.priv) NK = { pub: saved.pub, priv: await crypto.subtle.importKey("jwk", saved.priv, { name: "ECDH", namedCurve: "P-256" }, false, ["deriveKey"]) };
+    else {
+      const kp = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]);
+      const pub = await crypto.subtle.exportKey("jwk", kp.publicKey), priv = await crypto.subtle.exportKey("jwk", kp.privateKey);
+      try { localStorage.setItem(NK_LS, JSON.stringify({ pub, priv })); } catch (e) {}
+      NK = { pub, priv: kp.privateKey };
+    }
+    if (link.lobby && link.lobby.you) toHost({ t: "key", key: NK.pub });
+  } catch (e) {}
+})();
+const noteKeys = {};
+async function noteKeyFor(pid) {
+  const p = link.lobby && link.lobby.players.find(x => x.id === pid);
+  if (!NK || !p || !p.k) return null;
+  const tag = JSON.stringify(p.k);
+  if (noteKeys[pid] && noteKeys[pid].tag === tag) return noteKeys[pid].key;
+  const pub = await crypto.subtle.importKey("jwk", p.k, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const key = await crypto.subtle.deriveKey({ name: "ECDH", public: pub }, NK.priv, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  noteKeys[pid] = { tag, key };
+  return key;
+}
+const notesWith = pid => ((S.notes = S.notes || {})[pid] = S.notes[pid] || []);
+const unreadOf = pid => (S.noteUnread || {})[pid] || 0;
+function addQuick(t) { const b = $("noteIn"); if (b) b.value = (b.value.trim() ? b.value.trim() + " " : "") + t; ui.qp = null; renderLink(); }
+async function sendNote() {
+  const box = $("noteIn"), to = ui.noteWith, text = box && box.value.trim();
+  if (!text || !to) return;
+  const key = await noteKeyFor(to);
+  if (!key) { link.note = `${lname(to)} hasn't joined on their phone yet, so they can't get notes.`; renderLink(); return; }
+  const iv = crypto.getRandomValues(new Uint8Array(12)), data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(text.slice(0, 1000)));
+  const cid = uid();
+  notesWith(to).push({ me: true, text: text.slice(0, 1000), at: Date.now(), cid, state: "sending" });
+  toHost({ t: "note-send", to, cid, iv: b64(iv), data: b64(data) });
+  box.value = ""; save(); renderLink();
+}
+link.waitingNotes = [];
+async function receiveNote(m) {
+  if (Object.values(S.notes || {}).some(L => L.some(x => x.id === m.id))) return toHost({ t: "note-ack", id: m.id }); // already have it
+  const key = await noteKeyFor(m.from);
+  if (!key) { if (!link.waitingNotes.some(x => x.id === m.id)) link.waitingNotes.push(m); return; } // their key hasn't arrived yet
+  let text;
+  try { text = new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(m.iv) }, key, unb64(m.data))); } catch (e) { return; }
+  if (Object.values(S.notes || {}).some(L => L.some(x => x.id === m.id))) return;
+  notesWith(m.from).push({ me: false, text: text.slice(0, 1000), at: m.at || Date.now(), id: m.id });
+  if (ui.noteWith !== m.from) (S.noteUnread = S.noteUnread || {})[m.from] = unreadOf(m.from) + 1;
+  toHost({ t: "note-ack", id: m.id });
+  save(); buzz(); renderLink();
+}
 /* End-to-end encryption for chats. Each phone makes a key pair for the chat and sends the public half;
    both work out the same secret key from it (ECDH), and only they can read the messages (AES-GCM).
    The Storyteller's device just passes the scrambled messages along. */
@@ -866,12 +935,12 @@ function linkCard() {
   if (!me) return `<section class="card">${head}${seatPick(lb)}</section>`;
   const ch = link.chat;
   const rows = lb.players.filter(p => p.id !== me).map(p => {
-    const can = (lb.day || lb.night) && (lb.chatOk || []).includes(p.id) && p.online && !p.busy && !ch && !link.waiting;
-    return `<div class="claim"><span class="ico">${p.online ? "🟢" : "⚪"}</span><span style="flex:1"><b>${esc(p.name)}</b>${p.dead ? ` <span class="hint">(dead)</span>` : ""}${p.busy ? ` <span class="hint">· in a chat</span>` : ""}</span><button class="btn" data-act="chat-ask" data-pid="${p.id}" ${can ? "" : "disabled"}>💬 Chat</button></div>`;
+    const can = (lb.day || nightOf(lb)) && (lb.chatOk || []).includes(p.id), u = unreadOf(p.id);
+    return `<div class="claim"><span class="ico">${p.online ? "🟢" : "⚪"}</span><span style="flex:1"><b>${esc(p.name)}</b>${p.dead ? ` <span class="hint">(dead)</span>` : ""}</span><button class="btn ${u ? "primary" : ""}" data-act="note-open" data-pid="${p.id}" ${can || notesWith(p.id).length ? "" : "disabled"}>✉️ ${u ? `${u} new` : "Note"}</button></div>`;
   }).join("");
   return `<section class="card">${head}
-    <p class="hint">You're <b>${esc(lname(me))}</b>. ${nightOf(lb) ? "🌙 Night: you can only chat privately with your neighbours." : !lb.day ? "Private chats open when the day starts." : lb.phase ? `${lb.phase === 2 ? "📢 Nominations" : "🗣️ Public discussion"}: you can only chat privately with your neighbours now.` : "💬 Private chats: tap 💬 to ask anyone for a private chat. Only the two of you see what's said."}</p>
-    ${ch ? `<button class="btn primary" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>` : ""}
+    <p class="hint">You're <b>${esc(lname(me))}</b>. ${nightOf(lb) ? "🌙 Night: you can only pass notes to your neighbours." : !lb.day ? "Private notes open when the day starts." : lb.phase ? `${lb.phase === 2 ? "📢 Nominations" : "🗣️ Public discussion"}: you can only pass notes to your neighbours now.` : "✉️ Tap ✉️ to pass anyone a private note. Only the two of you can read it, and it arrives even if their phone drops out for a moment."}</p>
+    ${ch ? `<button class="btn" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>` : ""}
     ${link.note ? `<p class="warn">${esc(link.note)}</p>` : ""}
     ${(lb.v || 0) < window.APP_V ? `<p class="warn">⚠ The Storyteller's app is an older version, so the night screen, the dawn news and night chats may not work. Ask the Storyteller to reload their app.</p>` : ""}
     <div class="claims">${rows}</div></section>`;
@@ -880,6 +949,44 @@ const seatPick = lb => `<p class="hint">Which one is you?</p><div class="pickgri
 
 // Requests, waiting and the chat itself, over the top of everything
 const msgsHtml = ch => ch.msgs.length ? ch.msgs.map(m => `<div class="msg ${m.me ? "me" : ""}">${esc(m.text)}</div>`).join("") : `<p class="hint">${ch.key ? "🔒 Say hello. Only the two of you can read this chat." : "🔒 Setting up a private line…"}</p>`;
+// Ready-made messages: tap one (picking a player or character where it asks) and it goes into the box
+const QUICK = [
+  ["claim", "🎭 I'm the …", ["char"], (c) => `I'm the ${c}.`],
+  ["learnt", "🔍 I learnt … is the …", ["player", "char"], (p, c) => `I learnt ${p} is the ${c}.`],
+  ["suspect", "👀 I suspect …", ["player"], (p) => `I suspect ${p}.`],
+  ["trustp", "🤝 I trust …", ["player"], (p) => `I trust ${p}.`],
+  ["vote", "✋ Vote with me on …", ["player"], (p) => `Vote with me on ${p}.`],
+  ["trust", "🙏 Trust me", [], () => "Trust me."],
+  ["meet", "🗳️ Talk after this vote?", [], () => "Can we talk after this vote?"],
+  ["nonom", "🚫 Don't nominate me", [], () => "Please don't nominate me."],
+  ["who", "❓ What are you?", [], () => "What are you?"],
+  ["info", "📋 What have you learnt?", [], () => "What have you learnt?"]
+];
+function quickHtml() {
+  const q = ui.qp;
+  if (!q) return `<div class="quick">${QUICK.map(([k, l]) => `<button class="pbtn" data-act="q-pick" data-v="${k}">${l}</button>`).join("")}</div>`;
+  const [, label, needs] = QUICK.find(x => x[0] === q.k), need = needs[q.picks.length];
+  const lb = link.lobby;
+  const body = need === "player" ? `<div class="quick">${(lb ? lb.players : S.players).map(p => `<button class="pbtn" data-act="q-val" data-v="${esc(p.name)}">${esc(p.name)}</button>`).join("")}</div>`
+    : `<div class="quick chars">${TEAMS.flatMap(t => SCRIPTS[S.script].roles[t].map(([n, ic]) => `<button class="pbtn t-${t}" data-act="q-val" data-v="${esc(n)}">${ic} ${esc(n)}</button>`)).join("")}</div>`;
+  return `<p class="hint"><b>${esc(label)}</b>: pick ${need === "player" ? "a player" : "a character"} <button class="btn" data-act="q-cancel">Cancel</button></p>${body}`;
+}
+const noteListHtml = pid => { const L = notesWith(pid); return L.length ? L.map(n => `<div class="msg ${n.me ? "me" : ""}">${esc(n.text)}${n.me ? `<small class="nst">${n.state === "sending" ? "Sending…" : n.state === "no" ? `Not passed: ${esc(n.why || "")}` : "✓ Passed"}</small>` : ""}</div>`).join("") : `<p class="hint">🔒 No notes yet. Only the two of you can read them.</p>`; };
+function noteBoxHtml() {
+  const pid = ui.noteWith;
+  if (!pid) {
+    // A new note while the panel's closed
+    const from = Object.keys(S.noteUnread || {}).find(q => unreadOf(q));
+    return from ? `<button class="note-toast" data-act="note-open" data-pid="${from}">✉️ New note from ${esc(lname(from))} · Read</button>` : "";
+  }
+  return `<div class="chat-cover"><div class="chat-panel chat note">
+    <div class="row"><h2 style="margin-right:auto">✉️ ${esc(lname(pid))}</h2><button class="btn" data-act="note-close">Close</button></div>
+    <div class="msgs" id="noteList">${noteListHtml(pid)}</div>
+    <div id="noteQuick">${quickHtml()}</div>
+    <div class="add"><input type="text" id="noteIn" placeholder="Write a note" autocomplete="off" enterkeyhint="send" aria-label="Note"><button class="btn primary" data-act="note-send">Pass</button></div>
+    ${link.note ? `<p class="warn">${esc(link.note)}</p>` : `<p class="hint">🔒 Only ${esc(lname(pid))} can read your notes. They arrive as soon as their phone is connected.</p>`}
+  </div></div>`;
+}
 function chatBoxHtml() {
   if (link.incoming) return `<div class="chat-cover"><div class="chat-panel"><h2>💬 ${esc(lname(link.incoming.from))} would like a private chat</h2>
     <div class="row"><button class="btn primary" data-act="chat-yes">Accept</button><button class="btn" data-act="chat-nope">Decline</button></div></div></div>`;
@@ -943,7 +1050,7 @@ function sleepHtml() {
     <p class="lead">Close your eyes. The Storyteller will wake you if you need to act.</p>
     ${ch && !ch.ended ? `<button class="btn primary huge" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>`
       : `<p class="hint">Quietly message a neighbour:</p>
-      <div class="draw-foot">${nb.map(p => `<button class="btn huge" data-act="chat-ask" data-pid="${p.id}" ${(lb.chatOk || []).includes(p.id) && p.online && !p.busy && !link.waiting ? "" : "disabled"}>💬 ${esc(p.name)}${!p.online ? "<small>not here</small>" : p.busy ? "<small>in a chat</small>" : ""}</button>`).join("")}</div>`}
+      <div class="draw-foot">${nb.map(p => `<button class="btn huge" data-act="note-open" data-pid="${p.id}" ${(lb.chatOk || []).includes(p.id) ? "" : "disabled"}>✉️ ${esc(p.name)}${unreadOf(p.id) ? `<small>${unreadOf(p.id)} new</small>` : !p.online ? "<small>gets it when back</small>" : ""}</button>`).join("")}</div>`}
     ${link.note ? `<p class="warn">${esc(link.note)}</p>` : ""}
     <button class="btn" data-act="night-peek">📖 My character and notes</button>
   </div></div>`;
@@ -986,6 +1093,23 @@ function renderLink() {
       const m2 = $("msgs"); if (m2) m2.scrollTop = m2.scrollHeight;
     }
     if (ch && link.open) ch.unread = 0;
+  }
+  // The note panel: rebuild only when it opens or closes; otherwise just the notes and the quick buttons
+  const nb = $("noteBox");
+  if (nb) {
+    const shape = JSON.stringify([ui.noteWith, ui.noteWith ? "" : noteBoxHtml(), link.note]);
+    if (nb.dataset.shape === shape && ui.noteWith) {
+      const nl = $("noteList"), list = noteListHtml(ui.noteWith);
+      if (nl && nl.innerHTML !== list) { nl.innerHTML = list; nl.scrollTop = nl.scrollHeight; }
+      const nq = $("noteQuick"), qh = quickHtml();
+      if (nq && nq.dataset.html !== qh) { nq.innerHTML = qh; nq.dataset.html = qh; }
+    } else {
+      const draft = $("noteIn") && $("noteIn").value;
+      nb.innerHTML = noteBoxHtml(); nb.dataset.shape = shape;
+      if (draft && $("noteIn")) $("noteIn").value = draft;
+      const nl = $("noteList"); if (nl) nl.scrollTop = nl.scrollHeight;
+    }
+    if (ui.noteWith && unreadOf(ui.noteWith)) { S.noteUnread[ui.noteWith] = 0; save(); }
   }
   // Like the chat window: only the messages change, so the keyboard stays open while typing
   const tc = $("talkCard");
@@ -1048,6 +1172,12 @@ document.addEventListener("click", ev => {
     case "chat-yes": toHost({ t: "chat-ans", id: link.incoming.id, ok: true }); link.incoming = null; renderLink(); return;
     case "chat-nope": toHost({ t: "chat-ans", id: link.incoming.id, ok: false }); link.incoming = null; renderLink(); return;
     case "chat-send": return sendChat();
+    case "note-open": ui.noteWith = pid; ui.qp = null; link.note = ""; if (S.noteUnread) S.noteUnread[pid] = 0; save(); renderLink(); return;
+    case "note-close": ui.noteWith = null; ui.qp = null; link.note = ""; renderLink(); return;
+    case "note-send": sendNote(); return;
+    case "q-pick": { const q = QUICK.find(x => x[0] === el.dataset.v); if (!q[2].length) { addQuick(q[3]()); return; } ui.qp = { k: q[0], picks: [] }; renderLink(); return; }
+    case "q-val": { const q = QUICK.find(x => x[0] === ui.qp.k); ui.qp.picks.push(el.dataset.v); if (ui.qp.picks.length === q[2].length) { const t = q[3](...ui.qp.picks); ui.qp = null; addQuick(t); } else renderLink(); return; }
+    case "q-cancel": ui.qp = null; renderLink(); return;
     case "theme": toggleTheme(); return;
     case "dawn-ok": ui.dawnSeen = `${link.lobby.gameId}:${link.lobby.dawn.n}`; renderLink(); return;
     case "night-peek": ui.nightPeek = `${link.lobby.gameId}:${nightOf(link.lobby)}`; renderLink(); return;
@@ -1097,6 +1227,7 @@ document.addEventListener("keydown", ev => {
   if (ev.target.id === "newName") { ev.preventDefault(); addNames(); }
   if (ev.target.id === "newInfo") { ev.preventDefault(); addInfo(); }
   if (ev.target.id === "chatIn") { ev.preventDefault(); sendChat(); }
+  if (ev.target.id === "noteIn") { ev.preventDefault(); sendNote(); }
   if (ev.target.id === "sayIn") { ev.preventDefault(); sendSay(); }
   if (ev.target.id === "joinCode") { ev.preventDefault(); $("app").querySelector('[data-act="link-join"]').click(); }
 });
