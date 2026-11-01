@@ -89,7 +89,8 @@ A *Blood on the Clocktower* app for each player at a real table. Open `player.ht
 A notepad for playing the official online game. Open `notes.html` (or **Online Notes** on the cover page). Nothing links to the other apps; everything is saved on the device.
 
 1. **Players**: choose the script (or **Another script**, where you type character names, with suggestions) and add everyone in seat order. Tap **Me** next to your name.
-2. **My character**: tap your character.
+2. **My character**: tap your character. (If you're a Traveller, tap your Traveller character and your side.)
+   **✈️ Travellers**: tap ✈️ next to a player on the Players screen to mark them as a Traveller. They're left out of the setup numbers (shown as "✈️ 1" beside them), the Outsider count, the evil-team worlds and Who to talk to next. Their character is public: tap it on their panel and it goes on their token. **✈️ Exiled** is one of the ways to die.
 3. **Notes**, in three tabs:
    - **🌙 Grimoire**: the town circle, the phase and the next-phase button, your own night info, the deaths and the result.
    - **☀️ Day**: for after conversations. Tap a player to note their claims, what they say they learnt (on any night), your read, how they died and anything else; with **🧭 Who to talk to next** beside it. **📣 Nomination talk** notes what's said in town around the nominations: tap a tag (🔴 Evil ping, 😈 Demon ping, 🧪 Minion ping, 🔵 Good ping, ✅ Confirmed good, 🧺 WW confirmed, 📚 Librarian confirmed, 👀 Suspicious), who it's about (one or several) and, if you know, who said it. It shows on their panel and in the matrix, nudges the blue and red glows (less when nobody said who it came from), and the worlds test it too, treating anything said by an evil player as a likely lie. Tapping a token on the Grimoire tab opens it here.

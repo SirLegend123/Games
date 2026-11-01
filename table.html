@@ -247,6 +247,7 @@ label.field, .field { display: grid; gap: 6px; }
 .cr-layers { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
 .cr-layers > div { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; display: grid; gap: 2px; }
 .cr-layers small { color: var(--muted); font-size: .78rem; }
+.trav-btn[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
 .pick-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .pbtn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 8px 14px; min-height: 44px; font-weight: 800; }
 .pbtn.num { min-width: 48px; }
@@ -311,7 +312,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="sigBox" hidden></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 88;</script>
+<script>window.APP_V = 89;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -324,7 +325,13 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
 // Phases: 0 is Night 1, 1 is Day 1, 2 is Night 2…
 const phaseName = ph => `${ph % 2 ? "Day" : "Night"} ${Math.floor(ph / 2) + 1}`;
-const DEATHS = [["executed", "🪓", "Executed"], ["night", "🌙", "Died at night"], ["slayer", "🏹", "Slayer shot"], ["virgin", "🕊️", "Virgin"], ["other", "❓", "Other"]];
+const DEATHS = [["executed", "🪓", "Executed"], ["night", "🌙", "Died at night"], ["slayer", "🏹", "Slayer shot"], ["virgin", "🕊️", "Virgin"], ["exiled", "✈️", "Exiled"], ["other", "❓", "Other"]];
+// ✈️ Travellers: not in the setup numbers, and never the Demon or a Minion. Their character is public
+const isTrav = pid => !!(S.players.find(p => p.id === pid) || {}).trav;
+const tCount = () => S.players.filter(p => !p.trav).length;
+const travIds = () => S.players.filter(p => p.trav).map(p => p.id);
+const travList = () => [...(SCRIPTS[S.script] && SCRIPTS[S.script].travellers || []), ...Object.entries(SCRIPTS).filter(([k]) => k !== S.script).flatMap(([, v]) => v.travellers || [])];
+const isTravRole = r => CHAR[r] && CHAR[r].team === "traveller";
 const deathOf = k => DEATHS.find(d => d[0] === k) || DEATHS[4];
 
 /* ---------- Light and dark ---------- */
@@ -425,6 +432,7 @@ function playersHtml() {
       <span class="btns">
         <button class="icon" data-act="up" data-i="${i}" aria-label="Move up" ${i === 0 ? "disabled" : ""}>↑</button>
         <button class="icon" data-act="down" data-i="${i}" aria-label="Move down" ${i === n - 1 ? "disabled" : ""}>↓</button>
+        <button class="icon trav-btn" data-act="trav" data-i="${i}" aria-pressed="${!!p.trav}" aria-label="Traveller" title="Traveller">✈️</button>
         <button class="icon" data-act="del" data-i="${i}" aria-label="Remove">×</button>
       </span>
     </div>`).join("");
@@ -439,6 +447,7 @@ function playersHtml() {
       <button class="btn primary" data-act="add">Add</button>
     </div>
     ${n ? `<div class="players">${rows}</div>` : ""}
+    <p class="hint">Tap ✈️ next to anyone who's a Traveller: they're not in the setup numbers or the evil-team worlds.</p>
     <p class="hint">${n < 5 ? `${plural(n, "player")}. You need at least 5.` : !S.me ? "Tap Me next to your own name." : `${plural(n, "player")}, and you're ${esc(nameOf(S.me))}.`}</p>
     <div class="row">
       ${n ? `<button class="btn danger" data-act="clear-players">Clear all</button>` : ""}
@@ -450,6 +459,14 @@ function playersHtml() {
 
 function roleHtml() {
   const c = CHAR[S.role];
+  if (isTrav(S.me)) return `<section class="card">
+    <h2>Your Traveller character</h2>
+    <p class="hint">You're a Traveller. Which character did the Storyteller give you, and which side are you on?</p>
+    <div class="tiles">${travList().map(([name, icon]) => `<button class="tile" data-act="role" data-role="${esc(name)}" aria-pressed="${S.role === name}"><span class="ico" aria-hidden="true">${icon}</span>${esc(name)}</button>`).join("")}</div>
+    <div class="seg"><button class="g" data-act="my-side" data-v="good" aria-pressed="${S.mySide !== "evil"}">Good</button><button class="e" data-act="my-side" data-v="evil" aria-pressed="${S.mySide === "evil"}">Evil</button></div>
+    ${c ? `<p class="ability"><b>${c.icon} ${esc(c.name)}</b>: ${esc(c.text)}</p>` : ""}
+    <div class="row"><button class="btn" data-act="to-players">← Players</button><span class="spacer"></span><button class="btn primary" data-act="to-notes" ${S.role ? "" : "disabled"}>Start taking notes →</button></div>
+  </section>`;
   const pick = S.script === "other"
     ? `<label class="field"><span class="label">Your character</span>${roleInput("myRole", S.role)}</label><button class="btn" data-act="role-typed">Use this character</button>`
     : TEAMS.map(t => `<h3 class="t-${t}">${TEAM_LABEL[t]}</h3>
@@ -467,7 +484,7 @@ function roleHtml() {
 // Each piece of info nudges players towards evil (+) or good (−). Your own info counts double;
 // what other players say counts once. It's a guide, not a proof: you can set your own read on any player.
 const evilChar = r => CHAR[r] && ["minion", "demon"].includes(CHAR[r].team);
-const iAmEvil = () => evilChar(S.role);
+const iAmEvil = () => evilChar(S.role) || (isTravRole(S.role) && S.mySide === "evil");
 // The alive neighbours either side of a player, at the time of some info
 function neighboursAt(pid, ph) {
   const ids = S.players.map(p => p.id), n = ids.length, i = ids.indexOf(pid), up = q => { const d = about(q).death; return !d || d.ph >= ph; };
@@ -522,7 +539,7 @@ function leanOf(L, pid) {
 // 🧭 Who to speak to next, and why: the three things that most need following up
 function adviceHtml() {
   const L = leanings(), out = [], used = new Set(), push = (pid, why, pri) => out.push({ pid, why, pri });
-  const live = S.players.filter(p => p.id !== S.me && !about(p.id).death);
+  const live = S.players.filter(p => p.id !== S.me && !about(p.id).death && !p.trav); // Travellers' characters are public
   for (const p of live) {
     const c = currentClaim(p.id), A = about(p.id), [lean] = leanOf(L, p.id), mine = S.info.filter(e => !e.by && (e.ps || []).includes(p.id));
     if (!iAmEvil() && c && c.kind === "hard" && c.role === S.role) push(p.id, `claims to be the ${S.role}, which is you. They're likely evil: find out who backs their story.`, 1);
@@ -536,7 +553,7 @@ function adviceHtml() {
     else if (c.kind === "soft") push(p.id, `has only soft-claimed (${claimText(c)}). Push them for a hard claim.`, 6);
     if (lean === "good") push(p.id, `looks good. A good person to share your info with${iAmEvil() ? " (or to win over)" : ""}.`, 7);
   }
-  const comp = COMP[Math.min(15, S.players.length)], oc = outsiderClaims();
+  const comp = COMP[Math.min(15, tCount())], oc = outsiderClaims();
   if (comp && oc.out.length > comp[1]) {
     const q = oc.out.find(x => x !== S.me && !about(x).death);
     if (q) push(q, `is one of ${oc.out.length} Outsider claims, but this game only has ${comp[1]}. A Baron (+2), or someone's lying: ask the Outsiders to compare notes.`, 2.5);
@@ -552,7 +569,7 @@ function adviceHtml() {
 // The usual setup for this many players, and how many Outsiders have been claimed against it
 function outsiderClaims() {
   const out = [], maybe = [];
-  for (const p of S.players) {
+  for (const p of S.players.filter(q => !q.trav)) {
     if (p.id === S.me) { if (CHAR[S.role] && CHAR[S.role].team === "outsider") out.push(p.id); continue; }
     const c = currentClaim(p.id); if (!c) continue;
     const rs = rolesOf(c).filter(r => CHAR[r]);
@@ -562,10 +579,10 @@ function outsiderClaims() {
   return { out, maybe };
 }
 function baseHtml() {
-  const c = COMP[Math.min(15, S.players.length)];
+  const c = COMP[Math.min(15, tCount())], tv = travIds().length;
   if (!c) return "";
   const { out, maybe } = outsiderClaims(), over = out.length > c[1];
-  return `<span class="base"><span class="t-townsfolk">${c[0]} TF</span> · <span class="t-outsider">${c[1]} OS</span> · <span class="t-minion">${c[2]} M</span> · <span class="t-demon">${c[3]} D</span></span>
+  return `<span class="base"><span class="t-townsfolk">${c[0]} TF</span> · <span class="t-outsider">${c[1]} OS</span> · <span class="t-minion">${c[2]} M</span> · <span class="t-demon">${c[3]} D</span>${tv ? ` · ✈️ ${tv}` : ""}</span>
     <span class="os ${over ? "over" : ""}" title="${esc(out.map(nameOf).join(", "))}">🧩 Outsiders claimed: <b>${out.length}</b>${maybe.length ? ` (+${maybe.length}?)` : ""} of ${c[1]}${over ? " ⚠" : ""}</span>`;
 }
 function circleHtml() {
@@ -573,14 +590,14 @@ function circleHtml() {
   const n = S.players.length, tok = n <= 7 ? 19 : n <= 10 ? 16.5 : n <= 13 ? 14 : 12.5;
   const seats = S.players.map((p, i) => {
     const a = (i / n) * 2 * Math.PI - Math.PI / 2, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
-    const A = about(p.id), me = p.id === S.me, c = me ? { role: S.role, kind: "hard" } : currentClaim(p.id), d = A.death;
+    const A = about(p.id), me = p.id === S.me, c = me ? { role: S.role, kind: "hard" } : p.trav && A.trav ? { role: A.trav, kind: "hard" } : currentClaim(p.id), d = A.death;
     const rs = c ? rolesOf(c) : [], word = rs.length === 1 ? Math.max(...rs[0].split(/\s+/).map(w => w.length), 3) : 6;
     const flag = !me && flagsOf(p.id).length, [lean, sure] = me ? ["", 0] : leanOf(L, p.id);
     return `<button class="seat ${me ? "me" : ""} ${c && !me ? c.kind : ""} ${lean ? `lean-${lean} sure-${sure}` : ""} ${d ? "dead" : ""} ${ui.sel === p.id ? "sel" : ""}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" data-act="sel" data-pid="${p.id}" aria-label="${esc(p.name)}${c ? `, ${c.kind} claim ${esc(claimText(c))}` : ""}${lean ? `, likely ${lean}` : ""}${d ? ", dead" : ""}">
       <span class="disc">${!c ? `<span class="q">?</span>` : rs.length > 1 ? `<span class="ico multi" aria-hidden="true">${rs.slice(0, 3).map(iconOf).join("")}</span><span class="nm" style="--fs:.13">1 of ${rs.length}</span><span class="sm">soft</span>`
         : `<span class="ico" aria-hidden="true">${iconOf(rs[0])}</span><span class="nm" style="--fs:${Math.min(.16, 1.4 / word).toFixed(3)}">${esc(rs[0])}</span>${!me && c.kind === "soft" ? `<span class="sm">soft</span>` : ""}`}</span>
       ${flag ? `<span class="flag" aria-hidden="true">!</span>` : ""}
-      <span class="plate">${me ? "★ " : ""}${esc(p.name)}</span>
+      <span class="plate">${me ? "★ " : ""}${p.trav ? "✈️ " : ""}${esc(p.name)}</span>
       ${d ? `<span class="badge">${deathOf(d.how)[1]} ${d.ph % 2 ? "D" : "N"}${Math.floor(d.ph / 2) + 1}${A.ghost ? "" : " 👻"}</span>` : ""}
     </button>`;
   }).join("");
@@ -607,6 +624,9 @@ function panelHtml(pid) {
   const cur = currentClaim(pid), abs = cur ? rolesOf(cur).map(r => CHAR[r]).filter(Boolean) : [];
   return `<section class="card">
     <div class="row"><h2 style="margin-right:auto">${esc(nameOf(pid))}${me ? " (you)" : ""}</h2><button class="icon" data-act="sel" data-pid="${pid}" aria-label="Close">×</button></div>
+    ${me || !isTrav(pid) ? "" : `<h3>✈️ Traveller</h3><p class="hint">Their character is public: which one is it?</p>
+      <div class="pick-row">${travList().map(([r, ic]) => `<button class="pbtn" data-act="trav-role" data-pid="${pid}" data-role="${esc(r)}" aria-pressed="${A.trav === r}">${ic} ${esc(r)}</button>`).join("")}</div>
+      ${A.trav && CHAR[A.trav] ? `<p class="ability"><b>${CHAR[A.trav].icon} ${esc(A.trav)}</b>: ${esc(CHAR[A.trav].text)}</p>` : ""}`}
     ${me ? "" : readHtml(pid)}
     ${me ? "" : `<h3>Claims</h3>
     ${claims ? `<ul class="cl-list">${claims}</ul>` : `<p class="hint">No claims yet.</p>`}
@@ -680,9 +700,9 @@ function worldChecks() {
   return out;
 }
 function worldsOf() {
-  const n = S.players.length, comp = COMP[Math.min(15, n)];
+  const n = tCount(), comp = COMP[Math.min(15, n)];
   if (!comp || iAmEvil() || n < 5) return null;
-  const m = comp[2], cand = S.players.map(p => p.id).filter(q => q !== S.me), checks = worldChecks();
+  const m = comp[2], cand = S.players.filter(p => !p.trav).map(p => p.id).filter(q => q !== S.me), checks = worldChecks();
   const confirmedGood = new Set(), mustEvil = new Set(), reads = {};
   for (const p of S.players) {
     const d = about(p.id).death, r = about(p.id).read;
@@ -1091,6 +1111,9 @@ document.addEventListener("click", ev => {
     case "me": S.me = pid; break;
     case "clear-players": if (!confirm("Remove every player?")) return; S.players = []; S.me = ""; break;
     case "to-players": S.step = "players"; break;
+    case "trav": { const P = S.players[i]; P.trav = !P.trav; if (P.id === S.me && !P.trav && isTravRole(S.role)) S.role = ""; break; }
+    case "my-side": S.mySide = el.dataset.v; break;
+    case "trav-role": { const A = about(pid); A.trav = A.trav === el.dataset.role ? "" : el.dataset.role; keepDraft(); return; }
     case "to-role": S.step = "role"; break;
     case "to-notes": S.step = "notes"; break;
     case "role": S.role = el.dataset.role; break;
