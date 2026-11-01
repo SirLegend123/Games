@@ -248,6 +248,7 @@ label.field, .field { display: grid; gap: 6px; }
 .cr-layers > div { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; display: grid; gap: 2px; }
 .cr-layers small { color: var(--muted); font-size: .78rem; }
 .trav-btn[aria-pressed="true"] { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
+.badge.guess { background: var(--evil); color: #fff; border-color: var(--evil); }
 .pick-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .pbtn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 8px 14px; min-height: 44px; font-weight: 800; }
 .pbtn.num { min-width: 48px; }
@@ -312,7 +313,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="sigBox" hidden></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 89;</script>
+<script>window.APP_V = 90;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
@@ -543,7 +544,8 @@ function adviceHtml() {
   for (const p of live) {
     const c = currentClaim(p.id), A = about(p.id), [lean] = leanOf(L, p.id), mine = S.info.filter(e => !e.by && (e.ps || []).includes(p.id));
     if (!iAmEvil() && c && c.kind === "hard" && c.role === S.role) push(p.id, `claims to be the ${S.role}, which is you. They're likely evil: find out who backs their story.`, 1);
-    if (lean === "evil") push(p.id, `looks evil: ${L[p.id].why.slice(-1)[0][1]}. Ask what they are, and check it against what you know.`, 2);
+    // Why they look evil: the latest reason noted, or your own read
+    if (lean === "evil") { const why = L[p.id].why.slice(-1)[0]; push(p.id, `looks evil: ${why ? why[1] : "you've marked them as evil"}. Ask what they are, and check it against what you know.`, 2); }
     else if (mine.length && !c) push(p.id, `is in your info (${mine[mine.length - 1].text}) but hasn't claimed. Ask what they are.`, 2);
     const dup = c && c.kind === "hard" ? S.players.find(q => q.id !== p.id && !about(q.id).death && (currentClaim(q.id) || {}).kind === "hard" && currentClaim(q.id).role === c.role) : null;
     if (dup) push(p.id, `and ${dup.name} both claim the ${c.role}. Get them to compare their info: one of them is lying.`, 3);
@@ -598,6 +600,7 @@ function circleHtml() {
         : `<span class="ico" aria-hidden="true">${iconOf(rs[0])}</span><span class="nm" style="--fs:${Math.min(.16, 1.4 / word).toFixed(3)}">${esc(rs[0])}</span>${!me && c.kind === "soft" ? `<span class="sm">soft</span>` : ""}`}</span>
       ${flag ? `<span class="flag" aria-hidden="true">!</span>` : ""}
       <span class="plate">${me ? "★ " : ""}${p.trav ? "✈️ " : ""}${esc(p.name)}</span>
+      ${A.guess && !me ? `<span class="badge guess">${iconOf(A.guess)} ${esc(A.guess)}?</span>` : ""}
       ${d ? `<span class="badge">${deathOf(d.how)[1]} ${d.ph % 2 ? "D" : "N"}${Math.floor(d.ph / 2) + 1}${A.ghost ? "" : " 👻"}</span>` : ""}
     </button>`;
   }).join("");
@@ -607,12 +610,16 @@ function circleHtml() {
 }
 
 // Good or evil? What the notes suggest, and your own read
+// The Minions and Demons to choose from: the script's, or every one we know for other scripts
+const evilChoices = () => S.script !== "other" && SCRIPTS[S.script] ? ["minion", "demon"].flatMap(t => SCRIPTS[S.script].roles[t]) : Object.values(CHAR).filter(c => ["minion", "demon"].includes(c.team)).map(c => [c.name, c.icon]);
 function readHtml(pid) {
   const L = leanings(), x = L[pid] || { score: 0, why: [] }, [lean, sure] = leanOf(L, pid), r = about(pid).read || "";
   return `<h3>Good or evil?</h3>
     <p class="lean ${lean}">${lean ? `${lean === "evil" ? "🔴" : "🔵"} ${x.read ? "You've marked them" : sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} <b>${lean}</b>` : "⚪ No lean yet"}</p>
     ${x.why.length ? `<ul class="why">${x.why.map(([v, w]) => `<li>${v > 0 ? "🔺" : "🔹"} ${esc(w)}</li>`).join("")}</ul>` : ""}
-    <div class="seg seg3" role="group" aria-label="Your read"><button data-act="read" data-pid="${pid}" data-v="" aria-pressed="${!r}">From the notes</button><button class="g" data-act="read" data-pid="${pid}" data-v="good" aria-pressed="${r === "good"}">Good</button><button class="e" data-act="read" data-pid="${pid}" data-v="evil" aria-pressed="${r === "evil"}">Evil</button></div>`;
+    <div class="seg seg3" role="group" aria-label="Your read"><button data-act="read" data-pid="${pid}" data-v="" aria-pressed="${!r}">From the notes</button><button class="g" data-act="read" data-pid="${pid}" data-v="good" aria-pressed="${r === "good"}">Good</button><button class="e" data-act="read" data-pid="${pid}" data-v="evil" aria-pressed="${r === "evil"}">Evil</button></div>
+    ${r === "evil" || about(pid).guess ? `<p class="hint">${iAmEvil() ? "Which evil character are they?" : "Which evil character might they be?"}</p>
+      <div class="pick-row">${evilChoices().map(([n, ic]) => `<button class="pbtn" data-act="guess" data-pid="${pid}" data-role="${esc(n)}" aria-pressed="${about(pid).guess === n}">${ic} ${esc(n)}</button>`).join("")}</div>` : ""}`;
 }
 function panelHtml(pid) {
   const A = about(pid), d = A.death, me = pid === S.me;
@@ -853,7 +860,7 @@ function matrixCard(WS) {
     const dots = me ? "" : tops.map((W, k) => `<span class="wdot ${W.demon === p.id ? "d" : W.minions.has(p.id) ? "m" : "g"}" title="World ${k + 1}: ${W.demon === p.id ? "Demon" : W.minions.has(p.id) ? "Minion" : "good"}">${W.demon === p.id ? "D" : W.minions.has(p.id) ? "M" : ""}</span>`).join("");
     return `<tr class="${A.death ? "dead" : ""} ${ui.sel === p.id ? "on" : ""} ${lean ? `lean-${lean} sure-${sure}` : ""}">
       <th scope="row"><button class="mx-name" data-act="sel" data-pid="${p.id}">${me ? "★ " : ""}${esc(p.name)}</button>${A.death ? `<small>${deathOf(A.death.how)[1]} ${short(A.death.ph)}</small>` : ""}${f.length ? `<small class="flagtxt">⚠ ${esc(f.join("; "))}</small>` : ""}</th>
-      <td data-l="Lean"><div class="c">${me ? `<span class="chip ${evilChar(S.role) ? "evil" : "good"}">You</span>` : `<div class="meter" title="${lean ? `${sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} ${lean}` : "No lean"}"><span style="left:${pos}%"></span></div><div class="lean-row">${odds ? `<b class="pc">${pc(odds.P[p.id].evil)} evil</b>` : ""}${lean ? `<b class="${lean}">${sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} ${lean}</b>` : `<span class="hint">no lean</span>`}${dots ? `<span class="wdots" aria-label="In the top worlds">${dots}</span>` : ""}</div>`}</div></td>
+      <td data-l="Lean"><div class="c">${me ? `<span class="chip ${evilChar(S.role) ? "evil" : "good"}">You</span>` : `<div class="meter" title="${lean ? `${sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} ${lean}` : "No lean"}"><span style="left:${pos}%"></span></div><div class="lean-row">${!me && about(p.id).guess ? `<span class="chip evil">${iconOf(about(p.id).guess)} ${esc(about(p.id).guess)}?</span>` : ""}${odds ? `<b class="pc">${pc(odds.P[p.id].evil)} evil</b>` : ""}${lean ? `<b class="${lean}">${sure === 3 ? "Confirmed" : sure === 2 ? "Likely" : "Leaning"} ${lean}</b>` : `<span class="hint">no lean</span>`}${dots ? `<span class="wdots" aria-label="In the top worlds">${dots}</span>` : ""}</div>`}</div></td>
       <td data-l="Soft"><div class="c">${me ? `<span class="hint">–</span>` : soft ? `<div>${chip(soft, true)}</div>` : `<span class="hint">–</span>`}</div></td>
       <td data-l="Hard"><div class="c">${me ? `<div><span class="chip ${CHAR[S.role] ? `t-${CHAR[S.role].team}` : ""}">${iconOf(S.role)} ${esc(S.role)}</span></div>` : hard.length ? hard.map(c => `<div>${chip(c, false)}</div>`).join("") : `<span class="hint">–</span>`}</div></td>
       <td data-l="Info"><div class="c">${info.length || talkList().some(t => t.pid === p.id) ? info.map(e => `<div class="info-chip"><small>${short(e.ph)}</small> ${esc(e.text)}</div>`).join("") + talkList().filter(t => t.pid === p.id).map(t => `<div class="info-chip talk-chip"><small>${short(t.ph)}</small> ${esc(talkOf(t.tag)[1])}${t.by ? ` <small>from ${esc(nameOf(t.by))}</small>` : ""}</div>`).join("") : `<span class="hint">–</span>`}</div></td>
@@ -1139,7 +1146,8 @@ document.addEventListener("click", ev => {
       c.out = (c.out || []).some(o => o.r === r) ? c.out.filter(o => o.r !== r) : [...(c.out || []), { r, ph: S.ph }];
       keepDraft(); return;
     }
-    case "read": about(pid).read = el.dataset.v; keepDraft(); return;
+    case "read": about(pid).read = el.dataset.v; if (el.dataset.v !== "evil") about(pid).guess = ""; keepDraft(); return;
+    case "guess": { const A = about(pid), g = el.dataset.role; A.guess = A.guess === g ? "" : g; if (A.guess) A.read = "evil"; keepDraft(); return; }
     case "claim-del": about(pid).claims = about(pid).claims.filter(c => c.id !== el.dataset.id); break;
     case "die":
       // The Virgin and the Slayer: ask who, as that proves who's good (and who's the Demon)
