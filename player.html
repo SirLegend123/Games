@@ -172,6 +172,10 @@ label.field, .field { display: grid; gap: 6px; }
 .night-ov.dawn h1 { color: #fff1e0; }
 .night-ov .moon { font-size: 4.5rem; line-height: 1; }
 .night-ov .btn small { display: block; font-size: .8rem; font-weight: 500; opacity: .8; }
+.night-ov .comp { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.night-ov .comp .cc { color: #f6f2fa; background: rgba(0,0,0,.3); border: 2px solid rgba(255,255,255,.4); border-radius: 999px; padding: 6px 14px; font-size: 1.05rem; }
+.night-ov .comp .cc b { font-size: 1.3rem; }
+.night-ov .comp .cc.t-townsfolk { border-color: var(--townsfolk); } .night-ov .comp .cc.t-outsider { border-color: var(--outsider); } .night-ov .comp .cc.t-minion, .night-ov .comp .cc.t-demon { border-color: #ff8a9a; }
 .notice-dead { margin: 0; font-size: 1.15rem; background: rgba(0,0,0,.3); border: 2px solid #ffd27a; border-radius: 12px; padding: 10px 14px; }
 .night-pill { position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 35; background: #0e1226; color: #f6f2fa; border: 2px solid #f0c66a; border-radius: 999px; padding: 8px 16px; font-weight: 800; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
 /* The Grimoire as a list, for the Spy */
@@ -286,7 +290,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
 </div>
-<script>window.APP_V = 86;</script>
+<script>window.APP_V = 87;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -1046,7 +1050,8 @@ function sleepHtml() {
     const ids = lb.dawn.ids, mine = ids.includes(me);
     return `<div class="night-ov dawn"><div class="draw-inner"><p class="lead">Wake up, everyone. It's the dawn of</p><h1>Day ${lb.dawn.n}</h1>
       ${ids.length ? `<p class="lead">In the night…</p>${ids.map(id => `<div class="nmchip">💀 ${esc(lname(id))}</div>`).join("")}<p class="lead">${ids.length === 1 ? "was" : "were"} found dead.</p>`
-        : `<h1>Nobody died</h1><p class="lead">The whole town survived the night.</p>`}
+        : lb.dawn.n === 1 ? `<p class="lead">A body was found in the town square.</p><p class="lead">There is a Demon amongst you.</p><p class="lead">Find out who, and execute them before it's too late.</p>` : `<h1>Nobody died</h1><p class="lead">The whole town survived the night.</p>`}
+      ${lb.dawn.n === 1 && lb.dawn.comp ? `<div class="comp">${TEAMS.map((t, i) => `<span class="cc t-${t}"><b>${lb.dawn.comp[i]}</b> ${lb.dawn.comp[i] === 1 ? TEAM_ONE[t] : t === "demon" ? "Demons" : TEAM_LABEL[t]}</span>`).join("")}${lb.dawn.travs ? `<span class="cc"><b>${lb.dawn.travs}</b> ✈️ Traveller${lb.dawn.travs === 1 ? "" : "s"}</span>` : ""}</div>` : ""}
       ${mine ? `<p class="notice-dead">That's you. You're dead, but you can still talk, and you have one ghost vote left.</p>` : ""}
       <button class="btn primary huge" data-act="dawn-ok">Continue</button></div></div>`;
   }
