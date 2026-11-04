@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Clocktower Daily">
 <script>try { const t = localStorage.getItem("ctd-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <title>Clocktower Daily</title>
-<script>window.APP_V = 91;</script>
+<script>window.APP_V = 92;</script>
 <script src="update.js"></script>
 <script src="vendor/firebase.js"></script>
 <script src="characters.js"></script>
@@ -137,6 +137,7 @@ function markSeen() {
   const mark = (k, v) => { if (v && v > (seen[gid + k] || 0)) { seen[gid + k] = v; ch = true; } };
   if (ui.tab === "chats" && ui.chat) { const l = chats[pairId(me, ui.chat)] || []; mark(pairId(me, ui.chat), l.length ? l[l.length - 1].at : 0); }
   if (ui.tab === "square" && square.length) mark("sq", square[square.length - 1].at);
+  if (ui.tab === "votes" && G.day) for (const x of noms) if (nowMs() >= voteOpensAt(G, x)) mark(`v${G.day}${x.of}`, 1);
   if (ui.tab === "me" || ui.tab === "today") { const i = infoNow(); if (i.length && ui.tab === "me") mark("info", i[0].at); }
   if (ch) saveSeen();
 }
@@ -188,7 +189,7 @@ function timetableHtml() {
 function gameHtml() {
   const p = P();
   const chatDot = G.seats.some(s => s.id !== me && unreadChat(pairId(me, s.id)) > 0);
-  const tabs = [["today", "🏠 Today", unreadInfo() > 0], ["square", "🗣️ Square", unreadSquare() > 0], ["chats", "✉️ Chats", chatDot], ["votes", "⚖️ Votes", p.k === "noms" && noms.some(x => myVotes[x.of] === undefined)], ["me", "🎭 Me", false]];
+  const tabs = [["today", "🏠 Today", unreadInfo() > 0], ["square", "🗣️ Square", unreadSquare() > 0], ["chats", "✉️ Chats", chatDot], ["votes", "⚖️ Votes", newNoms(p) > 0], ["me", "🎭 Me", false]];
   const nav = `<nav class="tabs">${tabs.map(([k, l, dot]) => `<button data-act="tab" data-tab="${k}" aria-pressed="${ui.tab === k}">${l}${dot ? `<span class="dot" aria-label="new"></span>` : ""}</button>`).join("")}</nav>`;
   return `${bannerHtml(p)}${nav}${{ today: todayHtml, square: squareHtml, chats: chatsHtml, votes: votesHtml, me: meHtml }[ui.tab](p)}`;
 }
@@ -219,6 +220,9 @@ function todayHtml(p) {
   if (d && dn && ["dawn", "chats", "noms", "count", "dusk", "night", "dark"].includes(p.k)) out.push(dawnHtml(dn));
   if (d && !dn && nowMs() >= G.days[d].dawn) out.push(`<section class="card"><p class="hint">Fetching the news from the night…</p></section>`);
   if (p.k === "dusk" && !res) out.push(`<section class="card"><p class="lead">The Storyteller is still counting the votes. Check back soon.</p></section>`);
+  const accused = noms.find(x => x.of === me);
+  if (accused && p.k === "noms" && p.n === d) out.push(`<section class="card todo"><h2>⚖️ You've been nominated</h2>${nomCardHtml(accused, noms.indexOf(accused), p)}</section>`);
+  else if (noms.length && p.k === "noms" && p.n === d) out.push(`<section class="card"><h2>⚖️ Today's nominations</h2><p class="lead">${plural(noms.length, "nomination")} so far.${newNoms(p) ? ` <b>${newNoms(p)} waiting for your vote.</b>` : ""}</p><div class="row"><button class="btn primary" data-act="tab" data-tab="votes">See the nominations →</button></div></section>`);
   const fresh = infoNow().filter(x => x.at >= (d ? G.days[d].dawn : 0) - 1);
   if (fresh.length) out.push(`<section class="card"><h2>🔮 Your info</h2>${fresh.map(infoHtml).join("")}<p class="hint">Everything you've learnt is under 🎭 Me.</p></section>`);
   if (unreadInfo()) { seen[gid + "info"] = infoNow()[0].at; saveSeen(); }
@@ -238,7 +242,7 @@ function dawnHtml(dn) {
 function resultHtml(r) {
   return `<section class="card"><h2>🪓 Day ${r.d}'s execution</h2>
     <p class="lead">${r.exec ? `<b>${nm(r.exec)}</b> was executed${r.how === "virgin" ? " for nominating the Virgin" : ""}.` : "Nobody was executed."} <span class="hint">${esc(r.why || "")}</span></p>
-    ${r.rows && r.rows.length ? r.rows.map(x => `<p class="hint" style="margin:0"><b>${nm(x.of)}</b> (nominated by ${nm(x.by)}): ${x.count} vote${x.count === 1 ? "" : "s"}${x.voters.length ? ` from ${x.voters.map(nm).join(", ")}` : ""}</p>`).join("") + `<p class="hint">${r.need} votes were needed.</p>` : ""}</section>`;
+    ${r.rows && r.rows.length ? byTime(r.rows.map(x => ({ ...x, at: x.at || ((noms.find(y => y.of === x.of) || {}).at) || 0 }))).map(x => `<p class="hint" style="margin:0"><b>${nm(x.of)}</b> (nominated by ${nm(x.by)}): ${x.count} vote${x.count === 1 ? "" : "s"}${x.voters.length ? ` from ${x.voters.map(nm).join(", ")}` : ""}</p>`).join("") + `<p class="hint">${r.need} votes were needed.</p>` : ""}</section>`;
 }
 function overHtml() {
   const e = gated.end;
@@ -304,13 +308,29 @@ function votesHtml(p) {
     <p class="hint">${open ? `Open until ${clock(t.close)} (${left(t.close)} left).` : nowMs() < t.noms ? `Nominations open at ${clock(t.noms)}.` : res ? "Voting has closed." : `Voting closed at ${clock(t.close)}. The result is revealed at ${clock(t.reveal)}.`}
       ${alive} alive, so <b>${need} votes</b> are needed to execute. The nominee with the most votes (if it's at least ${need}) is executed; a tie means nobody is.</p>
     <p class="hint">🤫 Votes are secret until voting closes. You can vote on as many nominations as you like, and change your mind until then.${D[me] ? " You're dead: you have one ghost vote for the rest of the game." : ""}${myRole() === "Butler" ? " As the Butler, your vote only counts if your Master votes too." : ""}</p>
-    ${open && !D[me] && !iNominated ? `<div class="row"><button class="btn primary" data-act="nominate-open">☝️ Nominate someone</button><span class="hint">You can nominate once a day.</span></div>` : ""}
-    ${noms.length ? noms.map(x => { const r = res && res.rows && res.rows.find(y => y.of === x.of), mine = myVotes[x.of];
-      return `<div class="vote-row"><span><b>${nm(x.by)}</b> nominated <b>${nm(x.of)}</b></span>
-        ${r ? `<span class="lead"><b>${r.count}</b> vote${r.count === 1 ? "" : "s"}: <span class="hint">${r.voters.map(nm).join(", ") || "nobody"}</span></span>` : ""}
-        ${open ? `<div class="seg"><button class="g" data-act="vote" data-of="${x.of}" data-v="1" aria-pressed="${!!mine}" ${canVote && (!D[me] || mine || !ghostSpent) ? "" : "disabled"}>✋ Yes, execute</button><button data-act="vote" data-of="${x.of}" data-v="" aria-pressed="${!mine}" ${canVote ? "" : "disabled"}>No</button></div>`
-          : !r ? `<span class="hint">You voted ${mine ? "✋ yes" : "no"}.</span>` : ""}</div>`; }).join("") : `<p class="hint">No nominations yet.</p>`}
+    <p class="hint">📝 Each nomination gives a reason. The nominee then has ${plural(defMins(G), "minute")} to give a defence; voting opens when they do, or when the time is up.</p>
+    ${open && !D[me] && !iNominated ? nowMs() < nomsCloseAt(G, d) ? `<div class="row"><button class="btn primary" data-act="nominate-open">☝️ Nominate someone</button><span class="hint">You can nominate once a day, until ${clock(nomsCloseAt(G, d))}.</span></div>` : `<p class="hint">New nominations closed at ${clock(nomsCloseAt(G, d))}, to leave time for a defence and the vote.</p>` : ""}
+    ${noms.length ? noms.map((x, i) => nomCardHtml(x, i, p)).join("") : `<p class="hint">No nominations yet.</p>`}
     ${res ? resultHtml(res).replace(/^<section class="card">|<\/section>$/g, "") : ""}</section>`;
+}
+// Nominations whose voting is open and that you haven't looked at yet
+function newNoms(p) {
+  if (p.k !== "noms" || p.n !== G.day) return 0;
+  return noms.filter(x => nowMs() >= voteOpensAt(G, x) && !myVotes[x.of] && !seen[`${gid}v${G.day}${x.of}`]).length;
+}
+// One nomination: who, why, their defence, and your vote
+function nomCardHtml(x, i, p) {
+  const d = G.day, t = G.days[d], D = dead(), open = p.k === "noms" && p.n === d, opens = voteOpensAt(G, x), votingNow = open && nowMs() >= opens;
+  const res = gated["result" + d], r = res && res.rows && res.rows.find(y => y.of === x.of), mine = myVotes[x.of];
+  const canVote = votingNow && (!D[me] || !ghostUsed()), ghostSpent = D[me] && noms.some(y => myVotes[y.of] && y.of !== x.of);
+  const accused = x.of === me && nowMs() < t.close && !res;
+  return `<div class="vote-row nom"><span><span class="tag">${i + 1}</span> <b>${nm(x.by)}</b> nominated <b>${nm(x.of)}</b> <span class="hint">· ${clock(x.at)}</span></span>
+    ${x.reason ? `<p class="quote"><small>Why</small>“${esc(x.reason)}”</p>` : ""}
+    ${x.defence ? `<p class="quote def"><small>${nm(x.of)}'s defence</small>“${esc(x.defence)}”</p>` : open && nowMs() < opens ? `<p class="hint">⏳ Waiting for ${x.of === me ? "your" : `${nm(x.of)}'s`} defence: voting opens at ${clock(opens)}${x.of === me ? "" : `, or sooner if ${nm(x.of)} answers`}.</p>` : ""}
+    ${accused ? `<div class="field"><span class="label">${x.defence ? "Change your defence" : "Your defence"}</span><textarea id="def" maxlength="600" placeholder="Why the town shouldn't execute you">${esc(ui.draft.def ?? x.defence ?? "")}</textarea><div class="row"><button class="btn primary" data-act="def-save" data-of="${x.of}">${x.defence ? "Update my defence" : "Give my defence"}</button>${x.defence ? "" : `<span class="hint">Voting opens when you do, or at ${clock(opens)}.</span>`}</div></div>` : ""}
+    ${r ? `<span class="lead"><b>${r.count}</b> vote${r.count === 1 ? "" : "s"}: <span class="hint">${r.voters.map(nm).join(", ") || "nobody"}</span></span>` : ""}
+    ${votingNow ? `<div class="seg"><button class="g" data-act="vote" data-of="${x.of}" data-v="1" aria-pressed="${!!mine}" ${canVote && (!D[me] || mine || !ghostSpent) ? "" : "disabled"}>✋ Yes, execute</button><button data-act="vote" data-of="${x.of}" data-v="" aria-pressed="${!mine}" ${canVote ? "" : "disabled"}>No</button></div><span class="hint">Voting open until ${clock(t.close)}.</span>`
+      : !r && nowMs() >= t.close ? `<span class="hint">You voted ${mine ? "✋ yes" : "no"}.</span>` : ""}</div>`;
 }
 
 /* ---------- Me ---------- */
@@ -330,10 +350,17 @@ document.getElementById("dlg").addEventListener("click", e => {
   if (!el) return;
   const pid = el.dataset.pid;
   if (el.dataset.dact === "nominate") {
-    if (!confirm(`Nominate ${seatName(G, pid)} for execution? Everyone will see it.`)) return;
+    d.innerHTML = `<h2>☝️ Nominate ${nm(pid)}</h2><div class="field"><span class="label">Why? Everyone will see this</span><textarea id="why" maxlength="300" placeholder="Tell the town why ${nm(pid)} should be executed"></textarea></div>
+      <p class="hint">${nm(pid)} then has ${plural(defMins(G), "minute")} to give a defence before voting opens.</p>
+      <div class="row"><button class="btn" data-dact="close">Cancel</button><span class="spacer"></span><button class="btn primary" data-dact="nominate-go" data-pid="${pid}">☝️ Nominate</button></div>`;
+    d.querySelector("#why").focus();
+  }
+  if (el.dataset.dact === "nominate-go") {
+    const reason = d.querySelector("#why").value.trim();
+    if (!reason) return toast("Give a reason first.");
     d.close();
     const day = String(G.day), at = nowMs();
-    run(() => { const b = FB.writeBatch(db); b.set(gref(gid, "days", day, "noms", pid), { by: me, of: pid, at }); b.set(gref(gid, "days", day, "nominators", me), { at }); return b.commit(); }, "Nominated");
+    run(() => { const b = FB.writeBatch(db); b.set(gref(gid, "days", day, "noms", pid), { by: me, of: pid, at, reason: reason.slice(0, 300) }); b.set(gref(gid, "days", day, "nominators", me), { at }); return b.commit(); }, "Nominated");
   }
   if (el.dataset.dact === "slay") {
     if (!confirm(`Use the Slayer's shot on ${seatName(G, pid)}? Everyone will see it, and you only get one.`)) return;
@@ -375,6 +402,9 @@ document.getElementById("app").addEventListener("click", e => {
       if (yes && amDead() && !confirm("This uses your one ghost vote for the rest of the game (if voting closes with it still in place). Vote?")) return;
       myVotes[of] = yes; render(true);
       return run(() => yes ? FB.setDoc(r, { nom: of, voter: me, at: nowMs() }) : FB.deleteDoc(r)).then(() => toast(yes ? "✋ Voted yes (secret until voting closes)" : "Vote removed")); }
+    case "def-save": { const t = ($("#def").value || "").trim(); if (!t) return toast("Type your defence first.");
+      ui.draft.def = undefined;
+      return run(() => FB.updateDoc(gref(gid, "days", String(G.day), "noms", me), { defence: t.slice(0, 600), defAt: nowMs() }), "Defence given"); }
     case "slay-open": return dialog(`<h2>🏹 Slayer shot</h2><p class="hint">If you're the Slayer and you choose the Demon, they die. Everyone sees you do it.</p><div class="picks">${G.seats.filter(s => s.id !== me && !dead()[s.id]).map(s => `<button class="pick" data-dact="slay" data-pid="${s.id}">${nm(s.id)}</button>`).join("")}</div><div class="row"><button class="btn" data-dact="close">Cancel</button></div>`);
   }
 });
@@ -383,6 +413,7 @@ document.getElementById("app").addEventListener("input", e => {
   if (el.id === "say") ui.draft.sq = el.value;
   if (el.id === "dm") ui.draft[pairId(me, ui.chat)] = el.value;
   if (el.id === "code") ui.codeIn = el.value;
+  if (el.id === "def") ui.draft.def = el.value;
   if (el.id === "name") ui.nameIn = el.value;
 });
 document.getElementById("app").addEventListener("keydown", e => {

@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#15121b">
 <script>try { const t = localStorage.getItem("ctd-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <title>Clocktower Daily · Storyteller</title>
-<script>window.APP_V = 91;</script>
+<script>window.APP_V = 92;</script>
 <script src="update.js"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
@@ -174,7 +174,9 @@ function schedHtml() {
   return `<section class="card"><h2>⏰ The daily timetable</h2>
     <p class="hint">Every day runs on these times. ${G.status === "lobby" ? "" : "Changes start from the next day you wake the town."}</p>
     <ul class="tt edit">${SCHED_KEYS.map(([k, ic, label, sub]) => `<li><input type="time" data-sched="${k}" value="${s[k]}" aria-label="${esc(label)}"><span>${ic}</span><span>${esc(label)}${sub ? `<small>${esc(sub)}</small>` : ""}</span></li>`).join("")}</ul>
-    ${schedOk(s) ? "" : `<p class="err">Each time needs to come after the one before (within 24 hours).</p>`}</section>`;
+    ${schedOk(s) ? "" : `<p class="err">Each time needs to come after the one before (within 24 hours).</p>`}
+    <div class="field"><span class="label">⚖️ Time for a defence</span><div class="seg" role="group" aria-label="Time for a defence">${[15, 30, 45, 60, 90].map(m => `<button data-act="def-mins" data-v="${m}" aria-pressed="${defMins(G) === m}">${m} min</button>`).join("")}</div>
+      <span class="hint">After a nomination, the nominee has this long to give a defence; voting on it opens when they do, or when the time is up. New nominations stop this long before voting closes (${clock(atClock(Date.now(), s.close) - defMins(G) * 60000)}).</span></div></section>`;
 }
 function randomBag() {
   const n = G.seats.length, TB = SCRIPTS.tb.roles, take = (l, k) => shuffle(l.map(x => x[0])).slice(0, Math.max(0, k));
@@ -264,74 +266,45 @@ function nightHtml() {
     <div class="town">${todo.map(p => { const a = acts[p]; return `<div class="prow"><span class="n">${a ? "✅" : "⏳"}</span><span><b>${nm(p)}</b> ${roleChip(believed(p))}${believed(p) !== roleOf(p) ? ` <span class="tag">really the ${esc(roleOf(p))}</span>` : ""}</span><span>${a ? (a.picks || []).map(nm).join(" & ") : "<span class='hint'>not yet</span>"}</span></div>`; }).join("") || `<p class="hint">Nobody has a night choice tonight.</p>`}</div></section>`;
   if (n > 1 && !(GR.results || {})[n - 1]) return sub + `<section class="card"><p class="warn">Confirm Day ${n - 1}'s execution first.</p></section>`;
   if (!ui.draft || ui.draft.n !== n) return sub + `<section class="card"><h2>Work through the night</h2>
-    <p class="hint">${open ? "Players can still change their choices until the night closes. You can start early, but redo the draft if anything changes." : "Everyone's choices are in."} The app drafts the deaths and everyone's info from the true Grimoire; you can change any of it.</p>
-    <div class="row"><button class="btn primary" data-act="draft">📝 Draft Night ${n}</button></div></section>`;
+    <p class="hint">${open ? "Players can still change their choices until the night closes. You can start early: the choices below stay up to date." : "Everyone's choices are in."} You decide who dies and write what each player learns.</p>
+    <div class="row"><button class="btn primary" data-act="draft">📝 Write up Night ${n}</button></div></section>`;
   return sub + draftHtml(n);
 }
-// Work out the night from the true Grimoire and everyone's choices
-function draftNight(n) {
-  const ids = seatIds(G), R = { ...(GR.roles || {}) }, dead0 = { ...deadTruth() };
-  const pick = p => (acts[p] || {}).picks || [];
-  const find = role => ids.filter(p => R[p] === role && !dead0[p]);
-  const poisoner = find("Poisoner")[0], poisoned = poisoner ? pick(poisoner)[0] || null : null;
-  const impaired = p => R[p] === "Drunk" || p === poisoned;
-  const notes = [], deaths = [];
-  let newImp = null;
-  if (n > 1) {
-    const monk = find("Monk")[0], safe = monk && !impaired(monk) ? pick(monk)[0] : null;
-    const imp = find("Imp")[0], t = imp ? pick(imp)[0] : null;
-    if (!imp) notes.push("There's no living Imp tonight.");
-    else if (!t) notes.push(`The Imp (${nm(imp)}) hasn't chosen: pick who dies below, or no one does.`);
-    else if (impaired(imp)) notes.push(`The Imp is poisoned, so no one dies.`);
-    else if (dead0[t]) notes.push(`The Imp chose ${nm(t)}, who is already dead.`);
-    else if (t === safe) notes.push(`The Monk protected ${nm(t)}: no one dies.`);
-    else if (R[t] === "Soldier" && !impaired(t)) notes.push(`${nm(t)} is the Soldier: no one dies.`);
-    else {
-      deaths.push(t);
-      notes.push(`The Imp kills ${nm(t)}.`);
-      if (R[t] === "Mayor" && !impaired(t)) notes.push(`${nm(t)} is the Mayor: you may choose someone else to die instead.`);
-      if (t === imp) {
-        const mins = find("Scarlet Woman").concat(ids.filter(p => teamOf(R[p]) === "minion" && !dead0[p] && R[p] !== "Scarlet Woman"));
-        newImp = mins[0] || null;
-        notes.push(newImp ? `The Imp killed themselves: ${nm(newImp)} becomes the Imp.` : "The Imp killed themselves with no Minion left: good wins.");
-        if (newImp) R[newImp] = "Imp";
-      }
-    }
+// The night sheet: who wakes, in night order, with their choices. The Storyteller decides everything.
+function writeNight(n) {
+  const ids = seatIds(G), R = GR.roles || {}, dead0 = deadTruth(), rows = [];
+  if (n === 1 && ids.length >= 7) {
+    ids.filter(p => teamOf(R[p]) === "minion").forEach(p => rows.push({ pid: p, label: "Minion info", hint: "Tell them who the Demon is (and any other Minions).", text: "" }));
+    ids.filter(p => teamOf(R[p]) === "demon").forEach(p => rows.push({ pid: p, label: "Demon info", hint: `Tell them who their Minions are, and 3 bluffs (good characters not in play): ${(GR.bluffs || []).join(", ") || "choose 3"}.`, text: "" }));
   }
-  const dead1 = { ...dead0 }; deaths.forEach(p => dead1[p] = { how: "night", n });
-  const rows = [], name = p => seatName(G, p), other = (p, t) => { const pool = ids.filter(q => q !== p && q !== t); return pool[rnd(pool.length)]; };
-  const pair = (p, t) => shuffle([name(t), name(other(p, t))]).join(" and ");
-  const big = ids.length >= 7;
   for (const step of n === 1 ? FIRST_ORDER : OTHER_ORDER) {
-    if (step === "MINION" || step === "DEMON") {
-      if (!big) continue;
-      const demon = ids.find(p => R[p] === "Imp"), mins = ids.filter(p => teamOf(R[p]) === "minion");
-      if (step === "MINION") mins.forEach(p => rows.push({ pid: p, label: "Minion info", text: `The Demon is ${name(demon)}.${mins.length > 1 ? ` Your fellow Minion${mins.length > 2 ? "s are" : " is"} ${mins.filter(q => q !== p).map(name).join(" and ")}.` : ""}` }));
-      else if (demon) rows.push({ pid: demon, label: "Demon info", text: `Your Minion${mins.length > 1 ? "s are" : " is"} ${mins.map(name).join(" and ")}.\nThree good characters not in play (bluffs): ${(GR.bluffs || []).join(", ")}.` });
-      continue;
-    }
-    for (const p of ids.filter(q => believed(q) === step)) {
-      const wakes = step === "Ravenkeeper" ? deaths.includes(p) : step === "Poisoner" || step === "Monk" || step === "Imp" ? !dead0[p] : !dead1[p];
-      if (!wakes) continue;
-      const pk = pick(p), row = { pid: p, label: step, picks: pk, text: "", flag: impaired(p) ? (R[p] === "Drunk" ? "🍺 The Drunk: give them false info if you like" : "🧪 Poisoned: give them false info if you like") : "" };
-      const team = t => ids.filter(q => q !== p && teamOf(R[q]) === t);
-      const learn = (t, none) => { const c = team(t); if (!c.length) return none; const x = c[rnd(c.length)]; return `One of ${pair(p, x)} is the ${R[x]}.`; };
-      if (step === "Washerwoman") row.text = learn("townsfolk", "There are no other Townsfolk.");
-      else if (step === "Librarian") row.text = learn("outsider", "There are no Outsiders in play.");
-      else if (step === "Investigator") row.text = learn("minion", "There are no Minions in play.");
-      else if (step === "Chef") { let k = 0; ids.forEach((q, i) => { if (alignOf(R[q]) === "evil" && alignOf(R[ids[(i + 1) % ids.length]]) === "evil") k++; }); row.text = `There ${k === 1 ? "is 1 pair" : `are ${k} pairs`} of evil players sitting next to each other.`; }
-      else if (step === "Empath") { const nb = aliveNeighbours(G, p, dead1), k = nb.filter(q => alignOf(R[q]) === "evil").length; row.text = `${k} of your living neighbours (${nb.map(name).join(" and ")}) ${k === 1 ? "is" : "are"} evil.`; }
-      else if (step === "Fortune Teller") { if (pk.length < 2) { row.text = ""; row.flag = (row.flag ? row.flag + " · " : "") + "They haven't chosen 2 players"; } else { const yes = pk.some(q => R[q] === "Imp" || q === GR.rh); row.text = `You chose ${pk.map(name).join(" and ")}: ${yes ? "YES, one of them is the Demon." : "NO, neither of them is the Demon."}`; } }
-      else if (step === "Undertaker") { const ex = ((GR.results || {})[n - 1] || {}).exec; row.text = ex ? `${name(ex)} was executed today. They were the ${GR.roles[ex]}.` : "No one was executed today, so you learn nothing."; }
-      else if (step === "Ravenkeeper") { const q = pk[0]; row.text = q ? `You died tonight. You chose ${name(q)}: they are the ${R[q]}.` : ""; if (!q) row.flag = "They didn't choose anyone: you could choose for them"; }
-      else if (step === "Spy") row.text = "The Grimoire:\n" + ids.map((q, i) => `${i + 1}. ${name(q)}: ${R[q]}${(GR.shown || {})[q] ? ` (thinks they're the ${GR.shown[q]})` : ""}${dead1[q] ? " · dead" : ""}${q === poisoned ? " · poisoned" : ""}${q === GR.rh ? " · red herring" : ""}`).join("\n");
-      else row.noInfo = true;
-      rows.push(row);
-    }
+    if (step === "MINION" || step === "DEMON") continue;
+    for (const p of ids.filter(q => believed(q) === step && !dead0[q])) rows.push({ pid: p, label: step, hint: (CHAR[step] || {}).text || "", text: "" });
   }
-  if (newImp) rows.push({ pid: newImp, label: "Becomes the Imp", text: "The Imp has died and passed the Demon on to you: you are now the Imp.", newRole: "Imp" });
-  const butler = ids.find(p => R[p] === "Butler" && !dead1[p]);
-  return { n, deaths, rows, notes, poisoned, master: butler ? pick(butler)[0] || null : null, butler: butler || null, newImp, dawnOpt: 0 };
+  return { n, deaths: [], rows, extra: {}, dawnOpt: 0 };
+}
+const nightPicks = p => (acts[p] || {}).picks || [];
+function poisonedTonight() { const ids = seatIds(G), q = ids.find(p => roleOf(p) === "Poisoner" && !deadTruth()[p]); return q ? nightPicks(q)[0] || null : null; }
+function draftHtml(n) {
+  const D = ui.draft, alive = seatIds(G).filter(p => !deadTruth()[p]), opts = dawnOptions(n), pois = poisonedTonight();
+  const pick = opts[Math.min(D.dawnOpt, opts.length - 1)], listed = new Set(D.rows.map(r => r.pid));
+  const flag = p => roleOf(p) === "Drunk" ? `🍺 Really the Drunk` : p === pois ? `🧪 Poisoned tonight` : "";
+  return `<section class="card"><h2>📖 The Grimoire tonight</h2>
+    <div class="town">${seatIds(G).map((p, i) => `<div class="prow ${deadTruth()[p] ? "dead" : ""}"><span class="n">${i + 1}</span><span><b class="nm">${nm(p)}</b> ${roleChip(roleOf(p))}${(GR.shown || {})[p] ? ` <span class="tag">thinks: ${esc(GR.shown[p])}</span>` : ""}${GR.rh === p ? ` <span class="tag">red herring</span>` : ""}${p === pois ? ` <span class="tag warn">🧪 poisoned</span>` : ""}</span><span>${nightPicks(p).length ? `🌙 ${nightPicks(p).map(nm).join(" & ")}` : ""}</span></div>`).join("")}</div>
+    <p class="hint">🎭 on the Grimoire tab changes someone's character (for example when the Imp passes the Demon on).</p></section>
+    <section class="card"><h2>📝 Night ${n}: you decide</h2>
+    <h3>Who dies tonight</h3>${n === 1 ? `<p class="hint">Nobody normally dies on the first night.</p>` : ""}
+    <div class="picks">${alive.map(p => `<button class="pick" data-act="d-death" data-pid="${p}" aria-pressed="${D.deaths.includes(p)}">${D.deaths.includes(p) ? "💀 " : ""}${nm(p)}</button>`).join("")}</div>
+    <h3>What each player learns, in night order</h3>
+    ${D.rows.map((r, i) => `<div class="vote-row"><span><b>${nm(r.pid)}</b> · ${esc(r.label)}${r.label !== believed(r.pid) ? "" : nightPicks(r.pid).length ? ` · chose <b>${nightPicks(r.pid).map(nm).join(" & ")}</b>` : actOf(believed(r.pid), n) ? ` · <span class="hint">hasn't chosen</span>` : ""}</span>
+      ${flag(r.pid) ? `<p class="warn">${flag(r.pid)}</p>` : ""}${r.hint ? `<span class="hint">${esc(r.hint)}</span>` : ""}
+      <textarea data-info="${i}" placeholder="Leave empty if they learn nothing" aria-label="What ${nm(r.pid)} learns">${esc(r.text)}</textarea>
+      ${r.label === "Spy" ? `<div class="row"><button class="btn small" data-act="spy-fill" data-i="${i}">📋 Copy the Grimoire in</button></div>` : ""}</div>`).join("") || `<p class="hint">Nobody wakes tonight.</p>`}
+    <details><summary class="label">Anyone else</summary><div class="town" style="margin-top:8px">${seatIds(G).filter(p => !listed.has(p)).map(p => `<div class="field"><span><b>${nm(p)}</b> ${roleChip(roleOf(p))}</span><textarea data-extra="${p}" placeholder="Optional message at dawn" aria-label="Message for ${nm(p)}">${esc(D.extra[p] || "")}</textarea></div>`).join("")}</div></details></section>
+    <section class="card"><h2>🌅 Wake the town</h2>
+      <div class="seg" role="group" aria-label="When dawn comes">${opts.map((o, i) => `<button data-act="dawn-opt" data-i="${i}" aria-pressed="${o === pick}">${esc(o.label)}</button>`).join("")}</div>
+      <p class="hint">At dawn, everyone sees ${D.deaths.length ? `that ${D.deaths.map(nm).join(" and ")} died` : "that nobody died"}, and each player gets what you wrote for them. Night ${n + 1} then opens at ${clock(dayTimes(pick.slot, G.sched, pick.start).night)}.</p>
+      <div class="row"><button class="btn primary" data-act="release">🌅 Release Day ${n}</button></div></section>`;
 }
 function dawnOptions(n) {
   const now = nowMs(), s = G.sched, end = G.nights[n].end, out = [];
@@ -343,35 +316,17 @@ function dawnOptions(n) {
   if (!out.some(o => o.slot === next)) out.push({ label: `At dawn: ${when(next)}`, slot: next, start: next });
   return out;
 }
-function draftHtml(n) {
-  const D = ui.draft, alive = seatIds(G).filter(p => !deadTruth()[p]), opts = dawnOptions(n);
-  const pick = opts[Math.min(D.dawnOpt, opts.length - 1)];
-  return `<section class="card"><h2>📝 Night ${n}: the draft</h2>
-    ${D.notes.length ? D.notes.map(t => `<p class="lead" style="margin:0">${t}</p>`).join("") : n === 1 ? `<p class="hint">Nobody dies on the first night.</p>` : ""}
-    <h3>Who dies tonight</h3>
-    <div class="picks">${alive.map(p => `<button class="pick" data-act="d-death" data-pid="${p}" aria-pressed="${D.deaths.includes(p)}">${D.deaths.includes(p) ? "💀 " : ""}${nm(p)}</button>`).join("")}</div>
-    <h3>What each player learns</h3>
-    ${D.rows.map((r, i) => `<div class="vote-row"><span><b>${nm(r.pid)}</b> · ${esc(r.label)}${r.picks && r.picks.length ? ` · chose ${r.picks.map(nm).join(" & ")}` : ""}</span>
-      ${r.flag ? `<p class="warn">${esc(r.flag)}</p>` : ""}
-      ${r.noInfo ? `<span class="hint">No information to give.</span>` : `<textarea data-info="${i}" aria-label="What ${nm(r.pid)} learns">${esc(r.text)}</textarea>`}</div>`).join("") || `<p class="hint">Nobody learns anything tonight.</p>`}
-    <div class="row"><button class="btn small" data-act="draft">↺ Redo the draft</button></div></section>
-    <section class="card"><h2>🌅 Wake the town</h2>
-      <div class="seg" role="group" aria-label="When dawn comes">${opts.map((o, i) => `<button data-act="dawn-opt" data-i="${i}" aria-pressed="${o === pick}">${esc(o.label)}</button>`).join("")}</div>
-      <p class="hint">At dawn, everyone sees ${D.deaths.length ? `that ${D.deaths.map(nm).join(" and ")} died` : "that nobody died"}${n === 1 ? " (it's the first night)" : ""}, and each player gets their info. Night ${n + 1} then opens at ${clock(dayTimes(pick.slot, G.sched, pick.start).night)}.</p>
-      <div class="row"><button class="btn primary" data-act="release">🌅 Release Day ${n}</button></div></section>`;
-}
 async function release() {
   const n = (G.day || 0) + 1, D = ui.draft, o = dawnOptions(n), pick = o[Math.min(D.dawnOpt, o.length - 1)];
   const t = dayTimes(pick.slot, G.sched, pick.start), b = FB.writeBatch(db);
   if (!confirm(`Release Day ${n}? It starts ${when(t.dawn)}.`)) return;
   b.set(gref(gid, "gated", "dawn" + n), { at: t.dawn, d: n, deaths: D.deaths.map(pid => ({ pid, how: "night", n })) });
-  for (const r of D.rows) {
-    if (r.newRole) b.update(gref(gid, "secret", r.pid), { role: r.newRole, team: teamOf(r.newRole), side: alignOf(r.newRole) });
-    if (!r.noInfo && r.text.trim()) b.update(gref(gid, "secret", r.pid), { info: FB.arrayUnion({ n, at: t.dawn, text: r.text.trim(), label: r.label }) });
-  }
+  for (const r of D.rows) if (r.text.trim()) b.update(gref(gid, "secret", r.pid), { info: FB.arrayUnion({ n, at: t.dawn, text: r.text.trim(), label: r.label }) });
+  for (const [p, text] of Object.entries(D.extra)) if (text.trim()) b.update(gref(gid, "secret", p), { info: FB.arrayUnion({ n, at: t.dawn, text: text.trim(), label: "From the Storyteller" }) });
   const dead = { ...deadTruth() }; D.deaths.forEach(p => dead[p] = { how: "night", n });
-  const gr = { dead, [`poison.${n}`]: D.poisoned || null, [`master.${n}`]: D.butler ? { pid: D.butler, master: D.master } : null };
-  if (D.newImp) gr[`roles.${D.newImp}`] = "Imp";
+  // Kept for the day: who was poisoned, and the Butler's Master (for counting votes)
+  const butler = seatIds(G).find(p => roleOf(p) === "Butler" && !dead[p]);
+  const gr = { dead, [`poison.${n}`]: poisonedTonight(), [`master.${n}`]: butler ? { pid: butler, master: nightPicks(butler)[0] || null } : null };
   b.update(gref(gid, "st", "grim"), gr);
   b.update(gref(gid), { [`days.${n}`]: t, [`nights.${n + 1}`]: { open: t.night, end: t.nightEnd }, day: n, night: n + 1, dead: deadTruth(), ghost: GR.ghost || {} });
   await b.commit();
@@ -399,8 +354,11 @@ function dayHtml() {
       <p class="hint">${alive.length} alive · ${need} votes to execute</p></section>
     ${virginTodos().map(virginHtml).join("")}${slayTodos().map(slayHtml).join("")}
     <section class="card"><h2>⚖️ Nominations</h2>
-      ${rows.length ? rows.map(r => `<div class="vote-row"><span><b>${nm(r.by)}</b> nominated <b>${nm(r.of)}</b> ${roleChip(roleOf(r.of))}</span>
-        <span class="lead"><b>${r.count}</b> vote${r.count === 1 ? "" : "s"}${r.count >= need ? " ✔️" : ""}: <span class="hint">${r.voters.map(nm).join(", ") || "none yet"}</span></span></div>`).join("") : `<p class="hint">No nominations yet${nowMs() < t.noms ? `: they open at ${clock(t.noms)}` : ""}.</p>`}
+      ${noms.length ? byTime(noms).map((x, i) => { const r = rows.find(y => y.of === x.of) || { count: 0, voters: [] }, opens = voteOpensAt(G, x);
+        return `<div class="vote-row"><span><span class="tag">${i + 1}</span> <b>${nm(x.by)}</b> nominated <b>${nm(x.of)}</b> ${roleChip(roleOf(x.of))} <span class="hint">· ${clock(x.at)}</span></span>
+        ${x.reason ? `<p class="quote"><small>Why</small>“${esc(x.reason)}”</p>` : ""}
+        ${x.defence ? `<p class="quote def"><small>Defence</small>“${esc(x.defence)}”</p>` : nowMs() < opens ? `<p class="hint">⏳ Waiting for a defence: voting opens at ${clock(opens)}.</p>` : `<p class="hint">No defence given.</p>`}
+        <span class="lead"><b>${r.count}</b> vote${r.count === 1 ? "" : "s"}${r.count >= need ? " ✔️" : ""}: <span class="hint">${r.voters.map(nm).join(", ") || "none yet"}</span></span></div>`; }).join("") : `<p class="hint">No nominations yet${nowMs() < t.noms ? `: they open at ${clock(t.noms)}` : ""}.</p>`}
       <p class="hint">Only you can see the votes before ${clock(t.close)}. Dead players' first vote uses their ghost vote${(GR.master || {})[d] && (GR.master || {})[d].master ? `; the Butler's vote only counts if ${nm(GR.master[d].master)} votes too` : ""}.</p></section>
     ${res ? `<section class="card"><h2>🪓 Confirmed</h2><p class="lead">${res.exec ? `${nm(res.exec)} is executed` : "No one is executed"}. Everyone sees it ${nowMs() >= res.at ? "now" : `at ${when(res.at)}`}.</p></section>`
       : closed ? verdictHtml(rows, need) : `<section class="card"><p class="hint">After voting closes at ${clock(t.close)}, you'll confirm the execution here. Players see it at ${clock(t.reveal)}.</p></section>`}`;
@@ -441,7 +399,7 @@ async function confirmDay({ exec, how = "executed", end, at, swOn, why }) {
   const d = G.day, b = FB.writeBatch(db), rows = countDay(), need = needVotes(aliveIds().length);
   const dead = { ...deadTruth() }; if (exec) dead[exec] = { how, d };
   const ghost = { ...(GR.ghost || {}) }; rows.forEach(r => r.voters.forEach(q => { if (deadTruth()[q]) ghost[q] = true; }));
-  b.set(gref(gid, "gated", "result" + d), { at, d, exec: exec || null, how, why: why || "", need, rows: rows.map(r => ({ of: r.of, by: r.by, count: r.count, voters: r.voters })) });
+  b.set(gref(gid, "gated", "result" + d), { at, d, exec: exec || null, how, why: why || "", need, rows: rows.map(r => ({ of: r.of, by: r.by, count: r.count, voters: r.voters, at: (noms.find(x => x.of === r.of) || {}).at || 0 })) });
   const gr = { dead, ghost, [`results.${d}`]: { exec: exec || null, at } };
   if (swOn) { const sw = seatIds(G).find(p => !dead[p] && roleOf(p) === "Scarlet Woman"); if (sw) { gr[`roles.${sw}`] = "Imp"; b.update(gref(gid, "secret", sw), { role: "Imp", team: "demon", side: "evil", info: FB.arrayUnion({ n: d, at, text: "The Demon has died: as the Scarlet Woman, you are now the Imp.", label: "Scarlet Woman" }) }); } }
   b.update(gref(gid, "st", "grim"), gr);
@@ -548,8 +506,11 @@ document.getElementById("app").addEventListener("click", e => {
     case "clear-bag": return run(() => FB.updateDoc(gref(gid, "st", "grim"), { roles: {}, shown: {}, rh: "", bluffs: [] }));
     case "bluffs": return run(() => FB.updateDoc(gref(gid, "st", "grim"), { bluffs: newBluffs(GR.roles || {}, GR.shown || {}) }));
     case "deal": ui.n1End = $("#n1End").value; return run(deal);
+    case "def-mins": return run(() => FB.updateDoc(gref(gid), { defMins: +el.dataset.v }), "Saved");
     case "tab": ui.tab = el.dataset.tab; render(true); return window.scrollTo(0, 0);
-    case "draft": ui.draft = draftNight((G.day || 0) + 1); return render(true);
+    case "draft": ui.draft = writeNight((G.day || 0) + 1); return render(true);
+    case "spy-fill": { const r = ui.draft.rows[+el.dataset.i], pois = poisonedTonight();
+      r.text = (r.text ? r.text + "\n" : "") + "The Grimoire:\n" + seatIds(G).map((q, i) => `${i + 1}. ${seatName(G, q)}: ${roleOf(q)}${(GR.shown || {})[q] ? ` (thinks they're the ${GR.shown[q]})` : ""}${deadTruth()[q] ? " · dead" : ""}${q === pois ? " · poisoned" : ""}${q === GR.rh ? " · red herring" : ""}`).join("\n"); return render(true); }
     case "d-death": { const D = ui.draft; D.deaths = D.deaths.includes(pid) ? D.deaths.filter(q => q !== pid) : [...D.deaths, pid]; return render(true); }
     case "dawn-opt": ui.draft.dawnOpt = +el.dataset.i; return render(true);
     case "release": return run(release);
@@ -584,6 +545,7 @@ document.getElementById("app").addEventListener("change", e => {
 document.getElementById("app").addEventListener("input", e => {
   const el = e.target;
   if (el.dataset.info !== undefined && ui.draft) ui.draft.rows[+el.dataset.info].text = el.value;
+  if (el.dataset.extra !== undefined && ui.draft) ui.draft.extra[el.dataset.extra] = el.value;
   if (el.id === "stSay") ui.msg = el.value;
   if (el.id === "newName") ui.newName = el.value;
 });

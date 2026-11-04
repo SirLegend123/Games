@@ -177,6 +177,14 @@ const actOf = (role, n) => { const a = ACTS[role]; return a && (n === 1 ? a.firs
 const FIRST_ORDER = ["MINION", "DEMON", "Poisoner", "Washerwoman", "Librarian", "Investigator", "Chef", "Empath", "Fortune Teller", "Butler", "Spy"];
 const OTHER_ORDER = ["Poisoner", "Monk", "Scarlet Woman", "Imp", "Ravenkeeper", "Empath", "Fortune Teller", "Undertaker", "Butler", "Spy"];
 
+/* ---------- Nominations ---------- */
+// Each nomination comes with a reason. The nominee then has time to give a defence; voting on it opens
+// when they do, or when that time runs out. New nominations stop that long before voting closes.
+const defMins = G => G.defMins || 30;
+const voteOpensAt = (G, x) => Math.min(x.defAt || Infinity, x.at + defMins(G) * 60000);
+const nomsCloseAt = (G, d) => G.days[d].close - defMins(G) * 60000;
+const byTime = list => [...list].sort((a, b) => a.at - b.at);
+
 /* ---------- Votes ---------- */
 // The execution threshold: half the living players, rounded up
 const needVotes = aliveCount => Math.ceil(aliveCount / 2);
