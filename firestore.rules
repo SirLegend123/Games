@@ -1,0 +1,85 @@
+rules_version = '2';
+// Clocktower Daily: who may read and write what.
+// Paste this into the Firebase console: Firestore Database → Rules → Publish.
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn() { return request.auth != null; }
+    function now() { return request.time.toMillis(); }
+    function str(s, max) { return s is string && s.size() > 0 && s.size() <= max; }
+
+    match /games/{gid} {
+      function G() { return get(/databases/$(db)/documents/games/$(gid)).data; }
+      function isST() { return signedIn() && G().st == request.auth.uid; }
+      // The player in seat pid is whoever the Storyteller linked to that seat
+      function owns(pid) { return signedIn() && G().uids.get(pid, '') == request.auth.uid; }
+      function dayT(d) { return G().days.get(d, {}); }
+      function nominating(d) { return dayT(d).get('noms', 9000000000000000) <= now() && now() < dayT(d).get('close', 0); }
+      function closed(d) { return now() >= dayT(d).get('close', 9000000000000000); }
+
+      // The public game: anyone with the code can read it; only the Storyteller who made it can change it
+      allow get: if signedIn();
+      allow create: if signedIn() && request.resource.data.st == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.st == request.auth.uid && request.resource.data.get('st', resource.data.st) == resource.data.st;
+
+      // Asking to join: a player writes their own name
+      match /joins/{uid} {
+        allow create, update: if signedIn() && request.auth.uid == uid && str(request.resource.data.name, 30);
+        allow get: if signedIn() && request.auth.uid == uid || isST();
+        allow list, delete: if isST();
+      }
+      // A player's character, side and night info: only them and the Storyteller
+      match /secret/{pid} {
+        allow get: if isST() || owns(pid);
+        allow list, write: if isST();
+      }
+      // The Storyteller's own Grimoire
+      match /st/{doc=**} {
+        allow read, write: if isST();
+      }
+      // News that waits for its moment (the dawn deaths, the execution): readable from time 'at'
+      match /gated/{id} {
+        allow get: if isST() || resource == null || resource.data.at <= now();
+        allow list, write: if isST();
+      }
+      // Nominations: one per nominator and one per nominee each day, while nominations are open
+      match /days/{d}/noms/{nominee} {
+        allow read: if signedIn();
+        allow create: if owns(request.resource.data.by) && request.resource.data.of == nominee && nominating(d)
+          && existsAfter(/databases/$(db)/documents/games/$(gid)/days/$(d)/nominators/$(request.resource.data.by));
+        allow update, delete: if isST();
+      }
+      match /days/{d}/nominators/{by} {
+        allow read: if signedIn();
+        allow create: if owns(by) && nominating(d);
+        allow update, delete: if isST();
+      }
+      // Votes (only "yes" votes are stored, as nom_voter): secret until voting closes, except your own
+      match /days/{d}/votes/{vid} {
+        allow get: if isST() || closed(d) || owns(vid.split('_')[1]);
+        allow list: if isST() || closed(d);
+        allow create: if owns(vid.split('_')[1]) && nominating(d)
+          && request.resource.data.voter == vid.split('_')[1] && request.resource.data.nom == vid.split('_')[0]
+          && exists(/databases/$(db)/documents/games/$(gid)/days/$(d)/noms/$(vid.split('_')[0]));
+        allow delete: if (owns(vid.split('_')[1]) && nominating(d)) || isST();
+        allow update: if false;
+      }
+      // The town square: public messages
+      match /square/{id} {
+        allow read: if signedIn();
+        allow create: if (owns(request.resource.data.pid) && request.resource.data.kind in ['say', 'slay'] && str(request.resource.data.text, 600)) || isST();
+        allow update, delete: if isST();
+      }
+      // Private chats between two players (pair = "p1~p2"): only those two can read or write
+      match /chats/{pair}/msgs/{id} {
+        allow read: if owns(pair.split('~')[0]) || owns(pair.split('~')[1]);
+        allow create: if request.resource.data.from in pair.split('~') && owns(request.resource.data.from) && str(request.resource.data.text, 1000);
+      }
+      // Night actions: the player's own choices while that night is open
+      match /nights/{n}/acts/{pid} {
+        allow get: if isST() || owns(pid);
+        allow list: if isST();
+        allow write: if isST() || (owns(pid) && G().nights.get(n, {}).get('open', 9000000000000000) <= now() && now() < G().nights.get(n, {}).get('end', 0));
+      }
+    }
+  }
+}
