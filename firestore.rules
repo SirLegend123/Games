@@ -15,6 +15,12 @@ service cloud.firestore {
       function dayT(d) { return G().days.get(d, {}); }
       function nominating(d) { return dayT(d).get('noms', 9000000000000000) <= now() && now() < dayT(d).get('close', 0); }
       function closed(d) { return now() >= dayT(d).get('close', 9000000000000000); }
+      // The nominee's time to give a defence (minutes), and when new nominations stop
+      function defMs() { return G().get('defMins', 30) * 60000; }
+      function canNominate(d) { return nominating(d) && now() < dayT(d).get('close', 0) - defMs(); }
+      function near(t) { return t is number && t > now() - 120000 && t < now() + 120000; }
+      // Voting on a nomination opens when the nominee gives a defence, or when their time is up
+      function votingOpen(d, nom) { let x = get(/databases/$(db)/documents/games/$(gid)/days/$(d)/noms/$(nom)).data; return x.get('defAt', 0) > 0 || now() >= x.at + defMs(); }
 
       // The public game: anyone with the code can read it; only the Storyteller who made it can change it
       allow get: if signedIn();
@@ -41,16 +47,20 @@ service cloud.firestore {
         allow get: if isST() || resource == null || resource.data.at <= now();
         allow list, write: if isST();
       }
-      // Nominations: one per nominator and one per nominee each day, while nominations are open
+      // Nominations: one per nominator and one per nominee each day, with a reason; the nominee may add a defence
       match /days/{d}/noms/{nominee} {
         allow read: if signedIn();
-        allow create: if owns(request.resource.data.by) && request.resource.data.of == nominee && nominating(d)
+        allow create: if owns(request.resource.data.by) && request.resource.data.of == nominee && canNominate(d)
+          && near(request.resource.data.at) && str(request.resource.data.reason, 300) && !('defAt' in request.resource.data)
           && existsAfter(/databases/$(db)/documents/games/$(gid)/days/$(d)/nominators/$(request.resource.data.by));
-        allow update, delete: if isST();
+        allow update: if isST() || (owns(nominee) && now() < dayT(d).get('close', 0)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['defence', 'defAt'])
+          && str(request.resource.data.defence, 600) && near(request.resource.data.defAt));
+        allow delete: if isST();
       }
       match /days/{d}/nominators/{by} {
         allow read: if signedIn();
-        allow create: if owns(by) && nominating(d);
+        allow create: if owns(by) && canNominate(d);
         allow update, delete: if isST();
       }
       // Votes (only "yes" votes are stored, as nom_voter): secret until voting closes, except your own
@@ -59,7 +69,7 @@ service cloud.firestore {
         allow list: if isST() || closed(d);
         allow create: if owns(vid.split('_')[1]) && nominating(d)
           && request.resource.data.voter == vid.split('_')[1] && request.resource.data.nom == vid.split('_')[0]
-          && exists(/databases/$(db)/documents/games/$(gid)/days/$(d)/noms/$(vid.split('_')[0]));
+          && exists(/databases/$(db)/documents/games/$(gid)/days/$(d)/noms/$(vid.split('_')[0])) && votingOpen(d, vid.split('_')[0]);
         allow delete: if (owns(vid.split('_')[1]) && nominating(d)) || isST();
         allow update: if false;
       }
