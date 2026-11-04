@@ -1,6 +1,6 @@
 # Games
 
-Open `index.html` to choose between the *Blood on the Clocktower* apps: the **Storyteller**, the **Town Square**, the **Player**, **Online Notes** and **Table Notes**. They share their character list (`characters.js`). It also has **The Traitors**, an online party game for family and friends (see the end).
+Open `index.html` to choose between the *Blood on the Clocktower* apps: the **Storyteller**, the **Town Square**, the **Player**, **Online Notes**, **Table Notes** and **Clocktower Daily** (a game over several days). They share their character list (`characters.js`). It also has **The Traitors**, an online party game for family and friends (see the end).
 
 **Connections**: the live link (`net.js`) uses several STUN servers to find a direct route between devices, and TURN relay servers (including one on port 443) for when there isn't one, such as on some mobile networks and routers. The Storyteller sends a small heartbeat every 8 seconds. A phone or TV reconnects by itself after 30 seconds of silence, after 15 seconds if a link never opens, and straight away when it comes back from the lock screen. While linked, the Player app keeps the screen on where the phone allows.
 
@@ -117,6 +117,30 @@ The same notepad as Online Notes, for a player at a face-to-face game. Open `tab
 
 - Players in seat order, your character, your night info, soft and hard claims, and who died and how, just as in Online Notes.
 - **👋 Signal** at the top fills the screen with a big, bright card saying "Can we talk?", to hold up when you want a word, with no names on it. Switch the message (Later?, After this vote?, Come and find me, Yes!, No) and the colour, then **Done**.
+
+## Clocktower Daily
+
+A game of Trouble Brewing that runs over several days, with everyone on their own phone, playing in their own time. The Storyteller uses `daily-st.html` (**Clocktower Daily: Storyteller** on the cover page); players use `daily.html` (**Clocktower Daily**). The game is kept in Firebase (project *clocktower-daily*), so it carries on while phones are asleep.
+
+**Each day** runs on a timetable the Storyteller sets (changes start from the next day):
+
+| Default | What happens |
+|---|---|
+| 07:30 | 🌅 Dawn: the night's deaths are revealed, and each player's night info arrives |
+| 07:45 | 🤫 Private chats: message anyone, one to one |
+| 13:30 | ⚖️ Nominations open: nominate and vote; private chats with neighbours only |
+| 18:30 | 🔒 Voting closes |
+| 19:00 | 🪓 The execution is revealed |
+| 19:30 | 🌙 Night: choose your night action; chats with neighbours only |
+| 21:30 | 🕯️ Night actions close, and the Storyteller works through the night |
+
+**Players** join with the 6-letter code and their name; the Storyteller seats them. Then: **🏠 Today** (the dawn news, the execution, your night action, your new info, the town and the timetable), **🗣️ Square** (public messages, and a once-only 🏹 Slayer shot anyone can claim), **✉️ Chats** (private chats: anyone during private chats, otherwise your neighbours), **⚖️ Votes** (nominate once a day; vote yes on as many nominations as you like, secretly, and change your mind until voting closes; the dead have one ghost vote) and **🎭 Me** (your character and everything you've learnt). **📅** adds the next week's timetable to your calendar, with reminders before voting and night actions close. Light and dark mode, and the character sheet, are at the top.
+
+**The Storyteller**: invite (code, link, QR) and seat the players in order, deal characters (🎲 random or chosen; the Drunk, red herring and Demon bluffs are filled in), set the timetable and start Night 1. Each night, **📝 Draft** works out who dies and what everyone learns from the true Grimoire and the players' choices (Poisoner, Monk, Imp and star-pass, Soldier, Mayor, Empath, Fortune Teller, Undertaker, Ravenkeeper, Spy, the first night's Washerwoman, Librarian, Investigator, Chef and evil team info), flagging drunk or poisoned players; change anything, then **🌅 Release** the day (at the next dawn, or right now). In the day you see nominations and votes live, decide Virgin nominations and Slayer shots, and after voting closes **confirm the execution** (votes are counted with ghost votes and the Butler; it suggests whether the game ends, including the Saint, the Mayor and the Scarlet Woman). The Grimoire lets you message a player privately, change their character, or kill them; Settings has the timetable and ending the game. Run each game from one device.
+
+**Privacy** is enforced by the database rules (`firestore.rules`): each player can read only their own character and info and their own chats; votes stay secret until voting closes; the dawn news and the execution can't be read before their time; only the Storyteller sees the Grimoire. **When `firestore.rules` changes, paste it into the Firebase console (Firestore Database → Rules) and press Publish.**
+
+**For developers**: `daily.js` holds the Firebase setup, the timetable maths, the Trouble Brewing night actions and the vote count; `daily.css` the shared look; `vendor/firebase.js` is the Firebase SDK (app, auth, Firestore) bundled with esbuild. Add `?emu=1` to either page to use the local Firebase emulator (`firebase emulators:start --only firestore,auth --project demo-ct`, Firestore on port 8085).
 
 ## Town Square
 
