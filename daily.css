@@ -132,6 +132,10 @@ img.crest { width: 110px; height: auto; display: block; margin: 0 auto; }
 .brand { margin-top: 8px; color: var(--muted); font-size: .8rem; text-align: center; }
 .home-tip { border: 2px solid var(--brass); }
 .steps { margin: 0; padding-left: 1.4em; display: grid; gap: 6px; font-size: 1.05rem; }
+.hist { border-top: 1px solid var(--line); padding: 8px 0; }
+.hist summary { font-weight: 800; cursor: pointer; padding: 6px 0; }
+.hist p { margin: 6px 0; }
+.hist .vote-row { margin: 6px 0; }
 .sheet h3 { margin: 12px 0 4px; }
 .srow { display: grid; grid-template-columns: 2em minmax(0, 1fr); gap: 6px; margin: 4px 0; }
 .srow .ico { font-size: 1.3rem; }

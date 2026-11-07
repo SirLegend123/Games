@@ -10,15 +10,15 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 97;</script>
-<script src="update.js?v=97"></script>
+<script>window.APP_V = 98;</script>
+<script src="update.js?v=98"></script>
 <script src="vendor/firebase.js"></script>
-<script src="characters.js?v=97"></script>
-<script src="daily.js?v=97"></script>
+<script src="characters.js?v=98"></script>
+<script src="daily.js?v=98"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=97">
+<link rel="stylesheet" href="daily.css?v=98">
 </head>
 <body>
 <div class="wrap" id="app"><p class="hint">Opening…</p></div>
@@ -61,7 +61,7 @@ function watch() {
     const d = G.day || 0;
     if (d && cur.day !== d) { unsub("noms"); noms = []; myVotes = {}; cur.day = d; }
     if (d) sub("noms", gcol(gid, "days", String(d), "noms"), q => { noms = q.docs.map(x => x.data()).sort((a, b) => a.at - b.at); loadMyVotes(); render(); });
-    loadAct(); refreshGated();
+    loadAct(); refreshGated(); ping();
     render();
   });
   sub("square", FB.query(gcol(gid, "square"), FB.orderBy("at", "desc"), FB.limit(300)), q => { square = q.docs.map(x => ({ id: x.id, ...x.data() })).reverse(); render(); });
@@ -343,7 +343,46 @@ function votesHtml(p) {
     <p class="hint">📝 Each nomination gives a reason. The nominee then has ${plural(defMins(G), "minute")} to give a defence; voting opens when they do, or when the time is up.</p>
     ${open && !D[me] && !iNominated ? nowMs() < nomsCloseAt(G, d) ? `<div class="row"><button class="btn primary" data-act="nominate-open">☝️ Nominate someone</button><span class="hint">You can nominate once a day, until ${clock(nomsCloseAt(G, d))}.</span></div>` : `<p class="hint">New nominations closed at ${clock(nomsCloseAt(G, d))}, to leave time for a defence and the vote.</p>` : ""}
     ${noms.length ? noms.map((x, i) => nomCardHtml(x, i, p)).join("") : `<p class="hint">No nominations yet.</p>`}
-    ${res ? resultHtml(res).replace(/^<section class="card">|<\/section>$/g, "") : ""}</section>`;
+    ${res ? resultHtml(res).replace(/^<section class="card">|<\/section>$/g, "") : ""}</section>
+    ${historyHtml()}`;
+}
+
+/* ---------- 📜 The story so far: every earlier day's deaths, nominations and votes ---------- */
+const hist = {};
+let histLoading = false;
+const histDays = () => { const d = G.day || 0, out = []; for (let i = d - (G.overAt ? 0 : 1); i >= 1; i--) out.push(i); return out; };
+async function loadHistory() {
+  if (histLoading) return;
+  // A day without a result yet (or ever, if the game ended early) is checked again at most once a minute
+  const need = histDays().filter(d => !hist[d] || (!hist[d].result && nowMs() - hist[d].at > 60000));
+  if (!need.length) return;
+  histLoading = true;
+  try {
+    for (const d of need) {
+      const get = async k => { try { const x = await retryDenied(() => FB.getDoc(gref(gid, "gated", k))); return x.exists() ? x.data() : null; } catch (e) { return null; } };
+      const [dawn, result, nq] = await Promise.all([get("dawn" + d), get("result" + d), FB.getDocs(gcol(gid, "days", String(d), "noms")).catch(() => null)]);
+      hist[d] = { dawn, result, noms: nq ? byTime(nq.docs.map(x => x.data())) : [], at: nowMs() };
+    }
+  } finally { histLoading = false; render(); }
+}
+function historyHtml() {
+  const days = histDays();
+  if (!days.length) return "";
+  loadHistory();
+  return `<section class="card"><h2>📜 Earlier days</h2><p class="hint">Who died, every nomination, and who voted for whom.</p>
+    ${days.map((d, i) => { const h = hist[d];
+      if (!h) return `<p class="hint">Day ${d}: loading…</p>`;
+      const r = h.result, nightDeaths = (h.dawn && h.dawn.deaths) || [], other = (G.events || []).filter(e => e.d === d && e.dies);
+      const head = `Day ${d}: ${r ? (r.exec ? `${nm(r.exec)} executed` : "nobody executed") : "result not out yet"}${nightDeaths.length ? ` · ${nightDeaths.map(x => nm(x.pid)).join(" & ")} died in the night` : ""}`;
+      return `<details class="hist" ${i === 0 ? "open" : ""}><summary>${head}</summary>
+        ${nightDeaths.length ? `<p>🌙 Found dead at dawn: <b>${nightDeaths.map(x => nm(x.pid)).join(", ")}</b></p>` : `<p class="hint">🌙 Nobody died in the night before Day ${d}.</p>`}
+        ${other.map(e => `<p>${e.kind === "slayer" ? "🏹" : "💀"} <b>${nm(e.dies)}</b> ${e.kind === "slayer" ? "was shot by the Slayer" : "died"}.</p>`).join("")}
+        ${h.noms.length ? h.noms.map((x, j) => { const row = r && r.rows && r.rows.find(y => y.of === x.of);
+          return `<div class="vote-row"><span><span class="tag">${j + 1}</span> <b>${nm(x.by)}</b> nominated <b>${nm(x.of)}</b></span>
+            ${x.reason ? `<p class="quote"><small>Why</small>“${esc(x.reason)}”</p>` : ""}${x.defence ? `<p class="quote def"><small>Defence</small>“${esc(x.defence)}”</p>` : ""}
+            ${row ? `<span><b>${row.count}</b> vote${row.count === 1 ? "" : "s"}: <span class="hint">${row.voters.map(nm).join(", ") || "nobody"}</span></span>` : ""}</div>`; }).join("") : `<p class="hint">No nominations.</p>`}
+        ${r ? `<p>🪓 ${r.exec ? `<b>${nm(r.exec)}</b> was executed${r.how === "virgin" ? " (the Virgin)" : ""}.` : "Nobody was executed."} <span class="hint">${esc(r.why || "")}${r.need ? ` ${r.need} votes were needed.` : ""}</span></p>` : ""}
+      </details>`; }).join("")}</section>`;
 }
 // Nominations whose voting is open and that you haven't looked at yet
 function newNoms(p) {
@@ -455,8 +494,15 @@ document.getElementById("app").addEventListener("keydown", e => {
 });
 
 /* ---------- Start ---------- */
-setInterval(() => { if (G) { refreshGated(); loadAct(); } render(); }, 20000);
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && G) { refreshGated(); render(); } });
+// Let the Storyteller see when you were last here (at most every few minutes)
+let lastPing = 0;
+function ping(force) {
+  if (!G || !me || document.visibilityState !== "visible" || (!force && nowMs() - lastPing < 4 * 60000)) return;
+  lastPing = nowMs();
+  FB.setDoc(gref(gid, "joins", myUid), { seen: nowMs() }, { merge: true }).catch(() => {});
+}
+setInterval(() => { if (G) { refreshGated(); loadAct(); ping(); } render(); }, 20000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && G) { refreshGated(); ping(true); render(); } });
 fbStart().then(() => { if (gid) watch(); else render(); }).catch(e => { loadErr = "Couldn't connect: " + (e.message || e); ready = true; render(); });
 </script>
 </body>
