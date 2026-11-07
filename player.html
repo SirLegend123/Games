@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#15121b">
 <script>try { const t = localStorage.getItem("botc-player-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="icon" type="image/png" href="img/icon-180.png">
+<link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Player's Grimoire</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -271,6 +273,11 @@ body.has-handbar .wrap { padding-bottom: 160px; }
 @keyframes pulse { 50% { transform: scale(1.12); opacity: .75; } }
 @media (prefers-reduced-motion: reduce) { .welcome-ico.pulse { animation: none; } }
 footer { color: var(--muted); font-size: .8rem; text-align: center; }
+.brand { display: grid; justify-items: center; gap: 10px; }
+.brand .wordmark, img.wordmark { width: min(300px, 80%); height: auto; }
+.brand .ccc, img.ccc { width: 130px; height: auto; }
+img.crest { width: 110px; height: auto; display: block; margin: 0 auto; }
+
 </style>
 </head>
 <body>
@@ -288,9 +295,9 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   <div id="sleepBox" hidden></div>
   <div id="sheetBox" class="chat-cover" hidden role="dialog" aria-modal="true" aria-label="Characters on the script"></div>
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
-  <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
+  <footer class="brand"><img class="wordmark" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</span></footer>
 </div>
-<script>window.APP_V = 92;</script>
+<script>window.APP_V = 93;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -385,7 +392,8 @@ const joinCount = () => { const lb = link.lobby; return lb ? `📱 ${lb.players.
 function welcomeHtml() {
   const lb = link.lobby;
   return `<section class="card welcome">
-    <div class="welcome-ico" aria-hidden="true">🕯️</div>
+    <img class="crest" src="img/knocker.webp" alt="" width="700" height="755">
+    <img class="wordmark" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262">
     <h2>Welcome to the town</h2>
     <p class="lead">${L.code ? (lb ? "Tap your name to take your seat." : "Finding the Storyteller's game…") : "Scan the QR code on the TV, or type the code the Storyteller gives you."}</p>
     <p class="hint">Your character comes to this phone, then your own Grimoire opens: notes on everyone, what you've learnt, private chats and voting.</p>

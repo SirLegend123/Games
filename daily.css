@@ -124,6 +124,11 @@ textarea { resize: vertical; min-height: 70px; }
 .pick:disabled { opacity: .4; }
 .pick.dead { color: var(--muted); }
 
+.brand { display: grid; justify-items: center; gap: 10px; }
+.brand .wordmark, img.wordmark { width: min(300px, 80%); height: auto; }
+.brand .ccc, img.ccc { width: 130px; height: auto; }
+img.crest { width: 110px; height: auto; display: block; margin: 0 auto; }
+.brand { margin-top: 8px; color: var(--muted); font-size: .8rem; text-align: center; }
 .sheet h3 { margin: 12px 0 4px; }
 .srow { display: grid; grid-template-columns: 2em minmax(0, 1fr); gap: 6px; margin: 4px 0; }
 .srow .ico { font-size: 1.3rem; }

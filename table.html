@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#15121b">
 <script>try { const t = localStorage.getItem("botc-table-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="icon" type="image/png" href="img/icon-180.png">
+<link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Table Notes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -299,6 +301,11 @@ label.field, .field { display: grid; gap: 6px; }
 .dead-box { background: var(--surface-2); border-left: 4px solid var(--evil); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
 .flagtxt { color: var(--warn); font-weight: 800; font-size: .85rem; }
 footer { color: var(--muted); font-size: .8rem; text-align: center; }
+.brand { display: grid; justify-items: center; gap: 10px; }
+.brand .wordmark, img.wordmark { width: min(300px, 80%); height: auto; }
+.brand .ccc, img.ccc { width: 130px; height: auto; }
+img.crest { width: 110px; height: auto; display: block; margin: 0 auto; }
+
 </style>
 </head>
 <body>
@@ -311,9 +318,9 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
   </header>
   <main id="app"></main>
   <div id="sigBox" hidden></div>
-  <footer><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</footer>
+  <footer class="brand"><img class="wordmark" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</span></footer>
 </div>
-<script>window.APP_V = 92;</script>
+<script>window.APP_V = 93;</script>
 <script src="update.js"></script>
 <script src="characters.js"></script>
 <script>
