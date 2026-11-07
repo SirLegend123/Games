@@ -25,7 +25,8 @@ service cloud.firestore {
       // The public game: anyone with the code can read it; only the Storyteller who made it can change it
       allow get: if signedIn();
       allow create: if signedIn() && request.resource.data.st == request.auth.uid;
-      allow update, delete: if signedIn() && resource.data.st == request.auth.uid && request.resource.data.get('st', resource.data.st) == resource.data.st;
+      allow update: if signedIn() && resource.data.st == request.auth.uid && request.resource.data.get('st', resource.data.st) == resource.data.st;
+      allow delete: if signedIn() && resource.data.st == request.auth.uid;
 
       // Asking to join: a player writes their own name
       match /joins/{uid} {
@@ -83,6 +84,12 @@ service cloud.firestore {
       match /chats/{pair}/msgs/{id} {
         allow read: if owns(pair.split('~')[0]) || owns(pair.split('~')[1]);
         allow create: if request.resource.data.from in pair.split('~') && owns(request.resource.data.from) && str(request.resource.data.text, 1000);
+      }
+      // A player's private chat with the Storyteller: only the two of them can read it
+      match /stchat/{pid}/msgs/{id} {
+        allow read: if isST() || owns(pid);
+        allow create: if str(request.resource.data.text, 1000)
+          && ((owns(pid) && request.resource.data.from == pid) || (isST() && request.resource.data.from == 'st'));
       }
       // Night actions: the player's own choices while that night is open
       match /nights/{n}/acts/{pid} {
