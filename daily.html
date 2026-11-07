@@ -10,15 +10,15 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 94;</script>
-<script src="update.js?v=94"></script>
+<script>window.APP_V = 95;</script>
+<script src="update.js?v=95"></script>
 <script src="vendor/firebase.js"></script>
-<script src="characters.js?v=94"></script>
-<script src="daily.js?v=94"></script>
+<script src="characters.js?v=95"></script>
+<script src="daily.js?v=95"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=94">
+<link rel="stylesheet" href="daily.css?v=95">
 </head>
 <body>
 <div class="wrap" id="app"><p class="hint">Opening…</p></div>
@@ -45,6 +45,7 @@ function watch() {
   sub("game", gref(gid), s => {
     if (!s.exists()) { loadErr = "There's no game with that code. Check it with your Storyteller."; G = null; ready = true; return render(); }
     G = s.data(); ready = true; loadErr = "";
+    if (G.next && G.next !== gid) return switchGame(G.next);
     try { localStorage.setItem(LKEY, gid); } catch (e) {}
     const was = me;
     me = Object.keys(G.uids || {}).find(p => G.uids[p] === myUid) || "";
@@ -62,6 +63,18 @@ function watch() {
     render();
   });
   sub("square", FB.query(gcol(gid, "square"), FB.orderBy("at", "desc"), FB.limit(300)), q => { square = q.docs.map(x => ({ id: x.id, ...x.data() })).reverse(); render(); });
+}
+// The Storyteller started again with the same players: follow them to the new game, with a clean slate
+function switchGame(code) {
+  for (const k of Object.keys(subs)) { subs[k](); delete subs[k]; }
+  clearTimeout(gatedTimer);
+  G = null; me = ""; SEC = null; joined = null; ready = false; noms = []; myVotes = {}; square = []; chats = {}; myAct = null; gated = {}; cur.day = 0;
+  ui.tab = "today"; ui.chat = ""; ui.picks = null; ui.draft = {};
+  gid = code;
+  try { localStorage.setItem(LKEY, gid); } catch (e) {}
+  history.replaceState(null, "", `?g=${gid}${EMU ? "&emu=1" : ""}`);
+  render(true); toast("🔄 A new game has started");
+  watch();
 }
 // My own votes on today's nominations (nobody else can see them until voting closes)
 async function loadMyVotes() {
