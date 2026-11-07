@@ -1,0 +1,30 @@
+# Puts the notification server (functions/) and the database rules (firestore.rules) live on Firebase
+# whenever they change on main. Needs the repository secret FIREBASE_SERVICE_ACCOUNT (a service account key).
+name: Deploy to Firebase
+on:
+  push:
+    branches: [main]
+    paths: ["functions/**", "firestore.rules", "firebase.json", ".github/workflows/firebase.yml"]
+  workflow_dispatch:
+concurrency: firebase-deploy
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install the server's libraries
+        run: npm ci
+        working-directory: functions
+      - name: Check the key is there
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "::error::Add the FIREBASE_SERVICE_ACCOUNT secret first (see README: Phone notifications)."; exit 1; fi
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+      - name: Deploy the notification server and the database rules
+        run: npx --yes firebase-tools@15 deploy --only functions,firestore:rules --project clocktower-daily --non-interactive --force
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
