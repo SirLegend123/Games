@@ -10,15 +10,15 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 95;</script>
-<script src="update.js?v=95"></script>
+<script>window.APP_V = 96;</script>
+<script src="update.js?v=96"></script>
 <script src="vendor/firebase.js"></script>
-<script src="characters.js?v=95"></script>
-<script src="daily.js?v=95"></script>
+<script src="characters.js?v=96"></script>
+<script src="daily.js?v=96"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=95">
+<link rel="stylesheet" href="daily.css?v=96">
 </head>
 <body>
 <div class="wrap" id="app"><p class="hint">Opening…</p></div>
@@ -56,6 +56,8 @@ function watch() {
       const pair = pairId(me, s2.id);
       sub("chat" + pair, FB.query(gcol(gid, "chats", pair, "msgs"), FB.orderBy("at")), q => { chats[pair] = q.docs.map(x => x.data()); render(); });
     }
+    // My private line to the Storyteller
+    sub("chat-st", FB.query(gcol(gid, "stchat", me, "msgs"), FB.orderBy("at")), q => { chats.st = q.docs.map(x => x.data()); render(); });
     const d = G.day || 0;
     if (d && cur.day !== d) { unsub("noms"); noms = []; myVotes = {}; cur.day = d; }
     if (d) sub("noms", gcol(gid, "days", String(d), "noms"), q => { noms = q.docs.map(x => x.data()).sort((a, b) => a.at - b.at); loadMyVotes(); render(); });
@@ -127,6 +129,8 @@ const amDead = () => !!dead()[me];
 const myRole = () => SEC && SEC.role;
 const ghostUsed = () => !!(G.ghost || {})[me] || Object.values(gated).some(g => g && g.rows && g.rows.some(r => r.voters.includes(me)) && (G.dead || {})[me] && g.d >= ((G.dead || {})[me].d || 0));
 const infoNow = () => ((SEC && SEC.info) || []).filter(x => x.at <= nowMs()).sort((a, b) => b.at - a.at);
+// A chat's key: "st" for the Storyteller, otherwise the pair of seats
+const chatKey = pid => pid === "st" ? "st" : pairId(me, pid);
 const unreadChat = pair => (chats[pair] || []).filter(m => m.from !== me && m.at > (seen[gid + pair] || 0)).length;
 const unreadInfo = () => infoNow().filter(x => x.at > (seen[gid + "info"] || 0)).length;
 const unreadSquare = () => square.filter(m => m.at > (seen[gid + "sq"] || 0) && m.pid !== me).length;
@@ -150,7 +154,7 @@ function markSeen() {
   if (!G || !me) return;
   let ch = false;
   const mark = (k, v) => { if (v && v > (seen[gid + k] || 0)) { seen[gid + k] = v; ch = true; } };
-  if (ui.tab === "chats" && ui.chat) { const l = chats[pairId(me, ui.chat)] || []; mark(pairId(me, ui.chat), l.length ? l[l.length - 1].at : 0); }
+  if (ui.tab === "chats" && ui.chat) { const k = chatKey(ui.chat), l = chats[k] || []; mark(k, l.length ? l[l.length - 1].at : 0); }
   if (ui.tab === "square" && square.length) mark("sq", square[square.length - 1].at);
   if (ui.tab === "votes" && G.day) for (const x of noms) if (nowMs() >= voteOpensAt(G, x)) mark(`v${G.day}${x.of}`, 1);
   if (ui.tab === "me" || ui.tab === "today") { const i = infoNow(); if (i.length && ui.tab === "me") mark("info", i[0].at); }
@@ -203,7 +207,7 @@ function timetableHtml() {
 /* ---------- The game ---------- */
 function gameHtml() {
   const p = P();
-  const chatDot = G.seats.some(s => s.id !== me && unreadChat(pairId(me, s.id)) > 0);
+  const chatDot = unreadChat("st") > 0 || G.seats.some(s => s.id !== me && unreadChat(pairId(me, s.id)) > 0);
   const tabs = [["today", "🏠", "Today", unreadInfo() > 0], ["square", "🗣️", "Square", unreadSquare() > 0], ["chats", "✉️", "Chats", chatDot], ["votes", "⚖️", "Votes", newNoms(p) > 0], ["me", "🎭", "Me", false]];
   // On a phone the tabs sit in a bar along the bottom of the screen
   const nav = `<nav class="tabs bottom">${tabs.map(([k, ic, l, dot]) => `<button data-act="tab" data-tab="${k}" aria-pressed="${ui.tab === k}"><span class="ti" aria-hidden="true">${ic}</span> <span>${l}</span>${dot ? `<span class="dot" aria-label="new"></span>` : ""}</button>`).join("")}</nav>`;
@@ -299,16 +303,21 @@ function chatsHtml(p) {
   const others = G.seats.filter(s => s.id !== me);
   return `<section class="card"><h2>✉️ Private chats</h2>
     <p class="hint">${p.k === "chats" ? "Private chats are open: message anyone." : chatWhy(p) || "You can message your neighbours."} Only the two of you can read a chat.</p>
-    <div class="town">${others.map(s => { const pair = pairId(me, s.id), u = unreadChat(pair), ok = canChat(G, p, me, s.id), l = chats[pair] || [], last = l[l.length - 1];
+    <div class="town">${(() => { const u = unreadChat("st"), l = chats.st || [], last = l[l.length - 1];
+      return `<button class="prow st-row" data-act="open-chat" data-pid="st" style="border:0;text-align:left;width:100%"><span class="n">📜</span>
+        <span><b class="nm">The Storyteller</b> <span class="tag">any time</span><br><span class="hint">${last ? `${last.from === me ? "You: " : ""}${esc(last.text.slice(0, 60))}` : "Questions, problems or secrets: only the Storyteller reads this."}</span></span>
+        <span>${u ? `<span class="tag evil">${u} new</span>` : ""}</span></button>`; })()}
+    ${others.map(s => { const pair = pairId(me, s.id), u = unreadChat(pair), ok = canChat(G, p, me, s.id), l = chats[pair] || [], last = l[l.length - 1];
       return `<button class="prow" data-act="open-chat" data-pid="${s.id}" style="border:0;text-align:left;width:100%"><span class="n">${ok ? "💬" : "🔒"}</span>
         <span><b class="nm">${esc(s.name)}</b>${neighbours(G, me, s.id) ? ` <span class="tag">neighbour</span>` : ""}${last ? `<br><span class="hint">${last.from === me ? "You: " : ""}${esc(last.text.slice(0, 60))}</span>` : ""}</span>
         <span>${u ? `<span class="tag evil">${u} new</span>` : ""}</span></button>`; }).join("")}</div></section>`;
 }
 function threadHtml(p, pid) {
-  const pair = pairId(me, pid), l = chats[pair] || [], ok = canChat(G, p, me, pid);
-  return `<section class="card"><div class="row"><button class="btn small" data-act="close-chat">← Chats</button><h2 style="margin:0">${nm(pid)}</h2></div>
-    <div class="feed" id="feed">${l.map(m => `<div class="msg ${m.from === me ? "mine" : ""}"><small>${m.from === me ? "You" : nm(m.from)} · ${when(m.at)}</small>${esc(m.text)}</div>`).join("") || `<p class="hint">No messages yet.</p>`}</div>
-    ${ok ? `<div class="send"><textarea id="dm" maxlength="1000" placeholder="Message ${nm(pid)}" aria-label="Message">${esc(ui.draft[pair] || "")}</textarea><button class="btn primary" data-act="dm" data-pid="${pid}">Send</button></div>`
+  const st = pid === "st", pair = chatKey(pid), l = chats[pair] || [], ok = st || canChat(G, p, me, pid), who = st ? "the Storyteller" : nm(pid);
+  return `<section class="card"><div class="row"><button class="btn small" data-act="close-chat">← Chats</button><h2 style="margin:0">${st ? "📜 The Storyteller" : nm(pid)}</h2></div>
+    ${st ? `<p class="hint">Only the Storyteller reads this, and you can message them at any time, day or night.</p>` : ""}
+    <div class="feed" id="feed">${l.map(m => `<div class="msg ${m.from === me ? "mine" : st ? "st" : ""}"><small>${m.from === me ? "You" : m.from === "st" ? "📜 Storyteller" : nm(m.from)} · ${when(m.at)}</small>${esc(m.text)}</div>`).join("") || `<p class="hint">No messages yet.</p>`}</div>
+    ${ok ? `<div class="send"><textarea id="dm" maxlength="1000" placeholder="Message ${who}" aria-label="Message">${esc(ui.draft[pair] || "")}</textarea><button class="btn primary" data-act="dm" data-pid="${pid}">Send</button></div>`
       : `<p class="warn">🔒 ${esc(chatWhy(p) || "You can't message them right now.")}${G.days && G.days[G.day + 1] ? "" : ` Private chats with anyone open at ${G.sched.chats}.`}</p>`}</section>`;
 }
 
@@ -407,10 +416,10 @@ document.getElementById("app").addEventListener("click", e => {
       return run(() => FB.addDoc(gcol(gid, "square"), { pid: me, kind: "say", text: t, at: nowMs(), d: G.day || 0 })); }
     case "open-chat": ui.chat = pid; render(true); return window.scrollTo(0, 0);
     case "close-chat": ui.chat = ""; return render(true);
-    case "dm": { const pair = pairId(me, pid), t = $("#dm").value.trim(); if (!t) return;
-      if (!canChat(G, P(), me, pid)) return toast(chatWhy(P()));
+    case "dm": { const pair = chatKey(pid), t = $("#dm").value.trim(); if (!t) return;
+      if (pid !== "st" && !canChat(G, P(), me, pid)) return toast(chatWhy(P()));
       ui.draft[pair] = ""; $("#dm").value = "";
-      return run(() => FB.addDoc(gcol(gid, "chats", pair, "msgs"), { from: me, text: t, at: nowMs() })); }
+      return run(() => FB.addDoc(pid === "st" ? gcol(gid, "stchat", me, "msgs") : gcol(gid, "chats", pair, "msgs"), { from: me, text: t, at: nowMs() })); }
     case "nominate-open": { const D = dead(), taken = noms.map(x => x.of);
       return dialog(`<h2>☝️ Nominate</h2><p class="hint">Each player can be nominated once a day.</p><div class="picks">${G.seats.map(s => `<button class="pick ${D[s.id] ? "dead" : ""}" data-dact="nominate" data-pid="${s.id}" ${taken.includes(s.id) ? "disabled" : ""}>${D[s.id] ? "💀 " : ""}${nm(s.id)}${s.id === me ? " (you)" : ""}</button>`).join("")}</div><div class="row"><button class="btn" data-dact="close">Cancel</button></div>`); }
     case "vote": { const of = el.dataset.of, yes = !!el.dataset.v, r = gref(gid, "days", String(G.day), "votes", `${of}_${me}`);
@@ -427,7 +436,7 @@ document.getElementById("app").addEventListener("click", e => {
 document.getElementById("app").addEventListener("input", e => {
   const el = e.target;
   if (el.id === "say") ui.draft.sq = el.value;
-  if (el.id === "dm") ui.draft[pairId(me, ui.chat)] = el.value;
+  if (el.id === "dm") ui.draft[chatKey(ui.chat)] = el.value;
   if (el.id === "code") ui.codeIn = el.value;
   if (el.id === "def") ui.draft.def = el.value;
   if (el.id === "name") ui.nameIn = el.value;
