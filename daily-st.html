@@ -5,8 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#15121b">
 <script>try { const t = localStorage.getItem("ctd-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="icon" type="image/png" href="img/icon-180.png">
+<link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily · Storyteller</title>
-<script>window.APP_V = 92;</script>
+<script>window.APP_V = 93;</script>
 <script src="update.js"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
@@ -81,7 +83,7 @@ function render(force) {
   const y = window.scrollY;
   app.innerHTML = `<header><a class="home" href="${gid ? "daily-st.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1>Clocktower Daily</h1>
     <span class="head-btns"><button class="btn" data-act="sheet">📜 Characters</button><button class="btn" data-act="theme" aria-label="Light or dark">${themeLabel()}</button></span></header>
-    ${body()}${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
+    ${body()}<footer class="brand"><img class="wordmark" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool.</span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
 }
 document.addEventListener("focusout", () => setTimeout(() => { if (pending) render(); }, 0));
@@ -97,7 +99,7 @@ function body() {
 /* ---------- Your games ---------- */
 function homeHtml() {
   const list = myGames();
-  return `<section class="card"><h2>Storyteller</h2>
+  return `<section class="card"><img class="crest" src="img/knocker.webp" alt="" width="700" height="755"><h2>Storyteller</h2>
     <p class="lead">Run a game of Blood on the Clocktower over several days. Everyone plays on their phone in their own time; the day moves on by the clock.</p>
     <div class="field"><span class="label">Name this game</span><input type="text" id="newName" maxlength="40" placeholder="e.g. Office game, November" value="${esc(ui.newName)}"></div>
     <div class="row"><button class="btn primary" data-act="new-game">Set up a new game</button></div>

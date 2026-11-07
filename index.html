@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#15121b">
+<link rel="icon" type="image/png" href="img/icon-180.png">
+<link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Apps</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,12 +31,19 @@ a.choice:hover, a.choice:focus-visible { border-color: var(--brass); outline: no
 .choice h2 { margin: 0; font-family: "IM Fell English SC", Georgia, serif; font-weight: 400; font-size: 1.6rem; color: var(--brass); }
 .choice span.go { font-weight: 800; color: var(--brass); }
 footer { color: var(--muted); font-size: .8rem; }
+.brand { display: grid; justify-items: center; gap: 10px; }
+.brand .wordmark, img.wordmark { width: min(300px, 80%); height: auto; }
+.brand .ccc, img.ccc { width: 130px; height: auto; }
+img.crest { width: 110px; height: auto; display: block; margin: 0 auto; }
+h1 img.wordmark { width: min(560px, 92%); }
+img.crest { width: 130px; }
 </style>
 </head>
 <body>
 <main>
-  <h1>Clocktower Apps</h1>
-  <p>Tools for playing <i>Blood on the Clocktower</i> round a real table.</p>
+  <img class="crest" src="img/knocker.webp" alt="" width="700" height="755">
+  <h1><img class="wordmark" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"></h1>
+  <p>Fan-made apps for playing <i>Blood on the Clocktower</i>: round a real table, online, or over several days.</p>
   <div class="choices">
     <a class="choice" href="storyteller.html">
       <span class="ico" aria-hidden="true">📜</span>
@@ -85,7 +94,7 @@ footer { color: var(--muted); font-size: .8rem; }
       <span class="go">Open →</span>
     </a>
   </div>
-  <footer><i>Blood on the Clocktower</i> belongs to The Pandemonium Institute. <i>The Traitors</i> is a TV format by IDTV. Unofficial fan-made tools.</footer>
+  <footer class="brand"><img class="ccc" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> belongs to The Pandemonium Institute. <i>The Traitors</i> is a TV format by IDTV. Unofficial fan-made tools.</span></footer>
 </main>
 </body>
 </html>

@@ -7,8 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Clocktower Daily">
 <script>try { const t = localStorage.getItem("ctd-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="icon" type="image/png" href="img/icon-180.png">
+<link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 92;</script>
+<script>window.APP_V = 93;</script>
 <script src="update.js"></script>
 <script src="vendor/firebase.js"></script>
 <script src="characters.js"></script>
@@ -126,7 +128,7 @@ function render(force) {
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
   $("#app").innerHTML = `<header><a class="home" href="index.html" aria-label="Home">🏠</a><h1>Clocktower Daily</h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="sheet">📜 Characters</button><button class="btn" data-act="theme" aria-label="Light or dark">${themeLabel()}</button></span></header>
-    ${body()}${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
+    ${body()}<footer class="brand"><img class="wordmark" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool.</span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
   const f = $("#feed"); if (f && (atBottom || !feed)) f.scrollTop = f.scrollHeight;
 }
@@ -153,7 +155,7 @@ function body() {
 
 /* ---------- Joining ---------- */
 function joinCodeHtml() {
-  return `<section class="card"><div class="big-ico">🏰</div><h2>Welcome to Clocktower Daily</h2>
+  return `<section class="card"><img class="crest" src="img/knocker.webp" alt="" width="700" height="755"><h2>Welcome to Clocktower Daily</h2>
     <p class="lead">A game of Blood on the Clocktower that runs over several days. You play on this phone, in your own time.</p>
     <div class="field"><span class="label">Game code</span><input type="text" id="code" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="e.g. K7QM2X" value="${esc(ui.codeIn)}"></div>
     <div class="row"><button class="btn primary" data-act="go-code">Find the game →</button></div>
@@ -164,7 +166,7 @@ function joinNameHtml() {
     <p class="lead">Thanks, ${esc(joined.name)}. The Storyteller will give you a seat soon.</p>
     <p class="hint">Keep this page open, or come back to it later on this phone. Game code <b>${gid}</b>.</p>
     <div class="row"><button class="btn small" data-act="other-game">Not your game?</button></div></section>`;
-  return `<section class="card"><div class="big-ico">🏰</div><h2>${esc(G.name)}</h2>
+  return `<section class="card"><img class="crest" src="img/knocker.webp" alt="" width="700" height="755"><h2>${esc(G.name)}</h2>
     <p class="lead">You've found the game. What's your name?</p>
     <div class="field"><span class="label">Your name</span><input type="text" id="name" maxlength="30" autocomplete="given-name" value="${esc(ui.nameIn)}"></div>
     <div class="row"><button class="btn primary" data-act="join">Join the game</button><button class="btn small" data-act="other-game">Not your game?</button></div>
