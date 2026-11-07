@@ -37,12 +37,13 @@ footer { color: var(--muted); font-size: .8rem; }
 img.crest { width: 110px; height: auto; display: block; margin: 0 auto; }
 h1 img.wordmark { width: min(560px, 92%); }
 img.crest { width: 130px; }
+img { max-width: 100%; height: auto; }
 </style>
 </head>
 <body>
 <main>
-  <img class="crest" src="img/knocker.webp" alt="" width="700" height="755">
-  <h1><img class="wordmark" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"></h1>
+  <img class="crest" style="width:130px;max-width:40%;height:auto;display:block;margin:0 auto" src="img/knocker.webp" alt="" width="700" height="755">
+  <h1><img class="wordmark" style="width:min(560px,92%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"></h1>
   <p>Fan-made apps for playing <i>Blood on the Clocktower</i>: round a real table, online, or over several days.</p>
   <div class="choices">
     <a class="choice" href="storyteller.html">
@@ -88,7 +89,7 @@ img.crest { width: 130px; }
       <span class="go">Open →</span>
     </a>
   </div>
-  <footer class="brand"><img class="ccc" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> belongs to The Pandemonium Institute. Unofficial fan-made tools.</span></footer>
+  <footer class="brand"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> belongs to The Pandemonium Institute. Unofficial fan-made tools.</span></footer>
 </main>
 </body>
 </html>

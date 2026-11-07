@@ -146,10 +146,10 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass)
 <div id="app"></div>
 <div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
 <script>window.APP_V = 94;</script>
-<script src="update.js"></script>
-<script src="characters.js"></script>
+<script src="update.js?v=94"></script>
+<script src="characters.js?v=94"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js"></script>
+<script src="net.js?v=94"></script>
 <script src="vendor/qrcode.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -269,13 +269,13 @@ function lobbyHtml() {
   try { const q = qrcode(0, "M"); q.addData(url); q.make(); qr = q.createSvgTag({ cellSize: 8, margin: 2, scalable: true }); } catch (e) {}
   const joined = new Set(G.joined || []);
   return `<div class="screen lobby"><div class="lobby-join">
-      <img class="tv-logo" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262">
+      <img class="tv-logo" style="width:min(560px,70vw);height:auto;display:block;margin:0 auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262">
       <h1>${esc(G.script)}</h1>
       <p class="big">Join on your phone</p>
       ${qr ? `<div class="qr">${qr}</div>` : ""}
       <p class="muted">or go to <b>${esc(base.replace(/^https?:\/\//, ""))}player.html</b> and enter</p>
       <div class="lobby-code">${esc(G.code || code)}</div>
-      <img class="tv-ccc" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215">
+      <img class="tv-ccc" style="width:clamp(110px,14vw,180px);height:auto;display:block;margin:1.5vmin auto 0" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215">
     </div>
     <div class="lobby-players">
       <h2>${G.dealt ? "Everyone has their token" : G.players.length ? `${joined.size} of ${G.players.length} joined` : "Waiting for the Storyteller to add the players"}</h2>
@@ -290,7 +290,7 @@ function render() {
   $("cstat").textContent = status === "live" ? `Live · ${code}` : status === "local" ? "Live on this device" : status === "lost" ? "Reconnecting…" : "";
   if (!G) {
     app.innerHTML = `<div class="screen join"><div class="join-inner">
-      <img class="tv-logo" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262">
+      <img class="tv-logo" style="width:min(560px,70vw);height:auto;display:block;margin:0 auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262">
       <h1>Town Square</h1>
       <p>On the Storyteller's iPad, tap 📺 and Start sharing. Then type the code here.</p>
       <input class="code-in" id="codeIn" maxlength="5" value="${esc(code)}" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Code">

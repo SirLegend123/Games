@@ -278,6 +278,7 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
 .brand .ccc, img.ccc { width: 130px; height: auto; }
 img.crest { width: 110px; height: auto; display: block; margin: 0 auto; }
 
+img { max-width: 100%; height: auto; }
 </style>
 </head>
 <body>
@@ -294,13 +295,13 @@ img.crest { width: 110px; height: auto; display: block; margin: 0 auto; }
   <div id="sleepBox" hidden></div>
   <div id="sheetBox" class="chat-cover" hidden role="dialog" aria-modal="true" aria-label="Characters on the script"></div>
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
-  <footer class="brand"><img class="wordmark" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</span></footer>
+  <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</span></footer>
 </div>
 <script>window.APP_V = 94;</script>
-<script src="update.js"></script>
-<script src="characters.js"></script>
+<script src="update.js?v=94"></script>
+<script src="characters.js?v=94"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js"></script>
+<script src="net.js?v=94"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -391,8 +392,8 @@ const joinCount = () => { const lb = link.lobby; return lb ? `📱 ${lb.players.
 function welcomeHtml() {
   const lb = link.lobby;
   return `<section class="card welcome">
-    <img class="crest" src="img/knocker.webp" alt="" width="700" height="755">
-    <img class="wordmark" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262">
+    <img class="crest" style="width:110px;max-width:40%;height:auto;display:block;margin:0 auto" src="img/knocker.webp" alt="" width="700" height="755">
+    <img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262">
     <h2>Welcome to the town</h2>
     <p class="lead">${L.code ? (lb ? "Tap your name to take your seat." : "Finding the Storyteller's game…") : "Scan the QR code on the TV, or type the code the Storyteller gives you."}</p>
     <p class="hint">Your character comes to this phone, then your own Grimoire opens: notes on everyone, what you've learnt, private chats and voting.</p>

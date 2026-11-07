@@ -26,6 +26,7 @@
   --townsfolk: #2463c2; --outsider: #2a92cc; --minion: #c0344b; --demon: #8a1428; --warn: #b7791f; --night: #dfe3f7;
   color-scheme: light;
 }
+img { max-width: 100%; height: auto; }
 [hidden] { display: none !important; }
 html, body { min-height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.45; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
