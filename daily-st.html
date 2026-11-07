@@ -8,16 +8,16 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily · Storyteller</title>
-<script>window.APP_V = 97;</script>
-<script src="update.js?v=97"></script>
+<script>window.APP_V = 98;</script>
+<script src="update.js?v=98"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="characters.js?v=97"></script>
-<script src="daily.js?v=97"></script>
+<script src="characters.js?v=98"></script>
+<script src="daily.js?v=98"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=97">
+<link rel="stylesheet" href="daily.css?v=98">
 </head>
 <body>
 <div class="wrap" id="app"><p class="hint">Opening…</p></div>
@@ -79,6 +79,30 @@ const roleOf = pid => (GR.roles || {})[pid] || "";
 const believed = pid => (GR.shown || {})[pid] || roleOf(pid);
 const roleChip = r => r ? `<span class="t-${teamOf(r)}">${(CHAR[r] || {}).icon || ""} ${esc(r)}</span>` : `<span class="hint">no character</span>`;
 const deadTruth = () => GR.dead || {};
+// When each player last had the app open (they tell us every few minutes while it's open)
+const seenOf = pid => (joins.find(j => j.uid === (G.uids || {})[pid]) || {}).seen || 0;
+const seenTag = pid => `<span class="tag" title="Last seen">👁 ${ago(seenOf(pid))}</span>`;
+async function nudge(pid, text) { await FB.addDoc(gcol(gid, "stchat", pid, "msgs"), { from: "st", text, at: nowMs() }); }
+// More time: push a deadline back (and anything after it), and tell the town
+async function extendVoting(mins) {
+  const d = G.day, t = G.days[d], shift = Math.max(t.close, nowMs()) + mins * 60000 - t.close, u = {};
+  u[`days.${d}.close`] = t.close + shift; u[`days.${d}.reveal`] = t.reveal + shift;
+  const nn = G.nights[d + 1];
+  if (nn && nn.open < t.reveal + shift) { u[`nights.${d + 1}`] = { open: nn.open + shift, end: nn.end + shift }; u[`days.${d}.night`] = (t.night || nn.open) + shift; u[`days.${d}.nightEnd`] = (t.nightEnd || nn.end) + shift; }
+  const b = FB.writeBatch(db);
+  b.update(gref(gid), u);
+  b.set(FB.doc(gcol(gid, "square")), { pid: "", kind: "st", text: `⏰ More time: voting now closes at ${when(t.close + shift)}, and the execution is revealed at ${when(t.reveal + shift)}.`, at: nowMs(), d });
+  await b.commit();
+}
+async function extendNight(mins) {
+  const n = (G.day || 0) + 1, w = G.nights[n], end = Math.max(w.end, nowMs()) + mins * 60000, u = { [`nights.${n}.end`]: end };
+  if (G.days[n - 1]) u[`days.${n - 1}.nightEnd`] = end;
+  const b = FB.writeBatch(db);
+  b.update(gref(gid), u);
+  b.set(FB.doc(gcol(gid, "square")), { pid: "", kind: "st", text: `⏰ More time: night actions now close at ${when(end)}.`, at: nowMs(), d: G.day || 0 });
+  await b.commit();
+}
+const moreTime = (act, list, label) => `<div class="row"><span class="hint">${label}</span>${list.map(m => `<button class="btn small" data-act="${act}" data-m="${m}">+${m >= 60 ? m / 60 + " h" : m + " min"}</button>`).join("")}</div>`;
 const aliveIds = () => seatIds(G).filter(p => !deadTruth()[p]);
 
 /* ---------- Screens ---------- */
@@ -272,7 +296,7 @@ function grimHtml() {
     <div class="town">${G.seats.map((s, i) => { const r = roleOf(s.id), a = acts[s.id];
       return `<div class="prow ${dead[s.id] ? "dead" : ""}"><span class="n">${i + 1}</span>
         <span><b class="nm">${esc(s.name)}</b> ${roleChip(r)} ${(GR.shown || {})[s.id] ? `<span class="tag">thinks: ${esc(GR.shown[s.id])}</span>` : ""}
-          ${dead[s.id] ? `<span class="tag">💀 ${esc(HOW[dead[s.id].how] || "Dead")}${(GR.ghost || {})[s.id] ? " · ghost vote used" : ""}</span>` : ""}
+          ${seenTag(s.id)}${dead[s.id] ? `<span class="tag">💀 ${esc(HOW[dead[s.id].how] || "Dead")}${(GR.ghost || {})[s.id] ? " · ghost vote used" : ""}</span>` : ""}
           ${GR.rh === s.id ? `<span class="tag">red herring</span>` : ""}${pois === s.id ? `<span class="tag warn">🧪 poisoned</span>` : ""}
           ${a ? `<span class="tag">🌙 ${(a.picks || []).map(q => nm(q)).join(" & ") || "chose"}</span>` : ""}</span>
         <span class="row"><button class="btn small" data-act="msg" data-pid="${s.id}" aria-label="Message ${esc(s.name)}">✉️</button><button class="btn small" data-act="recast" data-pid="${s.id}" aria-label="Change ${esc(s.name)}'s character">🎭</button>${dead[s.id] ? "" : `<button class="btn small" data-act="kill" data-pid="${s.id}" aria-label="${esc(s.name)} dies">💀</button>`}</span></div>`; }).join("")}</div>
@@ -289,7 +313,8 @@ function nightHtml() {
   const open = nowMs() < w.end, todo = seatIds(G).filter(p => !deadTruth()[p] && actOf(believed(p), n));
   const sub = `<section class="card"><h2>🌙 Night ${n}</h2>
     <p class="lead">Night actions ${nowMs() < w.open ? `open ${when(w.open)}` : open ? `are open until ${when(w.end)}` : `closed ${when(w.end)}`}.</p>
-    <div class="town">${todo.map(p => { const a = acts[p]; return `<div class="prow"><span class="n">${a ? "✅" : "⏳"}</span><span><b>${nm(p)}</b> ${roleChip(believed(p))}${believed(p) !== roleOf(p) ? ` <span class="tag">really the ${esc(roleOf(p))}</span>` : ""}</span><span>${a ? (a.picks || []).map(nm).join(" & ") : "<span class='hint'>not yet</span>"}</span></div>`; }).join("") || `<p class="hint">Nobody has a night choice tonight.</p>`}</div></section>`;
+    <div class="town">${todo.map(p => { const a = acts[p]; return `<div class="prow"><span class="n">${a ? "✅" : "⏳"}</span><span><b>${nm(p)}</b> ${roleChip(believed(p))}${believed(p) !== roleOf(p) ? ` <span class="tag">really the ${esc(roleOf(p))}</span>` : ""} ${seenTag(p)}</span><span>${a ? (a.picks || []).map(nm).join(" & ") : nowMs() < w.end ? `<button class="btn small" data-act="nudge" data-pid="${p}" data-k="night">🔔 Nudge</button>` : "<span class='hint'>didn't choose</span>"}</span></div>`; }).join("") || `<p class="hint">Nobody has a night choice tonight.</p>`}</div>
+    ${moreTime("more-night", [60, 120, 240], nowMs() < w.end ? "Need more time?" : "Reopen night actions for")}</section>`;
   if (n > 1 && !(GR.results || {})[n - 1]) return sub + `<section class="card"><p class="warn">Confirm Day ${n - 1}'s execution first.</p></section>`;
   if (!ui.draft || ui.draft.n !== n) return sub + `<section class="card"><h2>Work through the night</h2>
     <p class="hint">${open ? "Players can still change their choices until the night closes. You can start early: the choices below stay up to date." : "Everyone's choices are in."} You decide who dies and write what each player learns.</p>
@@ -377,7 +402,9 @@ function dayHtml() {
   const rows = countDay();
   return `<section class="card"><h2>☀️ Day ${d}</h2>
       <ul class="tt">${SCHED_KEYS.slice(0, 5).map(([k, ic, label]) => `<li class="${nowMs() >= t[k] ? "past" : ""}"><b>${clock(t[k])}</b><span>${ic}</span><span>${esc(label)}</span></li>`).join("")}</ul>
-      <p class="hint">${alive.length} alive · ${need} votes to execute</p></section>
+      <p class="hint">${alive.length} alive · ${need} votes to execute</p>
+      ${res ? "" : moreTime("more-vote", [30, 60, 120], closed ? "Reopen voting for" : "Need more time for voting?")}</section>
+    ${res ? "" : aroundHtml(t)}
     ${virginTodos().map(virginHtml).join("")}${slayTodos().map(slayHtml).join("")}
     <section class="card"><h2>⚖️ Nominations</h2>
       ${noms.length ? byTime(noms).map((x, i) => { const r = rows.find(y => y.of === x.of) || { count: 0, voters: [] }, opens = voteOpensAt(G, x);
@@ -388,6 +415,17 @@ function dayHtml() {
       <p class="hint">Only you can see the votes before ${clock(t.close)}. Dead players' first vote uses their ghost vote${(GR.master || {})[d] && (GR.master || {})[d].master ? `; the Butler's vote only counts if ${nm(GR.master[d].master)} votes too` : ""}.</p></section>
     ${res ? `<section class="card"><h2>🪓 Confirmed</h2><p class="lead">${res.exec ? `${nm(res.exec)} is executed` : "No one is executed"}. Everyone sees it ${nowMs() >= res.at ? "now" : `at ${when(res.at)}`}.</p></section>`
       : closed ? verdictHtml(rows, need) : `<section class="card"><p class="hint">After voting closes at ${clock(t.close)}, you'll confirm the execution here. Players see it at ${clock(t.reveal)}.</p></section>`}`;
+}
+// Who's been in since nominations opened, with a nudge for anyone who hasn't
+function aroundHtml(t) {
+  const ids = seatIds(G), since = t.noms;
+  const rows = ids.map(p => ({ p, seen: seenOf(p), voted: votes.some(v => v.voter === p) })).sort((a, b) => a.seen - b.seen);
+  const away = rows.filter(r => r.seen < since && !deadTruth()[r.p]).length;
+  return `<section class="card"><h2>👥 Who's been around</h2>
+    <p class="hint">${nowMs() < since ? `Nominations open at ${clock(since)}.` : away ? `${plural(away, "living player")} ${away === 1 ? "hasn't" : "haven't"} opened the app since nominations opened.` : "Everyone alive has been in since nominations opened."} "Voted yes" means they've voted for at least one nomination; a "no" isn't recorded.</p>
+    <div class="town">${rows.map(({ p, seen, voted }) => `<div class="prow ${deadTruth()[p] ? "dead" : ""}"><span class="n">${seen >= since ? "✅" : "💤"}</span>
+      <span><b class="nm">${nm(p)}</b> ${seenTag(p)}${voted ? ` <span class="tag good">✋ voted yes</span>` : ""}</span>
+      <span>${seen < since && nowMs() < t.close && !deadTruth()[p] ? `<button class="btn small" data-act="nudge" data-pid="${p}" data-k="vote">🔔 Nudge</button>` : ""}</span></div>`).join("")}</div></section>`;
 }
 function countDay() {
   const d = G.day, m = (GR.master || {})[d];
@@ -575,6 +613,10 @@ document.getElementById("app").addEventListener("click", e => {
       return run(replay);
     case "end-now": if (!confirm(`End the game now: ${el.dataset.v} wins?`)) return; return run(async () => { const b = FB.writeBatch(db); endGame(b, el.dataset.v, nowMs()); await b.commit(); });
     case "msg": ui.tab = "msgs"; ui.thread = pid; render(true); return window.scrollTo(0, 0);
+    case "nudge": { const k = el.dataset.k, text = k === "night" ? `🔔 A reminder from the Storyteller: please choose your night action before ${when(G.nights[(G.day || 0) + 1].end)}.` : `🔔 A reminder from the Storyteller: nominations and voting are open until ${when(G.days[G.day].close)}. Come and have your say!`;
+      return run(() => nudge(pid, text), `Nudged ${seatName(G, pid)}`); }
+    case "more-vote": { const m = +el.dataset.m; if (!confirm(`Give everyone ${m >= 60 ? m / 60 + " more hour" + (m > 60 ? "s" : "") : m + " more minutes"} to vote? The execution reveal (and the night, if needed) moves back too.`)) return; return run(() => extendVoting(m), "Voting extended"); }
+    case "more-night": { const m = +el.dataset.m; if (!confirm(`Give everyone ${m / 60} more hour${m > 60 ? "s" : ""} for night actions?`)) return; return run(() => extendNight(m), "Night extended"); }
     case "thread": ui.thread = pid || ""; render(true); return window.scrollTo(0, 0);
     case "st-send": { const t = $("#stReply").value.trim(); if (!t) return; ui.reply[pid] = ""; $("#stReply").value = "";
       return run(() => FB.addDoc(gcol(gid, "stchat", pid, "msgs"), { from: "st", text: t, at: nowMs() })); }

@@ -138,6 +138,13 @@ function left(ms, now = nowMs()) {
   return m >= 120 ? `${Math.floor(m / 60)}h ${m % 60}m` : m >= 60 ? `1h ${m - 60}m` : m <= 1 ? "a minute" : `${m} min`;
 }
 
+// How long ago, in words: "just now", "5 min ago", "3 h ago", "2 days ago"
+function ago(ms, now = nowMs()) {
+  if (!ms) return "not yet";
+  const m = Math.max(0, Math.round((now - ms) / 60000));
+  return m < 2 ? "just now" : m < 60 ? `${m} min ago` : m < 60 * 24 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} day${Math.round(m / 1440) === 1 ? "" : "s"} ago`;
+}
+
 /* ---------- The circle ---------- */
 const seatIds = G => (G.seats || []).map(s => s.id);
 const seatName = (G, pid) => ((G.seats || []).find(s => s.id === pid) || {}).name || "?";
