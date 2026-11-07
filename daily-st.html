@@ -8,16 +8,16 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily · Storyteller</title>
-<script>window.APP_V = 94;</script>
-<script src="update.js?v=94"></script>
+<script>window.APP_V = 95;</script>
+<script src="update.js?v=95"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="characters.js?v=94"></script>
-<script src="daily.js?v=94"></script>
+<script src="characters.js?v=95"></script>
+<script src="daily.js?v=95"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=94">
+<link rel="stylesheet" href="daily.css?v=95">
 </head>
 <body>
 <div class="wrap" id="app"><p class="hint">Opening…</p></div>
@@ -45,6 +45,7 @@ function watch() {
   sub("game", gref(gid), s => {
     if (!s.exists()) { loadErr = "There's no game with that code."; G = null; return render(); }
     G = s.data();
+    if (G.next && G.next !== gid) return openGame(G.next);
     if (G.st !== myUid) { loadErr = "This game was set up on another device: only that device can run it."; G = null; return render(); }
     ready = true;
     const n = (G.day || 0) + 1, d = G.day || 0;
@@ -106,21 +107,35 @@ function homeHtml() {
     <p class="hint">Run the game from this device: it's the only one that can see the Grimoire.</p></section>
     ${list.length ? `<section class="card"><h2>Your games</h2>${list.map(g => `<div class="row"><a class="btn" href="?g=${g.gid}${EMU ? "&emu=1" : ""}">${esc(g.name || g.gid)} · <span class="hint">${g.gid}</span></a><span class="spacer"></span><button class="icon" data-act="forget" data-gid="${g.gid}" aria-label="Remove from this list">×</button></div>`).join("")}</section>` : ""}`;
 }
-async function newGame() {
-  const name = ($("#newName").value || "").trim() || "Clocktower Daily";
+// A new game under a fresh code (so nothing from an old game carries over). Returns the code.
+async function makeGame(fields) {
   for (let i = 0; i < 5; i++) {
     const code = newCode();
     try {
-      await FB.setDoc(gref(code), { st: myUid, name, status: "lobby", script: "tb", sched: { ...DEFAULT_SCHED }, seats: [], uids: {}, nextId: 1,
-        days: {}, nights: {}, day: 0, night: 0, dead: {}, ghost: {}, events: [], created: Date.now() });
+      await FB.setDoc(gref(code), { st: myUid, name: "Clocktower Daily", status: "lobby", script: "tb", sched: { ...DEFAULT_SCHED }, seats: [], uids: {}, nextId: 1,
+        days: {}, nights: {}, day: 0, night: 0, dead: {}, ghost: {}, events: [], created: Date.now(), ...fields });
       await FB.setDoc(gref(code, "st", "grim"), { roles: {}, shown: {}, dead: {}, ghost: {}, results: {}, poison: {}, master: {}, slays: {} });
-      saveGames([{ gid: code, name }, ...myGames().filter(g => g.gid !== code)]);
-      location.search = `?g=${code}${EMU ? "&emu=1" : ""}`;
-      return;
-    } catch (e) { if (e.code !== "permission-denied") return toast("⚠️ " + e.message); }
+      return code;
+    } catch (e) { if (e.code !== "permission-denied") throw e; }
   }
-  toast("⚠️ Couldn't make a game code. Try again.");
+  throw new Error("Couldn't make a game code. Try again.");
 }
+const openGame = code => { location.search = `?g=${code}${EMU ? "&emu=1" : ""}`; };
+async function newGame() {
+  const name = ($("#newName").value || "").trim() || "Clocktower Daily";
+  try { const code = await makeGame({ name }); saveGames([{ gid: code, name }, ...myGames().filter(g => g.gid !== code)]); openGame(code); }
+  catch (e) { toast("⚠️ " + (e.message || e)); }
+}
+// 🔄 Start again with the same players: a clean Grimoire under a new code. Every phone follows it there.
+async function replay() {
+  const code = await makeGame({ name: G.name, sched: G.sched, defMins: G.defMins || 30, seats: G.seats, uids: G.uids, nextId: G.nextId || G.seats.length + 1 });
+  await FB.updateDoc(gref(gid), { next: code });
+  saveGames([{ gid: code, name: G.name }, ...myGames().filter(g => g.gid !== code && g.gid !== gid)]);
+  openGame(code);
+}
+const replayCard = () => `<section class="card"><h2>🔄 Start again</h2>
+    <p class="hint">A new game with the same players in the same seats, and the same timetable. The Grimoire is cleared: new characters, and no old votes, chats or messages. Everyone's phone moves to the new game by itself.</p>
+    <div class="row"><button class="btn${G.overAt && nowMs() >= G.overAt ? " primary" : ""}" data-act="replay">🔄 New game with the same players</button></div></section>`;
 
 /* ---------- Setting up ---------- */
 const playerLink = () => new URL(`daily.html?g=${gid}${EMU ? "&emu=1" : ""}`, location.href).toString();
@@ -232,7 +247,7 @@ function bannerHtml(p) {
 }
 function todoHtml(p, nightTodo, dayTodo) {
   const items = [];
-  if (G.overAt) items.push(`🏁 The game ${nowMs() >= G.overAt ? "is over" : `ends at ${when(G.overAt)}`}.`);
+  if (G.overAt) items.push(`🏁 The game ${nowMs() >= G.overAt ? `is over. <button class="btn small primary" data-act="replay">🔄 New game with the same players</button>` : `ends at ${when(G.overAt)}`}.`);
   if (nightTodo) items.push(`🌙 Night ${(G.day || 0) + 1} has closed: <button class="btn small primary" data-act="tab" data-tab="night">work through the night</button>`);
   if (dayTodo) items.push(`🔒 Voting has closed: <button class="btn small primary" data-act="tab" data-tab="day">confirm the execution</button> before ${when(G.days[G.day].reveal)}`);
   if (virginTodos().length) items.push(`🕊️ The Virgin was nominated: <button class="btn small primary" data-act="tab" data-tab="day">decide</button>`);
@@ -466,7 +481,8 @@ function setHtml() {
     <section class="card"><h2>👥 Players</h2><p class="hint">The players' link: <b>${esc(playerLink())}</b></p><div class="row"><button class="btn small" data-act="copy-link">🔗 Copy</button></div></section>
     <section class="card"><h2>🏁 End the game</h2>
       <p class="hint">Normally the game ends when you confirm an execution. You can also end it here at any time; everyone sees the result and the full Grimoire straight away.</p>
-      <div class="row"><button class="btn" data-act="end-now" data-v="good">😇 Good wins</button><button class="btn" data-act="end-now" data-v="evil">😈 Evil wins</button></div></section>`;
+      <div class="row"><button class="btn" data-act="end-now" data-v="good">😇 Good wins</button><button class="btn" data-act="end-now" data-v="evil">😈 Evil wins</button></div></section>
+    ${replayCard()}`;
 }
 
 /* ---------- Dialogs ---------- */
@@ -527,6 +543,8 @@ document.getElementById("app").addEventListener("click", e => {
     case "virgin-no": return run(() => virginResolve(""));
     case "slay": return run(() => slayResolve(el.dataset.id, !!el.dataset.hit));
     case "announce": { const t = $("#stSay").value.trim(); if (!t) return; ui.msg = ""; $("#stSay").value = ""; return run(() => FB.addDoc(gcol(gid, "square"), { pid: "", kind: "st", text: t, at: nowMs(), d: G.day || 0 })); }
+    case "replay": if (!confirm("Start a new game with the same players?\n\nEveryone keeps their seat. The Grimoire is cleared: new characters, and no old votes, chats or messages. Everyone's phone moves to the new game.")) return;
+      return run(replay);
     case "end-now": if (!confirm(`End the game now: ${el.dataset.v} wins?`)) return; return run(async () => { const b = FB.writeBatch(db); endGame(b, el.dataset.v, nowMs()); await b.commit(); });
     case "msg": return dialog(`<h2>✉️ To ${nm(pid)}</h2><p class="hint">Only they see this, straight away.</p><textarea aria-label="Message"></textarea><div class="row"><button class="btn" data-dact="close">Cancel</button><span class="spacer"></span><button class="btn primary" data-dact="send" data-pid="${pid}">Send</button></div>`);
     case "recast": return dialog(`<h2>🎭 ${nm(pid)}'s character</h2><p class="hint">They're told their new character straight away.</p><select aria-label="New character"><option value="">Choose…</option>${TEAMS.map(t => SCRIPTS.tb.roles[t].map(([r, ic]) => `<option value="${esc(r)}">${ic} ${esc(r)}</option>`).join("")).join("")}</select><div class="row"><button class="btn" data-dact="close">Cancel</button><span class="spacer"></span><button class="btn primary" data-dact="recast" data-pid="${pid}">Change</button></div>`);
