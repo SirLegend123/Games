@@ -10,15 +10,15 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 96;</script>
-<script src="update.js?v=96"></script>
+<script>window.APP_V = 97;</script>
+<script src="update.js?v=97"></script>
 <script src="vendor/firebase.js"></script>
-<script src="characters.js?v=96"></script>
-<script src="daily.js?v=96"></script>
+<script src="characters.js?v=97"></script>
+<script src="daily.js?v=97"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=96">
+<link rel="stylesheet" href="daily.css?v=97">
 </head>
 <body>
 <div class="wrap" id="app"><p class="hint">Opening…</p></div>
@@ -171,19 +171,26 @@ function body() {
 }
 
 /* ---------- Joining ---------- */
+// iPhone and iPad keep a Home Screen app's storage apart from Safari's, so it has to be added before joining
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const fromHomeScreen = () => navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+const homeTipHtml = () => !isIOS() || fromHomeScreen() ? "" : `<section class="card home-tip"><h2>📲 Want it on your Home Screen?</h2>
+    <p class="lead">Do it <b>now</b>, before you join:</p>
+    <ol class="steps"><li>Tap <b>Share</b> <span aria-hidden="true">(the square with an arrow ⬆️)</span></li><li>Tap <b>Add to Home Screen</b>, then <b>Add</b></li><li>Open <b>Clocktower Daily</b> from your Home Screen and join there</li></ol>
+    <p class="hint">If you join here first and add it afterwards, the Home Screen app won't know who you are. Happy to stay in Safari? Just join below.</p></section>`;
 function joinCodeHtml() {
   return `<section class="card"><img class="crest" style="width:110px;max-width:40%;height:auto;display:block;margin:0 auto" src="img/knocker.webp" alt="" width="700" height="755"><h2>Welcome to Clocktower Daily</h2>
     <p class="lead">A game of Blood on the Clocktower that runs over several days. You play on this phone, in your own time.</p>
     <div class="field"><span class="label">Game code</span><input type="text" id="code" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="e.g. K7QM2X" value="${esc(ui.codeIn)}"></div>
     <div class="row"><button class="btn primary" data-act="go-code">Find the game →</button></div>
-    <p class="hint">On an iPhone or iPad, if you want it on your Home Screen, add it <b>before</b> you join, and always open it from there.</p></section>`;
+    </section>${homeTipHtml()}`;
 }
 function joinNameHtml() {
   if (joined) return `<section class="card"><div class="big-ico">⏳</div><h2>${esc(G.name)}</h2>
     <p class="lead">Thanks, ${esc(joined.name)}. The Storyteller will give you a seat soon.</p>
     <p class="hint">Keep this page open, or come back to it later on this phone. Game code <b>${gid}</b>.</p>
     <div class="row"><button class="btn small" data-act="other-game">Not your game?</button></div></section>`;
-  return `<section class="card"><img class="crest" style="width:110px;max-width:40%;height:auto;display:block;margin:0 auto" src="img/knocker.webp" alt="" width="700" height="755"><h2>${esc(G.name)}</h2>
+  return `${homeTipHtml()}<section class="card"><img class="crest" style="width:110px;max-width:40%;height:auto;display:block;margin:0 auto" src="img/knocker.webp" alt="" width="700" height="755"><h2>${esc(G.name)}</h2>
     <p class="lead">You've found the game. What's your name?</p>
     <div class="field"><span class="label">Your name</span><input type="text" id="name" maxlength="30" autocomplete="given-name" value="${esc(ui.nameIn)}"></div>
     <div class="row"><button class="btn primary" data-act="join">Join the game</button><button class="btn small" data-act="other-game">Not your game?</button></div>
