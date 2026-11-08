@@ -186,7 +186,7 @@ dialog::backdrop { background: rgba(0,0,0,.6); }
 .disc { width: 100%; aspect-ratio: 1; border-radius: 50%; display: grid; place-content: center; justify-items: center; text-align: center; padding: 10%; box-sizing: border-box;
   background: radial-gradient(circle at 40% 32%, #fdf7e8 0%, #efe4c9 55%, #d8c69c 100%); color: #2a2118;
   border: calc(var(--tok) * 100cqi * .065) solid #c9a24a; box-shadow: 0 3px 10px rgba(0,0,0,.45), inset 0 0 calc(var(--tok) * 100cqi * .14) rgba(120,90,40,.35); }
-.disc .nm { font-family: var(--font-display); font-size: calc(var(--tok) * 100cqi * var(--fs)); line-height: 1; overflow-wrap: anywhere; }
+.disc .nm { font-family: var(--font-display); font-size: calc(var(--tok) * 100cqi * var(--fs)); line-height: 1; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .disc .seatno, .disc .skull { font-size: calc(var(--tok) * 100cqi * .13); color: #7a6a4c; font-weight: 800; line-height: 1.2; }
 .tok.nb .disc { border-color: #6aa0ef; }
 .tok.me .disc { border-color: #e7c260; box-shadow: 0 0 0 calc(var(--tok) * 100cqi * .04) rgba(231,194,96,.45), 0 3px 10px rgba(0,0,0,.45); }

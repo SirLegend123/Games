@@ -10,15 +10,15 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 106;</script>
-<script src="update.js?v=106"></script>
+<script>window.APP_V = 107;</script>
+<script src="update.js?v=107"></script>
 <script src="vendor/firebase.js"></script>
-<script src="characters.js?v=106"></script>
-<script src="daily.js?v=106"></script>
+<script src="characters.js?v=107"></script>
+<script src="daily.js?v=107"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=106">
+<link rel="stylesheet" href="daily.css?v=107">
 <link rel="manifest" href="daily.webmanifest">
 </head>
 <body>
@@ -294,7 +294,7 @@ function townHtml(p) {
   const seats = G.seats.map((s, i) => {
     const a = (-90 + i * 360 / n) * Math.PI / 180, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
     const cls = [D[s.id] ? "dead" : "", s.id === me ? "me" : neighbours(G, me, s.id) ? "nb" : ""].join(" ").trim();
-    const fs = Math.min(0.24, 1.35 / Math.max(5, s.name.length));
+    const fs = Math.min(0.22, 1.08 / Math.max(5, s.name.length));   // longer names in smaller letters, so they stay on one line
     return `<button class="tok ${cls}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;--fs:${fs.toFixed(3)}" data-act="tok" data-pid="${s.id}" aria-label="${esc(s.name)}${s.id === me ? " (you)" : neighbours(G, me, s.id) ? " (neighbour)" : ""}${D[s.id] ? ", dead" : ""}">
       <span class="disc"><span class="nm">${esc(s.name)}</span>${D[s.id] ? `<span class="skull" aria-hidden="true">💀</span>` : `<span class="seatno">${i + 1}</span>`}</span>${s.id === me ? `<span class="you">you</span>` : ""}</button>`;
   }).join("");
@@ -359,7 +359,7 @@ function votesHtml(p) {
       ${alive} alive, so <b>${need} votes</b> are needed to execute. The nominee with the most votes (if it's at least ${need}) is executed; a tie means nobody is.</p>
     <p class="hint">🤫 Votes are secret until voting closes. You can vote on as many nominations as you like, and change your mind until then.${D[me] ? " You're dead: you have one ghost vote for the rest of the game." : ""}${myRole() === "Butler" ? " As the Butler, your vote only counts if your Master votes too." : ""}</p>
     <p class="hint">📝 Each nomination gives a reason. The nominee then has ${plural(defMins(G), "minute")} to give a defence; ${t.vote ? `voting on all the nominations opens at ${clock(t.vote)}.` : "voting opens when they do, or when the time is up."}</p>
-    ${open && !D[me] && !iNominated ? nowMs() < nomsCloseAt(G, d) ? `<div class="row"><button class="btn primary" data-act="nominate-open">☝️ Nominate someone</button><span class="hint">You can nominate once a day, until ${clock(nomsCloseAt(G, d))}.</span></div>` : `<p class="hint">New nominations closed at ${clock(nomsCloseAt(G, d))}, to leave time for a defence and the vote.</p>` : ""}
+    ${open && !D[me] && !iNominated ? nowMs() < nomsCloseAt(G, d) ? `<div class="row"><button class="btn primary" data-act="nominate-open">☝️ Nominate someone</button><span class="hint">You can nominate once a day, until ${clock(nomsCloseAt(G, d))}.</span></div>` : `<p class="hint">${t.vote ? `New nominations closed when voting opened at ${clock(t.vote)}.` : `New nominations closed at ${clock(nomsCloseAt(G, d))}, to leave time for a defence and the vote.`}</p>` : ""}
     ${noms.length ? noms.map((x, i) => nomCardHtml(x, i, p)).join("") : `<p class="hint">No nominations yet.</p>`}
     ${res ? resultHtml(res).replace(/^<section class="card">|<\/section>$/g, "") : ""}</section>
     ${historyHtml()}`;
