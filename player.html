@@ -10,7 +10,7 @@
 <title>Player's Grimoire</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Grenze+Gotisch:wght@600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
 <style>
 :root {
   --bg: #1a1027; --surface: #271a3a; --surface-2: #33234b; --line: #4b3768;
@@ -20,7 +20,7 @@
   --townsfolk: #3e7fd6; --outsider: #5cb8ec; --minion: #d4485e; --demon: #b0263d;
   --warn: #e3a53c;
   --felt: radial-gradient(circle at 50% 45%, #3b2858 0%, #241634 62%, #1a1027 100%);
-  --font-gothic: "Grenze Gotisch", "UnifrakturCook", "IM Fell English SC", Georgia, serif;
+  --font-gothic: "UnifrakturMaguntia", "UnifrakturCook", "IM Fell English SC", Georgia, serif;
   --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
   --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
@@ -282,12 +282,15 @@ img.crest { width: 110px; height: auto; display: block; margin: 0 auto; }
 img { max-width: 100%; height: auto; }
 /* A soft purple glow behind the page */
 body { background: radial-gradient(ellipse 130% 60% at 50% 0%, rgba(124,78,190,.26), transparent 70%) no-repeat, var(--bg); }
+/* Titles in the logo's style: blackletter, the logo's gold, a heavy dark shadow */
+.goldtext { font-family: "UnifrakturMaguntia", var(--font-gothic, serif); font-weight: 400; color: #e3c46e; background: url(img/gold.webp) center / cover; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(.04em .07em 0 rgba(12,6,3,.95)); }
+header h1 { line-height: 0; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>Player's Grimoire</h1>
+    <h1><img class="title-img" src="img/title-players-grimoire.webp" alt="Player's Grimoire" width="1077" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <nav class="steps" id="steps" aria-label="Steps"></nav>
     <span class="head-btns"><button class="btn" data-act="sheet-open" aria-label="Characters on the script">📜 Characters</button><button class="btn" id="themeBtn" data-act="theme"></button></span>
   </header>
@@ -300,11 +303,11 @@ body { background: radial-gradient(ellipse 130% 60% at 50% 0%, rgba(124,78,190,.
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</span></footer>
 </div>
-<script>window.APP_V = 102;</script>
-<script src="update.js?v=102"></script>
-<script src="characters.js?v=102"></script>
+<script>window.APP_V = 103;</script>
+<script src="update.js?v=103"></script>
+<script src="characters.js?v=103"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=102"></script>
+<script src="net.js?v=103"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);

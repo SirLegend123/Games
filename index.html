@@ -7,11 +7,11 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Apps</title>
-<script>window.APP_V = 102;</script>
-<script src="update.js?v=102"></script>
+<script>window.APP_V = 103;</script>
+<script src="update.js?v=103"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Grenze+Gotisch:wght@600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
 <style>
 :root {
   --bg: #1a1027; --surface: #271a3a; --line: #4b3768; --fg: #efe8f7; --muted: #b4a5ca; --brass: #d9b45a;
@@ -40,6 +40,11 @@ img.crest { width: 110px; height: auto; display: block; margin: 0 auto; }
 h1 img.wordmark { width: min(560px, 92%); }
 img.crest { width: 130px; }
 img { max-width: 100%; height: auto; }
+/* Titles in the logo's style: blackletter, the logo's gold, a heavy dark shadow */
+.goldtext { font-family: "UnifrakturMaguntia", var(--font-gothic, serif); font-weight: 400; color: #e3c46e; background: url(img/gold.webp) center / cover; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(.04em .07em 0 rgba(12,6,3,.95)); }
+header h1 { line-height: 0; }
+.choice h2 img { margin: 2px 0 4px -4px; }
+.sub-title { display: block; font-family: "IM Fell English SC", Georgia, serif; font-size: 1.1rem; color: var(--brass); }
 </style>
 </head>
 <body>
@@ -50,43 +55,43 @@ img { max-width: 100%; height: auto; }
   <div class="choices">
     <a class="choice" href="storyteller.html">
       <span class="ico" aria-hidden="true">📜</span>
-      <h2>Storyteller</h2>
+      <h2><img src="img/title-storyteller.webp" alt="Storyteller" width="634" height="150" style="height:38px;width:auto;max-width:100%;display:block"></h2>
       <p>Add the players, deal their tokens to their phones (or pass yours round), then run the Grimoire, the nights and the days.</p>
       <span class="go">Open →</span>
     </a>
     <a class="choice" href="town.html">
       <span class="ico" aria-hidden="true">📺</span>
-      <h2>Town Square</h2>
+      <h2><img src="img/title-town-square.webp" alt="Town Square" width="796" height="150" style="height:38px;width:auto;max-width:100%;display:block"></h2>
       <p>Put the game on a TV: a QR code for everyone to join on their phones, then the town live from the Storyteller, never anyone's character.</p>
       <span class="go">Open →</span>
     </a>
     <a class="choice" href="player.html">
       <span class="ico" aria-hidden="true">🕯️</span>
-      <h2>Player</h2>
+      <h2><img src="img/title-players-grimoire.webp" alt="Player's Grimoire" width="1077" height="150" style="height:38px;width:auto;max-width:100%;display:block"></h2>
       <p>Your own Grimoire: who's sitting where, what they claim, who you trust, and what you've learnt.</p>
       <span class="go">Open →</span>
     </a>
     <a class="choice" href="notes.html">
       <span class="ico" aria-hidden="true">📝</span>
-      <h2>Online Notes</h2>
+      <h2><img src="img/title-online-notes.webp" alt="Online Notes" width="928" height="150" style="height:38px;width:auto;max-width:100%;display:block"></h2>
       <p>A notepad for the official online game: the players, your character, your night info, who claims what, and who died and how.</p>
       <span class="go">Open →</span>
     </a>
     <a class="choice" href="table.html">
       <span class="ico" aria-hidden="true">🪑</span>
-      <h2>Table Notes</h2>
+      <h2><img src="img/title-table-notes.webp" alt="Table Notes" width="867" height="150" style="height:38px;width:auto;max-width:100%;display:block"></h2>
       <p>For a player round a real table: your notes on claims, deaths and night info, and 👋 a big card to hold up when you want a word with someone.</p>
       <span class="go">Open →</span>
     </a>
     <a class="choice" href="daily.html">
       <span class="ico" aria-hidden="true">🌅</span>
-      <h2>Clocktower Daily</h2>
+      <h2><img src="img/title-clocktower-daily.webp" alt="Clocktower Daily" width="988" height="150" style="height:38px;width:auto;max-width:100%;display:block"></h2>
       <p>A game that runs over several days, on everyone's phone: private chats in the morning, nominations and secret votes in the afternoon, night actions in the evening.</p>
       <span class="go">Join a game →</span>
     </a>
     <a class="choice" href="daily-st.html">
       <span class="ico" aria-hidden="true">⏰</span>
-      <h2>Clocktower Daily: Storyteller</h2>
+      <h2><img src="img/title-clocktower-daily.webp" alt="Clocktower Daily" width="988" height="150" style="height:38px;width:auto;max-width:100%;display:block"><span class="sub-title">for the Storyteller</span></h2>
       <p>Set up a Clocktower Daily game, work through each night with the info drafted for you, and confirm each day's execution.</p>
       <span class="go">Open →</span>
     </a>

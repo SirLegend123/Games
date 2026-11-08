@@ -121,6 +121,8 @@ const phaseTitle = P => {
   const [ic, name] = PHASE_INFO[P.k];
   return P.k === "night" || P.k === "dark" ? `${ic} Night ${P.n}${P.k === "dark" ? " · asleep" : ""}` : ["lobby", "wait", "over"].includes(P.k) ? `${ic} ${name}` : `${ic} Day ${P.n} · ${name}`;
 };
+// The banner title: the icon, then the words in the logo's gold
+const phaseGold = P => { const t = phaseTitle(P), i = t.indexOf(" "); return `<span class="ph-ic" aria-hidden="true">${t.slice(0, i)}</span> <span class="goldtext">${esc(t.slice(i + 1))}</span>`; };
 const isDay = P => ["dawn", "chats", "noms", "count", "dusk"].includes(P.k);
 
 /* ---------- Time words ---------- */

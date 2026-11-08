@@ -8,16 +8,16 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily · Storyteller</title>
-<script>window.APP_V = 102;</script>
-<script src="update.js?v=102"></script>
+<script>window.APP_V = 103;</script>
+<script src="update.js?v=103"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="characters.js?v=102"></script>
-<script src="daily.js?v=102"></script>
+<script src="characters.js?v=103"></script>
+<script src="daily.js?v=103"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Grenze+Gotisch:wght@600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=102">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="daily.css?v=103">
 <link rel="manifest" href="daily-st.webmanifest">
 </head>
 <body>
@@ -115,7 +115,7 @@ function render(force) {
   pending = false;
   const app = $("#app");
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  app.innerHTML = `<header><a class="home" href="${gid ? "daily-st.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1>Clocktower Daily</h1>
+  app.innerHTML = `<header><a class="home" href="${gid ? "daily-st.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-clocktower-daily.webp" alt="Clocktower Daily" width="988" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="sheet">📜 Characters</button><button class="btn" data-act="theme" aria-label="Light or dark">${themeLabel()}</button></span></header>
     ${body()}<footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool.</span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -277,7 +277,7 @@ function runningHtml() {
 function bannerHtml(p) {
   const dark = ["night", "dark", "wait"].includes(p.k);
   const next = isFinite(p.to) ? `Until ${when(p.to)} (${left(p.to)})` : p.k === "dark" ? "Dawn comes when you wake the town" : p.k === "dusk" ? "Night opens when you've confirmed the execution" : "";
-  return `<section class="banner ${dark ? "dark" : ""}"><span class="ph">${phaseTitle(p)}</span><span class="till">${next}</span><span class="hint">${esc(G.name)} · code <b>${gid}</b></span></section>`;
+  return `<section class="banner ${dark ? "dark" : ""}"><span class="ph">${phaseGold(p)}</span><span class="till">${next}</span><span class="hint">${esc(G.name)} · code <b>${gid}</b></span></section>`;
 }
 function todoHtml(p, nightTodo, dayTodo) {
   const items = [];

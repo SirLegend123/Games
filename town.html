@@ -9,7 +9,7 @@
 <title>Town Square</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Grenze+Gotisch:wght@600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
 <style>
 /* Shown on a TV or projector, so it's always dark and big */
 :root {
@@ -18,7 +18,7 @@
   --parch: #efe4c9; --parch-ink: #2a2118;
   --good: #4c8ce4; --evil: #e04a62; --warn: #f0b245;
   --townsfolk: #3e7fd6; --outsider: #5cb8ec; --minion: #d4485e; --demon: #b0263d;
-  --font-gothic: "Grenze Gotisch", "UnifrakturCook", "IM Fell English SC", Georgia, serif;
+  --font-gothic: "UnifrakturMaguntia", "UnifrakturCook", "IM Fell English SC", Georgia, serif;
   --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
   --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
@@ -31,7 +31,7 @@ button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 .screen { position: fixed; inset: 0; padding: 2vmin 3vmin; display: grid; }
 h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass); margin: 0; }
-h1 { font-family: var(--font-gothic); font-weight: 700; }
+h1 { font-family: "UnifrakturMaguntia", var(--font-gothic); font-weight: 400; color: #e3c46e; background: url(img/gold.webp) center / cover; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(.04em .07em 0 rgba(12,6,3,.95)); }
 
 /* Connecting */
 .join { place-items: center; text-align: center; }
@@ -142,16 +142,19 @@ h1 { font-family: var(--font-gothic); font-weight: 700; }
 .dot.off { background: var(--warn); }
 .tv-logo { width: min(560px, 70vw); height: auto; display: block; margin: 0 auto; }
 .tv-ccc { width: clamp(110px, 14vw, 180px); height: auto; display: block; margin: 1.5vmin auto 0; }
+/* Titles in the logo's style: blackletter, the logo's gold, a heavy dark shadow */
+.goldtext { font-family: "UnifrakturMaguntia", var(--font-gothic, serif); font-weight: 400; color: #e3c46e; background: url(img/gold.webp) center / cover; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(.04em .07em 0 rgba(12,6,3,.95)); }
+header h1 { line-height: 0; }
 </style>
 </head>
 <body>
 <div id="app"></div>
 <div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
-<script>window.APP_V = 102;</script>
-<script src="update.js?v=102"></script>
-<script src="characters.js?v=102"></script>
+<script>window.APP_V = 103;</script>
+<script src="update.js?v=103"></script>
+<script src="characters.js?v=103"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=102"></script>
+<script src="net.js?v=103"></script>
 <script src="vendor/qrcode.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -293,7 +296,7 @@ function render() {
   if (!G) {
     app.innerHTML = `<div class="screen join"><div class="join-inner">
       <img class="tv-logo" style="width:min(560px,70vw);height:auto;display:block;margin:0 auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262">
-      <h1>Town Square</h1>
+      <h1><img class="title-img" src="img/title-town-square.webp" alt="Town Square" width="796" height="150" style="height:clamp(70px, 12vh, 130px);width:auto;max-width:100%;display:block;margin:0 auto"></h1>
       <p>On the Storyteller's iPad, tap 📺 and Start sharing. Then type the code here.</p>
       <input class="code-in" id="codeIn" maxlength="5" value="${esc(code)}" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Code">
       <button class="btn primary" id="joinBtn">Connect</button>
