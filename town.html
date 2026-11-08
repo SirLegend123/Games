@@ -3,21 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#15121b">
+<meta name="theme-color" content="#1a1027">
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Town Square</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Grenze+Gotisch:wght@600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
 <style>
 /* Shown on a TV or projector, so it's always dark and big */
 :root {
-  --bg: #120f17; --surface: #1f1a27; --surface-2: #2b2534; --line: #3b3346;
-  --fg: #f1ebf6; --muted: #b3a9c0; --brass: #e0b862; --on-brass: #1a1408;
+  --bg: #150c20; --surface: #251838; --surface-2: #33234b; --line: #4b3768;
+  --fg: #f1ebf6; --muted: #b8aacd; --brass: #e0b862; --on-brass: #1a1408;
   --parch: #efe4c9; --parch-ink: #2a2118;
   --good: #4c8ce4; --evil: #e04a62; --warn: #f0b245;
   --townsfolk: #3e7fd6; --outsider: #5cb8ec; --minion: #d4485e; --demon: #b0263d;
+  --font-gothic: "Grenze Gotisch", "UnifrakturCook", "IM Fell English SC", Georgia, serif;
   --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
   --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
@@ -25,11 +26,12 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { height: 100%; }
-body { margin: 0; background: radial-gradient(circle at 50% 40%, #2a2235 0%, #18131f 60%, #0e0b12 100%); background-color: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: clamp(16px, 1.6vw, 26px); line-height: 1.4; overflow: hidden; }
+body { margin: 0; background: radial-gradient(circle at 50% 40%, #3b2858 0%, #1e1230 60%, #120a1c 100%); background-color: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: clamp(16px, 1.6vw, 26px); line-height: 1.4; overflow: hidden; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 .screen { position: fixed; inset: 0; padding: 2vmin 3vmin; display: grid; }
 h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass); margin: 0; }
+h1 { font-family: var(--font-gothic); font-weight: 700; }
 
 /* Connecting */
 .join { place-items: center; text-align: center; }
@@ -145,11 +147,11 @@ h1, h2 { font-family: var(--font-display); font-weight: 400; color: var(--brass)
 <body>
 <div id="app"></div>
 <div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
-<script>window.APP_V = 101;</script>
-<script src="update.js?v=101"></script>
-<script src="characters.js?v=101"></script>
+<script>window.APP_V = 102;</script>
+<script src="update.js?v=102"></script>
+<script src="characters.js?v=102"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=101"></script>
+<script src="net.js?v=102"></script>
 <script src="vendor/qrcode.js"></script>
 <script>
 const $ = id => document.getElementById(id);
