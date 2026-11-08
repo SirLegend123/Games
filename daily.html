@@ -3,22 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#15121b">
+<meta name="theme-color" content="#1a1027">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Clocktower Daily">
 <script>try { const t = localStorage.getItem("ctd-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 101;</script>
-<script src="update.js?v=101"></script>
+<script>window.APP_V = 102;</script>
+<script src="update.js?v=102"></script>
 <script src="vendor/firebase.js"></script>
-<script src="characters.js?v=101"></script>
-<script src="daily.js?v=101"></script>
+<script src="characters.js?v=102"></script>
+<script src="daily.js?v=102"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=101">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Grenze+Gotisch:wght@600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="daily.css?v=102">
 <link rel="manifest" href="daily.webmanifest">
 </head>
 <body>
@@ -286,12 +286,20 @@ function overHtml() {
   return `<section class="card"><h2>🏁 ${e.winner === "good" ? "😇 Good wins!" : "😈 Evil wins!"}</h2>
     <div class="town">${G.seats.map((s, i) => { const r = e.roles[s.id] || ""; return `<div class="prow ${(e.dead || {})[s.id] ? "dead" : ""}"><span class="n">${i + 1}</span><span><b class="nm">${esc(s.name)}</b> <span class="t-${teamOf(r)}">${(CHAR[r] || {}).icon || ""} ${esc(r)}</span>${e.shown && e.shown[s.id] ? ` <span class="hint">(thought they were the ${esc(e.shown[s.id])})</span>` : ""}</span><span></span></div>`; }).join("")}</div><div class="row"><button class="btn primary" data-act="other-game">🎲 Join a different game</button></div></section>`;
 }
+// The town: everyone round the circle as parchment tokens, clockwise from the top. Tap someone to message them.
 function townHtml(p) {
-  const D = dead();
+  const D = dead(), n = G.seats.length, alive = n - Object.keys(D).length;
+  const tok = n <= 6 ? 0.23 : n <= 9 ? 0.2 : n <= 12 ? 0.17 : 0.15;
+  const seats = G.seats.map((s, i) => {
+    const a = (-90 + i * 360 / n) * Math.PI / 180, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
+    const cls = [D[s.id] ? "dead" : "", s.id === me ? "me" : neighbours(G, me, s.id) ? "nb" : ""].join(" ").trim();
+    const fs = Math.min(0.24, 1.35 / Math.max(5, s.name.length));
+    return `<button class="tok ${cls}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;--fs:${fs.toFixed(3)}" data-act="tok" data-pid="${s.id}" aria-label="${esc(s.name)}${s.id === me ? " (you)" : neighbours(G, me, s.id) ? " (neighbour)" : ""}${D[s.id] ? ", dead" : ""}">
+      <span class="disc"><span class="nm">${esc(s.name)}</span>${D[s.id] ? `<span class="skull" aria-hidden="true">💀</span>` : `<span class="seatno">${i + 1}</span>`}</span>${s.id === me ? `<span class="you">you</span>` : ""}</button>`;
+  }).join("");
   return `<section class="card"><h2>🏘️ The town</h2>
-    <p class="hint">In seat order: the last player sits next to the first. ${G.seats.length - Object.keys(D).length} alive · ${needVotes(G.seats.length - Object.keys(D).length)} votes to execute.</p>
-    <div class="town">${G.seats.map((s, i) => `<div class="prow ${D[s.id] ? "dead" : ""} ${s.id === me ? "me" : ""}"><span class="n">${i + 1}</span><span><b class="nm">${esc(s.name)}</b>${s.id === me ? " (you)" : neighbours(G, me, s.id) ? ` <span class="tag">neighbour</span>` : ""}</span>
-      <span>${D[s.id] ? `<span class="tag">💀 ${esc(HOW[D[s.id].how] || "Dead")}</span>` : ""}</span></div>`).join("")}</div></section>`;
+    <div class="ring" style="--tok:${tok}">${seats}<div class="ring-centre"><span class="big">${alive}</span><span>alive of ${n}</span><span class="hint">${needVotes(alive)} votes to execute</span></div></div>
+    <p class="hint legend"><span class="lg me"></span> You · <span class="lg nb"></span> Your neighbours · 💀 Dead. Tap a player to message them.</p></section>`;
 }
 function actHtml(p, act) {
   const picks = ui.picks || (myAct && myAct.n === p.n ? myAct.picks : []), saved = myAct && myAct.n === p.n && myAct.saved, D = dead();
@@ -506,6 +514,7 @@ document.getElementById("app").addEventListener("click", e => {
     case "def-save": { const t = ($("#def").value || "").trim(); if (!t) return toast("Type your defence first.");
       ui.draft.def = undefined;
       return run(() => FB.updateDoc(gref(gid, "days", String(G.day), "noms", me), { defence: t.slice(0, 600), defAt: nowMs() }), "Defence given"); }
+    case "tok": if (pid === me) { ui.tab = "me"; } else { ui.tab = "chats"; ui.chat = pid; } render(true); return window.scrollTo(0, 0);
     case "push-on": return refreshPush(true);
     case "copy-code": navigator.clipboard && navigator.clipboard.writeText(gid).then(() => toast("Code copied"), () => toast(gid)); return;
     case "push-later": try { localStorage.setItem("ctd-push-later", String(Date.now())); } catch (e2) {} return render(true);

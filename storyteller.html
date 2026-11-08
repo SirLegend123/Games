@@ -3,33 +3,34 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#15121b">
+<meta name="theme-color" content="#1a1027">
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Storyteller: Face to Face</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Grenze+Gotisch:wght@600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
 <style>
 :root {
-  --bg: #15121b; --surface: #211c29; --surface-2: #2b2534; --line: #3b3346;
-  --fg: #ece6f2; --muted: #a69cb3; --brass: #d4ab55; --on-brass: #1a1408;
+  --bg: #1a1027; --surface: #271a3a; --surface-2: #33234b; --line: #4b3768;
+  --fg: #efe8f7; --muted: #b4a5ca; --brass: #d9b45a; --on-brass: #1a1408;
   --parch: #efe4c9; --parch-ink: #2a2118;
   --good: #4c8ce4; --evil: #d8435a;
   --townsfolk: #3e7fd6; --outsider: #5cb8ec; --minion: #d4485e; --demon: #b0263d;
   --warn: #e3a53c;
-  --felt: radial-gradient(circle at 50% 40%, #2c2436 0%, #1b1622 62%, #15121b 100%);
+  --felt: radial-gradient(circle at 50% 40%, #3b2858 0%, #241634 62%, #1a1027 100%);
+  --font-gothic: "Grenze Gotisch", "UnifrakturCook", "IM Fell English SC", Georgia, serif;
   --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
   --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #f1eef4; --surface: #ffffff; --surface-2: #f4f0f7; --line: #dcd4e3;
-    --fg: #231d2b; --muted: #6c6278; --brass: #94701f; --on-brass: #fff;
+    --bg: #f3eef9; --surface: #ffffff; --surface-2: #f6f1fb; --line: #dfd3ec;
+    --fg: #251a35; --muted: #6c5b84; --brass: #94701f; --on-brass: #fff;
     --good: #2463c2; --evil: #be2a42;
     --townsfolk: #2463c2; --outsider: #2a92cc; --minion: #c0344b; --demon: #8a1428; --warn: #b7791f;
-    --felt: radial-gradient(circle at 50% 40%, #ffffff 0%, #ebe5f0 70%, #e2dbe9 100%);
+    --felt: radial-gradient(circle at 50% 40%, #ffffff 0%, #ece3f6 70%, #e2d6f0 100%);
     color-scheme: light;
   }
 }
@@ -43,7 +44,7 @@ button { cursor: pointer; }
 
 .wrap { max-width: 920px; margin: 0 auto; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(40px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 16px; }
 header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-header h1 { margin: 0 auto 0 0; font-family: var(--font-display); font-weight: 400; color: var(--brass); font-size: 1.6rem; }
+header h1 { margin: 0 auto 0 0; font-family: var(--font-gothic); font-weight: 700; color: var(--brass); font-size: 2rem; line-height: 1.1; text-shadow: 0 2px 6px rgba(0,0,0,.35); }
 .steps { display: flex; gap: 6px; flex-wrap: wrap; }
 .steps span { font-size: .8rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); }
 .steps span.on { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
@@ -144,7 +145,7 @@ label.field { display: grid; gap: 6px; }
 .seat.dead .plate { text-decoration: line-through; color: var(--muted); }
 .rems { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; width: calc(var(--tok) * 1.6); }
 .rem { font-size: clamp(.6rem, 2.1cqi, .72rem); font-weight: 800; border-radius: 999px; padding: 0 6px; background: var(--evil); color: #fff; white-space: nowrap; }
-.rem.info { background: #6c6278; } .rem.safe { background: var(--good); }
+.rem.info { background: #6c5b84; } .rem.safe { background: var(--good); }
 .rem.big { font-size: .85rem; padding: 4px 6px 4px 10px; display: inline-flex; align-items: center; gap: 4px; }
 .rem .x { background: none; border: 0; color: #fff; font-weight: 800; padding: 0 4px; }
 .center { position: absolute; inset: 30%; display: grid; place-content: center; justify-items: center; text-align: center; gap: 4px; }
@@ -263,6 +264,8 @@ footer { color: var(--muted); font-size: .8rem; text-align: center; }
 img.crest { width: 110px; height: auto; display: block; margin: 0 auto; }
 
 img { max-width: 100%; height: auto; }
+/* A soft purple glow behind the page */
+body { background: radial-gradient(ellipse 130% 60% at 50% 0%, rgba(124,78,190,.26), transparent 70%) no-repeat, var(--bg); }
 </style>
 </head>
 <body>
@@ -287,11 +290,11 @@ document.getElementById("homeBtn").addEventListener("click", e => {
 </div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
-<script>window.APP_V = 101;</script>
-<script src="update.js?v=101"></script>
-<script src="characters.js?v=101"></script>
+<script>window.APP_V = 102;</script>
+<script src="update.js?v=102"></script>
+<script src="characters.js?v=102"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=101"></script>
+<script src="net.js?v=102"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);

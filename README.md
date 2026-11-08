@@ -2,6 +2,8 @@
 
 Open `index.html` to choose between the *Blood on the Clocktower* apps: the **Storyteller**, the **Town Square**, the **Player**, **Online Notes**, **Table Notes** and **Clocktower Daily** (a game over several days). They share their character list (`characters.js`).
 
+**Look**: every app uses a deep purple and gold palette (pale lavender in light mode), with main titles in the blackletter Google font Grenze Gotisch. In Clocktower Daily, the town is a circle of parchment tokens, clockwise from the top: a gold ring for you, blue for your neighbours, grey for the dead; tap a player to message them.
+
 **Artwork**: `img/` holds the *Blood on the Clocktower* logo, the Community Created Content badge and the door-knocker emblem, used under The Pandemonium Institute's community content terms. They appear on the cover page, at the foot of every Clocktower app, on the welcome screens and on the TV, and the knocker is the icon for the browser tab and the Home Screen.
 
 **Connections**: the live link (`net.js`) uses several STUN servers to find a direct route between devices, and TURN relay servers (including one on port 443) for when there isn't one, such as on some mobile networks and routers. The Storyteller sends a small heartbeat every 8 seconds. A phone or TV reconnects by itself after 30 seconds of silence, after 15 seconds if a link never opens, and straight away when it comes back from the lock screen. While linked, the Player app keeps the screen on where the phone allows.
