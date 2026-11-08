@@ -10,15 +10,15 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 99;</script>
-<script src="update.js?v=99"></script>
+<script>window.APP_V = 100;</script>
+<script src="update.js?v=100"></script>
 <script src="vendor/firebase.js"></script>
-<script src="characters.js?v=99"></script>
-<script src="daily.js?v=99"></script>
+<script src="characters.js?v=100"></script>
+<script src="daily.js?v=100"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=99">
+<link rel="stylesheet" href="daily.css?v=100">
 <link rel="manifest" href="daily.webmanifest">
 </head>
 <body>
@@ -198,7 +198,7 @@ function joinNameHtml() {
     <p class="hint">If you've played in this game on another phone, join with the same name: the Storyteller will move your seat to this phone.</p></section>`;
 }
 function waitHtml() {
-  return `<section class="card"><div class="big-ico">🕯️</div><h2>${esc(G.name)}</h2>
+  return `${pushCardHtml()}<section class="card"><div class="big-ico">🕯️</div><h2>${esc(G.name)}</h2>
     <p class="lead">You're in, ${nm(me)}. The Storyteller will deal the characters soon: your character appears here when they do.</p>
     <p class="hint">${plural(G.seats.length, "player")} seated so far.</p></section>
     ${timetableHtml()}`;

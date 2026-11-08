@@ -8,16 +8,16 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily · Storyteller</title>
-<script>window.APP_V = 99;</script>
-<script src="update.js?v=99"></script>
+<script>window.APP_V = 100;</script>
+<script src="update.js?v=100"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="characters.js?v=99"></script>
-<script src="daily.js?v=99"></script>
+<script src="characters.js?v=100"></script>
+<script src="daily.js?v=100"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=99">
+<link rel="stylesheet" href="daily.css?v=100">
 <link rel="manifest" href="daily-st.webmanifest">
 </head>
 <body>
@@ -195,7 +195,7 @@ function lobbyHtml() {
   const drunk = G.seats.find(s => R[s.id] === "Drunk"), ft = G.seats.find(s => R[s.id] === "Fortune Teller");
   const TB = SCRIPTS.tb.roles, opts = sel => TEAMS.map(t => `<optgroup label="${TEAM_LABEL[t]}">${TB[t].map(([r, ic]) => `<option value="${esc(r)}" ${sel === r ? "selected" : ""}>${ic} ${esc(r)}</option>`).join("")}</optgroup>`).join("");
   const nEnd = ui.n1End || toLocalInput(nextClock(nowMs() + 3600000, G.sched.nightEnd));
-  return `<section class="card"><h2>${esc(G.name)}: invite the players</h2>
+  return `${stPush && stPush !== "on" && stPush !== "unsupported" ? stPushHtml() : ""}<section class="card"><h2>${esc(G.name)}: invite the players</h2>
       <div class="row" style="align-items:center"><div class="qr">${qrSvg(playerLink())}</div>
       <div class="field"><span class="label">Game code</span><span class="code">${gid}</span><button class="btn small" data-act="copy-link">🔗 Copy the players' link</button></div></div>
       <p class="hint">Players open the link (or <b>Clocktower Daily</b> on the cover page) and type the code. Ask them to use the same phone and browser all game.</p>
