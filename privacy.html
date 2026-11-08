@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a1027">
+<script>try { const t = localStorage.getItem("ctd-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="icon" type="image/png" href="img/icon-180.png">
+<title>Privacy notice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="daily.css?v=108">
+<style>
+.notice h2 { margin-top: 0; }
+.notice h3 { margin: 18px 0 6px; font-size: 1.05rem; }
+.notice p, .notice li { line-height: 1.55; }
+.notice ul { margin: 6px 0 10px; padding-left: 1.3em; }
+.notice li { margin: 4px 0; }
+.notice table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+.notice th, .notice td { text-align: left; vertical-align: top; padding: 8px 6px; border-top: 1px solid var(--line); }
+.notice th { width: 34%; font-weight: 700; }
+.privacy-title { font-family: "UnifrakturMaguntia", var(--font-gothic, serif); font-weight: 400; font-size: clamp(2rem, 8vw, 2.8rem); line-height: 1.1; margin: 0 auto 0 0;
+  color: #e3c46e; background: url(img/gold.webp) center / cover; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(.04em .07em 0 rgba(12,6,3,.95)); }
+@media (max-width: 520px) { .notice th, .notice td { display: block; width: auto; } .notice td { border-top: 0; padding-top: 0; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1 class="privacy-title">Privacy notice</h1><button class="btn" id="back">← Back</button></header>
+
+<section class="card notice">
+  <p class="lead">These apps are a free, unofficial fan project for playing <i>Blood on the Clocktower</i>. There are no adverts, no tracking, no analytics, and nothing is sold. This notice explains what is kept about you, who can see it, and for how long.</p>
+  <p class="hint">Last updated 8 November 2026.</p>
+</section>
+
+<section class="card notice">
+  <h2>🕰️ Clocktower Daily</h2>
+  <p>Clocktower Daily stores each game online, so that everyone can play on their own phone over several days.</p>
+
+  <h3>What is kept</h3>
+  <table>
+    <tr><th>An anonymous sign-in</th><td>When you open the app, it signs in with a random ID. No email address, password or phone number is ever asked for.</td></tr>
+    <tr><th>Your name</th><td>The name you type when you join (it doesn't have to be your real name).</td></tr>
+    <tr><th>What you do in the game</th><td>Your seat and character, the information the Storyteller gives you, your night choices, your nominations and their reasons, your defences, your votes, and your messages: in the Town Square, in private chats with other players, and with the Storyteller.</td></tr>
+    <tr><th>When you were last in the app</th><td>So the Storyteller can see who's keeping up, and send a reminder.</td></tr>
+    <tr><th>Notifications (only if you turn them on)</th><td>The address your phone's notification service gives the app to reach your phone, and the name of your browser and phone type (for example "iPhone, Safari"), to help fix problems.</td></tr>
+  </table>
+
+  <h3>Who can see it</h3>
+  <ul>
+    <li><b>Everyone in the game</b> (anyone with the game code) sees the names in the town, who is dead, the Town Square, the nominations with their reasons and defences, and, once voting has closed, who voted for whom.</li>
+    <li><b>Your character and private information</b> are seen only by you and the Storyteller until the game ends. At the end, everyone sees the whole Grimoire: every character.</li>
+    <li><b>Private chats</b> between two players are seen only by those two players. The Storyteller can't read them.</li>
+    <li><b>Your chat with the Storyteller</b> is seen only by you and the Storyteller.</li>
+    <li><b>The Storyteller</b> also sees everyone's night choices and when each player was last in the app.</li>
+  </ul>
+
+  <h3>Where it's kept</h3>
+  <ul>
+    <li>Games are stored in <b>Google Firebase</b> (Cloud Firestore and Authentication), in Google's London data centre. Notifications are sent by a small program that also runs there.</li>
+    <li>Notifications travel through your phone's own notification service (Apple, Google or Mozilla). They are encrypted on the way, so those services can't read them.</li>
+    <li>The website is hosted on <b>GitHub Pages</b>, and the lettering comes from <b>Google Fonts</b>. Like any website, these see your device's internet address when your browser loads the page.</li>
+  </ul>
+
+  <h3>How long it's kept</h3>
+  <ul>
+    <li>A game, with everything in it, is <b>deleted automatically 30 days after it ends</b>.</li>
+    <li>A game that never starts is deleted 30 days after it was set up, and one left unfinished 90 days after it started.</li>
+    <li>The Storyteller can <b>delete a game at any time</b> (Settings, then Delete this game). That removes it for everyone, straight away.</li>
+    <li>If you turn notifications off (under Me), your notification address is deleted straight away.</li>
+  </ul>
+
+  <h3>Why it's kept</h3>
+  <p>Only to run the game you chose to join, and to send you the notifications you asked for. Under UK data protection law (the UK GDPR), this is done because of a legitimate interest in running the game for its players, and, for notifications, with your consent, which you can take back at any time by turning them off.</p>
+</section>
+
+<section class="card notice">
+  <h2>📱 On your phone</h2>
+  <p>The apps remember a few things on your own device, using your browser's storage: which game you're in, your sign-in ID, light or dark mode, which messages you've read, and your notes. None of it is used for tracking. Clearing your browser's data for this website removes it.</p>
+</section>
+
+<section class="card notice">
+  <h2>🎭 The other apps</h2>
+  <ul>
+    <li><b>Storyteller's Grimoire, Player's Grimoire and Town Square</b> link devices at the same table directly, phone to phone. A free connection service (PeerJS) helps the devices find each other, and sees their internet addresses and a random ID. If a direct link isn't possible, the traffic is passed on, encrypted, through a relay server (PeerJS or Open Relay). Nothing about the game is stored online: it lives on the Storyteller's device.</li>
+    <li><b>Online Notes and Table Notes</b> are kept only on your own device. They're never sent anywhere.</li>
+  </ul>
+</section>
+
+<section class="card notice">
+  <h2>⚖️ Your rights</h2>
+  <p>You can ask to see what's kept about you, have it corrected, or have it deleted, and you can object to it being used. The quickest way is to ask your <b>Storyteller</b>: they can remove you from a game, or delete the whole game. In Clocktower Daily you can message them under Chats.</p>
+  <p>You can also contact the person who made these apps through the project's GitHub page, <a href="https://github.com/SirLegend123/Games/issues" rel="noopener">github.com/SirLegend123/Games</a>. Messages there are public, so don't put personal details in them: just ask for a private way to get in touch.</p>
+  <p>If you're unhappy with how your information has been handled, you can complain to the Information Commissioner's Office: <a href="https://ico.org.uk/make-a-complaint/" rel="noopener">ico.org.uk</a>.</p>
+
+  <h3>Children</h3>
+  <p>These apps are not meant for children under 13.</p>
+
+  <h3>Changes</h3>
+  <p>If this notice changes, the new version will be on this page, with a new date at the top.</p>
+</section>
+
+<footer class="brand"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> belongs to The Pandemonium Institute. Unofficial fan-made tools.</span></footer>
+</div>
+<script>
+// Back to wherever you came from (players never go to the cover page)
+document.getElementById("back").addEventListener("click", () => {
+  if (history.length > 1 && document.referrer && new URL(document.referrer).origin === location.origin) history.back();
+  else location.href = "daily.html";
+});
+</script>
+</body>
+</html>

@@ -117,7 +117,7 @@ function render(force) {
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
   app.innerHTML = `<header><a class="home" href="${gid ? "daily-st.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-clocktower-daily.webp?v=108" alt="Clocktower Daily" width="1010" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="sheet">📜 Characters</button><button class="btn" data-act="theme" aria-label="Light or dark">${themeLabel()}</button></span></header>
-    ${body()}<footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool.</span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
+    ${body()}<footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
   const f = $("#feed"); if (f && (atBottom || !feed)) f.scrollTop = f.scrollHeight;
 }
@@ -167,6 +167,9 @@ async function replay() {
   saveGames([{ gid: code, name: G.name }, ...myGames().filter(g => g.gid !== code && g.gid !== gid)]);
   openGame(code);
 }
+const deleteCard = () => `<section class="card"><h2>🗑️ Delete this game</h2>
+    <p class="hint">Deletes everything in this game, for everyone: names, characters, votes, chats and messages. It can't be undone. Otherwise a game is deleted by itself 30 days after it ends. <a href="privacy.html">Privacy notice</a></p>
+    <div class="row"><button class="btn" data-act="delete-game">🗑️ Delete this game</button></div></section>`;
 const replayCard = () => `<section class="card"><h2>🔄 Start again</h2>
     <p class="hint">A new game with the same players in the same seats, and the same timetable. The Grimoire is cleared: new characters, and no old votes, chats or messages. Everyone's phone moves to the new game by itself.</p>
     <div class="row"><button class="btn${G.overAt && nowMs() >= G.overAt ? " primary" : ""}" data-act="replay">🔄 New game with the same players</button></div></section>`;
@@ -217,7 +220,8 @@ function lobbyHtml() {
       <p class="hint">Dealing sends each player their character straight away, and opens Night 1 for the night actions. You then work through the night and wake the town at dawn.</p>
       <div class="field"><span class="label">Night 1 actions close at</span><input type="datetime-local" id="n1End" value="${nEnd}"></div>
       ${allSet ? "" : `<p class="warn">Seat at least 5 players and give everyone a different character first.</p>`}
-      <div class="row"><button class="btn primary" data-act="deal" ${allSet ? "" : "disabled"}>🎭 Deal characters &amp; start Night 1</button></div></section>`;
+      <div class="row"><button class="btn primary" data-act="deal" ${allSet ? "" : "disabled"}>🎭 Deal characters &amp; start Night 1</button></div></section>
+    ${deleteCard()}`;
 }
 const toLocalInput = ms => { const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
 function schedHtml() {
@@ -565,7 +569,7 @@ function setHtml() {
     <section class="card"><h2>🏁 End the game</h2>
       <p class="hint">Normally the game ends when you confirm an execution. You can also end it here at any time; everyone sees the result and the full Grimoire straight away.</p>
       <div class="row"><button class="btn" data-act="end-now" data-v="good">😇 Good wins</button><button class="btn" data-act="end-now" data-v="evil">😈 Evil wins</button></div></section>
-    ${replayCard()}`;
+    ${replayCard()}${deleteCard()}`;
 }
 
 /* ---------- Dialogs ---------- */
@@ -628,6 +632,8 @@ document.getElementById("app").addEventListener("click", e => {
     case "announce": { const t = $("#stSay").value.trim(); if (!t) return; ui.msg = ""; $("#stSay").value = ""; return run(() => FB.addDoc(gcol(gid, "square"), { pid: "", kind: "st", text: t, at: nowMs(), d: G.day || 0 })); }
     case "replay": if (!confirm("Start a new game with the same players?\n\nEveryone keeps their seat. The Grimoire is cleared: new characters, and no old votes, chats or messages. Everyone's phone moves to the new game.")) return;
       return run(replay);
+    case "delete-game": if (!confirm(`Delete "${G.name}" for everyone?\n\nEverything in it goes: names, characters, votes, chats and messages. This can't be undone.`)) return;
+      return run(async () => { await FB.updateDoc(gref(gid), { deleteReq: nowMs() }); saveGames(myGames().filter(g => g.gid !== gid)); location.href = "daily-st.html" + (EMU ? "?emu=1" : ""); });
     case "end-now": if (!confirm(`End the game now: ${el.dataset.v} wins?`)) return; return run(async () => { const b = FB.writeBatch(db); endGame(b, el.dataset.v, nowMs()); await b.commit(); });
     case "msg": ui.tab = "msgs"; ui.thread = pid; render(true); return window.scrollTo(0, 0);
     case "push-on": return refreshStPush(true);
