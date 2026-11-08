@@ -120,6 +120,7 @@ Players and the Storyteller can tap **🔔 Turn on notifications** (on the Today
 - **Everyone:** 🌅 the day has dawned (and who died), ⚖️ nominations are open, ⚖️ a new nomination (with the reason) and a defence, 🔒 voting closes in 30 minutes, 🪓 the execution, 🏁 who won, and ✉️ private messages.
 - **You're nominated:** a notification asking for your defence.
 - **Night:** 🌙 night has fallen, and a reminder 30 minutes before the end, only for players whose character chooses at night (and who haven't yet).
+- **Straight away:** "🔔 Notifications are on", as soon as a device turns them on, so you know they work.
 - **The Storyteller:** ✉️ players' messages, 🕊️ the Virgin nominated, 🏹 a Slayer shot, 🔒 voting has closed, 🕯️ the night has closed.
 
 On **iPhone and iPad** (iOS 16.4 or newer) notifications only work in the Home Screen app; Android works in Chrome too.

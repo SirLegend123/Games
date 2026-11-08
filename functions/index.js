@@ -13,6 +13,8 @@ const doc = path => R.firestore.document(path);
 
 // Every 5 minutes: dawn, nominations open, voting closing, the execution, night actions, the end
 exports.tick = R.pubsub.schedule("every 5 minutes").onRun(() => lib.tick(Date.now()));
+// A welcome as soon as a device turns notifications on
+exports.onSubscribe = doc("games/{gid}/push/{uid}").onCreate((s, c) => lib.onSubscribe(c.params.gid, c.params.uid, s.data()));
 // Straight away: nominations, defences, Slayer shots and messages
 exports.onNomination = doc("games/{gid}/days/{d}/noms/{nominee}").onCreate((s, c) => lib.onNomination(c.params.gid, c.params.d, c.params.nominee, s.data()));
 exports.onDefence = doc("games/{gid}/days/{d}/noms/{nominee}").onUpdate((ch, c) => lib.onDefence(c.params.gid, c.params.d, c.params.nominee, ch.before.data(), ch.after.data()));
