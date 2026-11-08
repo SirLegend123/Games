@@ -8,16 +8,16 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily · Storyteller</title>
-<script>window.APP_V = 103;</script>
-<script src="update.js?v=103"></script>
+<script>window.APP_V = 104;</script>
+<script src="update.js?v=104"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="characters.js?v=103"></script>
-<script src="daily.js?v=103"></script>
+<script src="characters.js?v=104"></script>
+<script src="daily.js?v=104"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=103">
+<link rel="stylesheet" href="daily.css?v=104">
 <link rel="manifest" href="daily-st.webmanifest">
 </head>
 <body>
@@ -134,12 +134,12 @@ function body() {
 /* ---------- Your games ---------- */
 function homeHtml() {
   const list = myGames();
-  return `<section class="card"><img class="crest" style="width:110px;max-width:40%;height:auto;display:block;margin:0 auto" src="img/knocker.webp" alt="" width="700" height="755"><h2>Storyteller</h2>
+  return `<div class="centre-page"><section class="card"><img class="crest" style="width:110px;max-width:40%;height:auto;display:block;margin:0 auto" src="img/knocker.webp" alt="" width="700" height="755"><h2>Storyteller</h2>
     <p class="lead">Run a game of Blood on the Clocktower over several days. Everyone plays on their phone in their own time; the day moves on by the clock.</p>
     <div class="field"><span class="label">Name this game</span><input type="text" id="newName" maxlength="40" placeholder="e.g. Office game, November" value="${esc(ui.newName)}"></div>
     <div class="row"><button class="btn primary" data-act="new-game">Set up a new game</button></div>
     <p class="hint">Run the game from this device: it's the only one that can see the Grimoire.</p></section>
-    ${list.length ? `<section class="card"><h2>Your games</h2>${list.map(g => `<div class="row"><a class="btn" href="?g=${g.gid}${EMU ? "&emu=1" : ""}">${esc(g.name || g.gid)} · <span class="hint">${g.gid}</span></a><span class="spacer"></span><button class="icon" data-act="forget" data-gid="${g.gid}" aria-label="Remove from this list">×</button></div>`).join("")}</section>` : ""}`;
+    ${list.length ? `<section class="card"><h2>Your games</h2>${list.map(g => `<div class="row"><a class="btn" href="?g=${g.gid}${EMU ? "&emu=1" : ""}">${esc(g.name || g.gid)} · <span class="hint">${g.gid}</span></a><span class="spacer"></span><button class="icon" data-act="forget" data-gid="${g.gid}" aria-label="Remove from this list">×</button></div>`).join("")}</section>` : ""}</div>`;
 }
 // A new game under a fresh code (so nothing from an old game carries over). Returns the code.
 async function makeGame(fields) {

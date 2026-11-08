@@ -10,15 +10,15 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 103;</script>
-<script src="update.js?v=103"></script>
+<script>window.APP_V = 104;</script>
+<script src="update.js?v=104"></script>
 <script src="vendor/firebase.js"></script>
-<script src="characters.js?v=103"></script>
-<script src="daily.js?v=103"></script>
+<script src="characters.js?v=104"></script>
+<script src="daily.js?v=104"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=103">
+<link rel="stylesheet" href="daily.css?v=104">
 <link rel="manifest" href="daily.webmanifest">
 </head>
 <body>
@@ -168,11 +168,11 @@ function markSeen() {
 }
 
 function body() {
-  if (!gid) return joinCodeHtml();
+  if (!gid) return `<div class="centre-page">${joinCodeHtml()}</div>`;
   if (loadErr) return `<section class="card"><p class="err">${esc(loadErr)}</p><div class="row"><button class="btn" data-act="other-game">Enter another code</button></div></section>`;
   if (!ready) return `<p class="hint">Finding the game…</p>`;
-  if (!me) return joinNameHtml();
-  if (G.status === "lobby" || !SEC) return waitHtml();
+  if (!me) return `<div class="centre-page">${joinNameHtml()}</div>`;
+  if (G.status === "lobby" || !SEC) return `<div class="centre-page">${waitHtml()}</div>`;
   return gameHtml();
 }
 
