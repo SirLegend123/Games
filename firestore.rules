@@ -21,10 +21,12 @@ service cloud.firestore {
       function closed(d) { return now() >= dayT(d).get('close', 9000000000000000); }
       // The nominee's time to give a defence (minutes), and when new nominations stop
       function defMs() { return G().get('defMins', 30) * 60000; }
-      function canNominate(d) { return nominating(d) && now() < dayT(d).get('close', 0) - defMs(); }
+      // New nominations stop when voting opens (older games: a defence's length before voting closes)
+      function canNominate(d) { return nominating(d) && now() < dayT(d).get('vote', dayT(d).get('close', 0) - defMs()); }
       function near(t) { return t is number && t > now() - 120000 && t < now() + 120000; }
       // Voting on a nomination opens when the nominee gives a defence, or when their time is up
-      function votingOpen(d, nom) { let x = get(/databases/$(db)/documents/games/$(gid)/days/$(d)/noms/$(nom)).data; return x.get('defAt', 0) > 0 || now() >= x.at + defMs(); }
+      // Voting opens on every nomination at the day's "Voting opens" time (older games: after the nominee's defence, or its time)
+      function votingOpen(d, nom) { let x = get(/databases/$(db)/documents/games/$(gid)/days/$(d)/noms/$(nom)).data; return (dayT(d).get('vote', 0) > 0 && now() >= dayT(d).get('vote', 0)) || (dayT(d).get('vote', 0) == 0 && (x.get('defAt', 0) > 0 || now() >= x.at + defMs())); }
 
       // The public game: anyone with the code can read it; only the Storyteller who made it can change it
       allow get: if signedIn();

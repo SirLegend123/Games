@@ -58,15 +58,18 @@ const cleanCode = s => String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, "").s
 /* ---------- The daily timetable ---------- */
 // The times of day, in order. Changing them on the Storyteller's dashboard takes effect from the next day.
 const SCHED_KEYS = [
-  ["dawn", "🌅", "Dawn", "The night's deaths are revealed, and night info arrives"],
+  ["dawn", "🌅", "Dawn", "The night's deaths are revealed, and night information arrives"],
   ["chats", "🤫", "Private chats", "Message anyone, one to one"],
-  ["noms", "⚖️", "Nominations open", "Nominate and vote. Private chats with neighbours only"],
-  ["close", "🔒", "Voting closes", "The votes are counted"],
-  ["reveal", "🪓", "The execution is revealed", ""],
-  ["night", "🌙", "Night falls", "Choose your night action"],
-  ["nightEnd", "🕯️", "Night actions close", "The Storyteller works through the night"]
+  ["noms", "⚖️", "Nominations open", "Players may nominate, and nominees may defend themselves. Private chats with neighbours only"],
+  ["vote", "🗳️", "Voting opens", "Votes may be cast on all valid nominations"],
+  ["close", "🔒", "Voting closes", "No further votes accepted"],
+  ["reveal", "🪓", "The execution is revealed", "The Storyteller announces who has been executed"],
+  ["night", "🌙", "Night falls", "Night actions may be submitted"],
+  ["nightEnd", "🕯️", "Night actions close", "The Storyteller resolves night actions"]
 ];
-const DEFAULT_SCHED = { dawn: "07:30", chats: "07:45", noms: "13:30", close: "18:30", reveal: "19:00", night: "19:30", nightEnd: "21:30" };
+const DEFAULT_SCHED = { dawn: "07:30", chats: "07:30", noms: "17:30", vote: "19:30", close: "20:00", reveal: "20:30", night: "20:30", nightEnd: "22:00" };
+// The timetable's times that are set (games started before "Voting opens" existed don't have it)
+const schedKeys = sched => SCHED_KEYS.filter(([k]) => sched && sched[k]);
 const hm = s => { const [h, m] = String(s).split(":").map(Number); return h * 60 + m; };
 // That clock time on the same calendar day as ms (this device's time zone)
 function atClock(ms, hhmm) { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime() + hm(hhmm) * 60000; }
@@ -77,7 +80,7 @@ function addDays(ms, n) { const d = new Date(ms); d.setDate(d.getDate() + n); re
 // the morning is shorter: nothing happens before start.
 function dayTimes(dawnSlot, sched, start = dawnSlot) {
   const t = {}; let prevRaw = dawnSlot, prevHm = hm(sched.dawn), day = dawnSlot;
-  for (const [k] of SCHED_KEYS) {
+  for (const [k] of schedKeys(sched)) {
     if (k !== "dawn" && hm(sched[k]) < prevHm) day = addDays(day, 1);   // the clock went past midnight
     const raw = k === "dawn" ? dawnSlot : atClock(day, sched[k]);
     prevHm = hm(sched[k]); prevRaw = raw;
@@ -86,10 +89,13 @@ function dayTimes(dawnSlot, sched, start = dawnSlot) {
   return t;
 }
 const schedOk = sched => {
-  // Each time must come after the last, going round the clock at most once
+  // Each time comes at or after the one before (two can be the same), going round the clock at most once
+  const ks = schedKeys(sched).map(([k]) => k);
   let total = 0;
-  for (let i = 1; i < SCHED_KEYS.length; i++) { total += (hm(sched[SCHED_KEYS[i][0]]) - hm(sched[SCHED_KEYS[i - 1][0]]) + 1440) % 1440; if (hm(sched[SCHED_KEYS[i][0]]) === hm(sched[SCHED_KEYS[i - 1][0]])) return false; }
-  return total < 1440;
+  for (let i = 1; i < ks.length; i++) total += (hm(sched[ks[i]]) - hm(sched[ks[i - 1]]) + 1440) % 1440;
+  // nominations, voting and its close must each have some time
+  const gap = (a, b) => !sched[a] || !sched[b] || hm(sched[a]) !== hm(sched[b]);
+  return total < 1440 && gap("noms", sched.vote ? "vote" : "close") && gap("vote", "close");
 };
 
 // What's happening now. Night n comes before Day n. Returns { k, n, from, to }:
@@ -102,7 +108,9 @@ function phaseOf(G, now = nowMs()) {
     if (N[n]) segs.push(["night", n, N[n].open, N[n].end], ["dark", n, N[n].end, D[n] ? D[n].dawn : Infinity]);
     if (D[n]) {
       const t = D[n];
-      segs.push(["dawn", n, t.dawn, t.chats], ["chats", n, t.chats, t.noms], ["noms", n, t.noms, t.close], ["count", n, t.close, t.reveal], ["dusk", n, t.reveal, N[n + 1] ? N[n + 1].open : Infinity]);
+      // Nominations and defences, then voting on them all (older games: one window for both)
+      const noms = t.vote ? [["noms", n, t.noms, t.vote], ["vote", n, t.vote, t.close]] : [["noms", n, t.noms, t.close]];
+      segs.push(["dawn", n, t.dawn, t.chats], ["chats", n, t.chats, t.noms], ...noms, ["count", n, t.close, t.reveal], ["dusk", n, t.reveal, N[n + 1] ? N[n + 1].open : Infinity]);
     }
   }
   if (!segs.length || now < segs[0][2]) return { k: "wait", n: 0, to: segs.length ? segs[0][2] : Infinity };
@@ -114,7 +122,7 @@ function phaseOf(G, now = nowMs()) {
 }
 const PHASE_INFO = {
   lobby: ["🏰", "Waiting to start"], wait: ["🕯️", "Night 1 is coming"], night: ["🌙", "Night"], dark: ["🌌", "The town sleeps"],
-  dawn: ["🌅", "Dawn"], chats: ["🤫", "Private chats"], noms: ["⚖️", "Nominations & voting"], count: ["🔒", "Counting the votes"],
+  dawn: ["🌅", "Dawn"], chats: ["🤫", "Private chats"], noms: ["⚖️", "Nominations"], vote: ["🗳️", "Voting"], count: ["🔒", "Counting the votes"],
   dusk: ["🌆", "Evening"], over: ["🏁", "Game over"]
 };
 const phaseTitle = P => {
@@ -123,7 +131,9 @@ const phaseTitle = P => {
 };
 // The banner title: the icon, then the words in the logo's gold
 const phaseGold = P => { const t = phaseTitle(P), i = t.indexOf(" "); return `<span class="ph-ic" aria-hidden="true">${t.slice(0, i)}</span> <span class="goldtext">${esc(t.slice(i + 1))}</span>`; };
-const isDay = P => ["dawn", "chats", "noms", "count", "dusk"].includes(P.k);
+const isDay = P => ["dawn", "chats", "noms", "vote", "count", "dusk"].includes(P.k);
+// Nominations or voting are going on (in older games, both in one window)
+const dayOpen = P => P.k === "noms" || P.k === "vote";
 
 /* ---------- Time words ---------- */
 const clock = ms => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -190,8 +200,9 @@ const OTHER_ORDER = ["Poisoner", "Monk", "Scarlet Woman", "Imp", "Ravenkeeper", 
 // Each nomination comes with a reason. The nominee then has time to give a defence; voting on it opens
 // when they do, or when that time runs out. New nominations stop that long before voting closes.
 const defMins = G => G.defMins || 30;
-const voteOpensAt = (G, x) => Math.min(x.defAt || Infinity, x.at + defMins(G) * 60000);
-const nomsCloseAt = (G, d) => G.days[d].close - defMins(G) * 60000;
+// Voting opens on every nomination at the day's "Voting opens" time; in older games, per nomination after its defence
+const voteOpensAt = (G, x, d = G.day) => { const t = (G.days || {})[d]; return t && t.vote ? t.vote : Math.min(x.defAt || Infinity, x.at + defMins(G) * 60000); };
+const nomsCloseAt = (G, d) => G.days[d].vote || G.days[d].close - defMins(G) * 60000;
 const byTime = list => [...list].sort((a, b) => a.at - b.at);
 
 /* ---------- Votes ---------- */
@@ -268,7 +279,7 @@ function icsFile(name, sched, fromMs, days = 7) {
   for (let i = 0; i < days; i++) {
     const t = dayTimes(addDays(base.getTime(), i) + hm(sched.dawn) * 60000, sched);
     for (const [k, ic, label] of SCHED_KEYS) {
-      if (!["dawn", "chats", "noms", "close", "reveal", "night", "nightEnd"].includes(k) || t[k] < fromMs) continue;
+      if (!t[k] || t[k] < fromMs || (k === "chats" && t.chats === t.dawn) || (k === "night" && t.night === t.reveal)) continue;
       const remind = ["close", "nightEnd"].includes(k) ? 30 : 0;
       ev.push(["BEGIN:VEVENT", `UID:${k}-${t[k]}@clocktower-daily`, `DTSTAMP:${stamp(Date.now())}`, `DTSTART:${stamp(t[k])}`, `DTEND:${stamp(t[k] + 15 * 60000)}`,
         `SUMMARY:${ic} ${label} · ${name}`, "BEGIN:VALARM", "ACTION:DISPLAY", `DESCRIPTION:${label}`, `TRIGGER:-PT${remind}M`, "END:VALARM", "END:VEVENT"].join("\r\n"));

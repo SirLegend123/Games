@@ -78,7 +78,8 @@ async function onSubscribe(gid, uid, s) {
 async function onNomination(gid, d, nominee, nom) {
   const x = await load(gid); if (!x) return;
   const { G, grim } = x, by = nom.by, why = nom.reason ? `“${clip(nom.reason, 120)}”` : "";
-  await notify(gid, G, [nominee], { title: `⚖️ ${nameOf(G, by)} has nominated you`, body: `${why} Give your defence: voting opens in ${G.defMins || 30} minutes, or as soon as you do.`, tag: `nom-${gid}` });
+  const t = (G.days || {})[d] || {};
+  await notify(gid, G, [nominee], { title: `⚖️ ${nameOf(G, by)} has nominated you`, body: `${why} ${t.vote ? `Give your defence within ${G.defMins || 30} minutes. Voting opens at ${fmt(G, t.vote)}.` : `Give your defence: voting opens in ${G.defMins || 30} minutes, or as soon as you do.`}`, tag: `nom-${gid}` });
   await notify(gid, G, aliveOf(G, grim).filter(p => p !== by && p !== nominee), { title: `⚖️ ${nameOf(G, by)} nominated ${nameOf(G, nominee)}`, body: why, tag: `noms-${gid}` });
   if ((grim.roles || {})[nominee] === "Virgin" && !grim.virginDone)
     await notify(gid, G, ["st"], { title: "🕊️ The Virgin has been nominated", body: `${nameOf(G, by)} nominated ${nameOf(G, nominee)}. Decide what happens.`, tag: `virgin-${gid}` });
@@ -87,7 +88,8 @@ async function onDefence(gid, d, nominee, before, after) {
   if (before.defence || !after.defence) return;
   const x = await load(gid); if (!x) return;
   const { G, grim } = x;
-  await notify(gid, G, aliveOf(G, grim).filter(p => p !== nominee), { title: `⚖️ ${nameOf(G, nominee)} has given a defence`, body: `“${clip(after.defence, 120)}” Voting on them is open.`, tag: `noms-${gid}` });
+  const t = (G.days || {})[d] || {};
+  await notify(gid, G, aliveOf(G, grim).filter(p => p !== nominee), { title: `⚖️ ${nameOf(G, nominee)} has given a defence`, body: `“${clip(after.defence, 120)}” ${t.vote && Date.now() < t.vote ? `Voting opens at ${fmt(G, t.vote)}.` : "Voting on them is open."}`, tag: `noms-${gid}` });
 }
 async function onSquare(gid, m) {
   if (m.kind !== "slay") return;
@@ -131,7 +133,8 @@ async function tickGame(gid, G, now) {
       if (dawn) { const ds = (dawn.deaths || []).map(x => nameOf(G, x.pid));
         once(`dawn${d}`, all, { title: `🌅 Day ${d} has dawned`, body: ds.length ? `${ds.join(" and ")} ${ds.length === 1 ? "was" : "were"} found dead in the night.` : d === 1 ? "There is a Demon amongst you. Find out who." : "Nobody died in the night.", tag: `day-${gid}` }); }
     }
-    if (now >= t.noms && now < t.close) once(`noms${d}`, alive, { title: "⚖️ Nominations are open", body: `Nominate, defend yourself and vote until ${fmt(G, t.close)}.`, tag: `day-${gid}` });
+    if (now >= t.noms && now < (t.vote || t.close)) once(`noms${d}`, alive, { title: "⚖️ Nominations are open", body: t.vote ? `Nominate, and defend yourself if you're nominated, until ${fmt(G, t.vote)}. Voting opens then.` : `Nominate, defend yourself and vote until ${fmt(G, t.close)}.`, tag: `day-${gid}` });
+    if (t.vote && now >= t.vote && now < t.close) once(`vote${d}-${t.vote}`, all, { title: "🗳️ Voting is open", body: `Vote on the nominations before ${fmt(G, t.close)}.`, tag: `day-${gid}` });
     if (now >= t.close - 30 * MIN && now < t.close) once(`close30-${d}-${t.close}`, all, { title: "🔒 Voting closes in 30 minutes", body: `Get your votes in before ${fmt(G, t.close)}.`, tag: `day-${gid}` });
     if (now >= t.close && now < t.close + 6 * H && !(grim.results || {})[d]) once(`closed-${d}-${t.close}`, ["st"], { title: "🔒 Voting has closed", body: `Confirm the execution before ${fmt(G, t.reveal)}.`, tag: `st-day-${gid}` });
     if (now >= t.reveal && now < t.reveal + 6 * H) {
