@@ -219,6 +219,44 @@ function verdict(rows, need) {
   return { exec: top.of, why: `${top.count} votes (${need} needed).` };
 }
 
+/* ---------- Phone notifications ---------- */
+// iPhone and iPad only allow web notifications in a Home Screen app (iOS 16.4 or newer)
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const fromHomeScreen = () => navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+// Before asking: can this phone have notifications at all, and has it already said yes or no?
+function pushPrecheck() {
+  if (isIOS() && !fromHomeScreen()) return "needs-home";
+  if (!pushSupported()) return "unsupported";
+  if (Notification.permission === "denied") return "blocked";
+  return Notification.permission === "granted" ? "granted" : "off";
+}
+const b64key = s => { const raw = atob((s + "=".repeat((4 - s.length % 4) % 4)).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(raw, c => c.charCodeAt(0)); };
+// Subscribe this device and save it for this game (as a player's seat, or as the Storyteller).
+// ask: show the phone's "Allow notifications?" question (only from a tap). Returns on, off, blocked or not-ready.
+async function pushSubscribe(role, pid, ask) {
+  if (ask) { const perm = await Notification.requestPermission(); if (perm !== "granted") return perm === "denied" ? "blocked" : "off"; }
+  else if (Notification.permission !== "granted") return "off";
+  const reg = await navigator.serviceWorker.register("sw.js");
+  await navigator.serviceWorker.ready;
+  const k = await FB.getDoc(ref("pub", "vapid"));
+  if (!k.exists()) return "not-ready";
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64key(k.data().publicKey) });
+  await FB.setDoc(gref(gid, "push", myUid), { role, pid: pid || "", sub: JSON.parse(JSON.stringify(sub)), at: Date.now(), ua: navigator.userAgent.slice(0, 150) });
+  return "on";
+}
+async function pushOff() {
+  try { const reg = await navigator.serviceWorker.getRegistration(); const sub = reg && await reg.pushManager.getSubscription(); if (sub) await sub.unsubscribe(); } catch (e) {}
+  try { await FB.deleteDoc(gref(gid, "push", myUid)); } catch (e) {}
+}
+const PUSH_TEXT = {
+  "needs-home": "On iPhone and iPad, notifications only work in the Home Screen app (iOS 16.4 or newer). Add Clocktower Daily to your Home Screen (Share, then Add to Home Screen) and open it from there.",
+  "blocked": "Notifications are blocked for Clocktower Daily. Allow them in your phone's settings, then come back and tap the button again.",
+  "not-ready": "Notifications aren't switched on for Clocktower Daily yet. Try again later.",
+  "error": "Notifications couldn't be turned on. Try again in a moment."
+};
+
 /* ---------- Calendar (.ics) ---------- */
 function icsFile(name, sched, fromMs, days = 7) {
   const pad = n => String(n).padStart(2, "0");

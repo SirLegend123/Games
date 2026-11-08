@@ -8,16 +8,17 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily · Storyteller</title>
-<script>window.APP_V = 98;</script>
-<script src="update.js?v=98"></script>
+<script>window.APP_V = 99;</script>
+<script src="update.js?v=99"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="characters.js?v=98"></script>
-<script src="daily.js?v=98"></script>
+<script src="characters.js?v=99"></script>
+<script src="daily.js?v=99"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=98">
+<link rel="stylesheet" href="daily.css?v=99">
+<link rel="manifest" href="daily-st.webmanifest">
 </head>
 <body>
 <div class="wrap" id="app"><p class="hint">Opening…</p></div>
@@ -55,6 +56,7 @@ function watch() {
     for (const s2 of G.seats || []) sub("stc" + s2.id, FB.query(gcol(gid, "stchat", s2.id, "msgs"), FB.orderBy("at")), q => { stc[s2.id] = q.docs.map(x => x.data()); render(); });
     if (G.st !== myUid) { loadErr = "This game was set up on another device: only that device can run it."; G = null; return render(); }
     ready = true;
+    if (!stPush) refreshStPush(false);
     const n = (G.day || 0) + 1, d = G.day || 0;
     if (cur.acts !== n) { unsub("acts"); acts = {}; ui.draft = null; }
     cur.acts = n; sub("acts", gcol(gid, "nights", String(n), "acts"), q => { acts = {}; q.forEach(x => acts[x.id] = x.data()); render(); });
@@ -160,7 +162,7 @@ async function newGame() {
 }
 // 🔄 Start again with the same players: a clean Grimoire under a new code. Every phone follows it there.
 async function replay() {
-  const code = await makeGame({ name: G.name, sched: G.sched, defMins: G.defMins || 30, seats: G.seats, uids: G.uids, nextId: G.nextId || G.seats.length + 1 });
+  const code = await makeGame({ name: G.name, sched: G.sched, defMins: G.defMins || 30, seats: G.seats, uids: G.uids, nextId: G.nextId || G.seats.length + 1, tz: G.tz || "Europe/London" });
   await FB.updateDoc(gref(gid), { next: code });
   saveGames([{ gid: code, name: G.name }, ...myGames().filter(g => g.gid !== code && g.gid !== gid)]);
   openGame(code);
@@ -256,7 +258,7 @@ async function deal() {
     const r = believed(s.id);
     b.set(gref(gid, "secret", s.id), { name: s.name, role: r, team: teamOf(r), side: alignOf(r), info: [] });
   }
-  b.update(gref(gid), { status: "running", nights: { 1: { open: nowMs(), end } }, night: 1, day: 0, started: nowMs() });
+  b.update(gref(gid), { status: "running", nights: { 1: { open: nowMs(), end } }, night: 1, day: 0, started: nowMs(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/London" });
   await b.commit();
 }
 
@@ -285,6 +287,7 @@ function todoHtml(p, nightTodo, dayTodo) {
   if (virginTodos().length) items.push(`🕊️ The Virgin was nominated: <button class="btn small primary" data-act="tab" data-tab="day">decide</button>`);
   if (slayTodos().length) items.push(`🏹 A Slayer shot: <button class="btn small primary" data-act="tab" data-tab="day">decide</button>`);
   if (stUnreadAll() && ui.tab !== "msgs") items.push(`✉️ ${plural(stUnreadAll(), "new message")} from players: <button class="btn small primary" data-act="tab" data-tab="msgs">read</button>`);
+  if (stPush === "off" && G.status !== "lobby") items.push(`🔔 Get notified when players need you: <button class="btn small" data-act="tab" data-tab="set">turn on notifications</button>`);
   if (unseated().length) items.push(`📱 ${plural(unseated().length, "new device")} waiting: <button class="btn small" data-act="tab" data-tab="grim">see the Grimoire</button>`);
   return items.length ? `<section class="card todo"><h3>For you</h3>${items.map(t => `<p class="lead" style="margin:0">${t}</p>`).join("")}</section>` : "";
 }
@@ -541,9 +544,23 @@ function squareHtml() {
     <div class="send"><textarea id="stSay" maxlength="600" placeholder="Announce something to everyone">${esc(ui.msg)}</textarea><button class="btn primary" data-act="announce">📣 Post</button></div></section>`;
 }
 
+/* ---------- 🔔 Notifications on the Storyteller's device ---------- */
+let stPush = "";
+async function refreshStPush(ask) {
+  const pre = pushPrecheck();
+  if (pre !== "granted" && !(ask && pre === "off")) { stPush = pre; return render(); }
+  try { stPush = await pushSubscribe("st", "", ask); } catch (e) { console.warn("push", e); stPush = "error"; }
+  render(true);
+  if (ask && stPush === "on") toast("🔔 Notifications are on");
+}
+const stPushHtml = () => `<section class="card"><h2>🔔 Notifications on this device</h2>
+    <p class="hint">Get a notification when a player messages you, when the Virgin is nominated or a Slayer shoots, when voting closes and when the night closes.</p>
+    ${stPush === "on" ? `<p class="lead">On.</p><div class="row"><button class="btn small" data-act="push-off">Turn off</button></div>`
+      : `${PUSH_TEXT[stPush] ? `<p class="hint">${esc(PUSH_TEXT[stPush])}</p>` : ""}${["off", "error", "not-ready", "blocked"].includes(stPush) ? `<div class="row"><button class="btn primary" data-act="push-on">🔔 Turn on notifications</button></div>` : ""}`}</section>`;
+
 /* ---------- Settings ---------- */
 function setHtml() {
-  return `${schedHtml()}
+  return `${stPushHtml()}${schedHtml()}
     <section class="card"><h2>👥 Players</h2><p class="hint">The players' link: <b>${esc(playerLink())}</b></p><div class="row"><button class="btn small" data-act="copy-link">🔗 Copy</button></div></section>
     <section class="card"><h2>🏁 End the game</h2>
       <p class="hint">Normally the game ends when you confirm an execution. You can also end it here at any time; everyone sees the result and the full Grimoire straight away.</p>
@@ -613,6 +630,8 @@ document.getElementById("app").addEventListener("click", e => {
       return run(replay);
     case "end-now": if (!confirm(`End the game now: ${el.dataset.v} wins?`)) return; return run(async () => { const b = FB.writeBatch(db); endGame(b, el.dataset.v, nowMs()); await b.commit(); });
     case "msg": ui.tab = "msgs"; ui.thread = pid; render(true); return window.scrollTo(0, 0);
+    case "push-on": return refreshStPush(true);
+    case "push-off": return pushOff().then(() => { stPush = "off"; render(true); toast("Notifications are off"); });
     case "nudge": { const k = el.dataset.k, text = k === "night" ? `🔔 A reminder from the Storyteller: please choose your night action before ${when(G.nights[(G.day || 0) + 1].end)}.` : `🔔 A reminder from the Storyteller: nominations and voting are open until ${when(G.days[G.day].close)}. Come and have your say!`;
       return run(() => nudge(pid, text), `Nudged ${seatName(G, pid)}`); }
     case "more-vote": { const m = +el.dataset.m; if (!confirm(`Give everyone ${m >= 60 ? m / 60 + " more hour" + (m > 60 ? "s" : "") : m + " more minutes"} to vote? The execution reveal (and the night, if needed) moves back too.`)) return; return run(() => extendVoting(m), "Voting extended"); }

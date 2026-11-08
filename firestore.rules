@@ -7,6 +7,10 @@ service cloud.firestore {
     function now() { return request.time.toMillis(); }
     function str(s, max) { return s is string && s.size() > 0 && s.size() <= max; }
 
+    // The public key for phone notifications (the server writes it the first time it runs)
+    match /pub/{doc} {
+      allow get: if true;
+    }
     match /games/{gid} {
       function G() { return get(/databases/$(db)/documents/games/$(gid)).data; }
       function isST() { return signedIn() && G().st == request.auth.uid; }
@@ -90,6 +94,12 @@ service cloud.firestore {
         allow read: if isST() || owns(pid);
         allow create: if str(request.resource.data.text, 1000)
           && ((owns(pid) && request.resource.data.from == pid) || (isST() && request.resource.data.from == 'st'));
+      }
+      // Phone notifications: each device saves its own push subscription, for its own seat (or as the Storyteller)
+      match /push/{uid} {
+        allow get, delete: if signedIn() && request.auth.uid == uid;
+        allow create, update: if signedIn() && request.auth.uid == uid && request.resource.data.sub is map
+          && ((request.resource.data.role == 'st' && isST()) || (request.resource.data.role == 'player' && owns(request.resource.data.pid)));
       }
       // Night actions: the player's own choices while that night is open
       match /nights/{n}/acts/{pid} {

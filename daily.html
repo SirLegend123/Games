@@ -10,15 +10,16 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 98;</script>
-<script src="update.js?v=98"></script>
+<script>window.APP_V = 99;</script>
+<script src="update.js?v=99"></script>
 <script src="vendor/firebase.js"></script>
-<script src="characters.js?v=98"></script>
-<script src="daily.js?v=98"></script>
+<script src="characters.js?v=99"></script>
+<script src="daily.js?v=99"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=98">
+<link rel="stylesheet" href="daily.css?v=99">
+<link rel="manifest" href="daily.webmanifest">
 </head>
 <body>
 <div class="wrap" id="app"><p class="hint">Opening…</p></div>
@@ -52,6 +53,7 @@ function watch() {
     if (me !== was) { unsub("sec"); unsub("chat"); chats = {}; SEC = null; }
     if (!me) { FB.getDoc(gref(gid, "joins", myUid)).then(d => { joined = d.exists() ? d.data() : null; render(); }).catch(() => {}); return render(); }
     sub("sec", gref(gid, "secret", me), d => { SEC = d.exists() ? d.data() : null; render(); });
+    if (!push) refreshPush(false);
     for (const s2 of G.seats) if (s2.id !== me) {
       const pair = pairId(me, s2.id);
       sub("chat" + pair, FB.query(gcol(gid, "chats", pair, "msgs"), FB.orderBy("at")), q => { chats[pair] = q.docs.map(x => x.data()); render(); });
@@ -70,6 +72,7 @@ function watch() {
 function switchGame(code) {
   for (const k of Object.keys(subs)) { subs[k](); delete subs[k]; }
   clearTimeout(gatedTimer);
+  push = "";
   G = null; me = ""; SEC = null; joined = null; ready = false; noms = []; myVotes = {}; square = []; chats = {}; myAct = null; gated = {}; cur.day = 0;
   ui.tab = "today"; ui.chat = ""; ui.picks = null; ui.draft = {};
   gid = code;
@@ -172,8 +175,6 @@ function body() {
 
 /* ---------- Joining ---------- */
 // iPhone and iPad keep a Home Screen app's storage apart from Safari's, so it has to be added before joining
-const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const fromHomeScreen = () => navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
 const homeTipHtml = () => !isIOS() || fromHomeScreen() ? "" : `<section class="card home-tip"><h2>📲 Want it on your Home Screen?</h2>
     <p class="lead">Do it <b>now</b>, before you join:</p>
     <ol class="steps"><li>Tap <b>Share</b> <span aria-hidden="true">(the square with an arrow ⬆️)</span></li><li>Tap <b>Add to Home Screen</b>, then <b>Add</b></li><li>Open <b>Clocktower Daily</b> from your Home Screen and join there</li></ol>
@@ -240,6 +241,7 @@ function todayHtml(p) {
   const out = [];
   if (p.k === "over") out.push(overHtml());
   const act = myAction(p);
+  out.push(pushCardHtml());
   if (act && waitingForResult()) out.push(`<section class="card"><p class="lead">🌙 Night actions open once the Storyteller has confirmed today's execution. Check back soon.</p></section>`);
   else if (act) out.push(actHtml(p, act));
   const d = G.day || 0, dn = gated["dawn" + d], res = gated["result" + d];
@@ -404,12 +406,31 @@ function nomCardHtml(x, i, p) {
       : !r && nowMs() >= t.close ? `<span class="hint">You voted ${mine ? "✋ yes" : "no"}.</span>` : ""}</div>`;
 }
 
+/* ---------- 🔔 Phone notifications ---------- */
+let push = "";   // on, off, blocked, needs-home, unsupported, not-ready, error
+async function refreshPush(ask) {
+  const pre = pushPrecheck();
+  if (pre !== "granted" && !(ask && pre === "off")) { push = pre; return render(); }
+  try { push = await pushSubscribe("player", me, ask); } catch (e) { console.warn("push", e); push = "error"; }
+  render(true);
+  if (ask && push === "on") toast("🔔 Notifications are on");
+}
+const pushLater = () => { try { return Date.now() - (+localStorage.getItem("ctd-push-later") || 0) < 3 * 86400000; } catch (e) { return false; } };
+function pushCardHtml() {
+  if (!push || push === "on" || push === "unsupported" || pushLater()) return "";
+  return `<section class="card todo"><h2>🔔 Get notified</h2>
+    <p class="lead">Get a notification when day breaks, when you're nominated, before voting closes, when it's time for your night action, and when someone messages you.</p>
+    ${PUSH_TEXT[push] ? `<p class="hint">${esc(PUSH_TEXT[push])}${push === "needs-home" ? " You'll need to join again there with the same name, and the Storyteller will move your seat." : ""}</p>` : ""}
+    <div class="row">${["off", "error", "not-ready", "blocked"].includes(push) ? `<button class="btn primary" data-act="push-on">🔔 Turn on notifications</button>` : ""}<button class="btn small" data-act="push-later">Not now</button></div></section>`;
+}
+
 /* ---------- Me ---------- */
 function meHtml() {
   const r = myRole(), c = CHAR[r] || {}, info = infoNow();
   return `<section class="card"><h2>🎭 Your character</h2>
     <div class="row"><span class="big-ico">${c.icon || "❔"}</span><div><p class="lead"><b class="t-${teamOf(r)}">${esc(r)}</b></p><p class="hint">${TEAM_ONE[teamOf(r)]} · ${SEC.side === "evil" ? "😈 Evil" : "😇 Good"}</p></div></div>
     <p class="ability">${esc(c.text || "")}</p>${amDead() ? `<p class="warn">💀 You're dead. You can still chat, and you have ${ghostUsed() ? "used your ghost vote" : "one ghost vote left"}.</p>` : ""}</section>
+    <section class="card"><h2>🔔 Notifications</h2>${push === "on" ? `<p class="lead">On for this phone.</p><div class="row"><button class="btn small" data-act="push-off">Turn off</button></div>` : `<p class="hint">${esc(PUSH_TEXT[push] || "Get a notification when it's your turn.")}</p>${["off", "error", "not-ready", "blocked"].includes(push) ? `<div class="row"><button class="btn small primary" data-act="push-on">🔔 Turn on notifications</button></div>` : ""}`}</section>
     <section class="card"><h2>🔮 What you've learnt</h2>${info.length ? info.map(infoHtml).join("") : `<p class="hint">Nothing yet. Info from the night arrives at dawn.</p>`}</section>`;
 }
 
@@ -476,6 +497,9 @@ document.getElementById("app").addEventListener("click", e => {
     case "def-save": { const t = ($("#def").value || "").trim(); if (!t) return toast("Type your defence first.");
       ui.draft.def = undefined;
       return run(() => FB.updateDoc(gref(gid, "days", String(G.day), "noms", me), { defence: t.slice(0, 600), defAt: nowMs() }), "Defence given"); }
+    case "push-on": return refreshPush(true);
+    case "push-later": try { localStorage.setItem("ctd-push-later", String(Date.now())); } catch (e2) {} return render(true);
+    case "push-off": return pushOff().then(() => { push = "off"; render(true); toast("Notifications are off"); });
     case "slay-open": return dialog(`<h2>🏹 Slayer shot</h2><p class="hint">If you're the Slayer and you choose the Demon, they die. Everyone sees you do it.</p><div class="picks">${G.seats.filter(s => s.id !== me && !dead()[s.id]).map(s => `<button class="pick" data-dact="slay" data-pid="${s.id}">${nm(s.id)}</button>`).join("")}</div><div class="row"><button class="btn" data-dact="close">Cancel</button></div>`);
   }
 });

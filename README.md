@@ -113,6 +113,29 @@ A notepad for playing the official online game. Open `notes.html` (or **Online N
    - Notes for each player, and **Deaths** in order.
    - **New game** keeps the players.
 
+### Phone notifications (Clocktower Daily)
+
+Players and the Storyteller can tap **🔔 Turn on notifications** (on the Today tab, under 🎭 Me, or in the Storyteller's Settings) to get phone notifications even when the app is closed:
+
+- **Everyone:** 🌅 the day has dawned (and who died), ⚖️ nominations are open, ⚖️ a new nomination (with the reason) and a defence, 🔒 voting closes in 30 minutes, 🪓 the execution, 🏁 who won, and ✉️ private messages.
+- **You're nominated:** a notification asking for your defence.
+- **Night:** 🌙 night has fallen, and a reminder 30 minutes before the end, only for players whose character chooses at night (and who haven't yet).
+- **The Storyteller:** ✉️ players' messages, 🕊️ the Virgin nominated, 🏹 a Slayer shot, 🔒 voting has closed, 🕯️ the night has closed.
+
+On **iPhone and iPad** (iOS 16.4 or newer) notifications only work in the Home Screen app; Android works in Chrome too.
+
+**How it works:** `functions/` is a small server on Firebase Cloud Functions (London). It checks the timetable every 5 minutes and reacts at once to nominations, defences, Slayer shots and messages. It sends standard web push, and the phone's `sw.js` shows the notification and opens the game when it's tapped. The server makes its own push keys the first time it runs: the public key goes in `pub/vapid`, and the private key in `config/vapid`, which no app can read. Each device saves its subscription in `games/{code}/push/{its id}`, only for its own seat. `daily.webmanifest` and `daily-st.webmanifest` make the pages installable.
+
+**Putting it live:** the GitHub Action `.github/workflows/firebase.yml` deploys `functions/` and `firestore.rules` to Firebase whenever they change on main (or on demand from the Actions tab), so the rules no longer need pasting by hand. One-off setup:
+
+1. **Blaze plan:** in the Firebase console, tap **Upgrade** (bottom left), choose **Blaze**, and link a billing account (a card). It should cost £0 for games this size.
+2. **Budget alert:** in Google Cloud, go to **Billing → Budgets & alerts → Create budget**, set **£1** for the clocktower-daily project, and keep the email alerts.
+3. **A key for GitHub:** in Google Cloud (project clocktower-daily), go to **IAM & Admin → Service accounts → Create service account**. Name it `github-deploy` and give it the roles **Editor**, **Cloud Functions Admin** and **Service Account User**. Then open it, go to **Keys → Add key → Create new key → JSON**, and a file downloads.
+4. **Into GitHub:** in the repository, go to **Settings → Secrets and variables → Actions → New repository secret**. Name it `FIREBASE_SERVICE_ACCOUNT` and paste the whole of the key file as the value. Then delete the downloaded file.
+5. **Deploy:** go to **Actions → Deploy to Firebase → Run workflow** (it also runs by itself on the next change).
+
+To test locally: `firebase emulators:start --only firestore,auth,functions --project demo-ct`. In the emulator, notifications are written to `pushtest/` instead of being sent.
+
 ## Table Notes
 
 The same notepad as Online Notes, for a player at a face-to-face game. Open `table.html` (or **Table Notes** on the cover page). It doesn't connect to anything; everything is saved on the device.
