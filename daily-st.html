@@ -8,16 +8,16 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily · Storyteller</title>
-<script>window.APP_V = 108;</script>
-<script src="update.js?v=108"></script>
+<script>window.APP_V = 109;</script>
+<script src="update.js?v=109"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="characters.js?v=108"></script>
-<script src="daily.js?v=108"></script>
+<script src="characters.js?v=109"></script>
+<script src="daily.js?v=109"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=108">
+<link rel="stylesheet" href="daily.css?v=109">
 <link rel="manifest" href="daily-st.webmanifest">
 </head>
 <body>
@@ -115,7 +115,7 @@ function render(force) {
   pending = false;
   const app = $("#app");
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  app.innerHTML = `<header><a class="home" href="${gid ? "daily-st.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-clocktower-daily.webp?v=108" alt="Clocktower Daily" width="1010" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  app.innerHTML = `<header><a class="home" href="${gid ? "daily-st.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-clocktower-daily.webp?v=109" alt="Clocktower Daily" width="1010" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="sheet">📜 Characters</button><button class="btn" data-act="theme" aria-label="Light or dark">${themeLabel()}</button></span></header>
     ${body()}<footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -132,14 +132,36 @@ function body() {
 }
 
 /* ---------- Your games ---------- */
+// Each game in the list, kept up to date: who has signed up, and who's still to be seated
+const homeG = {};
+function watchHome(list) {
+  for (const g of list) {
+    if (homeG[g.gid]) continue;
+    const h = homeG[g.gid] = { G: undefined, joins: [] };
+    sub("home-g-" + g.gid, gref(g.gid), s => { h.G = s.exists() ? s.data() : null; render(); });
+    sub("home-j-" + g.gid, gcol(g.gid, "joins"), q => { h.joins = q.docs.map(d => d.id); render(); });
+  }
+}
+function gameStatus(gid) {
+  const h = homeG[gid], G = h && h.G;
+  if (G === undefined) return "";
+  if (G === null || G.deleteReq) return `<span class="gstat">🗑️ Deleted</span>`;
+  const seated = (G.seats || []).length, uids = new Set(Object.values(G.uids || {}));
+  const waiting = h.joins.filter(u => !uids.has(u)).length, plural = n => n === 1 ? "" : "s";
+  const wait = waiting ? ` <b class="gwait">(${waiting} to be seated)</b>` : "";
+  if (G.status === "lobby") return `<span class="gstat">👥 ${seated + waiting} signed up${waiting ? wait : seated ? " (all seated)" : ""}</span>`;
+  const ph = G.status === "over" ? "🏁 Game over" : phaseTitle(phaseOf(G));
+  return `<span class="gstat">${esc(ph)} · ${seated} player${plural(seated)}${wait}</span>`;
+}
 function homeHtml() {
   const list = myGames();
+  if (myUid) watchHome(list);
   return `<div class="centre-page"><section class="card"><img class="crest" style="width:110px;max-width:40%;height:auto;display:block;margin:0 auto" src="img/knocker.webp" alt="" width="700" height="755"><h2>Storyteller</h2>
     <p class="lead">Run a game of Blood on the Clocktower over several days. Everyone plays on their phone in their own time; the day moves on by the clock.</p>
     <div class="field"><span class="label">Name this game</span><input type="text" id="newName" maxlength="40" placeholder="e.g. Office game, November" value="${esc(ui.newName)}"></div>
     <div class="row"><button class="btn primary" data-act="new-game">Set up a new game</button></div>
     <p class="hint">Run the game from this device: it's the only one that can see the Grimoire.</p></section>
-    ${list.length ? `<section class="card"><h2>Your games</h2>${list.map(g => `<div class="row"><a class="btn" href="?g=${g.gid}${EMU ? "&emu=1" : ""}">${esc(g.name || g.gid)} · <span class="hint">${g.gid}</span></a><span class="spacer"></span><button class="icon" data-act="forget" data-gid="${g.gid}" aria-label="Remove from this list">×</button></div>`).join("")}</section>` : ""}</div>`;
+    ${list.length ? `<section class="card"><h2>Your games</h2>${list.map(g => `<div class="row"><a class="btn game-link" href="?g=${g.gid}${EMU ? "&emu=1" : ""}"><span>${esc(g.name || g.gid)} · <span class="hint">${g.gid}</span></span>${gameStatus(g.gid)}</a><span class="spacer"></span><button class="icon" data-act="forget" data-gid="${g.gid}" aria-label="Remove from this list">×</button></div>`).join("")}</section>` : ""}</div>`;
 }
 // A new game under a fresh code (so nothing from an old game carries over). Returns the code.
 async function makeGame(fields) {
