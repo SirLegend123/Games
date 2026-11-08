@@ -66,6 +66,15 @@ async function notify(gid, G, targets, msg) {
 }
 
 /* ---------- Instant notifications ---------- */
+// A device has just turned notifications on: send it a welcome, so people know straight away that it works
+async function onSubscribe(gid, uid, s) {
+  const g = await db.doc(`games/${gid}`).get(); if (!g.exists || !s || !s.sub) return;
+  const G = g.data(), isST = s.role === "st" && uid === G.st, isPlayer = s.role === "player" && (G.uids || {})[s.pid] === uid;
+  if (!isST && !isPlayer) return;
+  try {
+    await sender(s.sub, { title: "🔔 Notifications are on", body: isST ? "You'll hear when players message you, and when the Virgin, a Slayer shot, voting or the night needs you." : `You'll hear from ${G.name || "Clocktower Daily"} when it's your turn.`, tag: `hello-${gid}`, url: `${BASE}${isST ? "daily-st.html" : "daily.html"}?g=${gid}` });
+  } catch (e) { if (e && (e.statusCode === 404 || e.statusCode === 410)) await db.doc(`games/${gid}/push/${uid}`).delete(); else console.warn("welcome failed", e && (e.statusCode || e.message)); }
+}
 async function onNomination(gid, d, nominee, nom) {
   const x = await load(gid); if (!x) return;
   const { G, grim } = x, by = nom.by, why = nom.reason ? `“${clip(nom.reason, 120)}”` : "";
@@ -156,4 +165,4 @@ async function tickGame(gid, G, now) {
   return n2;
 }
 
-module.exports = { init, vapid, notify, tick, tickGame, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
+module.exports = { init, vapid, notify, tick, tickGame, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
