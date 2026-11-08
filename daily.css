@@ -217,3 +217,7 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6
 
 /* More room above the title on tablets and computers */
 @media (min-width: 700px) { .wrap { padding-top: calc(clamp(32px, 7vh, 72px) + env(safe-area-inset-top, 0px)); } }
+/* Your games: each game's name, then who has signed up */
+a.btn.game-link { flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
+.gstat { display: block; font-size: .85rem; font-weight: 500; color: var(--muted); }
+.gstat .gwait { color: var(--brass); font-weight: 800; }
