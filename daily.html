@@ -10,15 +10,15 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 100;</script>
-<script src="update.js?v=100"></script>
+<script>window.APP_V = 101;</script>
+<script src="update.js?v=101"></script>
 <script src="vendor/firebase.js"></script>
-<script src="characters.js?v=100"></script>
-<script src="daily.js?v=100"></script>
+<script src="characters.js?v=101"></script>
+<script src="daily.js?v=101"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=100">
+<link rel="stylesheet" href="daily.css?v=101">
 <link rel="manifest" href="daily.webmanifest">
 </head>
 <body>
@@ -30,7 +30,10 @@
    choose your night action at night, and find out what happened each dawn. */
 const LKEY = "ctd-player-game";
 const params = new URLSearchParams(location.search);
-let gid = cleanCode(params.get("g")) || (() => { try { return localStorage.getItem(LKEY) || ""; } catch (e) { return ""; } })();
+// The game this device last joined ("none" after choosing to join a different game)
+const lastGame = (() => { try { return localStorage.getItem(LKEY) || ""; } catch (e) { return ""; } })();
+// A Home Screen app always opens at the address it was saved with, which may be an old game, so it uses the last game instead
+let gid = fromHomeScreen() && lastGame ? (lastGame === "none" ? "" : lastGame) : cleanCode(params.get("g")) || (lastGame === "none" ? "" : lastGame);
 let G = null, me = "", SEC = null, joined = null, ready = false, loadErr = "";
 let noms = [], myVotes = {}, square = [], chats = {}, myAct = null, gated = {};
 const ui = { tab: "today", chat: "", draft: {}, toast: "", picks: null, codeIn: "", nameIn: "" };
@@ -175,7 +178,10 @@ function body() {
 
 /* ---------- Joining ---------- */
 // iPhone and iPad keep a Home Screen app's storage apart from Safari's, so it has to be added before joining
-const homeTipHtml = () => !isIOS() || fromHomeScreen() ? "" : `<section class="card home-tip"><h2>📲 Want it on your Home Screen?</h2>
+const homeTipHtml = () => !isIOS() || fromHomeScreen() ? "" : `<section class="card home-tip">${gid && G ? `<h2>📲 Already on your Home Screen?</h2>
+    <p class="lead">A QR code always opens Safari. Open <b>Clocktower Daily</b> from your Home Screen instead, tap <b>🎲 Join a different game</b>, and enter this code:</p>
+    <div class="row"><span class="code">${gid}</span><button class="btn small" data-act="copy-code">📋 Copy</button></div>
+    <h3>Not on your Home Screen yet?</h3>` : `<h2>📲 Want it on your Home Screen?</h2>`}
     <p class="lead">Do it <b>now</b>, before you join:</p>
     <ol class="steps"><li>Tap <b>Share</b> <span aria-hidden="true">(the square with an arrow ⬆️)</span></li><li>Tap <b>Add to Home Screen</b>, then <b>Add</b></li><li>Open <b>Clocktower Daily</b> from your Home Screen and join there</li></ol>
     <p class="hint">If you join here first and add it afterwards, the Home Screen app won't know who you are. Happy to stay in Safari? Just join below.</p></section>`;
@@ -200,7 +206,8 @@ function joinNameHtml() {
 function waitHtml() {
   return `${pushCardHtml()}<section class="card"><div class="big-ico">🕯️</div><h2>${esc(G.name)}</h2>
     <p class="lead">You're in, ${nm(me)}. The Storyteller will deal the characters soon: your character appears here when they do.</p>
-    <p class="hint">${plural(G.seats.length, "player")} seated so far.</p></section>
+    <p class="hint">${plural(G.seats.length, "player")} seated so far.</p>
+    <div class="row"><button class="btn small" data-act="other-game">🎲 Not this game? Join a different one</button></div></section>
     ${timetableHtml()}`;
 }
 function timetableHtml() {
@@ -277,7 +284,7 @@ function overHtml() {
   const e = gated.end;
   if (!e) return `<section class="card"><h2>🏁 Game over</h2><p class="hint">Fetching the result…</p></section>`;
   return `<section class="card"><h2>🏁 ${e.winner === "good" ? "😇 Good wins!" : "😈 Evil wins!"}</h2>
-    <div class="town">${G.seats.map((s, i) => { const r = e.roles[s.id] || ""; return `<div class="prow ${(e.dead || {})[s.id] ? "dead" : ""}"><span class="n">${i + 1}</span><span><b class="nm">${esc(s.name)}</b> <span class="t-${teamOf(r)}">${(CHAR[r] || {}).icon || ""} ${esc(r)}</span>${e.shown && e.shown[s.id] ? ` <span class="hint">(thought they were the ${esc(e.shown[s.id])})</span>` : ""}</span><span></span></div>`; }).join("")}</div></section>`;
+    <div class="town">${G.seats.map((s, i) => { const r = e.roles[s.id] || ""; return `<div class="prow ${(e.dead || {})[s.id] ? "dead" : ""}"><span class="n">${i + 1}</span><span><b class="nm">${esc(s.name)}</b> <span class="t-${teamOf(r)}">${(CHAR[r] || {}).icon || ""} ${esc(r)}</span>${e.shown && e.shown[s.id] ? ` <span class="hint">(thought they were the ${esc(e.shown[s.id])})</span>` : ""}</span><span></span></div>`; }).join("")}</div><div class="row"><button class="btn primary" data-act="other-game">🎲 Join a different game</button></div></section>`;
 }
 function townHtml(p) {
   const D = dead();
@@ -425,13 +432,14 @@ function pushCardHtml() {
 }
 
 /* ---------- Me ---------- */
+const otherGameHtml = () => `<section class="card"><h2>🎲 Another game</h2><p class="hint">Got a code for a different game? Join it here, in this app.</p><div class="row"><button class="btn" data-act="other-game">🎲 Join a different game</button></div></section>`;
 function meHtml() {
   const r = myRole(), c = CHAR[r] || {}, info = infoNow();
   return `<section class="card"><h2>🎭 Your character</h2>
     <div class="row"><span class="big-ico">${c.icon || "❔"}</span><div><p class="lead"><b class="t-${teamOf(r)}">${esc(r)}</b></p><p class="hint">${TEAM_ONE[teamOf(r)]} · ${SEC.side === "evil" ? "😈 Evil" : "😇 Good"}</p></div></div>
     <p class="ability">${esc(c.text || "")}</p>${amDead() ? `<p class="warn">💀 You're dead. You can still chat, and you have ${ghostUsed() ? "used your ghost vote" : "one ghost vote left"}.</p>` : ""}</section>
     <section class="card"><h2>🔔 Notifications</h2>${push === "on" ? `<p class="lead">On for this phone.</p><div class="row"><button class="btn small" data-act="push-off">Turn off</button></div>` : `<p class="hint">${esc(PUSH_TEXT[push] || "Get a notification when it's your turn.")}</p>${["off", "error", "not-ready", "blocked"].includes(push) ? `<div class="row"><button class="btn small primary" data-act="push-on">🔔 Turn on notifications</button></div>` : ""}`}</section>
-    <section class="card"><h2>🔮 What you've learnt</h2>${info.length ? info.map(infoHtml).join("") : `<p class="hint">Nothing yet. Info from the night arrives at dawn.</p>`}</section>`;
+    <section class="card"><h2>🔮 What you've learnt</h2>${info.length ? info.map(infoHtml).join("") : `<p class="hint">Nothing yet. Info from the night arrives at dawn.</p>`}</section>${otherGameHtml()}`;
 }
 
 /* ---------- Dialogs ---------- */
@@ -471,7 +479,8 @@ document.getElementById("app").addEventListener("click", e => {
     case "sheet": return dialog(`<h2>📜 Trouble Brewing</h2>${sheetHtml("tb")}<div class="row"><button class="btn" data-dact="close">Close</button></div>`);
     case "cal": return downloadIcs(icsFile(G.name, G.sched, nowMs()));
     case "go-code": { const c = cleanCode($("#code").value); if (c.length !== 6) return toast("The code has 6 letters and numbers."); gid = c; history.replaceState(null, "", `?g=${c}${EMU ? "&emu=1" : ""}`); ready = false; render(true); return watch(); }
-    case "other-game": Object.keys(subs).forEach(k => { if (typeof subs[k] === "function") subs[k](); delete subs[k]; }); try { localStorage.removeItem(LKEY); } catch (e2) {} gid = ""; G = null; me = ""; joined = null; loadErr = ""; ready = false; history.replaceState(null, "", EMU ? "?emu=1" : location.pathname); return render(true);
+    case "other-game": if (G && me && G.status !== "lobby" && !(G.overAt && nowMs() >= G.overAt) && !confirm("Leave this game and join a different one? You can come back to it with its code.")) return;
+      Object.keys(subs).forEach(k => { if (typeof subs[k] === "function") subs[k](); delete subs[k]; }); try { localStorage.setItem(LKEY, "none"); } catch (e2) {} push = ""; gid = ""; G = null; me = ""; joined = null; loadErr = ""; ready = false; history.replaceState(null, "", EMU ? "?emu=1" : location.pathname); return render(true);
     case "join": { const n = $("#name").value.trim(); if (!n) return toast("Type your name first."); ui.nameIn = n;
       return run(async () => { await FB.setDoc(gref(gid, "joins", myUid), { name: n.slice(0, 30), at: nowMs() }); joined = { name: n }; render(true); }); }
     case "tab": ui.tab = el.dataset.tab; ui.chat = ""; render(true); return window.scrollTo(0, 0);
@@ -498,6 +507,7 @@ document.getElementById("app").addEventListener("click", e => {
       ui.draft.def = undefined;
       return run(() => FB.updateDoc(gref(gid, "days", String(G.day), "noms", me), { defence: t.slice(0, 600), defAt: nowMs() }), "Defence given"); }
     case "push-on": return refreshPush(true);
+    case "copy-code": navigator.clipboard && navigator.clipboard.writeText(gid).then(() => toast("Code copied"), () => toast(gid)); return;
     case "push-later": try { localStorage.setItem("ctd-push-later", String(Date.now())); } catch (e2) {} return render(true);
     case "push-off": return pushOff().then(() => { push = "off"; render(true); toast("Notifications are off"); });
     case "slay-open": return dialog(`<h2>🏹 Slayer shot</h2><p class="hint">If you're the Slayer and you choose the Demon, they die. Everyone sees you do it.</p><div class="picks">${G.seats.filter(s => s.id !== me && !dead()[s.id]).map(s => `<button class="pick" data-dact="slay" data-pid="${s.id}">${nm(s.id)}</button>`).join("")}</div><div class="row"><button class="btn" data-dact="close">Cancel</button></div>`);
