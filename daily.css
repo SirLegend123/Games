@@ -202,3 +202,15 @@ body { background: radial-gradient(ellipse 130% 60% at 50% 0%, rgba(124,78,190,.
 /* Titles in the logo's style: blackletter, the logo's gold, a heavy dark shadow */
 .goldtext { font-family: "UnifrakturMaguntia", var(--font-gothic, serif); font-weight: 400; color: #e3c46e; background: url(img/gold.webp) center / cover; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(.04em .07em 0 rgba(12,6,3,.95)); }
 header h1 { line-height: 0; }
+
+/* Opening and joining screens: a narrower card in the middle of the screen, everything centred */
+.centre-page { display: grid; gap: 16px; width: 100%; max-width: 640px; margin: 0 auto; min-height: calc(100dvh - 340px); align-content: center; }
+.centre-page > .card { text-align: center; justify-items: center; }
+.centre-page > .card > * { max-width: 100%; }
+.centre-page .row { justify-content: center; }
+.centre-page .field { width: 100%; justify-items: center; }
+.centre-page .field input { text-align: center; }
+.centre-page .steps, .centre-page .tt { text-align: left; justify-self: stretch; }
+.centre-page .card > .town, .centre-page .card > .row.games { justify-self: stretch; }
+
+a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
