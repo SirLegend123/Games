@@ -10,15 +10,15 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 107;</script>
-<script src="update.js?v=107"></script>
+<script>window.APP_V = 108;</script>
+<script src="update.js?v=108"></script>
 <script src="vendor/firebase.js"></script>
-<script src="characters.js?v=107"></script>
-<script src="daily.js?v=107"></script>
+<script src="characters.js?v=108"></script>
+<script src="daily.js?v=108"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=107">
+<link rel="stylesheet" href="daily.css?v=108">
 <link rel="manifest" href="daily.webmanifest">
 </head>
 <body>
@@ -47,7 +47,7 @@ function sub(key, target, cb) { if (subs[key]) return; subs[key] = FB.onSnapshot
 function unsub(prefix) { for (const k of Object.keys(subs)) if (k.startsWith(prefix)) { subs[k](); delete subs[k]; } }
 function watch() {
   sub("game", gref(gid), s => {
-    if (!s.exists()) { loadErr = "There's no game with that code. Check it with your Storyteller."; G = null; ready = true; return render(); }
+    if (!s.exists()) { loadErr = "There's no game with that code. Check it with your Storyteller. (Games are deleted 30 days after they end.)"; G = null; ready = true; return render(); }
     G = s.data(); ready = true; loadErr = "";
     if (G.next && G.next !== gid) return switchGame(G.next);
     try { localStorage.setItem(LKEY, gid); } catch (e) {}
@@ -149,9 +149,9 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-clocktower-daily.webp" alt="Clocktower Daily" width="988" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-clocktower-daily.webp?v=108" alt="Clocktower Daily" width="1010" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="sheet" aria-label="Characters">📜<span class="lbl"> Characters</span></button><button class="btn" data-act="theme" aria-label="Light or dark">${themeLabel()}</button></span></header>
-    ${body()}<footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool.</span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
+    ${body()}<footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
   const f = $("#feed"); if (f && (atBottom || !feed)) f.scrollTop = f.scrollHeight;
 }
@@ -201,7 +201,8 @@ function joinNameHtml() {
     <p class="lead">You've found the game. What's your name?</p>
     <div class="field"><span class="label">Your name</span><input type="text" id="name" maxlength="30" autocomplete="given-name" value="${esc(ui.nameIn)}"></div>
     <div class="row"><button class="btn primary" data-act="join">Join the game</button><button class="btn small" data-act="other-game">Not your game?</button></div>
-    <p class="hint">If you've played in this game on another phone, join with the same name: the Storyteller will move your seat to this phone.</p></section>`;
+    <p class="hint">If you've played in this game on another phone, join with the same name: the Storyteller will move your seat to this phone.</p>
+    <p class="hint">🔒 Your name, and what you do in the game, are kept until the game is deleted (30 days after it ends). <a href="privacy.html">Privacy notice</a></p></section>`;
 }
 function waitHtml() {
   return `${pushCardHtml()}<section class="card"><div class="big-ico">🕯️</div><h2>${esc(G.name)}</h2>
@@ -441,7 +442,8 @@ function pushCardHtml() {
 }
 
 /* ---------- Me ---------- */
-const otherGameHtml = () => `<section class="card"><h2>🎲 Another game</h2><p class="hint">Got a code for a different game? Join it here, in this app.</p><div class="row"><button class="btn" data-act="other-game">🎲 Join a different game</button></div></section>`;
+const otherGameHtml = () => `<section class="card"><h2>🎲 Another game</h2><p class="hint">Got a code for a different game? Join it here, in this app.</p><div class="row"><button class="btn" data-act="other-game">🎲 Join a different game</button></div></section>
+  <section class="card"><h2>🔒 Your information</h2><p class="hint">What this app keeps about you, who can see it, and how long it's kept.</p><div class="row"><a class="btn" href="privacy.html">Privacy notice</a></div></section>`;
 function meHtml() {
   const r = myRole(), c = CHAR[r] || {}, info = infoNow();
   return `<section class="card"><h2>🎭 Your character</h2>

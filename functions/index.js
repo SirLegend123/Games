@@ -13,6 +13,10 @@ const doc = path => R.firestore.document(path);
 
 // Every 5 minutes: dawn, nominations open, voting closing, the execution, night actions, the end
 exports.tick = R.pubsub.schedule("every 5 minutes").onRun(() => lib.tick(Date.now()));
+// Every 6 hours: delete games that ended 30 days ago (see lib.js)
+exports.cleanup = R.pubsub.schedule("every 6 hours").onRun(() => lib.cleanup(Date.now()));
+// The Storyteller deleted a game: remove everything in it
+exports.onGameUpdate = doc("games/{gid}").onUpdate((ch, c) => lib.onGameUpdate(c.params.gid, ch.before.data(), ch.after.data()));
 // A welcome as soon as a device turns notifications on
 exports.onSubscribe = doc("games/{gid}/push/{uid}").onCreate((s, c) => lib.onSubscribe(c.params.gid, c.params.uid, s.data()));
 // Straight away: nominations, defences, Slayer shots and messages

@@ -168,4 +168,26 @@ async function tickGame(gid, G, now) {
   return n2;
 }
 
-module.exports = { init, vapid, notify, tick, tickGame, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
+/* ---------- Deleting old games ----------
+   A finished game is deleted 30 days after it ends; a game that never started, 30 days after it was set up;
+   one left unfinished, 90 days after it started. The Storyteller can also delete a game at any time. */
+const DAY = 24 * H;
+function expired(G, now) {
+  if (G.deleteReq) return true;
+  if (G.status === "over") return !!G.overAt && now - G.overAt > 30 * DAY;
+  if (G.status === "lobby") return !!G.created && now - G.created > 30 * DAY;
+  const from = G.started || G.created;
+  return !!from && now - from > 90 * DAY;
+}
+async function cleanup(now = Date.now()) {
+  const q = await db.collection("games").get();
+  let n = 0;
+  for (const g of q.docs) if (expired(g.data(), now)) { await db.recursiveDelete(g.ref); n++; }
+  return n;
+}
+// The Storyteller pressed "Delete this game": everything under it goes now
+async function onGameUpdate(gid, before, after) {
+  if (after.deleteReq && !before.deleteReq) await db.recursiveDelete(db.doc(`games/${gid}`));
+}
+
+module.exports = { init, vapid, notify, tick, tickGame, expired, cleanup, onGameUpdate, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
