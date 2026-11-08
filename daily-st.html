@@ -8,16 +8,16 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily · Storyteller</title>
-<script>window.APP_V = 105;</script>
-<script src="update.js?v=105"></script>
+<script>window.APP_V = 106;</script>
+<script src="update.js?v=106"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="characters.js?v=105"></script>
-<script src="daily.js?v=105"></script>
+<script src="characters.js?v=106"></script>
+<script src="daily.js?v=106"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=105">
+<link rel="stylesheet" href="daily.css?v=106">
 <link rel="manifest" href="daily-st.webmanifest">
 </head>
 <body>
@@ -224,10 +224,10 @@ function schedHtml() {
   const s = G.sched;
   return `<section class="card"><h2>⏰ The daily timetable</h2>
     <p class="hint">Every day runs on these times. ${G.status === "lobby" ? "" : "Changes start from the next day you wake the town."}</p>
-    <ul class="tt edit">${SCHED_KEYS.map(([k, ic, label, sub]) => `<li><input type="time" data-sched="${k}" value="${s[k]}" aria-label="${esc(label)}"><span>${ic}</span><span>${esc(label)}${sub ? `<small>${esc(sub)}</small>` : ""}</span></li>`).join("")}</ul>
+    <ul class="tt edit">${SCHED_KEYS.map(([k, ic, label, sub]) => `<li><input type="time" data-sched="${k}" value="${s[k] || ""}" aria-label="${esc(label)}"><span>${ic}</span><span>${esc(label)}${sub ? `<small>${esc(sub)}</small>` : ""}</span></li>`).join("")}</ul>
     ${schedOk(s) ? "" : `<p class="err">Each time needs to come after the one before (within 24 hours).</p>`}
     <div class="field"><span class="label">⚖️ Time for a defence</span><div class="seg" role="group" aria-label="Time for a defence">${[15, 30, 45, 60, 90].map(m => `<button data-act="def-mins" data-v="${m}" aria-pressed="${defMins(G) === m}">${m} min</button>`).join("")}</div>
-      <span class="hint">After a nomination, the nominee has this long to give a defence; voting on it opens when they do, or when the time is up. New nominations stop this long before voting closes (${clock(atClock(Date.now(), s.close) - defMins(G) * 60000)}).</span></div></section>`;
+      <span class="hint">After a nomination, the nominee has this long to give a defence. ${s.vote ? `New nominations can be made until voting opens at ${s.vote}.` : `Voting on it opens when they do, or when the time is up. New nominations stop this long before voting closes (${clock(atClock(Date.now(), s.close) - defMins(G) * 60000)}).`}</span></div></section>`;
 }
 function randomBag() {
   const n = G.seats.length, TB = SCRIPTS.tb.roles, take = (l, k) => shuffle(l.map(x => x[0])).slice(0, Math.max(0, k));
@@ -404,7 +404,7 @@ function dayHtml() {
   const res = (GR.results || {})[d], closed = nowMs() >= t.close;
   const rows = countDay();
   return `<section class="card"><h2>☀️ Day ${d}</h2>
-      <ul class="tt">${SCHED_KEYS.slice(0, 5).map(([k, ic, label]) => `<li class="${nowMs() >= t[k] ? "past" : ""}"><b>${clock(t[k])}</b><span>${ic}</span><span>${esc(label)}</span></li>`).join("")}</ul>
+      <ul class="tt">${SCHED_KEYS.filter(([k]) => t[k] && k !== "night" && k !== "nightEnd").map(([k, ic, label]) => `<li class="${nowMs() >= t[k] ? "past" : ""}"><b>${clock(t[k])}</b><span>${ic}</span><span>${esc(label)}</span></li>`).join("")}</ul>
       <p class="hint">${alive.length} alive · ${need} votes to execute</p>
       ${res ? "" : moreTime("more-vote", [30, 60, 120], closed ? "Reopen voting for" : "Need more time for voting?")}</section>
     ${res ? "" : aroundHtml(t)}

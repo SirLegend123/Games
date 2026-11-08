@@ -119,7 +119,7 @@ A notepad for playing the official online game. Open `notes.html` (or **Online N
 
 Players and the Storyteller can tap **🔔 Turn on notifications** (on the Today tab, under 🎭 Me, or in the Storyteller's Settings) to get phone notifications even when the app is closed:
 
-- **Everyone:** 🌅 the day has dawned (and who died), ⚖️ nominations are open, ⚖️ a new nomination (with the reason) and a defence, 🔒 voting closes in 30 minutes, 🪓 the execution, 🏁 who won, and ✉️ private messages.
+- **Everyone:** 🌅 the day has dawned (and who died), ⚖️ nominations are open, 🗳️ voting is open, ⚖️ a new nomination (with the reason) and a defence, 🔒 voting closes in 30 minutes, 🪓 the execution, 🏁 who won, and ✉️ private messages.
 - **You're nominated:** a notification asking for your defence.
 - **Night:** 🌙 night has fallen, and a reminder 30 minutes before the end, only for players whose character chooses at night (and who haven't yet).
 - **Straight away:** "🔔 Notifications are on", as soon as a device turns them on, so you know they work.
@@ -154,13 +154,16 @@ A game of Trouble Brewing that runs over several days, with everyone on their ow
 
 | Default | What happens |
 |---|---|
-| 07:30 | 🌅 Dawn: the night's deaths are revealed, and each player's night info arrives |
-| 07:45 | 🤫 Private chats: message anyone, one to one |
-| 13:30 | ⚖️ Nominations open: nominate and vote; private chats with neighbours only |
-| 18:30 | 🔒 Voting closes |
-| 19:00 | 🪓 The execution is revealed |
-| 19:30 | 🌙 Night: choose your night action; chats with neighbours only |
-| 21:30 | 🕯️ Night actions close, and the Storyteller works through the night |
+| 07:30 | 🌅 Dawn: the night's deaths are revealed, and night information arrives |
+| 07:30 | 🤫 Private chats: message anyone, one to one |
+| 17:30 | ⚖️ Nominations open: players may nominate, and nominees may defend themselves; private chats with neighbours only |
+| 19:30 | 🗳️ Voting opens: votes may be cast on all valid nominations (new nominations stop) |
+| 20:00 | 🔒 Voting closes: no further votes accepted |
+| 20:30 | 🪓 The execution is revealed |
+| 20:30 | 🌙 Night falls: night actions may be submitted; chats with neighbours only |
+| 22:00 | 🕯️ Night actions close, and the Storyteller resolves them |
+
+Two steps can share a time. Games started before "Voting opens" was added carry on as before: voting on each nomination opens after its defence, until voting closes.
 
 **Players** join with the 6-letter code and their name (the QR code and link fill in the code); the Storyteller seats them. A QR code or link always opens Safari on iPhone and iPad (Apple doesn't let it open a Home Screen app), so there the join screen shows the game code with a copy button for players who already have the app: they open it, tap **🎲 Join a different game** (under 🎭 Me, at the end of a game, or on the waiting screen) and enter the code. A Home Screen app always reopens the game it last joined, not the old address it was saved with. On an iPhone or iPad in Safari, the join screen also suggests adding the app to the Home Screen and joining from there, because a Home Screen app keeps its own storage; it's hidden once opened from the Home Screen, and on other phones. Then: **🏠 Today** (the dawn news, the execution, your night action, your new info, the town and the timetable), **🗣️ Square** (public messages, and a once-only 🏹 Slayer shot anyone can claim), **✉️ Chats** (private chats: anyone during private chats, otherwise your neighbours; plus a private chat with **📜 the Storyteller**, open any time of day or night), **⚖️ Votes** (with **📜 Earlier days** underneath: each past day's deaths, nominations with their reasons and defences, and who voted for whom; nominate once a day, giving a reason; the nominee is told and has time to give a defence (30 minutes by default), and voting on that nomination opens when they do or when the time is up; nominations are listed in the order they were made; vote yes on as many as you like, secretly, and change your mind until voting closes; the dead have one ghost vote) and **🎭 Me** (your character and everything you've learnt). **📅** adds the next week's timetable to your calendar, with reminders before voting and night actions close. Light and dark mode, and the character sheet, are at the top.
 

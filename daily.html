@@ -10,15 +10,15 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily</title>
-<script>window.APP_V = 105;</script>
-<script src="update.js?v=105"></script>
+<script>window.APP_V = 106;</script>
+<script src="update.js?v=106"></script>
 <script src="vendor/firebase.js"></script>
-<script src="characters.js?v=105"></script>
-<script src="daily.js?v=105"></script>
+<script src="characters.js?v=106"></script>
+<script src="daily.js?v=106"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=105">
+<link rel="stylesheet" href="daily.css?v=106">
 <link rel="manifest" href="daily.webmanifest">
 </head>
 <body>
@@ -213,8 +213,8 @@ function waitHtml() {
 function timetableHtml() {
   const s = G.sched, t = G.days && G.days[G.day];
   return `<section class="card"><h2>⏰ Each day</h2>
-    <ul class="tt">${SCHED_KEYS.map(([k, ic, label, sub], i) => { const at = t ? t[k] : null, now = nowMs(), nextAt = t && i < SCHED_KEYS.length - 1 ? t[SCHED_KEYS[i + 1][0]] : Infinity;
-      return `<li class="${at && now >= at ? (now < nextAt ? "now" : "past") : ""}"><b>${t ? clock(at) : s[k]}</b><span>${ic}</span><span>${esc(label)}${sub ? `<small>${esc(sub)}</small>` : ""}</span></li>`; }).join("")}</ul>
+    <ul class="tt">${(K => K.map(([k, ic, label, sub], i) => { const at = t ? t[k] : null, now = nowMs(), nextAt = t && i < K.length - 1 ? t[K[i + 1][0]] : Infinity;
+      return `<li class="${at && now >= at ? (now < nextAt ? "now" : "past") : ""}"><b>${t ? clock(at) : s[k]}</b><span>${ic}</span><span>${esc(label)}${sub ? `<small>${esc(sub)}</small>` : ""}</span></li>`; }).join(""))(SCHED_KEYS.filter(([k]) => t ? t[k] : s[k]))}</ul>
     <div class="row"><button class="btn small" data-act="cal">📅 Add to my calendar</button></div>
     <p class="hint">The calendar entries remind you before voting and night actions close.</p></section>`;
 }
@@ -233,7 +233,8 @@ function bannerHtml(p) {
   const what = {
     night: myAction(p) ? "Choose your night action, and message your neighbours." : "Sleep tight. You can message your neighbours.",
     dark: "The Storyteller is working through the night.", dawn: "See what happened in the night.", chats: "Message anyone in private.",
-    noms: "Nominate and vote. Private messages to neighbours only.", count: "The votes are being counted.", dusk: "Night falls soon.", over: "", wait: "", lobby: ""
+    noms: G.days[G.day] && G.days[G.day].vote ? `Nominate, and defend yourself if you're nominated. Voting opens at ${clock(G.days[G.day].vote)}. Private messages to neighbours only.` : "Nominate and vote. Private messages to neighbours only.",
+    vote: "Vote on the nominations. Private messages to neighbours only.", count: "The votes are being counted.", dusk: "Night falls soon.", over: "", wait: "", lobby: ""
   }[p.k];
   const till = isFinite(p.to) ? `Until ${when(p.to)} · ${left(p.to)} left` : p.k === "dark" ? `Dawn is usually at ${G.sched.dawn}` : "";
   return `<section class="banner ${dark ? "dark" : ""}"><span class="ph">${phaseGold(p)}</span>${till ? `<span class="till">${till}</span>` : ""}${what ? `<span>${what}</span>` : ""}</section>`;
@@ -257,8 +258,8 @@ function todayHtml(p) {
   if (d && !dn && nowMs() >= G.days[d].dawn) out.push(`<section class="card"><p class="hint">Fetching the news from the night…</p></section>`);
   if (p.k === "dusk" && !res) out.push(`<section class="card"><p class="lead">The Storyteller is still counting the votes. Check back soon.</p></section>`);
   const accused = noms.find(x => x.of === me);
-  if (accused && p.k === "noms" && p.n === d) out.push(`<section class="card todo"><h2>⚖️ You've been nominated</h2>${nomCardHtml(accused, noms.indexOf(accused), p)}</section>`);
-  else if (noms.length && p.k === "noms" && p.n === d) out.push(`<section class="card"><h2>⚖️ Today's nominations</h2><p class="lead">${plural(noms.length, "nomination")} so far.${newNoms(p) ? ` <b>${newNoms(p)} waiting for your vote.</b>` : ""}</p><div class="row"><button class="btn primary" data-act="tab" data-tab="votes">See the nominations →</button></div></section>`);
+  if (accused && dayOpen(p) && p.n === d) out.push(`<section class="card todo"><h2>⚖️ You've been nominated</h2>${nomCardHtml(accused, noms.indexOf(accused), p)}</section>`);
+  else if (noms.length && dayOpen(p) && p.n === d) out.push(`<section class="card"><h2>⚖️ Today's nominations</h2><p class="lead">${plural(noms.length, "nomination")} so far.${newNoms(p) ? ` <b>${newNoms(p)} waiting for your vote.</b>` : ""}</p><div class="row"><button class="btn primary" data-act="tab" data-tab="votes">See the nominations →</button></div></section>`);
   const fresh = infoNow().filter(x => x.at >= (d ? G.days[d].dawn : 0) - 1);
   if (fresh.length) out.push(`<section class="card"><h2>🔮 Your info</h2>${fresh.map(infoHtml).join("")}<p class="hint">Everything you've learnt is under 🎭 Me.</p></section>`);
   if (unreadInfo()) { seen[gid + "info"] = infoNow()[0].at; saveSeen(); }
@@ -349,15 +350,15 @@ function threadHtml(p, pid) {
 function votesHtml(p) {
   const d = G.day || 0;
   if (!d) return `<section class="card"><p class="lead">Nominations start on Day 1.</p></section>`;
-  const t = G.days[d], D = dead(), alive = G.seats.length - Object.keys(D).length, need = needVotes(alive), open = p.k === "noms" && p.n === d;
+  const t = G.days[d], D = dead(), alive = G.seats.length - Object.keys(D).length, need = needVotes(alive), open = dayOpen(p) && p.n === d;
   const iNominated = noms.some(x => x.by === me), canVote = open && (!D[me] || !ghostUsed());
   const ghostSpent = D[me] && noms.some(x => myVotes[x.of]);
   const res = gated["result" + d];
   return `<section class="card"><h2>⚖️ Day ${d}: nominations</h2>
-    <p class="hint">${open ? `Open until ${clock(t.close)} (${left(t.close)} left).` : nowMs() < t.noms ? `Nominations open at ${clock(t.noms)}.` : res ? "Voting has closed." : `Voting closed at ${clock(t.close)}. The result is revealed at ${clock(t.reveal)}.`}
+    <p class="hint">${open ? (t.vote && nowMs() < t.vote ? `Nominations are open until ${clock(t.vote)}, then voting until ${clock(t.close)}.` : `Voting is open until ${clock(t.close)} (${left(t.close)} left).`) : nowMs() < t.noms ? `Nominations open at ${clock(t.noms)}.` : res ? "Voting has closed." : `Voting closed at ${clock(t.close)}. The result is revealed at ${clock(t.reveal)}.`}
       ${alive} alive, so <b>${need} votes</b> are needed to execute. The nominee with the most votes (if it's at least ${need}) is executed; a tie means nobody is.</p>
     <p class="hint">🤫 Votes are secret until voting closes. You can vote on as many nominations as you like, and change your mind until then.${D[me] ? " You're dead: you have one ghost vote for the rest of the game." : ""}${myRole() === "Butler" ? " As the Butler, your vote only counts if your Master votes too." : ""}</p>
-    <p class="hint">📝 Each nomination gives a reason. The nominee then has ${plural(defMins(G), "minute")} to give a defence; voting opens when they do, or when the time is up.</p>
+    <p class="hint">📝 Each nomination gives a reason. The nominee then has ${plural(defMins(G), "minute")} to give a defence; ${t.vote ? `voting on all the nominations opens at ${clock(t.vote)}.` : "voting opens when they do, or when the time is up."}</p>
     ${open && !D[me] && !iNominated ? nowMs() < nomsCloseAt(G, d) ? `<div class="row"><button class="btn primary" data-act="nominate-open">☝️ Nominate someone</button><span class="hint">You can nominate once a day, until ${clock(nomsCloseAt(G, d))}.</span></div>` : `<p class="hint">New nominations closed at ${clock(nomsCloseAt(G, d))}, to leave time for a defence and the vote.</p>` : ""}
     ${noms.length ? noms.map((x, i) => nomCardHtml(x, i, p)).join("") : `<p class="hint">No nominations yet.</p>`}
     ${res ? resultHtml(res).replace(/^<section class="card">|<\/section>$/g, "") : ""}</section>
@@ -403,18 +404,18 @@ function historyHtml() {
 }
 // Nominations whose voting is open and that you haven't looked at yet
 function newNoms(p) {
-  if (p.k !== "noms" || p.n !== G.day) return 0;
+  if (!dayOpen(p) || p.n !== G.day) return 0;
   return noms.filter(x => nowMs() >= voteOpensAt(G, x) && !myVotes[x.of] && !seen[`${gid}v${G.day}${x.of}`]).length;
 }
 // One nomination: who, why, their defence, and your vote
 function nomCardHtml(x, i, p) {
-  const d = G.day, t = G.days[d], D = dead(), open = p.k === "noms" && p.n === d, opens = voteOpensAt(G, x), votingNow = open && nowMs() >= opens;
+  const d = G.day, t = G.days[d], D = dead(), open = dayOpen(p) && p.n === d, opens = voteOpensAt(G, x), votingNow = open && nowMs() >= opens;
   const res = gated["result" + d], r = res && res.rows && res.rows.find(y => y.of === x.of), mine = myVotes[x.of];
   const canVote = votingNow && (!D[me] || !ghostUsed()), ghostSpent = D[me] && noms.some(y => myVotes[y.of] && y.of !== x.of);
   const accused = x.of === me && nowMs() < t.close && !res;
   return `<div class="vote-row nom"><span><span class="tag">${i + 1}</span> <b>${nm(x.by)}</b> nominated <b>${nm(x.of)}</b> <span class="hint">· ${clock(x.at)}</span></span>
     ${x.reason ? `<p class="quote"><small>Why</small>“${esc(x.reason)}”</p>` : ""}
-    ${x.defence ? `<p class="quote def"><small>${nm(x.of)}'s defence</small>“${esc(x.defence)}”</p>` : open && nowMs() < opens ? `<p class="hint">⏳ Waiting for ${x.of === me ? "your" : `${nm(x.of)}'s`} defence: voting opens at ${clock(opens)}${x.of === me ? "" : `, or sooner if ${nm(x.of)} answers`}.</p>` : ""}
+    ${x.defence ? `<p class="quote def"><small>${nm(x.of)}'s defence</small>“${esc(x.defence)}”</p>` : open && nowMs() < opens ? `<p class="hint">⏳ Waiting for ${x.of === me ? "your" : `${nm(x.of)}'s`} defence: voting opens at ${clock(opens)}${x.of === me || t.vote ? "" : `, or sooner if ${nm(x.of)} answers`}.</p>` : ""}
     ${accused ? `<div class="field"><span class="label">${x.defence ? "Change your defence" : "Your defence"}</span><textarea id="def" maxlength="600" placeholder="Why the town shouldn't execute you">${esc(ui.draft.def ?? x.defence ?? "")}</textarea><div class="row"><button class="btn primary" data-act="def-save" data-of="${x.of}">${x.defence ? "Update my defence" : "Give my defence"}</button>${x.defence ? "" : `<span class="hint">Voting opens when you do, or at ${clock(opens)}.</span>`}</div></div>` : ""}
     ${r ? `<span class="lead"><b>${r.count}</b> vote${r.count === 1 ? "" : "s"}: <span class="hint">${r.voters.map(nm).join(", ") || "nobody"}</span></span>` : ""}
     ${votingNow ? `<div class="seg"><button class="g" data-act="vote" data-of="${x.of}" data-v="1" aria-pressed="${!!mine}" ${canVote && (!D[me] || mine || !ghostSpent) ? "" : "disabled"}>✋ Yes, execute</button><button data-act="vote" data-of="${x.of}" data-v="" aria-pressed="${!mine}" ${canVote ? "" : "disabled"}>No</button></div><span class="hint">Voting open until ${clock(t.close)}.</span>`
@@ -459,7 +460,7 @@ document.getElementById("dlg").addEventListener("click", e => {
   const pid = el.dataset.pid;
   if (el.dataset.dact === "nominate") {
     d.innerHTML = `<h2>☝️ Nominate ${nm(pid)}</h2><div class="field"><span class="label">Why? Everyone will see this</span><textarea id="why" maxlength="300" placeholder="Tell the town why ${nm(pid)} should be executed"></textarea></div>
-      <p class="hint">${nm(pid)} then has ${plural(defMins(G), "minute")} to give a defence before voting opens.</p>
+      <p class="hint">${nm(pid)} then has ${plural(defMins(G), "minute")} to give a defence. ${G.days[G.day] && G.days[G.day].vote ? `Voting opens at ${clock(G.days[G.day].vote)}.` : ""}</p>
       <div class="row"><button class="btn" data-dact="close">Cancel</button><span class="spacer"></span><button class="btn primary" data-dact="nominate-go" data-pid="${pid}">☝️ Nominate</button></div>`;
     d.querySelector("#why").focus();
   }
