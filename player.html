@@ -52,7 +52,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 
-.wrap { max-width: 1180px; margin: 0 auto; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px calc(40px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 16px; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: calc(clamp(20px, 4vh, 44px) + env(safe-area-inset-top, 0px)) 16px calc(40px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 16px; }
 header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 header h1 { margin: 0 auto 0 0; font-family: var(--font-gothic); font-weight: 700; color: var(--brass); font-size: 2rem; line-height: 1.1; text-shadow: 0 2px 6px rgba(0,0,0,.35); }
 .home { text-decoration: none; color: var(--muted); font-size: 1.3rem; }
@@ -285,6 +285,8 @@ body { background: radial-gradient(ellipse 130% 60% at 50% 0%, rgba(124,78,190,.
 /* Titles in the logo's style: blackletter, the logo's gold, a heavy dark shadow */
 .goldtext { font-family: "UnifrakturMaguntia", var(--font-gothic, serif); font-weight: 400; color: #e3c46e; background: url(img/gold.webp) center / cover; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(.04em .07em 0 rgba(12,6,3,.95)); }
 header h1 { line-height: 0; }
+/* More room above the title on tablets and computers */
+@media (min-width: 700px) { .wrap { padding-top: calc(clamp(32px, 7vh, 72px) + env(safe-area-inset-top, 0px)); } }
 </style>
 </head>
 <body>
@@ -303,11 +305,11 @@ header h1 { line-height: 0; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own.</span></footer>
 </div>
-<script>window.APP_V = 104;</script>
-<script src="update.js?v=104"></script>
-<script src="characters.js?v=104"></script>
+<script>window.APP_V = 105;</script>
+<script src="update.js?v=105"></script>
+<script src="characters.js?v=105"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=104"></script>
+<script src="net.js?v=105"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
