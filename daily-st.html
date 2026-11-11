@@ -8,16 +8,16 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily · Storyteller</title>
-<script>window.APP_V = 109;</script>
-<script src="update.js?v=109"></script>
+<script>window.APP_V = 110;</script>
+<script src="update.js?v=110"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="characters.js?v=109"></script>
-<script src="daily.js?v=109"></script>
+<script src="characters.js?v=110"></script>
+<script src="daily.js?v=110"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=109">
+<link rel="stylesheet" href="daily.css?v=110">
 <link rel="manifest" href="daily-st.webmanifest">
 </head>
 <body>
@@ -115,7 +115,7 @@ function render(force) {
   pending = false;
   const app = $("#app");
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  app.innerHTML = `<header><a class="home" href="${gid ? "daily-st.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-clocktower-daily.webp?v=109" alt="Clocktower Daily" width="1010" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  app.innerHTML = `<header><a class="home" href="${gid ? "daily-st.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-clocktower-daily.webp?v=110" alt="Clocktower Daily" width="1010" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="sheet">📜 Characters</button><button class="btn" data-act="theme" aria-label="Light or dark">${themeLabel()}</button></span></header>
     ${body()}<footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -319,17 +319,59 @@ function todoHtml(p, nightTodo, dayTodo) {
 }
 
 /* ---------- Grimoire ---------- */
+// The Grimoire as a circle of tokens, like the real thing: each player's character, and reminders round them.
+// Tap a token for the details and what you can do.
+const GVIEW = "ctd-st-grimview";
+const grimView = () => { try { return localStorage.getItem(GVIEW) || "circle"; } catch (e) { return "circle"; } };
+const STALE = 12 * 3600000;   // not seen for 12 hours: 💤
+function tokenMarks(pid) {
+  const dead = deadTruth(), m = [], pois = (GR.poison || {})[G.day || 0], a = acts[pid];
+  if (dead[pid] && !(GR.ghost || {})[pid]) m.push(["👻", "has their ghost vote"]);
+  if (pois === pid) m.push(["🧪", "poisoned"]);
+  if (GR.rh === pid) m.push(["🐟", "red herring"]);
+  if ((GR.shown || {})[pid]) m.push(["🎭", `thinks they're the ${GR.shown[pid]}`]);
+  if (a && !dead[pid]) m.push(["🌙", "chose tonight"]);
+  const seen = seenOf(pid); if (!dead[pid] && (!seen || nowMs() - seen > STALE)) m.push(["💤", seen ? `last seen ${ago(seen)}` : "not seen yet"]);
+  return m;
+}
+function grimCircle() {
+  const dead = deadTruth(), n = G.seats.length, alive = n - Object.keys(dead).length;
+  const tok = n <= 6 ? 0.24 : n <= 9 ? 0.21 : n <= 12 ? 0.18 : 0.155;
+  const seats = G.seats.map((s, i) => {
+    const r = roleOf(s.id), a = (-90 + i * 360 / n) * Math.PI / 180, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
+    const fs = Math.min(0.2, 1 / Math.max(5, s.name.length)), rfs = Math.min(0.13, 0.8 / Math.max(6, (r || "").length)), marks = tokenMarks(s.id);
+    return `<button class="tok gt tm-${teamOf(r) || "none"} ${dead[s.id] ? "dead" : ""}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;--fs:${fs.toFixed(3)};--rfs:${rfs.toFixed(3)}" data-act="gtok" data-pid="${s.id}"
+      aria-label="${esc(s.name)}, ${esc(r || "no character")}${dead[s.id] ? ", dead" : ""}${marks.length ? ", " + marks.map(x => x[1]).join(", ") : ""}">
+      <span class="disc"><span class="nm">${esc(s.name)}</span><span class="ic" aria-hidden="true">${dead[s.id] ? "💀" : (CHAR[r] || {}).icon || "❔"}</span><span class="rl">${esc(r || "?")}</span></span>
+      ${marks.length ? `<span class="rems" aria-hidden="true">${marks.map(([e, t]) => `<span class="rem" title="${esc(t)}">${e}</span>`).join("")}</span>` : ""}</button>`;
+  }).join("");
+  return `<div class="ring grim" style="--tok:${tok}">${seats}<div class="ring-centre"><span class="big">${alive}</span><span>alive of ${n}</span><span class="hint">${needVotes(alive)} votes to execute</span></div></div>
+    <p class="hint legend">Tap a player for more. 👻 ghost vote left · 🧪 poisoned · 🐟 red herring · 🎭 thinks they're someone else · 🌙 chose tonight · 💤 not seen for 12 hours</p>`;
+}
+function tokenDialog(pid) {
+  const dead = deadTruth(), r = roleOf(pid), a = acts[pid], i = seatIds(G).indexOf(pid) + 1;
+  const lines = [roleChip(r) + ` <span class="hint">(${({ townsfolk: "Townsfolk", outsider: "Outsider", minion: "Minion", demon: "Demon" })[teamOf(r)] || "no team"})</span>`,
+    (GR.shown || {})[pid] ? `🎭 Thinks they're the <b>${esc(GR.shown[pid])}</b>` : "",
+    dead[pid] ? `💀 ${esc(HOW[dead[pid].how] || "Dead")} · ${(GR.ghost || {})[pid] ? "ghost vote used" : "👻 ghost vote left"}` : "❤️ Alive",
+    (GR.poison || {})[G.day || 0] === pid ? "🧪 Poisoned" : "", GR.rh === pid ? "🐟 The Fortune Teller's red herring" : "",
+    a ? `🌙 Tonight: ${(a.picks || []).map(q => nm(q)).join(" & ") || "chose"}` : "",
+    `👁 Last seen ${seenOf(pid) ? ago(seenOf(pid)) : "never"}`].filter(Boolean);
+  dialog(`<h2>${i}. ${esc(nm(pid))}</h2>${lines.map(l => `<p class="tokline">${l}</p>`).join("")}
+    <div class="row"><button class="btn" data-dact="go" data-go="msg" data-pid="${pid}">✉️ Message</button><button class="btn" data-dact="go" data-go="recast" data-pid="${pid}">🎭 Change character</button>${dead[pid] ? "" : `<button class="btn danger" data-dact="go" data-go="kill" data-pid="${pid}">💀 Dies now</button>`}</div>
+    <div class="row"><button class="btn small" data-dact="close">Close</button></div>`);
+}
 function grimHtml() {
-  const dead = deadTruth(), n = (G.day || 0) + 1, pois = (GR.poison || {})[G.day || 0];
+  const dead = deadTruth(), n = (G.day || 0) + 1, pois = (GR.poison || {})[G.day || 0], circle = grimView() === "circle";
   return `<section class="card"><h2>📖 Grimoire</h2>
-    <div class="town">${G.seats.map((s, i) => { const r = roleOf(s.id), a = acts[s.id];
+    <div class="seg" role="group" aria-label="Show the Grimoire as"><button data-act="gview" data-v="circle" aria-pressed="${circle}">◯ Circle</button><button data-act="gview" data-v="list" aria-pressed="${!circle}">☰ List</button></div>
+    ${circle ? grimCircle() : `<div class="town">${G.seats.map((s, i) => { const r = roleOf(s.id), a = acts[s.id];
       return `<div class="prow ${dead[s.id] ? "dead" : ""}"><span class="n">${i + 1}</span>
         <span><b class="nm">${esc(s.name)}</b> ${roleChip(r)} ${(GR.shown || {})[s.id] ? `<span class="tag">thinks: ${esc(GR.shown[s.id])}</span>` : ""}
           ${seenTag(s.id)}${dead[s.id] ? `<span class="tag">💀 ${esc(HOW[dead[s.id].how] || "Dead")}${(GR.ghost || {})[s.id] ? " · ghost vote used" : ""}</span>` : ""}
           ${GR.rh === s.id ? `<span class="tag">red herring</span>` : ""}${pois === s.id ? `<span class="tag warn">🧪 poisoned</span>` : ""}
           ${a ? `<span class="tag">🌙 ${(a.picks || []).map(q => nm(q)).join(" & ") || "chose"}</span>` : ""}</span>
         <span class="row"><button class="btn small" data-act="msg" data-pid="${s.id}" aria-label="Message ${esc(s.name)}">✉️</button><button class="btn small" data-act="recast" data-pid="${s.id}" aria-label="Change ${esc(s.name)}'s character">🎭</button>${dead[s.id] ? "" : `<button class="btn small" data-act="kill" data-pid="${s.id}" aria-label="${esc(s.name)} dies">💀</button>`}</span></div>`; }).join("")}</div>
-    <p class="hint">✉️ opens your private chat with them · 🎭 changes their character (they're told) · 💀 kills them now, in public</p>
+    <p class="hint">✉️ opens your private chat with them · 🎭 changes their character (they're told) · 💀 kills them now, in public</p>`}
     ${GR.bluffs && GR.bluffs.length ? `<p class="hint">Demon bluffs: ${GR.bluffs.map(esc).join(", ")}</p>` : ""}</section>
     ${unseated().length ? `<section class="card"><h2>📱 Devices waiting</h2><p class="hint">A player on a new phone or browser asks to join again. Link it to their seat; their old device stops working.</p>${joinsHtml(false)}</section>` : ""}`;
 }
@@ -601,6 +643,10 @@ document.getElementById("dlg").addEventListener("click", async e => {
   if (e.target === d || (el && el.dataset.dact === "close")) return d.close();
   if (!el) return;
   const pid = el.dataset.pid;
+  if (el.dataset.dact === "go") {
+    d.close(); const b = document.createElement("button"); b.dataset.act = el.dataset.go; b.dataset.pid = pid; b.hidden = true;
+    $("#app").appendChild(b); b.click(); b.remove(); return;
+  }
   if (el.dataset.dact === "send") {
     const text = d.querySelector("textarea").value.trim(); if (!text) return;
     d.close(); run(() => FB.updateDoc(gref(gid, "secret", pid), { info: FB.arrayUnion({ n: G.day || 0, at: nowMs(), text, label: "From the Storyteller" }) }), "Sent");
@@ -657,6 +703,8 @@ document.getElementById("app").addEventListener("click", e => {
     case "delete-game": if (!confirm(`Delete "${G.name}" for everyone?\n\nEverything in it goes: names, characters, votes, chats and messages. This can't be undone.`)) return;
       return run(async () => { await FB.updateDoc(gref(gid), { deleteReq: nowMs() }); saveGames(myGames().filter(g => g.gid !== gid)); location.href = "daily-st.html" + (EMU ? "?emu=1" : ""); });
     case "end-now": if (!confirm(`End the game now: ${el.dataset.v} wins?`)) return; return run(async () => { const b = FB.writeBatch(db); endGame(b, el.dataset.v, nowMs()); await b.commit(); });
+    case "gview": try { localStorage.setItem(GVIEW, el.dataset.v); } catch (e) {} return render(true);
+    case "gtok": return tokenDialog(pid);
     case "msg": ui.tab = "msgs"; ui.thread = pid; render(true); return window.scrollTo(0, 0);
     case "push-on": return refreshStPush(true);
     case "push-off": return pushOff().then(() => { stPush = "off"; render(true); toast("Notifications are off"); });
