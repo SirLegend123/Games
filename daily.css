@@ -221,3 +221,16 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 6
 a.btn.game-link { flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
 .gstat { display: block; font-size: .85rem; font-weight: 500; color: var(--muted); }
 .gstat .gwait { color: var(--brass); font-weight: 800; }
+/* The Storyteller's Grimoire as a circle: character tokens, edged in their team's colour, with reminders below */
+.ring.grim { margin-bottom: 18px; }
+.tok.gt .disc { padding: 9%; gap: 1%; }
+.tok.gt .disc .nm { font-size: calc(var(--tok) * 100cqi * var(--fs)); }
+.tok.gt .ic { font-size: calc(var(--tok) * 100cqi * .3); line-height: 1; }
+.tok.gt .rl { font-size: calc(var(--tok) * 100cqi * var(--rfs)); font-weight: 800; line-height: 1; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; color: #5a4a30; }
+.tok.tm-townsfolk .disc { border-color: #3d7ad8; } .tok.tm-outsider .disc { border-color: #4fa6c9; }
+.tok.tm-minion .disc { border-color: #c8553d; } .tok.tm-demon .disc { border-color: #9e1b1b; }
+.tok.tm-townsfolk .rl, .tok.tm-outsider .rl { color: #1f4f9a; } .tok.tm-minion .rl, .tok.tm-demon .rl { color: #8e1d12; }
+.tok.gt .rems { display: flex; gap: 2px; margin-top: -14%; position: relative; }
+.tok.gt .rem { width: calc(var(--tok) * 100cqi * .3); height: calc(var(--tok) * 100cqi * .3); min-width: 20px; min-height: 20px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 40% 32%, #fdf7e8, #d8c69c); border: 2px solid #8a6a2c; box-shadow: 0 2px 5px rgba(0,0,0,.45); font-size: max(11px, calc(var(--tok) * 100cqi * .16)); line-height: 1; }
+.tokline { margin: 6px 0; }
