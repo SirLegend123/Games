@@ -10,17 +10,17 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows · Host</title>
-<script>window.APP_V = 118;</script>
-<script src="update.js?v=118"></script>
+<script>window.APP_V = 119;</script>
+<script src="update.js?v=119"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=118"></script>
-<script src="shadows.js?v=118"></script>
+<script src="daily.js?v=119"></script>
+<script src="shadows.js?v=119"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=118">
-<link rel="stylesheet" href="shadows.css?v=118">
+<link rel="stylesheet" href="daily.css?v=119">
+<link rel="stylesheet" href="shadows.css?v=119">
 <link rel="manifest" href="shadows-host.webmanifest">
 </head>
 <body>
@@ -119,7 +119,7 @@ function render(force) {
   if (!force && a && a.closest && a.closest("#app") && a.matches("input[type=text], textarea")) { pending = true; return; }
   pending = false;
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=118" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=119" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="rules">📜 How to play</button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -251,17 +251,21 @@ function randomSides(k) {
 // A day's plan, chosen by the host: a task (the Whisper, won with a shield) and the Shadows' mission (the code phrase,
 // which earns that night's murder). Both run from breakfast until the round table.
 function planHtml(d, lobby) {
-  const pl = ui.plan[d] = ui.plan[d] || { task: "", wphrase: "", start: "", mission: lobby ? "phrase" : "", mphrase: "" };
+  const pl = ui.plan[d] = ui.plan[d] || { task: "", wphrase: "", start: "", tries: 2, mission: lobby ? "phrase" : "", mphrase: "" };
   const alive = aliveIds();
   return `<section class="card"><h2>📋 Day ${d}: the task</h2>
-    <div class="seg" role="group" aria-label="Day ${d}'s task">${[["", "None"], ["whisper", "🤫 The Whisper"]].map(([k, l]) => `<button data-act="plan" data-d="${d}" data-k="task" data-v="${k}" aria-pressed="${pl.task === k}">${l}</button>`).join("")}</div>
+    <div class="seg" role="group" aria-label="Day ${d}'s task">${[["", "None"], ["whisper", "🤫 The Whisper"], ["combination", "🔐 The Combination"]].map(([k, l]) => `<button data-act="plan" data-d="${d}" data-k="task" data-v="${k}" aria-pressed="${pl.task === k}">${l}</button>`).join("")}</div>
     ${pl.task === "whisper" ? `<p class="hint">One player starts with a phrase, and passes it on in a private chat to someone who hasn't had it. It must go round everyone, then back to whoever started it, before the round table. Say it twice and you're out of the running. If anyone is sent it a third time, the Whisper fails. The last player to say it wins a 🛡️ shield.</p>
       <div class="field"><span class="label">The whisper</span><input type="text" id="wphrase-${d}" data-plan="${d}" data-k="wphrase" maxlength="60" placeholder="e.g. the crows gather at midnight" value="${esc(pl.wphrase)}"></div>
-      <div class="field"><span class="label">Who starts it</span><select data-plan="${d}" data-k="start"><option value="">🎲 Someone at random</option>${alive.map(p => `<option value="${p}" ${pl.start === p ? "selected" : ""}>${nm(p)}</option>`).join("")}</select></div>` : `<p class="hint">${trustDay(G, d) || lobby ? "Day 1 already has the trust vote at the round table." : "No task: the round table banishes as usual."}</p>`}</section>
+      <div class="field"><span class="label">Who starts it</span><select data-plan="${d}" data-k="start"><option value="">🎲 Someone at random</option>${alive.map(p => `<option value="${p}" ${pl.start === p ? "selected" : ""}>${nm(p)}</option>`).join("")}</select></div>`
+      : pl.task === "combination" ? `<p class="hint">A secret code with one digit for each player still in the game (${alive.length} digits). At breakfast each player is told one digit and where it goes, and nobody else's. They must share their digits in private chats, put the code together and enter it. The first correct code wins a 🛡️ shield, in secret. Everyone hears when it's been cracked.</p>
+      <div class="field"><span class="label">Tries each</span><div class="seg" role="group" aria-label="Tries each">${[1, 2, 3].map(k => `<button data-act="plan" data-d="${d}" data-k="tries" data-v="${k}" aria-pressed="${+pl.tries === k}">${k}</button>`).join("")}</div>
+        <span class="hint">Limited, so nobody can just try every number for a missing digit.</span></div>` : `<p class="hint">${trustDay(G, d) || lobby ? "Day 1 already has the trust vote at the round table." : "No task: the round table banishes as usual."}</p>`}</section>
     <section class="card"><h2>🗝️ Day ${d}: the Shadows' mission</h2>
-    ${lobby && pl.task !== "whisper" ? "" : `<div class="seg" role="group" aria-label="Day ${d}'s mission">${[...(lobby ? [] : [["", "None: they may murder"]]), ["phrase", "🗝️ Code phrase"], ...(pl.task === "whisper" ? [["addword", "✍️ Add a word to the Whisper"]] : [])].map(([k, l]) => `<button data-act="plan" data-d="${d}" data-k="mission" data-v="${k}" aria-pressed="${pl.mission === k}">${l}</button>`).join("")}</div>`}
+    ${lobby && !pl.task ? "" : `<div class="seg" role="group" aria-label="Day ${d}'s mission">${[...(lobby ? [] : [["", "None: they may murder"]]), ["phrase", "🗝️ Code phrase"], ...(pl.task === "whisper" ? [["addword", "✍️ Add a word to the Whisper"]] : []), ...(pl.task === "combination" ? [["mislead", "🎭 Mislead: a Guest enters a wrong code"]] : [])].map(([k, l]) => `<button data-act="plan" data-d="${d}" data-k="mission" data-v="${k}" aria-pressed="${pl.mission === k}">${l}</button>`).join("")}</div>`}
     ${pl.mission === "phrase" ? `<p class="hint">Each Shadow must slip this phrase into a private chat with a Guest before the round table. If they all do, and no Guest catches it (by messaging you the phrase), they may murder that night. Nothing to do with the task's shield.</p>
       <div class="field"><span class="label">Code phrase (only the Shadows see it)</span><input type="text" id="mphrase-${d}" data-plan="${d}" data-k="mphrase" maxlength="60" placeholder="e.g. the lanterns are low tonight" value="${esc(pl.mphrase)}"></div>`
+      : pl.mission === "mislead" ? `<p class="hint">The Shadows get their real digit, like everyone else. If a Guest enters a wrong code that's wrong in a place a Shadow holds (so a Shadow's lie worked), the Shadows may murder that night. The shield can still be won afterwards.</p>`
       : pl.mission === "addword" ? `<p class="hint">When a Shadow passes the whisper on, they may add one word to it. If a Shadow adds a word, and the next player passes the changed whisper on, the Shadows may murder that night. (A Shadow who starts the whisper can't change it.) Only the starter finds out, when it comes back, whether it changed. The shield is still won as usual.</p>`
       : `<p class="hint">No mission: the Shadows may murder that night.</p>`}</section>`;
 }
@@ -269,12 +273,22 @@ function planProblem(pl) {
   if (pl.task === "whisper" && normPhrase(pl.wphrase).split(" ").length < 2) return "Choose a whisper of at least two words.";
   if (pl.mission === "phrase" && normPhrase(pl.mphrase).split(" ").length < 2) return "Choose a code phrase of at least two words.";
   if (pl.mission === "addword" && pl.task !== "whisper") return "Adding a word needs the Whisper as the day's task.";
+  if (pl.mission === "mislead" && pl.task !== "combination") return "Misleading needs the Combination as the day's task.";
   if (pl.task === "whisper" && pl.mission === "phrase" && normPhrase(pl.wphrase) === normPhrase(pl.mphrase)) return "The whisper and the code phrase need to be different.";
   return "";
 }
 // Write a day's plan: its task and mission, and tell the players who need to know (the starter, the Shadows)
 function writePlan(b, d, pl, dawn, sides, dead) {
   const alive = seatIds(G).filter(p => !dead[p]), sh = alive.filter(p => sides[p] === "shadow");
+  if (pl.task === "combination") {
+    const order = shuffle([...alive]), code = order.map(() => String(rnd(10))).join(""), pieces = {}, tries = +pl.tries || 2;
+    order.forEach((p, i) => { pieces[p] = i; b.update(gref(gid, "secret", p), { combo: { d, pos: i, digit: code[i], len: code.length, tries, used: 0, results: [] } }); });
+    b.update(gref(gid, "st", "grim"), { [`tasks.${d}`]: { type: "combination", code, pieces, tries, entries: [], done: false } });
+  }
+  if (pl.mission === "mislead") {
+    b.update(gref(gid, "st", "grim"), { [`missions.${d}`]: { type: "mislead", done: false } });
+    for (const p of sh) b.update(gref(gid, "secret", p), { mission: { d, type: "mislead" } });
+  }
   if (pl.mission === "addword") {
     b.update(gref(gid, "st", "grim"), { [`missions.${d}`]: { type: "addword", done: false } });
     for (const p of sh) b.update(gref(gid, "secret", p), { mission: { d, type: "addword" } });
@@ -320,6 +334,9 @@ async function deal() {
 // How the Shadows are getting on with their mission (only the host sees this)
 function missionHtml(d) {
   const M = (GR.missions || {})[d]; if (!M) return "";
+  if (M.type === "mislead") return `<section class="card ${M.done ? "" : "todo"}"><h2>🎭 The Shadows' mission: mislead</h2>
+      <p class="lead">${M.misled ? `✅ ${nm(M.misled.by)} (a Guest) entered a wrong code, ${esc(M.misled.code)}, at ${clock(M.misled.at)}.` : "⏳ No Guest has entered a code wrong in a Shadow's place yet."}</p>
+      <p class="lead">${M.done ? (M.passed ? "✅ Mission complete: they may murder tonight." : "❌ Mission failed: no murder tonight.") : M.misled ? "So far: complete." : `They have until ${when(G.days[d].noms)}.`}</p></section>`;
   if (M.type === "addword") { const W = (GR.tasks || {})[d] || {}, adds = W.adds || [], ch = W.chain || [], on = a => ch.some(c => c.from === a.to), ok = adds.some(on);
     return `<section class="card ${M.done ? "" : "todo"}"><h2>✍️ The Shadows' mission: add a word</h2>
       ${adds.length ? adds.map(a => `<p class="lead">${on(a) ? "✅" : "⏳"} <b>${nm(a.by)}</b> added “${esc(a.word)}” when passing it to ${nm(a.to)}${on(a) ? `, who passed it on` : ", who hasn't passed it on yet"}.</p>`).join("") : `<p class="lead">⏳ No Shadow has added a word yet.</p>`}
@@ -332,6 +349,16 @@ function missionHtml(d) {
     ${M.caught ? `<p class="warn">🔎 <b>${nm(M.caught.by)}</b> (a Guest) caught the phrase at ${clock(M.caught.at)}.</p>` : ""}
     <p class="lead">${over ? (result ? "✅ The Shadows succeeded: they may murder tonight." : `❌ The Shadows failed${M.caught ? " (the phrase was caught)" : ""}: no murder tonight.`) : `They have until ${when(t.noms)}. ${result ? "So far: all of them have said it." : ""}`}</p>
     <p class="hint">Checked automatically: nobody reads the chats. Only the phrase said in a private chat to a Guest counts; a Guest who messages you the phrase catches it.</p></section>`;
+}
+// The Combination, live: the code, who holds which digit, and every entry
+function comboHtml(d) {
+  const W = (GR.tasks || {})[d]; if (!W || W.type !== "combination") return "";
+  const byPos = Object.entries(W.pieces || {}).sort((a, b) => a[1] - b[1]);
+  return `<section class="card ${W.done ? "" : "todo"}"><h2>🔐 The Combination</h2>
+    <p class="lead">The code: <b class="code">${esc(W.code)}</b> <span class="hint">(${W.tries} ${W.tries === 1 ? "try" : "tries"} each)</span></p>
+    <div class="town">${byPos.map(([p, i]) => `<div class="prow"><span class="n">${i + 1}</span><span><b>${nm(p)}</b> holds “${W.code[i]}” ${sideChip(sideOf(p))}</span></div>`).join("")}</div>
+    <h3>Entries</h3>${(W.entries || []).length ? W.entries.map(e => `<p class="lead" style="margin:2px 0">${e.ok ? "✅" : "❌"} <b>${nm(e.pid)}</b>: ${esc(e.code)} <span class="hint">${clock(e.at)}${e.ok ? "" : ` · wrong at ${[...W.code].map((c, i) => e.code[i] !== c ? nm(byPos[i][0]) + "'s place" : "").filter(Boolean).join(", ") || "length"}`}</span></p>`).join("") : `<p class="hint">None yet.</p>`}
+    <p class="lead">${W.cracked ? `🛡️ ${nm(W.winner)} cracked it at ${clock(W.cracked)}, and has the shield (in secret).` : W.done ? "Nobody cracked it: no shield." : `Open until ${when(G.days[d].noms)}.`}</p></section>`;
 }
 // The Whisper's progress, live (only the host sees the route until the round table)
 function whisperHtml(d) {
@@ -346,7 +373,7 @@ function whisperHtml(d) {
     ${Object.keys(W.repeats || {}).length ? `<p class="hint">Sent it again: ${Object.entries(W.repeats).map(([p, k]) => `${nm(p)} (${k + 1} times)`).join(", ")}.</p>` : ""}
     <p class="hint">${W.failed ? "No shield today." : W.done ? (W.winner ? `🛡️ ${nm(W.winner)} said it last, and has a shield tonight.` : "No shield: it didn't make it all the way round in time.") : W.complete ? "It has gone all the way round: the winner is announced at the round table." : `${nm(holder)} has it now. ${waiting.length ? `Still to have it: ${waiting.map(nm).join(", ")}.` : "Everyone has had it: it must go back to " + nm(W.start) + "."}`}${Object.keys(out).length ? ` Said it twice (out of the running): ${Object.keys(out).map(nm).join(", ")}.` : ""}</p></section>`;
 }
-const missionOk = d => { const M = (GR.missions || {})[d]; if (!M) return true; if (M.done) return !!M.passed;
+const missionOk = d => { const M = (GR.missions || {})[d]; if (!M) return true; if (M.done) return !!M.passed; if (M.type === "mislead") return !!M.misled;
   if (M.type === "addword") { const W = (GR.tasks || {})[d] || {}; return (W.adds || []).some(a => (W.chain || []).some(c => c.from === a.to)); } return seatIds(G).filter(p => sideOf(p) === "shadow" && !deadTruth()[p]).every(p => (M.said || {})[p]) && !M.caught; };
 
 /* ---------- The running game ---------- */
@@ -553,7 +580,7 @@ function dayHtml() {
   const t = G.days[d], res = (GR.results || {})[d], closed = nowMs() >= t.close, rows = countDay(), alive = aliveIds();
   const voted = new Set(ballots.filter(b => alive.includes(b.voter)).map(b => b.voter));
   const trust = trustDay(G, d);
-  return `${missionHtml(d)}${whisperHtml(d)}<section class="card"><h2>☀️ Day ${d}${trust ? ": the trust vote" : ""}</h2>
+  return `${missionHtml(d)}${whisperHtml(d)}${comboHtml(d)}<section class="card"><h2>☀️ Day ${d}${trust ? ": the trust vote" : ""}</h2>
       ${trust ? `<p class="hint">No banishment today. At the round table everyone votes for the player they trust most: they get a 🛡️ shield for Night 1, and can't be murdered.</p>` : ""}
       <ul class="tt">${SCHED_KEYS.filter(([k]) => t[k] && k !== "night" && k !== "nightEnd").map(([k, ic, label]) => `<li class="${nowMs() >= t[k] ? "past" : ""}"><b>${clock(t[k])}</b><span>${ic}</span><span>${esc(label)}</span></li>`).join("")}</ul>
       <p class="hint">${plural(alive.length, "player")} still in · ${voted.size} voted so far</p>
@@ -704,7 +731,9 @@ document.getElementById("app").addEventListener("click", e => {
     case "random-sides": return run(() => FB.updateDoc(gref(gid, "st", "grim"), { sides: randomSides(G.want || suggestShadows(G.seats.length)) }), "Shadows chosen");
     case "deal": return run(deal);
     case "start-opt": ui.startOpt = +el.dataset.i; return render(true);
-    case "plan": { const pl = ui.plan[el.dataset.d]; pl[el.dataset.k] = el.dataset.v; return render(true); }
+    case "plan": { const pl = ui.plan[el.dataset.d]; pl[el.dataset.k] = el.dataset.v;
+      if (el.dataset.k === "task") { const pair = { whisper: "addword", combination: "mislead" }[el.dataset.v]; if (pair) pl.mission = pair; else if (["addword", "mislead"].includes(pl.mission)) pl.mission = ""; }
+      return render(true); }
     case "tab": ui.tab = el.dataset.tab; ui.thread = ""; render(true); return window.scrollTo(0, 0);
     case "gtok": return tokenDialog(pid);
     case "msg": ui.tab = "msgs"; ui.thread = pid; render(true); return window.scrollTo(0, 0);

@@ -145,6 +145,13 @@ service cloud.firestore {
           && string(get(/databases/$(db)/documents/games/$(gid)/secret/$(pid)).data.offer.n) == n
           && now() < get(/databases/$(db)/documents/games/$(gid)/secret/$(pid)).data.offer.until;
       }
+      // The Shadows, the Combination: a player's code entry, between breakfast and the round table. Only the host (and the server) read them.
+      match /days/{d}/codes/{id} {
+        allow read: if isST();
+        allow create: if owns(request.resource.data.pid) && !isOut(request.resource.data.pid) && request.resource.data.keys().hasOnly(['pid', 'code', 'at'])
+          && request.resource.data.code is string && request.resource.data.code.size() <= 12
+          && dayT(d).get('task', '') == 'combination' && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
+      }
       // Night actions: the player's own choices while that night is open
       match /nights/{n}/acts/{pid} {
         allow get: if isST() || owns(pid);
