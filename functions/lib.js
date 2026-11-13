@@ -133,6 +133,38 @@ async function onChat(gid, pair, m) {
   const W = whisperOpen(x.G, x.grim);
   if (W) await whisperSaid(gid, x.G, x.grim, d, W, m.from, to, at, m);
 }
+// The Combination: a code entered by a player. Checked against the secret code; the first correct one wins the task's shield.
+// The Shadows' mission ("mislead"): a Guest enters a wrong code with a wrong digit in a place a Shadow holds.
+async function onCode(gid, d, e) {
+  const x = await load(gid); if (!x) return;
+  const { G, grim } = x, W = (grim.tasks || {})[d], sides = grim.sides || {}, pid = e.pid, at = e.at || Date.now();
+  if (!isShd(G) || !W || W.type !== "combination" || W.done || W.cracked || (grim.dead || {})[pid] || !dayOpenNow(G, d)) return;
+  const sref = db.doc(`games/${gid}/secret/${pid}`), sec = (await sref.get()).data() || {}, C = sec.combo || {};
+  if (C.d !== +d || (C.used || 0) >= (W.tries || 2)) return;
+  const code = String(e.code || "").replace(/\D/g, ""), ok = code === W.code;
+  await sref.update({ "combo.used": (C.used || 0) + 1, "combo.results": [...(C.results || []), { code, ok, at }] });
+  const g = db.doc(`games/${gid}/st/grim`), entry = { pid, code, ok, at };
+  const u = { [`tasks.${d}.entries`]: [...(W.entries || []), entry] };
+  const M = (grim.missions || {})[d];
+  if (!ok && M && M.type === "mislead" && !M.misled && sides[pid] === "guest") {
+    // Wrong in a place a Shadow holds: the Shadows' lie has worked
+    const shadowPlaces = Object.entries(W.pieces || {}).filter(([p]) => sides[p] === "shadow").map(([, i]) => i);
+    if (shadowPlaces.some(i => code[i] !== W.code[i])) {
+      u[`missions.${d}.misled`] = { by: pid, at, code };
+      for (const p of seatIds(G).filter(q => sides[q] === "shadow" && !(grim.dead || {})[q])) await db.doc(`games/${gid}/secret/${p}`).update({ "mission.misled": at });
+    }
+  }
+  if (ok) {
+    u[`tasks.${d}.cracked`] = at; u[`tasks.${d}.winner`] = pid; u[`wshield.${+d + 1}`] = pid;
+    const b = db.batch();
+    b.update(db.doc(`games/${gid}`), { [`days.${d}.cracked`]: at });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d: +d, at, text: "🔐 The combination has been cracked! Whoever cracked it has been given a shield, in secret." });
+    b.update(sref, { info: require("firebase-admin").firestore.FieldValue.arrayUnion({ n: +d, at, label: "Shield", text: "🔐 You cracked the combination: you have a shield tonight, and can't be murdered. Nobody else knows: keep it secret, or don't." }) });
+    await b.commit();
+    await notify(gid, G, ["st"], { title: "🔐 The combination has been cracked", body: `${nameOf(G, pid)} got it, and has the shield.`, tag: `combo-${gid}` });
+  }
+  await g.update(u);
+}
 // The whisper each player was given (the starter: the original), and one word added to it
 const words = s => normPhrase(s).split(" ").filter(Boolean);
 function oneWordAdded(a, b) {
@@ -265,13 +297,20 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
   // The Shadows' mission ends at the round table: every Shadow still in must have said the phrase to a Guest, uncaught
   if (M && t && now >= t.noms && !M.done) {
     const adds = (W && W.adds) || [], ch = (W && W.chain) || [];
-    const all = shadows, passed = M.type === "addword" ? adds.some(a => ch.some(c => c.from === a.to)) : all.every(p => (M.said || {})[p]) && !M.caught, b = db.batch();
+    const all = shadows, passed = M.type === "mislead" ? !!M.misled : M.type === "addword" ? adds.some(a => ch.some(c => c.from === a.to)) : all.every(p => (M.said || {})[p]) && !M.caught, b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`missions.${d}.done`]: true, [`missions.${d}.passed`]: passed });
     for (const p of all) b.update(db.doc(`games/${gid}/secret/${p}`), { "mission.done": true, "mission.passed": passed, "mission.caught": !!M.caught });
     await b.commit(); M.done = true; M.passed = passed;
-    once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows completed their mission" : "❌ The Shadows failed their mission", body: passed ? "They may murder tonight." : M.type === "addword" ? "No changed whisper was passed on: no murder tonight." : M.caught ? "A Guest caught the code phrase: no murder tonight." : "Not every Shadow said the phrase: no murder tonight.", tag: `challenge-${gid}` });
+    once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows completed their mission" : "❌ The Shadows failed their mission", body: passed ? "They may murder tonight." : M.type === "mislead" ? "No Guest entered a wrong code: no murder tonight." : M.type === "addword" ? "No changed whisper was passed on: no murder tonight." : M.caught ? "A Guest caught the code phrase: no murder tonight." : "Not every Shadow said the phrase: no murder tonight.", tag: `challenge-${gid}` });
   }
   // The Whisper ends at the round table: if it went all the way round, the last player still in the running to say it gets a shield
+  if (W && W.type === "combination" && t && now >= t.noms && !W.done) {
+    const b = db.batch();
+    b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true });
+    if (!W.cracked) b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: "🔐 The Combination: ❌ failed. Nobody cracked it in time: no shield." });
+    else b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: "🔐 The Combination: ✅ passed. Its shield is in secret hands." });
+    await b.commit(); W.done = true;
+  }
   if (W && W.type === "whisper" && t && now >= t.noms && !W.done && W.failed) { await db.doc(`games/${gid}/st/grim`).update({ [`tasks.${d}.done`]: true, [`tasks.${d}.winner`]: null }); W.done = true; }
   if (W && W.type === "whisper" && t && now >= t.noms && !W.done) {
     const chain = W.chain || [], out = W.out || {}, last = W.complete ? [...chain].reverse().find(c => !out[c.from]) : null, winner = last ? last.from : null, b = db.batch();
@@ -398,4 +437,4 @@ async function onGameUpdate(gid, before, after) {
     await notify(gid, after, seatIds(after), { title: "🗝️ Your role has been chosen", body: "Open The Shadows to find out: are you a Guest, or a Shadow? Keep it to yourself.", tag: `role-${gid}` });
 }
 
-module.exports = { init, vapid, notify, tick, tickGame, expired, cleanup, onGameUpdate, onConclave, autoBanish, autoTrust, saysPhrase, onOffer, onAnswer, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
+module.exports = { onCode, init, vapid, notify, tick, tickGame, expired, cleanup, onGameUpdate, onConclave, autoBanish, autoTrust, saysPhrase, onOffer, onAnswer, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };

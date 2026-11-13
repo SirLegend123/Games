@@ -33,8 +33,8 @@ for (const k of Object.keys(PUSH_TEXT)) PUSH_TEXT[k] = PUSH_TEXT[k].replace(/Clo
 
 /* ---------- The two sides ---------- */
 const SIDE = {
-  guest: { ic: "🕯️", one: "Guest", many: "Guests", cls: "t-townsfolk", emblem: "img/emblem-guest.webp?v=118" },
-  shadow: { ic: "🗡️", one: "Shadow", many: "Shadows", cls: "t-demon", emblem: "img/emblem-shadow.webp?v=118" }
+  guest: { ic: "🕯️", one: "Guest", many: "Guests", cls: "t-townsfolk", emblem: "img/emblem-guest.webp?v=119" },
+  shadow: { ic: "🗡️", one: "Shadow", many: "Shadows", cls: "t-demon", emblem: "img/emblem-shadow.webp?v=119" }
 };
 const sideChip = s => s && SIDE[s] ? `<span class="${SIDE[s].cls}">${SIDE[s].ic} ${SIDE[s].one}</span>` : `<span class="hint">no side yet</span>`;
 // How many Shadows to start with
