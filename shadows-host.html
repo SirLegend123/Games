@@ -10,17 +10,17 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows · Host</title>
-<script>window.APP_V = 112;</script>
-<script src="update.js?v=112"></script>
+<script>window.APP_V = 114;</script>
+<script src="update.js?v=114"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=112"></script>
-<script src="shadows.js?v=112"></script>
+<script src="daily.js?v=114"></script>
+<script src="shadows.js?v=114"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=112">
-<link rel="stylesheet" href="shadows.css?v=112">
+<link rel="stylesheet" href="daily.css?v=114">
+<link rel="stylesheet" href="shadows.css?v=114">
 <link rel="manifest" href="shadows-host.webmanifest">
 </head>
 <body>
@@ -34,7 +34,7 @@ const GKEY = "shd-host-games";
 const myGames = () => { try { return JSON.parse(localStorage.getItem(GKEY)) || []; } catch (e) { return []; } };
 const saveGames = l => { try { localStorage.setItem(GKEY, JSON.stringify(l.slice(0, 20))); } catch (e) {} };
 let gid = cleanCode(new URLSearchParams(location.search).get("g"));
-let G = null, GR = {}, joins = [], acts = {}, ballots = [], square = [], conclave = [], ghosts = [], ready = false, loadErr = "";
+let G = null, GR = {}, joins = [], acts = {}, answers = {}, ballots = [], square = [], conclave = [], ghosts = [], ready = false, loadErr = "";
 let stc = {};
 const stSeenKey = pid => `shd-host-seen-${gid}-${pid}`;
 const stSeen = pid => { try { return +localStorage.getItem(stSeenKey(pid)) || 0; } catch (e) { return 0; } };
@@ -60,8 +60,9 @@ function watch() {
     ready = true;
     if (!stPush) refreshStPush(false);
     const n = (G.day || 0) + 1, d = G.day || 0;
-    if (cur.acts !== n) { unsub("acts"); acts = {}; ui.draft = null; }
+    if (cur.acts !== n) { unsub("acts"); unsub("answers"); acts = {}; answers = {}; ui.draft = null; }
     cur.acts = n; sub("acts", gcol(gid, "nights", String(n), "acts"), q => { acts = {}; q.forEach(x => acts[x.id] = x.data()); render(); });
+    sub("answers", gcol(gid, "nights", String(n), "answers"), q => { answers = {}; q.forEach(x => answers[x.id] = x.data()); render(); });
     if (d && cur.day !== d) { unsub("ballots"); ballots = []; ui.ex = undefined; ui.end = ""; }
     if (d) { cur.day = d; sub("ballots", gcol(gid, "days", String(d), "ballots"), q => { ballots = q.docs.map(x => x.data()); render(); }); }
     render();
@@ -117,7 +118,7 @@ function render(force) {
   if (!force && a && a.closest && a.closest("#app") && a.matches("input[type=text], textarea")) { pending = true; return; }
   pending = false;
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=112" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=114" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="rules">📜 How to play</button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -169,7 +170,7 @@ async function makeGame(fields) {
     try {
       await FB.setDoc(gref(code), { kind: KIND, st: myUid, name: "The Shadows", status: "lobby", sched: { ...DEFAULT_SCHED }, seats: [], uids: {}, nextId: 1,
         days: {}, nights: {}, day: 0, night: 0, dead: {}, events: [], created: Date.now(), ...fields });
-      await FB.setDoc(gref(code, "st", "grim"), { sides: {}, dead: {}, results: {}, shield: {}, cu: {}, ou: {} });
+      await FB.setDoc(gref(code, "st", "grim"), { sides: {}, dead: {}, results: {}, shield: {}, cu: {}, ou: {}, mode: {}, offer: {} });
       return code;
     } catch (e) { if (e.code !== "permission-denied") throw e; }
   }
@@ -281,7 +282,7 @@ function todoHtml(nightTodo, dayTodo) {
   const items = [];
   if (G.overAt) items.push(`🏁 The game ${nowMs() >= G.overAt ? `is over. <button class="btn small primary" data-act="replay">🔄 New game with the same players</button>` : `ends at ${when(G.overAt)}`}.`);
   if (nightTodo) items.push(`🌙 Night ${(G.day || 0) + 1} has closed: <button class="btn small primary" data-act="tab" data-tab="night">work out the night and serve breakfast</button>`);
-  if (dayTodo) items.push(`🔒 The round table has closed: <button class="btn small primary" data-act="tab" data-tab="day">confirm the banishment</button> before ${when(G.days[G.day].reveal)}`);
+  if (dayTodo) items.push(`🔒 Voting has ended in a tie (or the server hasn't counted yet): <button class="btn small primary" data-act="tab" data-tab="day">decide the banishment</button> before ${when(G.days[G.day].reveal)}`);
   if (stUnreadAll() && ui.tab !== "msgs") items.push(`✉️ ${plural(stUnreadAll(), "new message")} from players: <button class="btn small primary" data-act="tab" data-tab="msgs">read</button>`);
   if (stPush === "off") items.push(`🔔 Get notified when players need you: <button class="btn small" data-act="tab" data-tab="set">turn on notifications</button>`);
   if (unseated().length) items.push(`📱 ${plural(unseated().length, "new device")} waiting: <button class="btn small" data-act="tab" data-tab="castle">see the castle</button>`);
@@ -354,17 +355,61 @@ function nightHtml() {
     ${shieldTonight() ? `<p class="hint">🛡️ ${nm(shieldTonight())} has a shield tonight.</p>` : `<p class="hint">🛡️ No shield tonight. Give one from the castle (tap a player).</p>`}
     ${moreTime("more-night", [60, 120, 240], open ? "Need more time?" : "Reopen the Shadows' choice for")}</section>`;
   if (n > 1 && !(GR.results || {})[n - 1]) return top + `<section class="card"><p class="warn">Confirm Day ${n - 1}'s banishment first.</p></section>`;
-  if (!ui.draft || ui.draft.n !== n) ui.draft = { n, victim: suggestVictim(), note: "", dawnOpt: 0 };
-  const D = ui.draft, opts = dawnOptions(n), pick = opts[Math.min(D.dawnOpt, opts.length - 1)], shielded = D.victim && D.victim === shieldTonight();
-  return top + `<section class="card"><h2>🗡️ Who is murdered</h2>
-    <p class="hint">${open ? "The Shadows can still change their minds until the night closes: this stays up to date." : "The Shadows have made their choice."} Suggested: ${suggestVictim() ? nm(suggestVictim()) : "nobody"}. You decide.</p>
-    <div class="picks"><button class="pick" data-act="victim" data-pid="" aria-pressed="${!D.victim}">Nobody</button>${aliveIds().map(p => `<button class="pick" data-act="victim" data-pid="${p}" aria-pressed="${D.victim === p}">${D.victim === p ? "🗡️ " : ""}${nm(p)}${sideOf(p) === "shadow" ? " (Shadow)" : ""}</button>`).join("")}</div>
-    ${shielded ? `<p class="warn">🛡️ ${nm(D.victim)} has a shield tonight: normally the murder fails, and nobody dies.</p>` : ""}
+  if (!ui.draft || ui.draft.n !== n) ui.draft = { n, victim: "", victimSet: false, note: "", dawnOpt: 0, target: "", mins: 60 };
+  const D = ui.draft, opts = dawnOptions(n), pick = opts[Math.min(D.dawnOpt, opts.length - 1)], victim = currentVictim(), shielded = victim && victim === shieldTonight();
+  const mode = modeTonight(), o = offerTonight(), a = o && answers[o.target], recruit = recruitTonight();
+  const modeCard = `<section class="card"><h2>${MODES[mode].ic} Tonight: ${MODES[mode].name}</h2>
+    <div class="seg" role="group" aria-label="What kind of night">${Object.entries(MODES).map(([k, m]) => `<button data-act="night-mode" data-v="${k}" aria-pressed="${mode === k}" ${o ? "disabled" : ""}>${m.ic} ${m.name}</button>`).join("")}</div>
+    <p class="hint">${esc(MODES[mode].what)} ${o ? "The offer has been sent, so this can't change now." : "The Shadows are told straight away, in their chat."}</p></section>`;
+  const offerCard = mode === "murder" ? "" : (() => {
+    const target = o ? o.target : D.target || suggestVictim(), waiting = o && !a && nowMs() < o.until;
+    return `<section class="card ${o && !a ? "" : "todo"}"><h2>${MODES[mode].ic} The offer</h2>
+      ${o ? `<p class="lead">Sent to <b>${nm(o.target)}</b>: they must answer by ${when(o.until)}.</p>
+        <p class="lead">${a ? (a.answer === "accept" ? `✅ <b>${nm(o.target)} accepted</b>: they join the Shadows at breakfast, and nobody is murdered.` : `❌ <b>${nm(o.target)} refused</b>${mode === "blackmail" ? ": so they are murdered." : ": nobody is murdered tonight."}`)
+          : waiting ? `⏳ Waiting for ${nm(o.target)} to decide (${left(o.until)} left).` : `⌛ No answer in time${mode === "blackmail" ? ": so they are murdered." : ": it counts as a refusal."}`}</p>`
+      : `<p class="hint">The Shadows' choice: ${suggestVictim() ? nm(suggestVictim()) : "none yet"}. Who gets the offer?</p>
+        <div class="picks">${aliveIds().filter(p => sideOf(p) !== "shadow").map(p => `<button class="pick" data-act="target" data-pid="${p}" aria-pressed="${target === p}">${nm(p)}</button>`).join("")}</div>
+        <div class="field"><span class="label">Time to decide</span><div class="seg" role="group" aria-label="Time to decide">${[[30, "30 min"], [60, "1 hour"], [120, "2 hours"], [0, `Until ${G.sched.dawn}`]].map(([m, l]) => `<button data-act="offer-mins" data-v="${m}" aria-pressed="${D.mins === m}">${l}</button>`).join("")}</div></div>
+        <div class="row"><button class="btn primary" data-act="send-offer" data-pid="${target}" ${target ? "" : "disabled"}>${MODES[mode].ic} Send the offer to ${target ? nm(target) : "…"}</button></div>
+        <p class="hint">They get a private message, and decide on their phone. Only you and they will know, until breakfast.</p>`}</section>`;
+  })();
+  return top + modeCard + offerCard + `<section class="card"><h2>🗡️ Who is murdered</h2>
+    <p class="hint">${mode !== "murder" ? (o ? "Worked out from the answer." : "Send the offer first.") : open ? "The Shadows can still change their minds until the night closes: this stays up to date." : "The Shadows have made their choice."} Suggested: ${defaultVictim() ? nm(defaultVictim()) : "nobody"}. You decide.</p>
+    <div class="picks"><button class="pick" data-act="victim" data-pid="" aria-pressed="${!victim}">Nobody</button>${aliveIds().map(p => `<button class="pick" data-act="victim" data-pid="${p}" aria-pressed="${victim === p}">${victim === p ? "🗡️ " : ""}${nm(p)}${sideOf(p) === "shadow" ? " (Shadow)" : ""}</button>`).join("")}</div>
+    ${shielded ? `<p class="warn">🛡️ ${nm(victim)} has a shield tonight: normally the murder fails, and nobody dies.</p>` : ""}
     <div class="field"><span class="label">A note at breakfast (optional)</span><textarea id="bkNote" maxlength="400" placeholder="e.g. The Shadows tried to strike, but a shield held firm.">${esc(D.note)}</textarea></div></section>
     <section class="card"><h2>🍳 Serve breakfast</h2>
       <div class="seg" role="group" aria-label="When breakfast is">${opts.map((o, i) => `<button data-act="dawn-opt" data-i="${i}" aria-pressed="${o === pick}">${esc(o.label)}</button>`).join("")}</div>
-      <p class="hint">At breakfast everyone finds out ${D.victim ? `that ${nm(D.victim)} was murdered` : "that nobody was murdered"}. The round table opens at ${clock(dTimes(pick.slot, G.sched, pick.start).vote)}.</p>
+      <p class="hint">At breakfast everyone finds out ${victim ? `that ${nm(victim)} was murdered` : "that nobody was murdered"}.${recruit ? ` ${nm(recruit)} joins the Shadows (only the Shadows are told).` : ""}${o && !a && nowMs() < o.until ? ` <b>${nm(o.target)} hasn't answered yet.</b>` : ""} The round table opens at ${clock(dTimes(pick.slot, G.sched, pick.start).noms)}.</p>
       <div class="row"><button class="btn primary" data-act="release">🍳 Serve breakfast: Day ${n}</button></div></section>`;
+}
+// Tonight's kind of night, the offer, and its answer
+const modeTonight = () => (GR.mode || {})[(G.day || 0) + 1] || "murder";
+const offerTonight = () => { const o = (GR.offer || {})[(G.day || 0) + 1]; return o && o.target ? o : null; };
+function recruitTonight() { const o = offerTonight(), a = o && answers[o.target]; return a && a.answer === "accept" && !deadTruth()[o.target] && currentVictim() !== o.target ? o.target : ""; }
+// Who dies, if the host hasn't chosen: the Shadows' victim; a refused (or unanswered) blackmail; nobody after a seduction
+function defaultVictim() {
+  const mode = modeTonight(); if (mode === "murder") return suggestVictim();
+  const o = offerTonight(), a = o && answers[o.target];
+  return mode === "blackmail" && o && ((a && a.answer === "refuse") || (!a && nowMs() >= o.until)) ? o.target : "";
+}
+const currentVictim = () => ui.draft && ui.draft.victimSet ? ui.draft.victim : defaultVictim();
+async function setMode(type) {
+  const n = (G.day || 0) + 1, b = FB.writeBatch(db);
+  b.update(gref(gid, "st", "grim"), { [`mode.${n}`]: type });
+  for (const p of shadowsIn()) b.update(gref(gid, "secret", p), { mode: { n, type } });
+  b.set(FB.doc(gcol(gid, "conclave")), { from: "host", text: `${MODES[type].ic} Tonight is a ${MODES[type].name.toLowerCase()}. ${MODES[type].what}`, at: nowMs() });
+  await b.commit();
+}
+async function sendOffer(target) {
+  const n = (G.day || 0) + 1, type = modeTonight(), mins = ui.draft.mins;
+  const until = mins ? nowMs() + mins * 60000 : nextClock(nowMs(), G.sched.dawn) - 5 * 60000;
+  if (!confirm(`Send ${seatName(G, target)} the ${MODES[type].name.toLowerCase()}? They must answer by ${when(until)}.`)) return;
+  const b = FB.writeBatch(db);
+  b.update(gref(gid, "st", "grim"), { [`offer.${n}`]: { type, target, until, at: nowMs() } });
+  b.update(gref(gid, "secret", target), { offer: { n, type, until } });
+  b.set(FB.doc(gcol(gid, "conclave")), { from: "host", text: `${MODES[type].ic} The offer has gone to ${seatName(G, target)}. They have until ${when(until)} to decide.`, at: nowMs() });
+  await b.commit();
 }
 // The Shadows' most popular choice (not a Shadow, not shielded)
 function suggestVictim() {
@@ -387,13 +432,20 @@ async function release() {
   const n = (G.day || 0) + 1, D = ui.draft, o = dawnOptions(n), pick = o[Math.min(D.dawnOpt, o.length - 1)];
   const t = dTimes(pick.slot, G.sched, pick.start), b = FB.writeBatch(db);
   if (!confirm(`Serve breakfast for Day ${n}? It starts ${when(t.dawn)}.`)) return;
-  b.set(gref(gid, "gated", "dawn" + n), { at: t.dawn, d: n, deaths: D.victim ? [{ pid: D.victim, how: "murdered", n }] : [], note: (D.note || "").trim() });
+  const victim = currentVictim(), recruit = recruitTonight();
+  b.set(gref(gid, "gated", "dawn" + n), { at: t.dawn, d: n, deaths: victim ? [{ pid: victim, how: "murdered", n }] : [], note: (D.note || "").trim() });
   const dead = { ...deadTruth() };
-  if (D.victim) {
-    dead[D.victim] = { how: "murdered", n };
-    b.update(gref(gid, "secret", D.victim), { out: true, info: info("🗡️ You were murdered in the night. You're out of the game, but you can still watch and talk.", t.dawn, "Murdered") });
+  if (victim) {
+    dead[victim] = { how: "murdered", n };
+    b.update(gref(gid, "secret", victim), { out: true, info: info("🗡️ You were murdered in the night. You're out of the game, but you can still watch and talk.", t.dawn, "Murdered") });
   }
-  b.update(gref(gid, "st", "grim"), { dead, cu: conclaveUids(GR.sides || {}, dead), ou: outUids(dead) });
+  let sides = GR.sides || {};
+  if (recruit) {   // the offer was accepted: they join the Shadows, and everyone in the Shadows is told
+    sides = { ...sides, [recruit]: "shadow" }; const sch = shadowsIn(sides, dead);
+    b.update(gref(gid, "secret", recruit), { side: "shadow", allies: sch, info: info(`You accepted, and joined the Shadows. Your fellow Shadows: ${sch.filter(p => p !== recruit).map(p => seatName(G, p)).join(", ") || "none"}.`, nowMs(), "Recruited") });
+    for (const p of sch) if (p !== recruit) b.update(gref(gid, "secret", p), { allies: sch, info: info(`${seatName(G, recruit)} accepted, and has joined the Shadows.`, nowMs()) });
+  }
+  b.update(gref(gid, "st", "grim"), { dead, sides, cu: conclaveUids(sides, dead), ou: outUids(dead) });
   b.update(gref(gid), { [`days.${n}`]: t, [`nights.${n + 1}`]: { open: t.night, end: t.nightEnd }, day: n, night: n + 1, dead: deadTruth() });
   await b.commit();
   ui.draft = null; ui.tab = "day";
@@ -414,8 +466,8 @@ function dayHtml() {
       <p class="hint">${nowMs() < t.vote ? `Voting opens at ${clock(t.vote)}.` : "Who's voted (only you can see the votes until it closes)."}</p>
       <div class="town">${alive.map(p => { const b = ballots.find(x => x.voter === p); return `<div class="prow"><span class="n">${b ? "✅" : "⏳"}</span><span><b class="nm">${nm(p)}</b> ${sideChip(sideOf(p))} ${seenTag(p)}${b ? `<br><span class="hint">→ ${nm(b.of)}${b.reason ? `: “${esc(b.reason)}”` : ""}</span>` : ""}</span>
         <span>${!b && nowMs() >= t.vote && nowMs() < t.close ? `<button class="btn small" data-act="nudge" data-pid="${p}" data-k="vote">🔔 Nudge</button>` : ""}</span></div>`; }).join("")}</div></section>`}
-    ${res ? `<section class="card"><h2>⚖️ Confirmed</h2><p class="lead">${res.exec ? `${nm(res.exec)} is banished` : "Nobody is banished"}. Everyone sees it ${nowMs() >= res.at ? "now" : `at ${when(res.at)}`}.</p></section>`
-      : closed ? verdictHtml(rows) : `<section class="card"><p class="hint">After the round table closes at ${clock(t.close)}, you'll confirm the banishment here. Players see it at ${clock(t.reveal)}.</p></section>`}`;
+    ${res ? `<section class="card"><h2>⚖️ ${res.auto ? "Decided by the votes" : "Confirmed"}</h2><p class="lead">${res.exec ? `${nm(res.exec)} is banished (${sideChip(sideOf(res.exec))})` : "Nobody is banished"}. Everyone sees it ${nowMs() >= res.at ? "now" : `at ${when(res.at)}`}.</p></section>`
+      : closed ? verdictHtml(rows) : `<section class="card"><p class="hint">When voting ends at ${clock(t.close)}, the player with the most votes is banished automatically, and everyone sees their role at ${clock(t.reveal)}. A tie comes to you to decide.</p></section>`}`;
 }
 function verdictHtml(rows) {
   const v = banishVerdict(rows), ex = ui.ex === undefined ? v.exec : ui.ex;
@@ -550,7 +602,11 @@ document.getElementById("app").addEventListener("click", e => {
         b.update(gref(gid, "st", "grim"), { dead, cu: conclaveUids(GR.sides || {}, dead), ou: outUids(dead) }); b.update(gref(gid, "secret", pid), { out: true });
         const w = whoWins(GR.sides || {}, dead); if (w && confirm(`${WIN[w]}\n\nEnd the game now?`)) endGame(b, w, at, dead);
         await b.commit(); });
-    case "victim": ui.draft.victim = pid || ""; return render(true);
+    case "victim": ui.draft.victim = pid || ""; ui.draft.victimSet = true; return render(true);
+    case "night-mode": return run(() => setMode(el.dataset.v), `Tonight: ${MODES[el.dataset.v].name}`);
+    case "target": ui.draft.target = pid; return render(true);
+    case "offer-mins": ui.draft.mins = +el.dataset.v; return render(true);
+    case "send-offer": return run(() => sendOffer(pid), "Offer sent");
     case "dawn-opt": ui.draft.dawnOpt = +el.dataset.i; return render(true);
     case "release": return run(release);
     case "ex": ui.ex = pid || null; return render(true);

@@ -33,8 +33,8 @@ for (const k of Object.keys(PUSH_TEXT)) PUSH_TEXT[k] = PUSH_TEXT[k].replace(/Clo
 
 /* ---------- The two sides ---------- */
 const SIDE = {
-  guest: { ic: "🕯️", one: "Guest", many: "Guests", cls: "t-townsfolk" },
-  shadow: { ic: "🗡️", one: "Shadow", many: "Shadows", cls: "t-demon" }
+  guest: { ic: "🕯️", one: "Guest", many: "Guests", cls: "t-townsfolk", emblem: "img/emblem-guest.webp?v=114" },
+  shadow: { ic: "🗡️", one: "Shadow", many: "Shadows", cls: "t-demon", emblem: "img/emblem-shadow.webp?v=114" }
 };
 const sideChip = s => s && SIDE[s] ? `<span class="${SIDE[s].cls}">${SIDE[s].ic} ${SIDE[s].one}</span>` : `<span class="hint">no side yet</span>`;
 // How many Shadows to start with
@@ -46,6 +46,13 @@ function whoWins(sides, dead) {
   return s === 0 ? "guests" : s >= g ? "shadows" : "";
 }
 const WIN = { guests: "🕯️ The Guests win!", shadows: "🗡️ The Shadows win!" };
+
+/* ---------- What kind of night it is (the host decides) ---------- */
+const MODES = {
+  murder: { ic: "🗡️", name: "Murder", what: "The Shadows choose a Guest to murder.", ask: "Choose who the Shadows murder tonight." },
+  seduce: { ic: "🌹", name: "Seduction", what: "The Shadows choose a Guest to invite to join them. If they refuse, nobody dies.", ask: "Choose a Guest to invite to join the Shadows. If they refuse, nobody dies tonight." },
+  blackmail: { ic: "⛓️", name: "Blackmail", what: "The Shadows choose a Guest who must join them, or be murdered.", ask: "Choose a Guest to blackmail: they must join the Shadows, or be murdered tonight." }
+};
 
 /* ---------- The round table ---------- */
 // ballots: [{voter, of, reason?, at}]. Only living players' votes count, and only for living players.

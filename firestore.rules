@@ -137,6 +137,14 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['voter', 'of', 'at', 'reason']) && (!('reason' in request.resource.data) || str(request.resource.data.reason, 300));
         allow delete: if isST();
       }
+      // The Shadows: a seduction or blackmail offer, answered by the player it went to, before its deadline
+      match /nights/{n}/answers/{pid} {
+        allow get: if isST() || owns(pid);
+        allow list: if isST();
+        allow create: if owns(pid) && request.resource.data.keys().hasOnly(['answer', 'at']) && request.resource.data.answer in ['accept', 'refuse']
+          && string(get(/databases/$(db)/documents/games/$(gid)/secret/$(pid)).data.offer.n) == n
+          && now() < get(/databases/$(db)/documents/games/$(gid)/secret/$(pid)).data.offer.until;
+      }
       // Night actions: the player's own choices while that night is open
       match /nights/{n}/acts/{pid} {
         allow get: if isST() || owns(pid);

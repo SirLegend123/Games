@@ -33,3 +33,13 @@ body { background: radial-gradient(ellipse 120% 60% at 50% 0%, #2a0d10 0%, #1608
 .ring::before { border-color: rgba(201, 162, 106, .45); }
 .ring-centre .big { font-family: var(--font-display); }
 footer.brand { color: var(--muted); }
+/* Your role: the emblem, revealed */
+.emblem { display: block; width: min(320px, 78vw); height: auto; margin: 0 auto; filter: drop-shadow(0 10px 24px rgba(0, 0, 0, .7)); }
+.emblem.small { width: min(200px, 55%); }
+.reveal { display: grid; gap: 10px; text-align: center; justify-items: center; }
+.reveal h2 { font-family: var(--font-display); font-size: 1.7rem; margin: 0; letter-spacing: .08em; }
+.reveal-shadow h2 { color: #c8434a; } .reveal-guest h2 { color: #d9b45a; }
+.reveal .emblem { animation: emblem-in 1.2s ease-out both; }
+@keyframes emblem-in { from { opacity: 0; transform: scale(.7) rotate(-6deg); filter: blur(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .reveal .emblem { animation: none; } }
+dialog:has(.reveal) { max-width: min(460px, 94vw); background: radial-gradient(ellipse at 50% 30%, #2a1012, #0d0506); border: 1px solid #6e4e2c; }
