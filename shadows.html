@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 116;</script>
-<script src="update.js?v=116"></script>
+<script>window.APP_V = 117;</script>
+<script src="update.js?v=117"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=116"></script>
-<script src="shadows.js?v=116"></script>
+<script src="daily.js?v=117"></script>
+<script src="shadows.js?v=117"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=116">
-<link rel="stylesheet" href="shadows.css?v=116">
+<link rel="stylesheet" href="daily.css?v=117">
+<link rel="stylesheet" href="shadows.css?v=117">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -160,7 +160,7 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=116" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=117" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -296,15 +296,16 @@ function missionCardHtml(d) {
 function whisperCardHtml(d) {
   const w = SEC.whisper && SEC.whisper.d === d ? SEC.whisper : null, t = G.days[d], D = dead();
   const head = `<section class="card ${w && !w.passedTo ? "todo" : ""}"><h2>🤫 Today's task: the Whisper</h2>`;
-  const rules = `<p class="hint">The whisper must go round everyone, one private chat at a time, and back to whoever started it, before ${when(t.noms)}. Pass it only once: say it again and you're out of the running. The last player to say it wins a 🛡️ shield.</p>`;
+  const rules = `<p class="hint">The whisper must go round everyone, one private chat at a time, and back to whoever started it, before ${when(t.noms)}. Pass it only once: say it again and you're out of the running. If anyone is sent it a third time, the Whisper fails. The last player to say it wins a 🛡️ shield.</p>`;
+  if (t.wfail) return `${head}<p class="warn">The Whisper has failed: ${nm(t.wfail.pid)} was sent it for the third time. No shield today.</p></section>`;
   if (!w) return `${head}<p class="lead">The whisper is going round. You haven't been given it yet: someone will choose you.</p>${rules}</section>`;
   if (w.out) return `${head}<p class="warn">You said the whisper again, so you're out of the running for the shield.</p>${rules}</section>`;
   if (w.passedTo) return `${head}<p class="lead">You passed it to <b>${nm(w.passedTo)}</b>. Now don't say it again!</p>${rules}</section>`;
   const back = w.last && w.start && w.start !== true ? w.start : "", choices = back ? [back] : G.seats.filter(s2 => s2.id !== me && !D[s2.id] && s2.id !== (w.from || "")).map(s2 => s2.id);
   const pick = ui.wpick && choices.includes(ui.wpick) ? ui.wpick : back;
   return `${head}<p class="lead">${w.start === true ? "You start the whisper:" : `${nm(w.from)} gave you the whisper:`}</p><p class="quote">“${esc(w.phrase)}”</p>
-    ${w.bounce ? `<p class="warn">${nm(w.bounce.to)} has already had it. Choose someone else.</p>` : ""}
-    <p class="lead">${back ? `Everyone has had it: pass it back to <b>${nm(back)}</b>, who started it.` : "Who do you pass it to? Choose someone you think hasn't had it yet."}</p>
+    ${w.bounce ? `<p class="warn">${nm(w.bounce.to)} has already had it: that was their ${w.bounce.times === 2 ? "2nd time. One more and the Whisper fails" : "time"}. Choose someone else.</p>` : ""}
+    <p class="lead">${back ? `Everyone has had it: pass it back to <b>${nm(back)}</b>, who started it.` : "Who do you pass it to? Choose someone who hasn't had it yet: ask around first. Anyone sent it three times makes the Whisper fail."}</p>
     <div class="picks">${choices.map(q => `<button class="pick" data-act="wpick" data-pid="${q}" aria-pressed="${pick === q}">${nm(q)}</button>`).join("")}</div>
     <div class="row"><button class="btn primary" data-act="wpass" ${pick ? "" : "disabled"}>🤫 Pass the whisper${pick ? ` to ${nm(pick)}` : ""}</button></div>
     <p class="hint">This sends the whisper to them in your private chat.</p>${rules}</section>`;
