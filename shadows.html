@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 117;</script>
-<script src="update.js?v=117"></script>
+<script>window.APP_V = 118;</script>
+<script src="update.js?v=118"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=117"></script>
-<script src="shadows.js?v=117"></script>
+<script src="daily.js?v=118"></script>
+<script src="shadows.js?v=118"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=117">
-<link rel="stylesheet" href="shadows.css?v=117">
+<link rel="stylesheet" href="daily.css?v=118">
+<link rel="stylesheet" href="shadows.css?v=118">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -160,7 +160,7 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=117" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=118" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -267,7 +267,7 @@ function todayHtml(p) {
   if (p.k === "dusk" && !res) out.push(`<section class="card"><p class="lead">The host is still counting the votes. Check back soon.</p></section>`);
   if (d && (p.k === "chats" || p.k === "dawn") && p.n === d && !amOut()) { const t = G.days[d] || {};
     if (t.task === "whisper") out.push(whisperCardHtml(d));
-    if (t.mission) out.push(missionCardHtml(d)); }
+    if (t.mission || (mySide() === "shadow" && SEC.mission && SEC.mission.d === d)) out.push(missionCardHtml(d)); }
   const trust = trustDay(G, d);
   if (roundTable(p) && p.n === d && !amOut()) out.push(`<section class="card ${myBallot === null ? "todo" : ""}"><h2>🗳️ ${trust ? "The trust vote is open" : "Voting is open"}</h2>
     <p class="lead">${myBallot ? `You've voted for <b>${nm(myBallot.of)}</b>. You can change your vote until ${when(G.days[d].close)}.` : trust ? `Who do you trust most? The winner gets a shield tonight. Vote before ${when(G.days[d].close)}.` : `Vote to banish the player you suspect, before ${when(G.days[d].close)}.`}</p>
@@ -283,7 +283,11 @@ function todayHtml(p) {
 }
 // The Shadows' mission: the code phrase (and, for Guests, the chance to catch it)
 function missionCardHtml(d) {
-  const t = G.days[d], M = SEC.mission || {};
+  const t = G.days[d], M = SEC.mission || {}, w = SEC.whisper && SEC.whisper.d === d ? SEC.whisper : null;
+  if (mySide() === "shadow" && M.d === d && M.type === "addword") return `<section class="card ${w && w.added ? "" : "todo"}"><h2>✍️ Your mission: change the whisper</h2>
+      <p class="lead">When the whisper reaches you, add one word to it as you pass it on. If a Shadow's changed whisper is passed on by the next player, you may murder tonight.</p>
+      <p class="lead">${w && w.added ? `✅ You added “${esc(w.added)}”.` : w && w.start === true ? "You started the whisper, so you can't change it: another Shadow must." : "⏳ Not yet: wait to be given the whisper."}</p>
+      <p class="hint">Only the player who started it finds out, at the end, whether it changed. Choose a word that blends in.</p></section>`;
   if (mySide() === "shadow" && M.d === d) return `<section class="card ${M.said ? "" : "todo"}"><h2>🗝️ Your mission</h2>
       <p class="lead">Before ${when(t.noms)}, slip this phrase into a private chat with a Guest:</p><p class="quote">“${esc(M.phrase || "")}”</p>
       <p class="lead">${M.said ? `✅ Done: you said it at ${clock(M.said)}.` : "⏳ Not yet."} If every Shadow says it, and no Guest catches it, you may murder tonight.</p>
@@ -297,16 +301,20 @@ function whisperCardHtml(d) {
   const w = SEC.whisper && SEC.whisper.d === d ? SEC.whisper : null, t = G.days[d], D = dead();
   const head = `<section class="card ${w && !w.passedTo ? "todo" : ""}"><h2>🤫 Today's task: the Whisper</h2>`;
   const rules = `<p class="hint">The whisper must go round everyone, one private chat at a time, and back to whoever started it, before ${when(t.noms)}. Pass it only once: say it again and you're out of the running. If anyone is sent it a third time, the Whisper fails. The last player to say it wins a 🛡️ shield.</p>`;
-  if (t.wfail) return `${head}<p class="warn">The Whisper has failed: ${nm(t.wfail.pid)} was sent it for the third time. No shield today.</p></section>`;
+  if (t.wfail) return `${head}<p class="warn">The Whisper has failed: someone was sent it for the third time. No shield today.</p></section>`;
+  if (w && w.start === true && w.final) return `${head}<p class="lead">The whisper has come back to you. You started it with:</p><p class="quote">“${esc(w.phrase)}”</p>
+    <p class="lead">It came back as:</p><p class="quote">“${esc(w.final)}”</p>
+    <p class="lead">${w.changed ? "🔎 <b>It has changed.</b> Only you know. What will you tell the round table?" : "✅ It came back unchanged."}</p></section>`;
   if (!w) return `${head}<p class="lead">The whisper is going round. You haven't been given it yet: someone will choose you.</p>${rules}</section>`;
   if (w.out) return `${head}<p class="warn">You said the whisper again, so you're out of the running for the shield.</p>${rules}</section>`;
-  if (w.passedTo) return `${head}<p class="lead">You passed it to <b>${nm(w.passedTo)}</b>. Now don't say it again!</p>${rules}</section>`;
+  if (w.passedTo) return `${head}<p class="lead">You passed it to <b>${nm(w.passedTo)}</b>${w.added ? `, with “${esc(w.added)}” added` : ""}. Now don't say it again!</p>${rules}</section>`;
   const back = w.last && w.start && w.start !== true ? w.start : "", choices = back ? [back] : G.seats.filter(s2 => s2.id !== me && !D[s2.id] && s2.id !== (w.from || "")).map(s2 => s2.id);
   const pick = ui.wpick && choices.includes(ui.wpick) ? ui.wpick : back;
   return `${head}<p class="lead">${w.start === true ? "You start the whisper:" : `${nm(w.from)} gave you the whisper:`}</p><p class="quote">“${esc(w.phrase)}”</p>
     ${w.bounce ? `<p class="warn">${nm(w.bounce.to)} has already had it: that was their ${w.bounce.times === 2 ? "2nd time. One more and the Whisper fails" : "time"}. Choose someone else.</p>` : ""}
     <p class="lead">${back ? `Everyone has had it: pass it back to <b>${nm(back)}</b>, who started it.` : "Who do you pass it to? Choose someone who hasn't had it yet: ask around first. Anyone sent it three times makes the Whisper fail."}</p>
     <div class="picks">${choices.map(q => `<button class="pick" data-act="wpick" data-pid="${q}" aria-pressed="${pick === q}">${nm(q)}</button>`).join("")}</div>
+    ${mySide() === "shadow" && w.start !== true && SEC.mission && SEC.mission.d === d && SEC.mission.type === "addword" ? `<div class="field"><span class="label">✍️ Pass it on as (add one word, if you like)</span><input type="text" id="wtext" maxlength="120" value="${esc(ui.wtext !== undefined ? ui.wtext : w.phrase)}"></div>` : ""}
     <div class="row"><button class="btn primary" data-act="wpass" ${pick ? "" : "disabled"}>🤫 Pass the whisper${pick ? ` to ${nm(pick)}` : ""}</button></div>
     <p class="hint">This sends the whisper to them in your private chat.</p>${rules}</section>`;
 }
@@ -549,7 +557,9 @@ document.getElementById("app").addEventListener("click", e => {
     case "wpick": ui.wpick = pid; return render(true);
     case "wpass": { const w = SEC.whisper; if (!w) return; const to = w.last && w.start && w.start !== true ? w.start : ui.wpick; if (!to) return;
       if (!privateOpen(P())) return toast("Private chats are closed now.");
-      return run(async () => { await FB.addDoc(gcol(gid, "chats", pairId(me, to), "msgs"), { from: me, text: w.phrase, at: nowMs() }); ui.wpick = ""; }, `🤫 You passed the whisper to ${seatName(G, to)}`); }
+      const box = $("#wtext"), text = box ? box.value.trim() : w.phrase;
+      if (box && normPhrase(text) !== normPhrase(w.phrase) && !oneWordAdded(w.phrase, text)) return toast("You can only add one word: everything else must stay the same.");
+      return run(async () => { await FB.addDoc(gcol(gid, "chats", pairId(me, to), "msgs"), { from: me, text, at: nowMs(), whisper: true }); ui.wpick = ""; ui.wtext = undefined; }, `🤫 You passed the whisper to ${seatName(G, to)}`); }
     case "rules": return dialog(`${RULES}<div class="row"><button class="btn" data-dact="close">Close</button></div>`);
     case "cal": return downloadIcs(icsFile(G.name, G.sched, nowMs()));
     case "go-code": { const c = cleanCode($("#code").value); if (c.length !== 6) return toast("The code has 6 letters and numbers."); gid = c; history.replaceState(null, "", `?g=${c}${EMU ? "&emu=1" : ""}`); ready = false; render(true); return watch(); }
@@ -588,6 +598,7 @@ document.getElementById("app").addEventListener("input", e => {
   if (el.id === "code") ui.codeIn = el.value;
   if (el.id === "name") ui.nameIn = el.value;
   if (el.id === "why") ui.draft.why = el.value;
+  if (el.id === "wtext") ui.wtext = el.value;
 });
 document.getElementById("app").addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey && (e.target.id === "dm" || e.target.id === "say")) { e.preventDefault(); e.target.closest(".send").querySelector("button").click(); }
