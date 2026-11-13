@@ -421,7 +421,7 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
   if (w && !G.overAt) {
     // The Shadows meet once today's banishment is confirmed
     if (now >= w.open && now < w.end && (d === 0 || (grim.results || {})[d])) {
-      once(`night${n}`, shadows, { title: "🌙 The Shadows meet", body: (grim.missions || {})[d] && !(grim.missions || {})[d].passed ? "Your chat is open. You failed today's mission: no murder tonight." : `Your chat is open: choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
+      once(`night${n}`, shadows, { title: "🌙 The Shadows meet", body: (grim.allow || {})[n] === false || ((grim.allow || {})[n] !== true && (grim.missions || {})[d] && !(grim.missions || {})[d].passed) ? "Your chat is open. There's no murder tonight." : `Your chat is open: choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
       if (now >= w.end - 30 * MIN) {
         const acts = await db.collection(`games/${gid}/nights/${n}/acts`).get(), done = new Set(acts.docs.map(a => a.id));
         once(`nightRemind${n}-${w.end}`, shadows.filter(p => !done.has(p)), { title: "🌙 30 minutes left", body: `Choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
