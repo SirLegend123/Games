@@ -352,6 +352,11 @@ async function tickGame(gid, G, now) {
 async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) {
   const sides = grim.sides || {}, shadows = alive.filter(p => sides[p] === "shadow");
   const first = G.dayFirst && d === 1, M = (grim.missions || {})[d], W = (grim.tasks || {})[d];
+  const bo = (grim.offer || {})[d];
+  if (bo && bo.type === "blackmail" && now >= bo.until && !(grim.dead || {})[bo.target] && !G.overAt) {
+    const ans = await db.doc(`games/${gid}/nights/${d}/answers/${bo.target}`).get();
+    if (!ans.exists) await dieOnSpot(gid, G, grim, bo.target);
+  }
   // The Shadows' mission ends at the round table: every Shadow still in must have said the phrase to a Guest, uncaught
   if (M && t && now >= t.noms && !M.done) {
     const adds = (W && W.adds) || [], ch = (W && W.chain) || [];
@@ -482,7 +487,36 @@ async function onOffer(gid, pid, before, after) {
 }
 async function onAnswer(gid, n, pid, a) {
   const x = await load(gid); if (!x) return;
-  await notify(gid, x.G, ["st"], { title: a.answer === "accept" ? `🗡️ ${nameOf(x.G, pid)} accepted` : `❌ ${nameOf(x.G, pid)} refused`, body: "Work out the night and serve breakfast.", tag: `st-night-${gid}` });
+  const { G, grim } = x, o = (grim.offer || {})[n];
+  await notify(gid, G, ["st"], { title: a.answer === "accept" ? `🗡️ ${nameOf(G, pid)} accepted` : `❌ ${nameOf(G, pid)} refused`, body: (G.day || 0) >= +n ? "It happens now." : "Work out the night and serve breakfast.", tag: `st-night-${gid}` });
+  // Once that night's breakfast has been served, the answer takes effect on the spot (before it, the host's breakfast does it)
+  if (!o || o.target !== pid || (G.day || 0) < +n || (grim.dead || {})[pid]) return;
+  if (a.answer === "accept") await recruitNow(gid, G, grim, pid);
+  else if (o.type === "blackmail") await dieOnSpot(gid, G, grim, pid);
+}
+// The offer was accepted after breakfast: they join the Shadows now, and every Shadow is told
+async function recruitNow(gid, G, grim, pid) {
+  const FV = require("firebase-admin").firestore.FieldValue, dead = grim.dead || {}, sides = { ...(grim.sides || {}), [pid]: "shadow" }, at = Date.now();
+  const sch = seatIds(G).filter(p => sides[p] === "shadow" && !dead[p]), uidsOf = ps => Object.fromEntries(ps.map(p => [(G.uids || {})[p], true]).filter(([u]) => u));
+  const b = db.batch();
+  b.update(db.doc(`games/${gid}/st/grim`), { sides, cu: uidsOf(sch) });
+  b.update(db.doc(`games/${gid}/secret/${pid}`), { side: "shadow", allies: sch, info: FV.arrayUnion({ n: G.day || 0, at, label: "Recruited", text: `You accepted, and joined the Shadows. Your fellow Shadows: ${sch.filter(p => p !== pid).map(p => nameOf(G, p)).join(", ") || "none"}.` }) });
+  for (const p of sch) if (p !== pid) b.update(db.doc(`games/${gid}/secret/${p}`), { allies: sch, info: FV.arrayUnion({ n: G.day || 0, at, label: "The Shadows", text: `${nameOf(G, pid)} accepted, and has joined the Shadows.` }) });
+  await b.commit();
+}
+// A refused (or unanswered) blackmail, after breakfast: they die on the spot, and everyone is told at once
+async function dieOnSpot(gid, G, grim, pid) {
+  const FV = require("firebase-admin").firestore.FieldValue, at = Date.now(), d = G.day || 0, sides = grim.sides || {};
+  const dead = { ...(grim.dead || {}), [pid]: { how: "murdered", d, spot: at } }, uidsOf = ps => Object.fromEntries(ps.map(p => [(G.uids || {})[p], true]).filter(([u]) => u));
+  const left = seatIds(G).filter(p => !dead[p]), sIn = left.filter(p => sides[p] === "shadow"), winner = sIn.length === 0 ? "guests" : sIn.length >= left.length - sIn.length ? "shadows" : "";
+  const b = db.batch(), g = db.doc(`games/${gid}`);
+  b.update(db.doc(`games/${gid}/st/grim`), { dead, cu: uidsOf(sIn), ou: uidsOf(Object.keys(dead)) });
+  b.update(db.doc(`games/${gid}/secret/${pid}`), { out: true, info: FV.arrayUnion({ n: d, at, label: "Murdered", text: "⛓️ You refused the Shadows, and paid the price. You're out of the game, but you can still watch and talk to the dead." }) });
+  b.update(g, { events: FV.arrayUnion({ d, kind: "murdered", dies: pid, at }) });
+  b.set(g.collection("square").doc(), { pid: "", kind: "st", d, at, text: `💀 ${nameOf(G, pid)} has been found dead, in broad daylight. The Shadows have struck.` });
+  if (winner) { b.set(g.collection("gated").doc("end"), { at, winner, sides, dead }); b.update(g, { overAt: at, status: "over" }); }
+  await b.commit();
+  await notify(gid, G, seatIds(G).filter(p => !dead[p] || p === pid), { title: `💀 ${nameOf(G, pid)} has been found dead`, body: "In broad daylight. The Shadows have struck.", tag: `day-${gid}` });
 }
 
 /* ---------- Deleting old games ----------
