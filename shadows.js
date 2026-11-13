@@ -33,8 +33,8 @@ for (const k of Object.keys(PUSH_TEXT)) PUSH_TEXT[k] = PUSH_TEXT[k].replace(/Clo
 
 /* ---------- The two sides ---------- */
 const SIDE = {
-  guest: { ic: "🕯️", one: "Guest", many: "Guests", cls: "t-townsfolk", emblem: "img/emblem-guest.webp?v=117" },
-  shadow: { ic: "🗡️", one: "Shadow", many: "Shadows", cls: "t-demon", emblem: "img/emblem-shadow.webp?v=117" }
+  guest: { ic: "🕯️", one: "Guest", many: "Guests", cls: "t-townsfolk", emblem: "img/emblem-guest.webp?v=118" },
+  shadow: { ic: "🗡️", one: "Shadow", many: "Shadows", cls: "t-demon", emblem: "img/emblem-shadow.webp?v=118" }
 };
 const sideChip = s => s && SIDE[s] ? `<span class="${SIDE[s].cls}">${SIDE[s].ic} ${SIDE[s].one}</span>` : `<span class="hint">no side yet</span>`;
 // How many Shadows to start with
@@ -64,6 +64,13 @@ const shownPhase = (G, p) => G && G.dayFirst && (p.k === "night" || p.k === "dar
 const trustDay = (G, d) => !!(G && G.dayFirst && d === 1);
 // The code phrase, ignoring capitals, punctuation and spacing
 const normPhrase = s => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+// The Whisper: the same words with exactly one added (a Shadow's change). Returns the added word, or null.
+function oneWordAdded(a, b) {
+  const A = normPhrase(a).split(" ").filter(Boolean), B = normPhrase(b).split(" ").filter(Boolean);
+  if (B.length !== A.length + 1) return null;
+  for (let i = 0; i < B.length; i++) if ([...B.slice(0, i), ...B.slice(i + 1)].join(" ") === A.join(" ")) return B[i];
+  return null;
+}
 const saysPhrase = (text, phrase) => !!normPhrase(phrase) && (" " + normPhrase(text) + " ").includes(" " + normPhrase(phrase) + " ");
 
 /* ---------- The round table ---------- */

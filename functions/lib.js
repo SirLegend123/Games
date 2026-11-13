@@ -131,42 +131,62 @@ async function onChat(gid, pair, m) {
   }
   // The Whisper: passed on once, to someone who hasn't had it, round everyone and back to the start
   const W = whisperOpen(x.G, x.grim);
-  if (W && saysPhrase(m.text, W.phrase)) await whisperSaid(gid, x.G, x.grim, d, W, m.from, to, at);
+  if (W) await whisperSaid(gid, x.G, x.grim, d, W, m.from, to, at, m);
 }
-async function whisperSaid(gid, G, grim, d, W, from, to, at) {
-  const g = db.doc(`games/${gid}/st/grim`), had = W.had || {}, passed = W.passed || {}, dead = grim.dead || {};
-  if (passed[from]) {   // said it again: out of the running for the shield
-    if (!(W.out || {})[from]) { await g.update({ [`tasks.${d}.out.${from}`]: at }); await db.doc(`games/${gid}/secret/${from}`).update({ "whisper.out": at }); }
+// The whisper each player was given (the starter: the original), and one word added to it
+const words = s => normPhrase(s).split(" ").filter(Boolean);
+function oneWordAdded(a, b) {
+  const A = words(a), B = words(b);
+  if (B.length !== A.length + 1) return null;
+  for (let i = 0; i < B.length; i++) if ([...B.slice(0, i), ...B.slice(i + 1)].join(" ") === A.join(" ")) return B[i];
+  return null;
+}
+async function whisperSaid(gid, G, grim, d, W, from, to, at, m) {
+  const g = db.doc(`games/${gid}/st/grim`), had = W.had || {}, passed = W.passed || {}, dead = grim.dead || {}, sides = grim.sides || {};
+  const got = (W.got || {})[from] || (from === W.start ? W.phrase : ""), sent = (W.sent || {})[from] || "", text = m.text || "";
+  // After passing it on, saying it again (what you were given, or what you passed) puts you out of the running
+  if (passed[from]) {
+    if ((saysPhrase(text, got) || saysPhrase(text, sent)) && !(W.out || {})[from]) { await g.update({ [`tasks.${d}.out.${from}`]: at }); await db.doc(`games/${gid}/secret/${from}`).update({ "whisper.out": at }); }
     return;
   }
-  if (!had[from]) return;   // they've not been given it: it doesn't count
+  if (!had[from] || !got) return;   // they've not been given it: it doesn't count
+  // A pass: the whisper as given (a Guest), or with one word added (a Shadow who isn't the starter). Sent with the button, or typed.
+  const added = sides[from] === "shadow" && from !== W.start ? oneWordAdded(got, text) : null;
+  const isPass = m.whisper ? (normPhrase(text) === normPhrase(got) || added) : (normPhrase(text) === normPhrase(got) || added || saysPhrase(text, got));
+  if (!isPass) return;
+  const passText = added ? text.trim() : got;
   const alive = seatIds(G).filter(p => !dead[p]), everyone = alive.every(p => had[p] || p === to);
   const closing = to === W.start && alive.every(p => had[p]);
   if (had[to] && !closing) {
     // Sent to someone who's already had it: it stays with the sender, and counts as another time for them. A third time fails the task.
     const times = 2 + ((W.repeats || {})[to] || 0);
     if (times >= 3) {
-      const msg = `🤫 The Whisper has failed: ${nameOf(G, to)} was sent it for the third time. No shield today.`;
       const b = db.batch();
-      b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.repeats.${to}`]: times - 1, [`tasks.${d}.failed`]: { pid: to, by: from, at } });
-      b.update(db.doc(`games/${gid}`), { [`days.${d}.wfail`]: { pid: to, at } });
-      b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at, text: msg });
+      b.update(g, { [`tasks.${d}.repeats.${to}`]: times - 1, [`tasks.${d}.failed`]: { pid: to, by: from, at } });
+      b.update(db.doc(`games/${gid}`), { [`days.${d}.wfail`]: { at } });
+      b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at, text: "🤫 The Whisper has failed: someone was sent it for the third time. No shield today." });
       await b.commit();
-      await notify(gid, G, alive, { title: "🤫 The Whisper has failed", body: `${nameOf(G, to)} was sent it for the third time. No shield today.`, tag: `whisper-${gid}` });
+      await notify(gid, G, alive, { title: "🤫 The Whisper has failed", body: "Someone was sent it for the third time. No shield today.", tag: `whisper-${gid}` });
       return;
     }
-    await db.doc(`games/${gid}/st/grim`).update({ [`tasks.${d}.repeats.${to}`]: times - 1 });
+    await g.update({ [`tasks.${d}.repeats.${to}`]: times - 1 });
     await db.doc(`games/${gid}/secret/${from}`).update({ "whisper.bounce": { to, at, times } });
     return;
   }
-  const u = { [`tasks.${d}.passed.${from}`]: at, [`tasks.${d}.chain`]: [...(W.chain || []), { from, to, at }] };
-  if (closing) u[`tasks.${d}.complete`] = at; else u[`tasks.${d}.had.${to}`] = at;
+  const u = { [`tasks.${d}.passed.${from}`]: at, [`tasks.${d}.sent.${from}`]: passText, [`tasks.${d}.chain`]: [...(W.chain || []), { from, to, at, ...(added ? { added } : {}) }] };
+  if (added) u[`tasks.${d}.adds`] = [...(W.adds || []), { by: from, to, word: added, at }];
+  if (closing) { u[`tasks.${d}.complete`] = at; u[`tasks.${d}.final`] = passText; } else { u[`tasks.${d}.had.${to}`] = at; u[`tasks.${d}.got.${to}`] = passText; }
   await g.update(u);
-  await db.doc(`games/${gid}/secret/${from}`).update({ "whisper.passedTo": to, "whisper.passedAt": at, "whisper.bounce": null });
+  await db.doc(`games/${gid}/secret/${from}`).update({ "whisper.passedTo": to, "whisper.passedAt": at, "whisper.bounce": null, ...(added ? { "whisper.added": added } : {}) });
   if (!closing) {
-    await db.doc(`games/${gid}/secret/${to}`).update({ whisper: { d, phrase: W.phrase, got: at, from, start: W.start, last: everyone } });
+    await db.doc(`games/${gid}/secret/${to}`).update({ whisper: { d, phrase: passText, got: at, from, start: W.start, last: everyone } });
     await notify(gid, G, [to], { title: "🤫 You've been given the whisper", body: everyone ? "Everyone has now had it: pass it back to whoever started it." : "Open The Shadows, and pass it on.", tag: `whisper-${gid}` });
-  } else await notify(gid, G, ["st"], { title: "🤫 The whisper has gone all the way round", body: `${nameOf(G, from)} passed it home.`, tag: `whisper-${gid}` });
+  } else {
+    // Only the starter learns whether it came back changed
+    await db.doc(`games/${gid}/secret/${to}`).update({ "whisper.final": passText, "whisper.changed": normPhrase(passText) !== normPhrase(W.phrase) });
+    await notify(gid, G, [to], { title: "🤫 The whisper has come back to you", body: "Open The Shadows: has it changed?", tag: `whisper-${gid}` });
+    await notify(gid, G, ["st"], { title: "🤫 The whisper has gone all the way round", body: `${nameOf(G, from)} passed it home.`, tag: `whisper-${gid}` });
+  }
 }
 
 // The Shadows: a message in the Shadows' chat goes to the other Shadows still in the game
@@ -244,20 +264,20 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
   const first = G.dayFirst && d === 1, M = (grim.missions || {})[d], W = (grim.tasks || {})[d];
   // The Shadows' mission ends at the round table: every Shadow still in must have said the phrase to a Guest, uncaught
   if (M && t && now >= t.noms && !M.done) {
-    const all = shadows, passed = all.every(p => (M.said || {})[p]) && !M.caught, b = db.batch();
+    const adds = (W && W.adds) || [], ch = (W && W.chain) || [];
+    const all = shadows, passed = M.type === "addword" ? adds.some(a => ch.some(c => c.from === a.to)) : all.every(p => (M.said || {})[p]) && !M.caught, b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`missions.${d}.done`]: true, [`missions.${d}.passed`]: passed });
     for (const p of all) b.update(db.doc(`games/${gid}/secret/${p}`), { "mission.done": true, "mission.passed": passed, "mission.caught": !!M.caught });
     await b.commit(); M.done = true; M.passed = passed;
-    once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows completed their mission" : "❌ The Shadows failed their mission", body: passed ? "They may murder tonight." : M.caught ? "A Guest caught the code phrase: no murder tonight." : "Not every Shadow said the phrase: no murder tonight.", tag: `challenge-${gid}` });
+    once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows completed their mission" : "❌ The Shadows failed their mission", body: passed ? "They may murder tonight." : M.type === "addword" ? "No changed whisper was passed on: no murder tonight." : M.caught ? "A Guest caught the code phrase: no murder tonight." : "Not every Shadow said the phrase: no murder tonight.", tag: `challenge-${gid}` });
   }
   // The Whisper ends at the round table: if it went all the way round, the last player still in the running to say it gets a shield
   if (W && W.type === "whisper" && t && now >= t.noms && !W.done && W.failed) { await db.doc(`games/${gid}/st/grim`).update({ [`tasks.${d}.done`]: true, [`tasks.${d}.winner`]: null }); W.done = true; }
   if (W && W.type === "whisper" && t && now >= t.noms && !W.done) {
     const chain = W.chain || [], out = W.out || {}, last = W.complete ? [...chain].reverse().find(c => !out[c.from]) : null, winner = last ? last.from : null, b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true, [`tasks.${d}.winner`]: winner, ...(winner ? { [`wshield.${d + 1}`]: winner } : {}) });
-    const route = chain.length ? [chain[0].from, ...chain.map(c => c.to)].map(p => nameOf(G, p)).join(" → ") : "";
-    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: `🤫 The Whisper: ${W.complete ? `it went all the way round. ${route}. ${winner ? `🛡️ ${nameOf(G, winner)} said it last, and wins a shield for tonight.` : "Everyone who could have won had said it twice: no shield."}` : `it didn't make it round everyone in time${route ? ` (${route})` : ""}: no shield.`}${Object.keys(out).length ? ` Out of the running for saying it twice: ${Object.keys(out).map(p => nameOf(G, p)).join(", ")}.` : ""}` });
-    if (winner) b.update(db.doc(`games/${gid}/secret/${winner}`), { info: require("firebase-admin").firestore.FieldValue.arrayUnion({ n: d, at: now, label: "Shield", text: "🛡️ You said the whisper last: you have a shield tonight, and can't be murdered." }) });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: W.complete ? `🤫 The Whisper: ✅ passed. It went all the way round${winner ? ", and the last player to say it has been given a shield, in secret." : ", but everyone who could have won had said it twice: no shield."}` : "🤫 The Whisper: ❌ failed. It didn't make it round everyone in time: no shield." });
+    if (winner) b.update(db.doc(`games/${gid}/secret/${winner}`), { info: require("firebase-admin").firestore.FieldValue.arrayUnion({ n: d, at: now, label: "Shield", text: "🛡️ You said the whisper last: you have a shield tonight, and can't be murdered. Nobody else knows: keep it secret, or don't." }) });
     await b.commit(); W.done = true;
   }
   // Night 1 (after Day 1): the Shadows meet each other for the first time
