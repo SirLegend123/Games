@@ -10,17 +10,17 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows · Host</title>
-<script>window.APP_V = 124;</script>
-<script src="update.js?v=124"></script>
+<script>window.APP_V = 125;</script>
+<script src="update.js?v=125"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=124"></script>
-<script src="shadows.js?v=124"></script>
+<script src="daily.js?v=125"></script>
+<script src="shadows.js?v=125"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=124">
-<link rel="stylesheet" href="shadows.css?v=124">
+<link rel="stylesheet" href="daily.css?v=125">
+<link rel="stylesheet" href="shadows.css?v=125">
 <link rel="manifest" href="shadows-host.webmanifest">
 </head>
 <body>
@@ -119,7 +119,7 @@ function render(force) {
   if (!force && a && a.closest && a.closest("#app") && a.matches("input[type=text], textarea")) { pending = true; return; }
   pending = false;
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=124" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=125" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="rules">📜 How to play</button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -419,13 +419,34 @@ function whisperHtml(d) {
     ${Object.keys(W.repeats || {}).length ? `<p class="hint">Sent it again: ${Object.entries(W.repeats).map(([p, k]) => `${nm(p)} (${k + 1} times)`).join(", ")}.</p>` : ""}
     <p class="hint">${W.failed ? "No shield today." : W.done ? (W.winner ? `🛡️ ${nm(W.winner)} said it last, and has a shield tonight.` : "No shield: it didn't make it all the way round in time.") : W.complete ? "It has gone all the way round: the winner is announced at the round table." : `${nm(holder)} has it now. ${waiting.length ? `Still to have it: ${waiting.map(nm).join(", ")}.` : "Everyone has had it: it must go back to " + nm(W.start) + "."}`}${Object.keys(out).length ? ` Said it twice (out of the running): ${Object.keys(out).map(nm).join(", ")}.` : ""}</p></section>`;
 }
+// The Shadows hear about tonight when their chat opens (at the banishment), not before: it would give the result away
+const chatOpensAt = n => Math.max(nowMs(), ((G.nights || {})[n] || {}).open || 0);
+// Tonight's plan, in one go: murder, seduction, blackmail, or no murder
+async function setTonight(choice) {
+  const n = (G.day || 0) + 1, allow = choice !== "none", type = allow ? choice : "murder", b = FB.writeBatch(db);
+  b.update(gref(gid, "st", "grim"), { [`allow.${n}`]: allow, [`mode.${n}`]: type });
+  for (const p of shadowsIn()) b.update(gref(gid, "secret", p), { night: { n, allowed: allow }, mode: { n, type } });
+  b.set(FB.doc(gcol(gid, "conclave")), { from: "host", at: chatOpensAt(n), text: allow ? `${MODES[type].ic} Tonight is a ${MODES[type].name.toLowerCase()}. ${MODES[type].what}` : "🚫 Tonight, there will be no murder." });
+  await b.commit();
+}
+function tonightHtml(d) {
+  const t = G.days[d], n = d + 1, w = (G.nights || {})[n];
+  if (G.overAt || !w || nowMs() < t.close || nowMs() >= w.end) return "";
+  const res = (GR.results || {})[d], o = offerTonight(), choice = !allowedTonight(n) ? "none" : modeTonight(), sIn = shadowsIn().length, gIn = aliveIds().length - sIn;
+  const opens = nowMs() < w.open;
+  return `<section class="card todo"><h2>🌙 Tonight</h2>
+    <p class="lead">${!res ? "Waiting for the votes to be counted (a tie comes to you)…" : trustDay(G, d) ? `The trust vote is in${res.trusted ? `: ${nm(res.trusted)} has the shield tonight` : ""}.` : res.exec ? `<b>${nm(res.exec)}</b> (${sideChip(sideOf(res.exec))}) will be banished at ${clock(t.reveal)}.` : "Nobody will be banished."}</p>
+    <p class="hint">After that: ${plural(sIn, "Shadow")} and ${plural(gIn, "Guest")} left.${shieldsTonight().length ? ` 🛡️ ${shieldsTonight().map(nm).join(" and ")} ${shieldsTonight().length > 1 ? "have shields" : "has a shield"} tonight.` : ""}${(GR.missions || {})[d] ? ` Today's mission: ${missionOk(d) ? "✅ completed" : "❌ failed"}.` : ""}</p>
+    <div class="field"><span class="label">What the Shadows do tonight</span><div class="seg" role="group" aria-label="Tonight's plan">${[["murder", "🗡️ Murder"], ["seduce", "🌹 Seduction"], ["blackmail", "⛓️ Blackmail"], ["none", "🚫 No murder"]].map(([k, l]) => `<button data-act="tonight" data-v="${k}" aria-pressed="${choice === k}" ${o ? "disabled" : ""}>${l}</button>`).join("")}</div>
+      <span class="hint">${o ? "The offer has been sent, so this can't change now." : `${opens ? `The Shadows find out when their chat opens at ${clock(w.open)}.` : "The Shadows are told straight away."} If you don't choose, it goes ahead as it is.`} Shields, offers and the victim are on the Night tab.</span></div></section>`;
+}
 // Tonight's murder: what the host has set, otherwise what the day's mission decided
 const allowedTonight = n => { const a = (GR.allow || {})[n]; return a === true || a === false ? a : missionOk(n - 1); };
 async function setAllow(n, v) {
   const b = FB.writeBatch(db);
   b.update(gref(gid, "st", "grim"), { [`allow.${n}`]: v });
   for (const p of shadowsIn()) b.update(gref(gid, "secret", p), { night: { n, allowed: v } });
-  b.set(FB.doc(gcol(gid, "conclave")), { from: "host", text: v ? "✅ Tonight, you may murder." : "🚫 Tonight, there will be no murder.", at: nowMs() });
+  b.set(FB.doc(gcol(gid, "conclave")), { from: "host", text: v ? "✅ Tonight, you may murder." : "🚫 Tonight, there will be no murder.", at: chatOpensAt(n) });
   await b.commit();
 }
 const missionOk = d => { const M = (GR.missions || {})[d]; if (!M) return true; if (M.done) return !!M.passed; if (M.type === "mislead") return !!M.misled; if (M.type === "snuff") return !!M.snuffed; if (M.type === "plainsight") return !!M.marked;
@@ -451,6 +472,8 @@ function todoHtml(nightTodo, dayTodo) {
   const items = [];
   if (G.overAt) items.push(`🏁 The game ${nowMs() >= G.overAt ? `is over. <button class="btn small primary" data-act="replay">🔄 New game with the same players</button>` : `ends at ${when(G.overAt)}`}.`);
   if (nightTodo) items.push(`🌙 Night ${nightNo(G, (G.day || 0) + 1)} has closed: <button class="btn small primary" data-act="tab" data-tab="night">work out the night and serve breakfast</button>`);
+  const d = G.day || 0;
+  if (d && G.days[d] && nowMs() >= G.days[d].close && nowMs() < G.days[d].reveal && (GR.results || {})[d] && !G.overAt && ui.tab !== "day") items.push(`🌙 Voting has ended: <button class="btn small primary" data-act="tab" data-tab="day">decide tonight's plan</button> before ${clock(G.days[d].reveal)}`);
   if (dayTodo) items.push(`🔒 Voting has ended in a tie (or the server hasn't counted yet): <button class="btn small primary" data-act="tab" data-tab="day">decide the banishment</button> before ${when(G.days[G.day].reveal)}`);
   if (stUnreadAll() && ui.tab !== "msgs") items.push(`✉️ ${plural(stUnreadAll(), "new message")} from players: <button class="btn small primary" data-act="tab" data-tab="msgs">read</button>`);
   if (stPush === "off") items.push(`🔔 Get notified when players need you: <button class="btn small" data-act="tab" data-tab="set">turn on notifications</button>`);
@@ -576,7 +599,7 @@ async function setMode(type) {
   const n = (G.day || 0) + 1, b = FB.writeBatch(db);
   b.update(gref(gid, "st", "grim"), { [`mode.${n}`]: type });
   for (const p of shadowsIn()) b.update(gref(gid, "secret", p), { mode: { n, type } });
-  b.set(FB.doc(gcol(gid, "conclave")), { from: "host", text: `${MODES[type].ic} Tonight is a ${MODES[type].name.toLowerCase()}. ${MODES[type].what}`, at: nowMs() });
+  b.set(FB.doc(gcol(gid, "conclave")), { from: "host", text: `${MODES[type].ic} Tonight is a ${MODES[type].name.toLowerCase()}. ${MODES[type].what}`, at: chatOpensAt(n) });
   await b.commit();
 }
 async function sendOffer(target) {
@@ -639,7 +662,7 @@ function dayHtml() {
   const t = G.days[d], res = (GR.results || {})[d], closed = nowMs() >= t.close, rows = countDay(), alive = aliveIds();
   const voted = new Set(ballots.filter(b => alive.includes(b.voter)).map(b => b.voter));
   const trust = trustDay(G, d);
-  return `${missionHtml(d)}${whisperHtml(d)}${comboHtml(d)}${lanternsHtml(d)}<section class="card"><h2>☀️ Day ${d}${trust ? ": the trust vote" : ""}</h2>
+  return `${tonightHtml(d)}${missionHtml(d)}${whisperHtml(d)}${comboHtml(d)}${lanternsHtml(d)}<section class="card"><h2>☀️ Day ${d}${trust ? ": the trust vote" : ""}</h2>
       ${trust ? `<p class="hint">No banishment today. At the round table everyone votes for the player they trust most: they get a 🛡️ shield for Night 1, and can't be murdered.</p>` : ""}
       <ul class="tt">${SCHED_KEYS.filter(([k]) => t[k] && k !== "night" && k !== "nightEnd").map(([k, ic, label]) => `<li class="${nowMs() >= t[k] ? "past" : ""}"><b>${clock(t[k])}</b><span>${ic}</span><span>${esc(label)}</span></li>`).join("")}</ul>
       <p class="hint">${plural(alive.length, "player")} still in · ${voted.size} voted so far</p>
@@ -804,6 +827,7 @@ document.getElementById("app").addEventListener("click", e => {
         b.update(gref(gid, "st", "grim"), { dead, cu: conclaveUids(GR.sides || {}, dead), ou: outUids(dead) }); b.update(gref(gid, "secret", pid), { out: true });
         const w = whoWins(GR.sides || {}, dead); if (w && confirm(`${WIN[w]}\n\nEnd the game now?`)) endGame(b, w, at, dead);
         await b.commit(); });
+    case "tonight": { const v = el.dataset.v; return run(() => setTonight(v), v === "none" ? "No murder tonight" : `Tonight: ${MODES[v].name}`); }
     case "allow": { const n = (G.day || 0) + 1, v = !!el.dataset.v; if (!confirm(v ? "Allow a murder tonight? The Shadows are told." : "No murder tonight? The Shadows are told.")) return; return run(() => setAllow(n, v), v ? "Murder allowed tonight" : "No murder tonight"); }
     case "victim": ui.draft.victim = pid || ""; ui.draft.victimSet = true; return render(true);
     case "night-mode": return run(() => setMode(el.dataset.v), `Tonight: ${MODES[el.dataset.v].name}`);

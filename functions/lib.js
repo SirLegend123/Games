@@ -282,6 +282,7 @@ async function whisperSaid(gid, G, grim, d, W, from, to, at, m) {
 async function onConclave(gid, m) {
   const x = await load(gid); if (!x) return;
   const sides = x.grim.sides || {}, to = aliveOf(x.G, x.grim).filter(p => sides[p] === "shadow" && p !== m.from);
+  if (m.at && m.at > Date.now() + 60000) return;   // held back until the Shadows' chat opens: they hear about it then
   await notify(gid, x.G, to, { title: `🗡️ ${m.from === "host" ? "The host" : nameOf(x.G, m.from)} (Shadows)`, body: clip(m.text), tag: `conclave-${gid}` });
 }
 
@@ -410,7 +411,10 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
       once(`close30-${d}-${t.close}`, alive.filter(p => !done.has(p)), { title: "🔒 30 minutes left to vote", body: `Voting ends at ${fmt(G, t.close)}.`, tag: `day-${gid}` });
     }
     // When voting ends, the most votes is banished automatically (a tie goes to the host)
-    if (now >= t.close && now < t.close + 6 * H && !(grim.results || {})[d] && (await (first ? autoTrust : autoBanish)(gid, G, grim, d, t, now)) === "tie") once(`closed-${d}-${t.close}`, ["st"], { title: "🔒 Voting has ended in a tie", body: `Decide who is banished before ${fmt(G, t.reveal)}.`, tag: `st-day-${gid}` });
+    const voted = now >= t.close && now < t.close + 6 * H && !(grim.results || {})[d] ? await (first ? autoTrust : autoBanish)(gid, G, grim, d, t, now) : null;
+    // Voting has ended: the host has until the banishment to decide what the Shadows' night will be
+    if (voted && voted !== "tie" && !G.overAt) once(`decide${d}`, ["st"], { title: "🔒 Voting has ended", body: `${voted.exec ? `${nameOf(G, voted.exec)} (${voted.side === "shadow" ? "🗡️ a Shadow" : "🕯️ a Guest"}) will be banished at ${fmt(G, t.reveal)}.` : first ? "The trust vote is in." : "Nobody will be banished."} Decide tonight's plan.`, tag: `st-day-${gid}` });
+    if (voted === "tie") once(`closed-${d}-${t.close}`, ["st"], { title: "🔒 Voting has ended in a tie", body: `Decide who is banished before ${fmt(G, t.reveal)}.`, tag: `st-day-${gid}` });
     if (now >= t.reveal && now < t.reveal + 6 * H) {
       const r = await gated("result" + d);
       if (r && r.trust) once(`reveal${d}`, all, { title: r.trusted ? `🛡️ ${nameOf(G, r.trusted)} is the most trusted` : "🛡️ Nobody won the trust vote", body: r.trusted ? "They have a shield tonight: the Shadows can't murder them." : "", tag: `day-${gid}` });
@@ -468,7 +472,7 @@ async function autoBanish(gid, G, grim, d, t, now) {
   const left = seatIds(G).filter(p => !dead[p]), s = left.filter(p => sides[p] === "shadow").length, winner = s === 0 ? "guests" : s >= left.length - s ? "shadows" : "";
   if (winner) { b.set(g.collection("gated").doc("end"), { at, winner, sides, dead }); b.update(g, { overAt: at, status: "over" }); }
   await b.commit();
-  return exec ? "banished" : "none";
+  return exec ? { exec, side: sides[exec] || "" } : "none";
 }
 // The Shadows: an offer has gone to a player (they're told to look, not what it is), and their answer goes to the host
 async function onOffer(gid, pid, before, after) {
