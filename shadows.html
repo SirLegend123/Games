@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 119;</script>
-<script src="update.js?v=119"></script>
+<script>window.APP_V = 120;</script>
+<script src="update.js?v=120"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=119"></script>
-<script src="shadows.js?v=119"></script>
+<script src="daily.js?v=120"></script>
+<script src="shadows.js?v=120"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=119">
-<link rel="stylesheet" href="shadows.css?v=119">
+<link rel="stylesheet" href="daily.css?v=120">
+<link rel="stylesheet" href="shadows.css?v=120">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -160,7 +160,7 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=119" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=120" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -286,9 +286,9 @@ function todayHtml(p) {
 function missionCardHtml(d) {
   const t = G.days[d], M = SEC.mission || {}, w = SEC.whisper && SEC.whisper.d === d ? SEC.whisper : null;
   if (mySide() === "shadow" && M.d === d && M.type === "mislead") return `<section class="card ${M.misled ? "" : "todo"}"><h2>🎭 Your mission: mislead</h2>
-      <p class="lead">Get a Guest to enter a wrong code: lie about your digit, or confuse them about anyone's. It must be wrong in a place a Shadow holds. If it happens, you may murder tonight.</p>
+      <p class="lead">Send a Guest a false digit, and get them to enter a code using it. If they do, you may murder tonight.</p>
       <p class="lead">${M.misled ? "✅ Done: a Guest has entered a wrong code." : "⏳ Not yet."}</p>
-      <p class="hint">The shield can still be won after a wrong guess, so it's no loss to them yet. Don't get caught lying.</p></section>`;
+      <p class="hint">You may send one false 🔐 digit today (on the Combination card). The Guest's wrong code must use your false digit. Careful: at the round table everyone learns the real code, and whoever you lied to will know.</p></section>`;
   if (mySide() === "shadow" && M.d === d && M.type === "addword") return `<section class="card ${w && w.added ? "" : "todo"}"><h2>✍️ Your mission: change the whisper</h2>
       <p class="lead">When the whisper reaches you, add one word to it as you pass it on. If a Shadow's changed whisper is passed on by the next player, you may murder tonight.</p>
       <p class="lead">${w && w.added ? `✅ You added “${esc(w.added)}”.` : w && w.start === true ? "You started the whisper, so you can't change it: another Shadow must." : "⏳ Not yet: wait to be given the whisper."}</p>
@@ -308,8 +308,16 @@ function comboCardHtml(d) {
   if (!C) return `${head}<p class="lead">The Combination is under way.</p></section>`;
   const slots = Array.from({ length: C.len }, (_, i) => i === C.pos ? C.digit : "•").map((c, i) => `<span class="slot ${i === C.pos ? "mine" : ""}">${c}</span>`).join("");
   const left = C.tries - (C.used || 0), mine = (C.results || []).find(r => r.ok);
+  const others = G.seats.filter(s2 => s2.id !== me && !dead()[s2.id]).map(s2 => s2.id), to = others.includes(ui.shareTo) ? ui.shareTo : "", open = privateOpen(P()) && !t.cracked;
+  const share = !open ? "" : `<h3>🔐 Share your digit</h3>
+    <div class="picks">${others.map(q => `<button class="pick" data-act="share-to" data-pid="${q}" aria-pressed="${to === q}">${nm(q)}</button>`).join("")}</div>
+    <div class="row"><button class="btn" data-act="share-true" ${to ? "" : "disabled"}>🔐 Send ${to ? nm(to) : "…"} my digit</button></div>
+    ${mySide() === "shadow" ? (C.lied ? `<p class="hint">🎭 You've told your one lie today: you told ${nm(C.lied.to)} your digit was ${esc(C.lied.digit)}.</p>`
+      : `<div class="row"><span class="hint">🎭 Or lie (once today):</span><select id="lieDigit" aria-label="False digit">${[...Array(10).keys()].filter(k => String(k) !== C.digit).map(k => `<option>${k}</option>`).join("")}</select><button class="btn small" data-act="share-lie" ${to ? "" : "disabled"}>Send ${to ? nm(to) : "…"} a false digit</button></div>
+        <p class="hint">A false 🔐 digit looks exactly like a true one. If a Guest enters a code using it, your mission is done.</p>`) : ""}`;
   return `${head}<p class="lead">Your digit is <b>${C.digit}</b>, and it goes in place <b>${C.pos + 1}</b> of ${C.len}:</p><div class="slots">${slots}</div>
-    <p class="hint">Everyone holds one digit. Share yours (or don't) in private chats, put the code together, and enter it before ${when(t.noms)}. The first correct code wins a 🛡️ shield, in secret. Careful: not everyone will tell you the truth.</p>
+    <p class="hint">Everyone holds one digit. Share yours with the 🔐 button: only 🔐 digits count, and each Shadow can send one false 🔐 digit today. Put the code together and enter it before ${when(t.noms)}. The first correct code wins a 🛡️ shield. At the round table, everyone learns the code, and who cracked it.</p>
+    ${share}
     ${(C.results || []).map(r => `<p class="lead" style="margin:2px 0">${r.ok ? "✅" : "❌"} You tried ${esc(r.code)}${r.ok ? ": correct! You have the shield." : ": wrong."}</p>`).join("")}
     ${t.cracked ? (mine ? "" : `<p class="lead">🔐 Someone has cracked it. Too late for this one.</p>`) : left > 0 ? `<div class="field"><span class="label">The code (${left} ${left === 1 ? "try" : "tries"} left)</span><input type="text" id="combo" inputmode="numeric" maxlength="${C.len}" placeholder="${"0".repeat(C.len)}" value="${esc(ui.combo || "")}"></div>
       <div class="row"><button class="btn primary" data-act="combo-enter">🔐 Enter the code</button></div>` : `<p class="lead">You've used all your tries.</p>`}</section>`;
@@ -425,7 +433,7 @@ function threadHtml(p, pid) {
   const who = m => m.from === me ? "You" : m.from === "st" || m.from === "host" ? "📜 The host" : nm(m.from);
   return `<section class="card"><div class="row"><button class="btn small" data-act="close-chat">← Chats</button><h2 style="margin:0">${title}</h2></div>
     ${st ? `<p class="hint">Only the host reads this, and you can message them at any time.</p>` : con ? `<p class="hint">Only the Shadows still in the game, and the host, can read this.</p>` : gh ? `<p class="hint">Only the players out of the game, and the host, can read this.</p>` : ""}
-    <div class="feed" id="feed">${l.map(m => `<div class="msg ${m.from === me ? "mine" : st || m.from === "host" ? "st" : ""}"><small>${who(m)} · ${when(m.at)}</small>${esc(m.text)}</div>`).join("") || `<p class="hint">No messages yet.</p>`}</div>
+    <div class="feed" id="feed">${l.map(m => `<div class="msg ${m.from === me ? "mine" : st || m.from === "host" ? "st" : ""}"><small>${who(m)} · ${when(m.at)}</small>${m.share ? "🔐 " : ""}${esc(m.text)}</div>`).join("") || `<p class="hint">No messages yet.</p>`}</div>
     ${ok ? `<div class="send"><textarea id="dm" maxlength="1000" placeholder="Message ${con ? "the Shadows" : gh ? "the dead" : st ? "the host" : nm(pid)}" aria-label="Message">${esc(ui.draft[k] || "")}</textarea><button class="btn primary" data-act="dm" data-pid="${pid}">Send</button></div>` : `<p class="warn">🔒 ${esc(why)}</p>`}</section>`;
 }
 
@@ -573,6 +581,14 @@ document.getElementById("app").addEventListener("click", e => {
     case "theme": toggleTheme("shd-theme"); return render(true);
     case "offer-open": return showOffer();
     case "wpick": ui.wpick = pid; return render(true);
+    case "share-to": ui.shareTo = pid; return render(true);
+    case "share-true": case "share-lie": { const C = SEC.combo, to = ui.shareTo; if (!C || !to) return;
+      const lie = a === "share-lie", digit = lie ? $("#lieDigit").value : C.digit;
+      if (lie && !confirm(`Tell ${seatName(G, to)} your digit is ${digit}? You can only lie once today.`)) return;
+      const msg = { from: me, text: `My digit is ${digit}, for place ${C.pos + 1}.`, at: nowMs(), share: { pos: C.pos, digit } };
+      return run(async () => { const b = FB.writeBatch(db);
+        if (lie) b.set(gref(gid, "days", String(C.d), "lies", me), { at: nowMs() });
+        b.set(FB.doc(gcol(gid, "chats", pairId(me, to), "msgs")), msg); await b.commit(); ui.shareTo = ""; }, `🔐 Sent to ${seatName(G, to)}`); }
     case "combo-enter": { const C = SEC.combo, code = ($("#combo").value || "").replace(/\D/g, "");
       if (!C || code.length !== C.len) return toast(`The code has ${C ? C.len : "?"} digits.`);
       if (!confirm(`Enter ${code}? You have ${C.tries - (C.used || 0)} ${C.tries - (C.used || 0) === 1 ? "try" : "tries"} left.`)) return;

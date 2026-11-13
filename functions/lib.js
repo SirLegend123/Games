@@ -129,6 +129,13 @@ async function onChat(gid, pair, m) {
     await db.doc(`games/${gid}/st/grim`).update({ [`missions.${d}.said.${m.from}`]: { to, at } });
     await db.doc(`games/${gid}/secret/${m.from}`).update({ "mission.said": at });
   }
+  // The Combination: a digit shared with the button (true, or a Shadow's one lie)
+  const CW = (x.grim.tasks || {})[d];
+  if (m.share && CW && CW.type === "combination" && !CW.done && dayOpenNow(x.G, d)) {
+    const share = { from: m.from, to, pos: m.share.pos, digit: String(m.share.digit), lie: String(m.share.digit) !== CW.code[m.share.pos], at };
+    await db.doc(`games/${gid}/st/grim`).update({ [`tasks.${d}.shares`]: require("firebase-admin").firestore.FieldValue.arrayUnion(share) });
+    if (share.lie) await db.doc(`games/${gid}/secret/${m.from}`).update({ "combo.lied": { to, digit: share.digit, at } });
+  }
   // The Whisper: passed on once, to someone who hasn't had it, round everyone and back to the start
   const W = whisperOpen(x.G, x.grim);
   if (W) await whisperSaid(gid, x.G, x.grim, d, W, m.from, to, at, m);
@@ -147,9 +154,9 @@ async function onCode(gid, d, e) {
   const u = { [`tasks.${d}.entries`]: [...(W.entries || []), entry] };
   const M = (grim.missions || {})[d];
   if (!ok && M && M.type === "mislead" && !M.misled && sides[pid] === "guest") {
-    // Wrong in a place a Shadow holds: the Shadows' lie has worked
-    const shadowPlaces = Object.entries(W.pieces || {}).filter(([p]) => sides[p] === "shadow").map(([, i]) => i);
-    if (shadowPlaces.some(i => code[i] !== W.code[i])) {
+    // The Guest believed a Shadow's lie: their code has the lied digit, in the lied place
+    const lies = (W.shares || []).filter(x => x.lie);
+    if (lies.some(l => code[l.pos] === l.digit)) {
       u[`missions.${d}.misled`] = { by: pid, at, code };
       for (const p of seatIds(G).filter(q => sides[q] === "shadow" && !(grim.dead || {})[q])) await db.doc(`games/${gid}/secret/${p}`).update({ "mission.misled": at });
     }
@@ -158,8 +165,8 @@ async function onCode(gid, d, e) {
     u[`tasks.${d}.cracked`] = at; u[`tasks.${d}.winner`] = pid; u[`wshield.${+d + 1}`] = pid;
     const b = db.batch();
     b.update(db.doc(`games/${gid}`), { [`days.${d}.cracked`]: at });
-    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d: +d, at, text: "🔐 The combination has been cracked! Whoever cracked it has been given a shield, in secret." });
-    b.update(sref, { info: require("firebase-admin").firestore.FieldValue.arrayUnion({ n: +d, at, label: "Shield", text: "🔐 You cracked the combination: you have a shield tonight, and can't be murdered. Nobody else knows: keep it secret, or don't." }) });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d: +d, at, text: "🔐 The combination has been cracked! Who cracked it, and the code, are revealed at the round table." });
+    b.update(sref, { info: require("firebase-admin").firestore.FieldValue.arrayUnion({ n: +d, at, label: "Shield", text: "🔐 You cracked the combination: you have a shield tonight, and can't be murdered. Everyone is told at the round table." }) });
     await b.commit();
     await notify(gid, G, ["st"], { title: "🔐 The combination has been cracked", body: `${nameOf(G, pid)} got it, and has the shield.`, tag: `combo-${gid}` });
   }
@@ -300,6 +307,7 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
     const all = shadows, passed = M.type === "mislead" ? !!M.misled : M.type === "addword" ? adds.some(a => ch.some(c => c.from === a.to)) : all.every(p => (M.said || {})[p]) && !M.caught, b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`missions.${d}.done`]: true, [`missions.${d}.passed`]: passed });
     for (const p of all) b.update(db.doc(`games/${gid}/secret/${p}`), { "mission.done": true, "mission.passed": passed, "mission.caught": !!M.caught });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now + 2, text: passed ? "🗝️ The Shadows completed their secret mission today. Tonight, they may murder." : "🗝️ The Shadows failed their secret mission today. Tonight, nobody will be murdered." });
     await b.commit(); M.done = true; M.passed = passed;
     once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows completed their mission" : "❌ The Shadows failed their mission", body: passed ? "They may murder tonight." : M.type === "mislead" ? "No Guest entered a wrong code: no murder tonight." : M.type === "addword" ? "No changed whisper was passed on: no murder tonight." : M.caught ? "A Guest caught the code phrase: no murder tonight." : "Not every Shadow said the phrase: no murder tonight.", tag: `challenge-${gid}` });
   }
@@ -307,16 +315,17 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
   if (W && W.type === "combination" && t && now >= t.noms && !W.done) {
     const b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true });
-    if (!W.cracked) b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: "🔐 The Combination: ❌ failed. Nobody cracked it in time: no shield." });
-    else b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: "🔐 The Combination: ✅ passed. Its shield is in secret hands." });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: W.cracked
+      ? `🔐 The Combination: ✅ cracked by ${nameOf(G, W.winner)}, who has a shield tonight. The code was ${W.code}. Check it against the digits you were told…`
+      : `🔐 The Combination: ❌ nobody cracked it in time, so no shield. The code was ${W.code}. Check it against the digits you were told…` });
     await b.commit(); W.done = true;
   }
   if (W && W.type === "whisper" && t && now >= t.noms && !W.done && W.failed) { await db.doc(`games/${gid}/st/grim`).update({ [`tasks.${d}.done`]: true, [`tasks.${d}.winner`]: null }); W.done = true; }
   if (W && W.type === "whisper" && t && now >= t.noms && !W.done) {
     const chain = W.chain || [], out = W.out || {}, last = W.complete ? [...chain].reverse().find(c => !out[c.from]) : null, winner = last ? last.from : null, b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true, [`tasks.${d}.winner`]: winner, ...(winner ? { [`wshield.${d + 1}`]: winner } : {}) });
-    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: W.complete ? `🤫 The Whisper: ✅ passed. It went all the way round${winner ? ", and the last player to say it has been given a shield, in secret." : ", but everyone who could have won had said it twice: no shield."}` : "🤫 The Whisper: ❌ failed. It didn't make it round everyone in time: no shield." });
-    if (winner) b.update(db.doc(`games/${gid}/secret/${winner}`), { info: require("firebase-admin").firestore.FieldValue.arrayUnion({ n: d, at: now, label: "Shield", text: "🛡️ You said the whisper last: you have a shield tonight, and can't be murdered. Nobody else knows: keep it secret, or don't." }) });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: W.complete ? `🤫 The Whisper: ✅ passed. It went all the way round${winner ? `, and ${nameOf(G, winner)} said it last: they have a shield tonight.` : ", but everyone who could have won had said it twice: no shield."}` : "🤫 The Whisper: ❌ failed. It didn't make it round everyone in time: no shield." });
+    if (winner) b.update(db.doc(`games/${gid}/secret/${winner}`), { info: require("firebase-admin").firestore.FieldValue.arrayUnion({ n: d, at: now, label: "Shield", text: "🛡️ You said the whisper last: you have a shield tonight, and can't be murdered. Everyone is told at the round table." }) });
     await b.commit(); W.done = true;
   }
   // Night 1 (after Day 1): the Shadows meet each other for the first time
