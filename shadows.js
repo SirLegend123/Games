@@ -33,8 +33,8 @@ for (const k of Object.keys(PUSH_TEXT)) PUSH_TEXT[k] = PUSH_TEXT[k].replace(/Clo
 
 /* ---------- The two sides ---------- */
 const SIDE = {
-  guest: { ic: "🕯️", one: "Guest", many: "Guests", cls: "t-townsfolk", emblem: "img/emblem-guest.webp?v=114" },
-  shadow: { ic: "🗡️", one: "Shadow", many: "Shadows", cls: "t-demon", emblem: "img/emblem-shadow.webp?v=114" }
+  guest: { ic: "🕯️", one: "Guest", many: "Guests", cls: "t-townsfolk", emblem: "img/emblem-guest.webp?v=115" },
+  shadow: { ic: "🗡️", one: "Shadow", many: "Shadows", cls: "t-demon", emblem: "img/emblem-shadow.webp?v=115" }
 };
 const sideChip = s => s && SIDE[s] ? `<span class="${SIDE[s].cls}">${SIDE[s].ic} ${SIDE[s].one}</span>` : `<span class="hint">no side yet</span>`;
 // How many Shadows to start with
@@ -53,6 +53,18 @@ const MODES = {
   seduce: { ic: "🌹", name: "Seduction", what: "The Shadows choose a Guest to invite to join them. If they refuse, nobody dies.", ask: "Choose a Guest to invite to join the Shadows. If they refuse, nobody dies tonight." },
   blackmail: { ic: "⛓️", name: "Blackmail", what: "The Shadows choose a Guest who must join them, or be murdered.", ask: "Choose a Guest to blackmail: they must join the Shadows, or be murdered tonight." }
 };
+
+/* ---------- Day 1 ----------
+   The game starts at breakfast on Day 1. The Shadows don't know each other yet: each must slip the host's code phrase
+   into a private chat with a Guest before the round table. If they all do (and no Guest catches it), they may murder
+   on Night 1. Day 1's round table is a trust vote: the most trusted player gets a shield for Night 1. */
+// Games that start on Day 1 number their nights from the night after it (stored one higher, as Night n comes before Day n)
+const nightNo = (G, n) => G && G.dayFirst ? n - 1 : n;
+const shownPhase = (G, p) => G && G.dayFirst && (p.k === "night" || p.k === "dark") ? { ...p, n: p.n - 1 } : p;
+const trustDay = (G, d) => !!(G && G.dayFirst && d === 1);
+// The code phrase, ignoring capitals, punctuation and spacing
+const normPhrase = s => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const saysPhrase = (text, phrase) => !!normPhrase(phrase) && (" " + normPhrase(text) + " ").includes(" " + normPhrase(phrase) + " ");
 
 /* ---------- The round table ---------- */
 // ballots: [{voter, of, reason?, at}]. Only living players' votes count, and only for living players.

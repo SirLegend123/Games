@@ -104,12 +104,28 @@ async function onStChat(gid, pid, m) {
   const x = await load(gid); if (!x) return;
   if (m.from === "st") await notify(gid, x.G, [pid], { title: isShd(x.G) ? "✉️ The host" : "✉️ The Storyteller", body: clip(m.text), tag: `st-${gid}` });
   else await notify(gid, x.G, ["st"], { title: `✉️ ${nameOf(x.G, pid)}`, body: clip(m.text), tag: `stc-${gid}-${pid}` });
+  // The Shadows, Day 1: a Guest who sends the host the code phrase has caught it
+  if (m.from !== "st" && challengeOpen(x.G, x.grim) && (x.grim.sides || {})[pid] === "guest" && !(x.grim.challenge || {}).caught && saysPhrase(m.text, x.grim.phrase)) {
+    await db.doc(`games/${gid}/st/grim`).update({ "challenge.caught": { by: pid, at: Date.now() } });
+    await notify(gid, x.G, ["st"], { title: `🔎 ${nameOf(x.G, pid)} caught the code phrase`, body: "There will be no murder on Night 1.", tag: `challenge-${gid}` });
+  }
 }
+// The Shadows, Day 1: the code phrase, until the round table
+const normPhrase = s => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const saysPhrase = (text, phrase) => !!normPhrase(phrase) && (" " + normPhrase(text) + " ").includes(" " + normPhrase(phrase) + " ");
+const challengeOpen = (G, grim) => isShd(G) && G.dayFirst && (G.day || 0) === 1 && grim.phrase && !(grim.challenge || {}).done && Date.now() < ((G.days || {})[1] || {}).noms;
 async function onChat(gid, pair, m) {
   const to = pair.split("~").find(p => p !== m.from);
   if (!to) return;
   const x = await load(gid); if (!x) return;
   await notify(gid, x.G, [to], { title: `✉️ ${nameOf(x.G, m.from)}`, body: clip(m.text), tag: `chat-${gid}-${pair}` });
+  // A Shadow slipping the code phrase to a Guest (nobody reads the chat: this only looks for the phrase)
+  const sides = x.grim.sides || {}, C = x.grim.challenge || {};
+  if (challengeOpen(x.G, x.grim) && sides[m.from] === "shadow" && sides[to] === "guest" && !(C.said || {})[m.from] && saysPhrase(m.text, x.grim.phrase)) {
+    const at = Date.now();
+    await db.doc(`games/${gid}/st/grim`).update({ [`challenge.said.${m.from}`]: { to, at } });
+    await db.doc(`games/${gid}/secret/${m.from}`).update({ "challenge.said": at });
+  }
 }
 
 // The Shadows: a message in the Shadows' chat goes to the other Shadows still in the game
@@ -184,6 +200,25 @@ async function tickGame(gid, G, now) {
 // The Shadows' timetable: breakfast, the round table, the banishment, and the Shadows' night
 async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) {
   const sides = grim.sides || {}, shadows = alive.filter(p => sides[p] === "shadow");
+  const first = G.dayFirst && d === 1;
+  // Day 1: the code-phrase challenge ends at the round table
+  if (first && t && now >= t.noms && grim.phrase && !(grim.challenge || {}).done) {
+    const C = grim.challenge || {}, all = seatIds(G).filter(p => sides[p] === "shadow"), passed = all.every(p => (C.said || {})[p]) && !C.caught;
+    const b = db.batch();
+    b.update(db.doc(`games/${gid}/st/grim`), { "challenge.done": true, "challenge.passed": passed });
+    for (const p of all) b.update(db.doc(`games/${gid}/secret/${p}`), { "challenge.done": true, "challenge.passed": passed, "challenge.caught": !!C.caught });
+    await b.commit(); grim.challenge = { ...C, done: true, passed };
+    once("challenge", ["st"], { title: passed ? "✅ The Shadows passed the challenge" : "❌ The Shadows failed the challenge", body: passed ? "They may murder on Night 1." : C.caught ? "A Guest caught the code phrase: no murder on Night 1." : "Not every Shadow said the phrase: no murder on Night 1.", tag: `challenge-${gid}` });
+  }
+  // Night 1 (after Day 1): the Shadows meet each other for the first time
+  const n0 = d + 1, w0 = (G.nights || {})[n0];
+  if (G.dayFirst && n0 === 2 && w0 && now >= w0.open && (grim.results || {})[1] && !grim.met) {
+    const all = alive.filter(p => sides[p] === "shadow"), b = db.batch(), C = grim.challenge || {}, FV = require("firebase-admin").firestore.FieldValue;
+    for (const p of all) b.update(db.doc(`games/${gid}/secret/${p}`), { allies: all, info: FV.arrayUnion({ n: 1, at: now, label: "The Shadows meet",
+      text: `${all.length > 1 ? `Your fellow Shadows: ${all.filter(q => q !== p).map(q => nameOf(G, q)).join(", ")}.` : "You are the only Shadow."} ${C.passed ? "You passed the challenge: choose tonight's victim." : "You failed the challenge: no murder tonight, but you can plot."}` }) });
+    b.update(db.doc(`games/${gid}/st/grim`), { met: true });
+    await b.commit();
+  }
   if (t) {
     if (now >= t.dawn && now < t.dawn + 6 * H) {
       const bk = await gated("dawn" + d);
@@ -197,26 +232,42 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
       once(`close30-${d}-${t.close}`, alive.filter(p => !done.has(p)), { title: "🔒 30 minutes left to vote", body: `Voting ends at ${fmt(G, t.close)}.`, tag: `day-${gid}` });
     }
     // When voting ends, the most votes is banished automatically (a tie goes to the host)
-    if (now >= t.close && now < t.close + 6 * H && !(grim.results || {})[d] && (await autoBanish(gid, G, grim, d, t, now)) === "tie") once(`closed-${d}-${t.close}`, ["st"], { title: "🔒 Voting has ended in a tie", body: `Decide who is banished before ${fmt(G, t.reveal)}.`, tag: `st-day-${gid}` });
+    if (now >= t.close && now < t.close + 6 * H && !(grim.results || {})[d] && (await (first ? autoTrust : autoBanish)(gid, G, grim, d, t, now)) === "tie") once(`closed-${d}-${t.close}`, ["st"], { title: "🔒 Voting has ended in a tie", body: `Decide who is banished before ${fmt(G, t.reveal)}.`, tag: `st-day-${gid}` });
     if (now >= t.reveal && now < t.reveal + 6 * H) {
       const r = await gated("result" + d);
-      if (r) once(`reveal${d}`, all, { title: r.exec ? `⚖️ ${nameOf(G, r.exec)} has been banished` : "⚖️ Nobody was banished", body: r.exec ? `They were a ${r.side === "shadow" ? "Shadow 🗡️" : "Guest 🕯️"}.` : "See how everyone voted.", tag: `day-${gid}` });
+      if (r && r.trust) once(`reveal${d}`, all, { title: r.trusted ? `🛡️ ${nameOf(G, r.trusted)} is the most trusted` : "🛡️ Nobody won the trust vote", body: r.trusted ? "They have a shield tonight: the Shadows can't murder them." : "", tag: `day-${gid}` });
+      else if (r) once(`reveal${d}`, all, { title: r.exec ? `⚖️ ${nameOf(G, r.exec)} has been banished` : "⚖️ Nobody was banished", body: r.exec ? `They were a ${r.side === "shadow" ? "Shadow 🗡️" : "Guest 🕯️"}.` : "See how everyone voted.", tag: `day-${gid}` });
     }
   }
   const n = d + 1, w = (G.nights || {})[n];
   if (w && !G.overAt) {
     // The Shadows meet once today's banishment is confirmed
     if (now >= w.open && now < w.end && (d === 0 || (grim.results || {})[d])) {
-      once(`night${n}`, shadows, { title: "🌙 The Shadows meet", body: `Your chat is open: choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
+      once(`night${n}`, shadows, { title: "🌙 The Shadows meet", body: G.dayFirst && n === 2 && !(grim.challenge || {}).passed ? "Your chat is open. You failed the challenge: no murder tonight." : `Your chat is open: choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
       if (now >= w.end - 30 * MIN) {
         const acts = await db.collection(`games/${gid}/nights/${n}/acts`).get(), done = new Set(acts.docs.map(a => a.id));
         once(`nightRemind${n}-${w.end}`, shadows.filter(p => !done.has(p)), { title: "🌙 30 minutes left", body: `Choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
       }
     }
-    if (now >= w.end && now < w.end + 12 * H && d < n) once(`nightEnd${n}-${w.end}`, ["st"], { title: `🕯️ Night ${n} has closed`, body: "Work out the night and serve breakfast.", tag: `st-night-${gid}` });
+    if (now >= w.end && now < w.end + 12 * H && d < n) once(`nightEnd${n}-${w.end}`, ["st"], { title: `🕯️ Night ${G.dayFirst ? n - 1 : n} has closed`, body: "Work out the night and serve breakfast.", tag: `st-night-${gid}` });
   }
 }
 
+// The Shadows, Day 1: the most trusted player gets a shield for Night 1 (a tie goes to the host)
+async function autoTrust(gid, G, grim, d, t, now) {
+  const dead = grim.dead || {}, alive = seatIds(G).filter(p => !dead[p]);
+  const ballots = (await db.collection(`games/${gid}/days/${d}/ballots`).get()).docs.map(x => x.data()).filter(b => alive.includes(b.voter) && alive.includes(b.of) && b.voter !== b.of);
+  const count = {};
+  for (const b of ballots) (count[b.of] = count[b.of] || { of: b.of, count: 0, voters: [] }).count++, count[b.of].voters.push(b.voter);
+  const rows = Object.values(count).sort((a, b) => b.count - a.count), top = rows[0];
+  if (top && rows[1] && rows[1].count === top.count) return "tie";
+  const trusted = top ? top.of : null, at = Math.max(t.reveal, now), b = db.batch(), g = db.doc(`games/${gid}`);
+  b.set(g.collection("gated").doc("result" + d), { at, d, trust: true, trusted, exec: null, auto: true, rows, why: top ? `${top.count} vote${top.count === 1 ? "" : "s"}, the most.` : "Nobody voted." });
+  b.update(g.collection("st").doc("grim"), { [`results.${d}`]: { exec: null, trusted, at, auto: true }, ...(trusted ? { [`shield.${d + 1}`]: trusted } : {}) });
+  if (trusted) b.update(g.collection("secret").doc(trusted), { info: require("firebase-admin").firestore.FieldValue.arrayUnion({ n: d, at, label: "Shield", text: "🛡️ The castle trusts you most: you have a shield for Night 1, and can't be murdered tonight." }) });
+  await b.commit();
+  return trusted ? "trusted" : "none";
+}
 // The Shadows: count the votes and banish the player with the most. Their role is revealed at the banishment time.
 async function autoBanish(gid, G, grim, d, t, now) {
   const sides = grim.sides || {}, dead = { ...(grim.dead || {}) }, alive = seatIds(G).filter(p => !dead[p]);
@@ -277,4 +328,4 @@ async function onGameUpdate(gid, before, after) {
     await notify(gid, after, seatIds(after), { title: "🗝️ Your role has been chosen", body: "Open The Shadows to find out: are you a Guest, or a Shadow? Keep it to yourself.", tag: `role-${gid}` });
 }
 
-module.exports = { init, vapid, notify, tick, tickGame, expired, cleanup, onGameUpdate, onConclave, autoBanish, onOffer, onAnswer, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
+module.exports = { init, vapid, notify, tick, tickGame, expired, cleanup, onGameUpdate, onConclave, autoBanish, autoTrust, saysPhrase, onOffer, onAnswer, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
