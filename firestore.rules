@@ -103,6 +103,23 @@ service cloud.firestore {
         allow create, update: if signedIn() && request.auth.uid == uid && request.resource.data.sub is map
           && ((request.resource.data.role == 'st' && isST()) || (request.resource.data.role == 'player' && owns(request.resource.data.pid)));
       }
+      // The Deceivers: the Schemers' own chat. Only the Schemers still in the game (their devices are listed by the host
+      // in the hidden st/grim, as cu) and the host can read it.
+      function inConclave() { return signedIn() && get(/databases/$(db)/documents/games/$(gid)/st/grim).data.get('cu', {}).get(request.auth.uid, false) == true; }
+      match /conclave/{id} {
+        allow read: if isST() || inConclave();
+        allow create: if str(request.resource.data.text, 1000) && request.resource.data.at is number
+          && ((isST() && request.resource.data.from == 'host') || (inConclave() && owns(request.resource.data.from)));
+      }
+      // The Deceivers: each player's vote at the round table (one each, changeable), secret until voting closes
+      match /days/{d}/ballots/{voter} {
+        allow get: if isST() || owns(voter) || closed(d);
+        allow list: if isST() || closed(d);
+        allow create, update: if owns(voter) && request.resource.data.voter == voter && request.resource.data.of is string && request.resource.data.of != voter
+          && dayT(d).get('vote', 9000000000000000) <= now() && now() < dayT(d).get('close', 0)
+          && request.resource.data.keys().hasOnly(['voter', 'of', 'at', 'reason']) && (!('reason' in request.resource.data) || str(request.resource.data.reason, 300));
+        allow delete: if isST();
+      }
       // Night actions: the player's own choices while that night is open
       match /nights/{n}/acts/{pid} {
         allow get: if isST() || owns(pid);
