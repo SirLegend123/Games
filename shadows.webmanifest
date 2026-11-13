@@ -3,8 +3,8 @@
   "short_name": "The Shadows",
   "description": "A game of murder and suspicion over several days, on your phone.",
   "display": "standalone",
-  "background_color": "#15121b",
-  "theme_color": "#15121b",
+  "background_color": "#120708",
+  "theme_color": "#120708",
   "icons": [
     {
       "src": "img/shadows-icon-192.png",

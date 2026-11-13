@@ -3,8 +3,8 @@
   "short_name": "Shadows Host",
   "description": "Host a game of The Shadows.",
   "display": "standalone",
-  "background_color": "#15121b",
-  "theme_color": "#15121b",
+  "background_color": "#120708",
+  "theme_color": "#120708",
   "icons": [
     {
       "src": "img/shadows-icon-192.png",
