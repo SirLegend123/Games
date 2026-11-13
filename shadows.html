@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 123;</script>
-<script src="update.js?v=123"></script>
+<script>window.APP_V = 124;</script>
+<script src="update.js?v=124"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=123"></script>
-<script src="shadows.js?v=123"></script>
+<script src="daily.js?v=124"></script>
+<script src="shadows.js?v=124"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=123">
-<link rel="stylesheet" href="shadows.css?v=123">
+<link rel="stylesheet" href="daily.css?v=124">
+<link rel="stylesheet" href="shadows.css?v=124">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -160,7 +160,7 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=123" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=124" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -287,6 +287,8 @@ function todayHtml(p) {
 // The Shadows' mission: the code phrase (and, for Guests, the chance to catch it)
 function missionCardHtml(d) {
   const t = G.days[d], M = SEC.mission || {}, w = SEC.whisper && SEC.whisper.d === d ? SEC.whisper : null;
+  if (mySide() === "shadow" && M.d === d && M.type === "rest") return `<section class="card"><h2>🌙 A quiet night ahead</h2>
+      <p class="lead">No mission today, and no murder tonight. Blend in, and listen.</p></section>`;
   if (mySide() === "shadow" && M.d === d && M.type === "plainsight") return `<section class="card ${M.marked ? "" : "todo"}"><h2>🗡️ Your mission: murder in plain sight</h2>
       <p class="lead">The Guests think it's a day off. Get a Guest to say this word in a private chat:</p><p class="quote">“${esc(M.word)}”</p>
       <p class="lead">${M.marked ? `✅ <b>${nm(M.marked.pid)}</b> said it. They die tonight.` : "⏳ Not yet. The first Guest to say it, to anyone, dies tonight."}</p>
@@ -412,11 +414,14 @@ function castleHtml() {
     <p class="hint legend">🗡️ Murdered · ⚖️ Banished (with the side they were on)${mySide() === "shadow" ? " · red: your fellow Shadows" : ""}. Tap a player to message them.</p></section>`;
 }
 function murderHtml(p) {
-  const C = SEC.mission || {};
-  if (C.d === p.n - 1 && C.type === "plainsight" && C.marked) return `<section class="card"><h2>🗡️ Murder in plain sight</h2>
+  const C = SEC.mission || {}, NT = SEC.night && SEC.night.n === p.n ? SEC.night : null;
+  if (NT && !NT.allowed || (!NT && C.d === p.n - 1 && C.type === "rest")) return `<section class="card"><h2>🌙 No murder tonight</h2>
+    <p class="lead">The host has decided there will be no murder tonight. Your chat is still open: plan, and blend in.</p>
+    <div class="row"><button class="btn" data-act="open-chat" data-pid="conclave">🗡️ The Shadows' chat</button></div></section>`;
+  if (!(NT && NT.allowed) && C.d === p.n - 1 && C.type === "plainsight" && C.marked) return `<section class="card"><h2>🗡️ Murder in plain sight</h2>
     <p class="lead"><b>${nm(C.marked.pid)}</b> said the word, so tonight's murder is already decided. Nothing to choose: just enjoy the chat.</p>
     <div class="row"><button class="btn" data-act="open-chat" data-pid="conclave">🗡️ The Shadows' chat</button></div></section>`;
-  if (C.d === p.n - 1 && C.done && !C.passed) return `<section class="card"><h2>🌙 No murder tonight</h2>
+  if (!(NT && NT.allowed) && C.d === p.n - 1 && C.done && !C.passed) return `<section class="card"><h2>🌙 No murder tonight</h2>
     <p class="lead">${C.caught ? "A Guest caught the code phrase." : "Not every Shadow managed to say the code phrase."} There's no murder tonight, but your chat is open: get to know each other, and plan.</p>
     <div class="row"><button class="btn" data-act="open-chat" data-pid="conclave">🗡️ The Shadows' chat</button></div></section>`;
   const D = dead(), allies = SEC.allies || [], pick = ui.pick !== undefined ? ui.pick : myAct && myAct.n === p.n ? myAct.pick : "", saved = myAct && myAct.n === p.n && myAct.saved;
