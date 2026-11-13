@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 115;</script>
-<script src="update.js?v=115"></script>
+<script>window.APP_V = 116;</script>
+<script src="update.js?v=116"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=115"></script>
-<script src="shadows.js?v=115"></script>
+<script src="daily.js?v=116"></script>
+<script src="shadows.js?v=116"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=115">
-<link rel="stylesheet" href="shadows.css?v=115">
+<link rel="stylesheet" href="daily.css?v=116">
+<link rel="stylesheet" href="shadows.css?v=116">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -160,7 +160,7 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=115" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=116" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -265,7 +265,9 @@ function todayHtml(p) {
   if (d && bk && ["dawn", "chats", "noms", "vote", "count", "dusk", "night", "dark"].includes(p.k)) out.push(breakfastHtml(bk));
   if (d && !bk && nowMs() >= G.days[d].dawn) out.push(`<section class="card"><p class="hint">Fetching the news from the night…</p></section>`);
   if (p.k === "dusk" && !res) out.push(`<section class="card"><p class="lead">The host is still counting the votes. Check back soon.</p></section>`);
-  if (trustDay(G, d) && (p.k === "chats" || p.k === "dawn") && p.n === 1) out.push(challengeCardHtml());
+  if (d && (p.k === "chats" || p.k === "dawn") && p.n === d && !amOut()) { const t = G.days[d] || {};
+    if (t.task === "whisper") out.push(whisperCardHtml(d));
+    if (t.mission) out.push(missionCardHtml(d)); }
   const trust = trustDay(G, d);
   if (roundTable(p) && p.n === d && !amOut()) out.push(`<section class="card ${myBallot === null ? "todo" : ""}"><h2>🗳️ ${trust ? "The trust vote is open" : "Voting is open"}</h2>
     <p class="lead">${myBallot ? `You've voted for <b>${nm(myBallot.of)}</b>. You can change your vote until ${when(G.days[d].close)}.` : trust ? `Who do you trust most? The winner gets a shield tonight. Vote before ${when(G.days[d].close)}.` : `Vote to banish the player you suspect, before ${when(G.days[d].close)}.`}</p>
@@ -279,17 +281,33 @@ function todayHtml(p) {
   out.push(castleHtml(), timetableHtml());
   return out.join("");
 }
-// Day 1: the Shadows' code-phrase challenge (and, for Guests, the chance to catch it)
-function challengeCardHtml() {
-  const t = G.days[1];
-  if (mySide() === "shadow") { const C = SEC.challenge || {};
-    return `<section class="card ${C.said ? "" : "todo"}"><h2>🗝️ Today's challenge</h2>
-      <p class="lead">Before ${when(t.noms)}, slip this phrase into a private chat with a Guest:</p><p class="quote">“${esc(SEC.phrase || "")}”</p>
-      <p class="lead">${C.said ? `✅ Done: you said it at ${clock(C.said)}.` : "⏳ Not yet."} If every Shadow says it, and no Guest catches it, you may murder tonight.</p>
-      <p class="hint">Saying it to another Shadow doesn't count, but if someone says it to you, you've found a fellow Shadow. You'll all meet tonight anyway.</p></section>`; }
+// The Shadows' mission: the code phrase (and, for Guests, the chance to catch it)
+function missionCardHtml(d) {
+  const t = G.days[d], M = SEC.mission || {};
+  if (mySide() === "shadow" && M.d === d) return `<section class="card ${M.said ? "" : "todo"}"><h2>🗝️ Your mission</h2>
+      <p class="lead">Before ${when(t.noms)}, slip this phrase into a private chat with a Guest:</p><p class="quote">“${esc(M.phrase || "")}”</p>
+      <p class="lead">${M.said ? `✅ Done: you said it at ${clock(M.said)}.` : "⏳ Not yet."} If every Shadow says it, and no Guest catches it, you may murder tonight.</p>
+      <p class="hint">Saying it to another Shadow doesn't count${(SEC.allies || []).length ? "" : ", but if someone says it to you, you've found a fellow Shadow"}.</p></section>`;
   return `<section class="card"><h2>🔎 Listen carefully</h2>
     <p class="lead">Today the Shadows are trying to slip a secret phrase into their private chats. Heard something that sounds planted? Message the exact words to the host before ${when(t.noms)}: if you're right, the Shadows can't murder tonight.</p>
     <div class="row"><button class="btn" data-act="open-chat" data-pid="st">📜 Message the host</button></div></section>`;
+}
+// Today's task: the Whisper. Pass it on once, to someone who hasn't had it; it must go round everyone and back to the start.
+function whisperCardHtml(d) {
+  const w = SEC.whisper && SEC.whisper.d === d ? SEC.whisper : null, t = G.days[d], D = dead();
+  const head = `<section class="card ${w && !w.passedTo ? "todo" : ""}"><h2>🤫 Today's task: the Whisper</h2>`;
+  const rules = `<p class="hint">The whisper must go round everyone, one private chat at a time, and back to whoever started it, before ${when(t.noms)}. Pass it only once: say it again and you're out of the running. The last player to say it wins a 🛡️ shield.</p>`;
+  if (!w) return `${head}<p class="lead">The whisper is going round. You haven't been given it yet: someone will choose you.</p>${rules}</section>`;
+  if (w.out) return `${head}<p class="warn">You said the whisper again, so you're out of the running for the shield.</p>${rules}</section>`;
+  if (w.passedTo) return `${head}<p class="lead">You passed it to <b>${nm(w.passedTo)}</b>. Now don't say it again!</p>${rules}</section>`;
+  const back = w.last && w.start && w.start !== true ? w.start : "", choices = back ? [back] : G.seats.filter(s2 => s2.id !== me && !D[s2.id] && s2.id !== (w.from || "")).map(s2 => s2.id);
+  const pick = ui.wpick && choices.includes(ui.wpick) ? ui.wpick : back;
+  return `${head}<p class="lead">${w.start === true ? "You start the whisper:" : `${nm(w.from)} gave you the whisper:`}</p><p class="quote">“${esc(w.phrase)}”</p>
+    ${w.bounce ? `<p class="warn">${nm(w.bounce.to)} has already had it. Choose someone else.</p>` : ""}
+    <p class="lead">${back ? `Everyone has had it: pass it back to <b>${nm(back)}</b>, who started it.` : "Who do you pass it to? Choose someone you think hasn't had it yet."}</p>
+    <div class="picks">${choices.map(q => `<button class="pick" data-act="wpick" data-pid="${q}" aria-pressed="${pick === q}">${nm(q)}</button>`).join("")}</div>
+    <div class="row"><button class="btn primary" data-act="wpass" ${pick ? "" : "disabled"}>🤫 Pass the whisper${pick ? ` to ${nm(pick)}` : ""}</button></div>
+    <p class="hint">This sends the whisper to them in your private chat.</p>${rules}</section>`;
 }
 function infoHtml(x) { return `<p class="info"><small>${esc(x.label || "From the host")} · ${when(x.at)}</small>${esc(x.text)}</p>`; }
 function breakfastHtml(bk) {
@@ -333,8 +351,8 @@ function castleHtml() {
     <p class="hint legend">🗡️ Murdered · ⚖️ Banished (with the side they were on)${mySide() === "shadow" ? " · red: your fellow Shadows" : ""}. Tap a player to message them.</p></section>`;
 }
 function murderHtml(p) {
-  const C = SEC.challenge || {};
-  if (G.dayFirst && p.n === 2 && C.done && !C.passed) return `<section class="card"><h2>🌙 No murder tonight</h2>
+  const C = SEC.mission || {};
+  if (C.d === p.n - 1 && C.done && !C.passed) return `<section class="card"><h2>🌙 No murder tonight</h2>
     <p class="lead">${C.caught ? "A Guest caught the code phrase." : "Not every Shadow managed to say the code phrase."} There's no murder tonight, but your chat is open: get to know each other, and plan.</p>
     <div class="row"><button class="btn" data-act="open-chat" data-pid="conclave">🗡️ The Shadows' chat</button></div></section>`;
   const D = dead(), allies = SEC.allies || [], pick = ui.pick !== undefined ? ui.pick : myAct && myAct.n === p.n ? myAct.pick : "", saved = myAct && myAct.n === p.n && myAct.saved;
@@ -426,7 +444,7 @@ function meHtml() {
   const s = SIDE[mySide()] || {}, info = infoNow(), allies = (SEC.allies || []).filter(q => q !== me);
   return `<section class="card">${s.emblem ? `<img class="emblem small" src="${s.emblem}" alt="" width="700" height="700">` : ""}<h2>${s.ic || "❔"} You are a ${esc(s.one || "player")}</h2>
     ${mySide() === "shadow" ? `<p class="lead">Murder the Guests one by one, and don't get caught. You win if the Shadows are ever as many as the Guests left.</p>
-      <p class="hint">${allies.length ? `Your fellow Shadows: <b>${allies.map(nm).join(", ")}</b>. Plot together in 🗡️ The Shadows chat.` : G.dayFirst && !(SEC.allies || []).length ? `You'll meet the other Shadows tonight. Today's code phrase: “${esc(SEC.phrase || "")}”` : "You're the only Shadow."}</p>`
+      <p class="hint">${allies.length ? `Your fellow Shadows: <b>${allies.map(nm).join(", ")}</b>. Plot together in 🗡️ The Shadows chat.` : G.dayFirst && !(SEC.allies || []).length ? `You'll meet the other Shadows tonight. Today's code phrase: “${esc((SEC.mission || {}).phrase || "")}”` : "You're the only Shadow."}</p>`
       : `<p class="lead">Find the Shadows and banish them at the round table. The Guests win when every Shadow is gone.</p><p class="hint">Trust no one. Shadows know who each other are; you don't.</p>`}
     ${amOut() ? `<p class="warn">${esc(HOW[dead()[me].how] || "You're out")}. You're out of the game, but you can still watch and talk.</p>` : ""}</section>
     <section class="card"><h2>🔔 Notifications</h2>${push === "on" ? `<p class="lead">On for this phone.</p><div class="row"><button class="btn small" data-act="push-off">Turn off</button></div>` : `<p class="hint">${esc(PUSH_TEXT[push] || "Get a notification when it's your turn.")}</p>${["off", "error", "not-ready", "blocked"].includes(push) ? `<div class="row"><button class="btn small primary" data-act="push-on">🔔 Turn on</button></div>` : ""}`}</section>
@@ -501,7 +519,7 @@ function revealSide() {
     <img class="emblem" src="${s.emblem}" alt="${s.one}" width="700" height="700">
     <h2>You are ${side === "shadow" ? "a Shadow" : "a Guest"}</h2>
     ${side === "shadow" && G.dayFirst && !allies.length && !recruited ? `<p class="lead">You don't know who the other Shadows are yet: you'll meet them tonight. First, today's challenge. Before the round table, slip this phrase into a private chat with a Guest:</p>
-      <p class="quote">“${esc(SEC.phrase || "")}”</p><p class="hint">If every Shadow says it, and no Guest catches it, you may murder tonight.</p>`
+      <p class="quote">“${esc((SEC.mission || {}).phrase || "")}”</p><p class="hint">If every Shadow says it, and no Guest catches it, you may murder tonight.</p>`
       : side === "shadow" ? `<p class="lead">${allies.length ? `Your fellow Shadows: <b>${allies.map(nm).join(", ")}</b>.` : "You are the only Shadow."} Each night, choose together who to murder. Never let the Guests find you out.</p>`
       : `<p class="lead">Somewhere amongst the Guests, the Shadows are hiding. Find them, and banish them at the round table.</p>`}
     <p class="hint">Keep it to yourself. You can see this again under Me.</p>
@@ -512,7 +530,7 @@ function revealAllies() {
   if (!SEC || SEC.side !== "shadow" || !G.dayFirst || !(SEC.allies || []).length || $("#dlg").open) return;
   let n = 0; try { n = +localStorage.getItem(`shd-allies-${gid}-${me}`) || 0; } catch (e) {}
   if (n >= SEC.allies.length) return;
-  const others = SEC.allies.filter(q => q !== me), C = SEC.challenge || {};
+  const others = SEC.allies.filter(q => q !== me), C = SEC.mission || {};
   dialog(`<div class="reveal reveal-shadow"><p class="label">🌙 The Shadows meet</p>
     <img class="emblem" src="${SIDE.shadow.emblem}" alt="The Shadows" width="700" height="700">
     <h2>${others.length ? "Your fellow Shadows" : "You are alone"}</h2>
@@ -527,6 +545,10 @@ document.getElementById("app").addEventListener("click", e => {
   switch (a) {
     case "theme": toggleTheme("shd-theme"); return render(true);
     case "offer-open": return showOffer();
+    case "wpick": ui.wpick = pid; return render(true);
+    case "wpass": { const w = SEC.whisper; if (!w) return; const to = w.last && w.start && w.start !== true ? w.start : ui.wpick; if (!to) return;
+      if (!privateOpen(P())) return toast("Private chats are closed now.");
+      return run(async () => { await FB.addDoc(gcol(gid, "chats", pairId(me, to), "msgs"), { from: me, text: w.phrase, at: nowMs() }); ui.wpick = ""; }, `🤫 You passed the whisper to ${seatName(G, to)}`); }
     case "rules": return dialog(`${RULES}<div class="row"><button class="btn" data-dact="close">Close</button></div>`);
     case "cal": return downloadIcs(icsFile(G.name, G.sched, nowMs()));
     case "go-code": { const c = cleanCode($("#code").value); if (c.length !== 6) return toast("The code has 6 letters and numbers."); gid = c; history.replaceState(null, "", `?g=${c}${EMU ? "&emu=1" : ""}`); ready = false; render(true); return watch(); }
