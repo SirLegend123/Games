@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 120;</script>
-<script src="update.js?v=120"></script>
+<script>window.APP_V = 121;</script>
+<script src="update.js?v=121"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=120"></script>
-<script src="shadows.js?v=120"></script>
+<script src="daily.js?v=121"></script>
+<script src="shadows.js?v=121"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=120">
-<link rel="stylesheet" href="shadows.css?v=120">
+<link rel="stylesheet" href="daily.css?v=121">
+<link rel="stylesheet" href="shadows.css?v=121">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -160,7 +160,7 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=120" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=121" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -268,6 +268,7 @@ function todayHtml(p) {
   if (d && (p.k === "chats" || p.k === "dawn") && p.n === d && !amOut()) { const t = G.days[d] || {};
     if (t.task === "whisper") out.push(whisperCardHtml(d));
     if (t.task === "combination") out.push(comboCardHtml(d));
+    if (t.task === "lanterns") out.push(lanternsCardHtml(d));
     if (t.mission || (mySide() === "shadow" && SEC.mission && SEC.mission.d === d)) out.push(missionCardHtml(d)); }
   const trust = trustDay(G, d);
   if (roundTable(p) && p.n === d && !amOut()) out.push(`<section class="card ${myBallot === null ? "todo" : ""}"><h2>🗳️ ${trust ? "The trust vote is open" : "Voting is open"}</h2>
@@ -285,6 +286,10 @@ function todayHtml(p) {
 // The Shadows' mission: the code phrase (and, for Guests, the chance to catch it)
 function missionCardHtml(d) {
   const t = G.days[d], M = SEC.mission || {}, w = SEC.whisper && SEC.whisper.d === d ? SEC.whisper : null;
+  if (mySide() === "shadow" && M.d === d && M.type === "snuff") return `<section class="card ${M.snuffed ? "" : "todo"}"><h2>🌬️ Your mission: snuff a lantern</h2>
+      <p class="lead">Get a Guest to light their lantern out of turn: lie about your number, or tell them it's their turn too soon. If a Guest does, you may murder tonight.</p>
+      <p class="lead">${M.snuffed ? "✅ Done: a Guest lit out of turn." : "⏳ Not yet."}</p>
+      <p class="hint">Lighting out of turn yourself doesn't count, and at the round table everyone learns who lit out of turn. The team has other attempts, so they may still win the shield.</p></section>`;
   if (mySide() === "shadow" && M.d === d && M.type === "mislead") return `<section class="card ${M.misled ? "" : "todo"}"><h2>🎭 Your mission: mislead</h2>
       <p class="lead">Send a Guest a false digit, and get them to enter a code using it. If they do, you may murder tonight.</p>
       <p class="lead">${M.misled ? "✅ Done: a Guest has entered a wrong code." : "⏳ Not yet."}</p>
@@ -300,6 +305,22 @@ function missionCardHtml(d) {
   return `<section class="card"><h2>🔎 Listen carefully</h2>
     <p class="lead">Today the Shadows are trying to slip a secret phrase into their private chats. Heard something that sounds planted? Message the exact words to the host before ${when(t.noms)}: if you're right, the Shadows can't murder tonight.</p>
     <div class="row"><button class="btn" data-act="open-chat" data-pid="st">📜 Message the host</button></div></section>`;
+}
+// Today's task: the Lanterns. Light yours in your turn (nobody can see how many are lit), and pass the flame to someone.
+function lanternsCardHtml(d) {
+  const L = SEC.lantern && SEC.lantern.d === d ? SEC.lantern : null, t = G.days[d], pub = t.lan || {}, attempt = pub.attempt || 1;
+  const head = `<section class="card ${L && L.lit !== attempt && !pub.complete && !pub.failed ? "todo" : ""}"><h2>🕯️ Today's task: the Lanterns</h2>`;
+  if (!L) return `${head}<p class="lead">The lanterns are being lit.</p></section>`;
+  if (pub.complete) return `${head}<p class="lead">✅ All the lanterns are lit! Who the flame was passed to most is revealed at the round table: they get the 🛡️ shield.</p></section>`;
+  if (pub.failed) return `${head}<p class="warn">🌬️ The lanterns went out, and there are no attempts left. No shield today.</p></section>`;
+  const others = G.seats.filter(s2 => s2.id !== me && !dead()[s2.id]).map(s2 => s2.id), to = others.includes(ui.flameTo) ? ui.flameTo : "";
+  return `${head}<p class="lead">You are number <b>${L.num}</b> of ${L.n}.${L.num === 1 ? " You go first!" : ` Light your lantern only when lanterns 1${L.num > 2 ? ` to ${L.num - 1}` : ""} are lit.`}</p>
+    <p class="lead">Attempt <b>${attempt}</b> of ${L.attempts}.${pub.out ? " 🌬️ The lanterns went out: start again from 1." : ""}</p>
+    ${L.lit === attempt ? `<p class="lead">🕯️ Your lantern is lit. Now help the others.</p>`
+      : privateOpen(P()) ? `<p class="hint">Nobody can see how many lanterns are lit: share numbers in private chats and agree whose turn it is. Light out of turn and they all go out. Not everyone will tell you the truth.</p>
+        <h3>🔥 Pass the flame</h3><p class="hint">As you light yours, name who deserves the shield (not yourself). If all the lanterns are lit, whoever is named most gets it.</p>
+        <div class="picks">${others.map(q => `<button class="pick" data-act="flame-to" data-pid="${q}" aria-pressed="${to === q}">${nm(q)}</button>`).join("")}</div>
+        <div class="row"><button class="btn primary" data-act="light" ${to ? "" : "disabled"}>🕯️ Light my lantern${to ? `, and pass the flame to ${nm(to)}` : ""}</button></div>` : ""}</section>`;
 }
 // Today's task: the Combination. You hold one digit; share in private chats, then enter the whole code.
 function comboCardHtml(d) {
@@ -582,6 +603,10 @@ document.getElementById("app").addEventListener("click", e => {
     case "offer-open": return showOffer();
     case "wpick": ui.wpick = pid; return render(true);
     case "share-to": ui.shareTo = pid; return render(true);
+    case "flame-to": ui.flameTo = pid; return render(true);
+    case "light": { const L = SEC.lantern, to = ui.flameTo; if (!L || !to) return;
+      if (!confirm(`Light your lantern (number ${L.num}) now, and pass the flame to ${seatName(G, to)}? If it isn't your turn, all the lanterns go out.`)) return;
+      return run(async () => { await FB.addDoc(gcol(gid, "days", String(L.d), "lights"), { pid: me, nominee: to, at: nowMs() }); ui.flameTo = ""; }, "🕯️ Lit"); }
     case "share-true": case "share-lie": { const C = SEC.combo, to = ui.shareTo; if (!C || !to) return;
       const lie = a === "share-lie", digit = lie ? $("#lieDigit").value : C.digit;
       if (lie && !confirm(`Tell ${seatName(G, to)} your digit is ${digit}? You can only lie once today.`)) return;
