@@ -10,17 +10,17 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows · Host</title>
-<script>window.APP_V = 121;</script>
-<script src="update.js?v=121"></script>
+<script>window.APP_V = 122;</script>
+<script src="update.js?v=122"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=121"></script>
-<script src="shadows.js?v=121"></script>
+<script src="daily.js?v=122"></script>
+<script src="shadows.js?v=122"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=121">
-<link rel="stylesheet" href="shadows.css?v=121">
+<link rel="stylesheet" href="daily.css?v=122">
+<link rel="stylesheet" href="shadows.css?v=122">
 <link rel="manifest" href="shadows-host.webmanifest">
 </head>
 <body>
@@ -119,7 +119,7 @@ function render(force) {
   if (!force && a && a.closest && a.closest("#app") && a.matches("input[type=text], textarea")) { pending = true; return; }
   pending = false;
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=121" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=122" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="rules">📜 How to play</button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -251,22 +251,26 @@ function randomSides(k) {
 // A day's plan, chosen by the host: a task (the Whisper, won with a shield) and the Shadows' mission (the code phrase,
 // which earns that night's murder). Both run from breakfast until the round table.
 function planHtml(d, lobby) {
-  const pl = ui.plan[d] = ui.plan[d] || { task: "", wphrase: "", start: "", tries: 2, attempts: 3, mission: lobby ? "phrase" : "", mphrase: "" };
+  const pl = ui.plan[d] = ui.plan[d] || { task: "", wphrase: "", start: "", tries: 2, attempts: 3, pword: "", mission: lobby ? "phrase" : "", mphrase: "" };
   const alive = aliveIds();
   return `<section class="card"><h2>📋 Day ${d}: the task</h2>
-    <div class="seg" role="group" aria-label="Day ${d}'s task">${[["", "None"], ["whisper", "🤫 The Whisper"], ["combination", "🔐 The Combination"], ["lanterns", "🕯️ The Lanterns"]].map(([k, l]) => `<button data-act="plan" data-d="${d}" data-k="task" data-v="${k}" aria-pressed="${pl.task === k}">${l}</button>`).join("")}</div>
+    <div class="seg" role="group" aria-label="Day ${d}'s task">${[["", "None"], ["whisper", "🤫 The Whisper"], ["combination", "🔐 The Combination"], ["lanterns", "🕯️ The Lanterns"], ["dayoff", "🌤️ A day off"]].map(([k, l]) => `<button data-act="plan" data-d="${d}" data-k="task" data-v="${k}" aria-pressed="${pl.task === k}">${l}</button>`).join("")}</div>
     ${pl.task === "whisper" ? `<p class="hint">One player starts with a phrase, and passes it on in a private chat to someone who hasn't had it. It must go round everyone, then back to whoever started it, before the round table. Say it twice and you're out of the running. If anyone is sent it a third time, the Whisper fails. The last player to say it wins a 🛡️ shield.</p>
       <div class="field"><span class="label">The whisper</span><input type="text" id="wphrase-${d}" data-plan="${d}" data-k="wphrase" maxlength="60" placeholder="e.g. the crows gather at midnight" value="${esc(pl.wphrase)}"></div>
       <div class="field"><span class="label">Who starts it</span><select data-plan="${d}" data-k="start"><option value="">🎲 Someone at random</option>${alive.map(p => `<option value="${p}" ${pl.start === p ? "selected" : ""}>${nm(p)}</option>`).join("")}</select></div>`
+      : pl.task === "dayoff" ? `<p class="hint">No task today: players are told it's a day off, and to relax. (Pair it with "murder in plain sight" for a nasty surprise.)</p>`
       : pl.task === "lanterns" ? `<p class="hint">Each player still in the game is secretly given a number, 1 to ${alive.length}. The lanterns must be lit in that order, but nobody can see how many are lit: the team must share numbers in private chats and agree whose turn it is. Lighting out of turn puts them all out, and they start again from 1. As you light yours, you pass the flame: you name who deserves the shield. If all the lanterns are lit before the round table, whoever was named most gets a 🛡️ shield.</p>
       <div class="field"><span class="label">Attempts</span><div class="seg" role="group" aria-label="Attempts">${[2, 3, 4].map(k => `<button data-act="plan" data-d="${d}" data-k="attempts" data-v="${k}" aria-pressed="${+pl.attempts === k}">${k}</button>`).join("")}</div></div>`
       : pl.task === "combination" ? `<p class="hint">A secret code with one digit for each player still in the game (${alive.length} digits). At breakfast each player is told one digit and where it goes, and nobody else's. They must share their digits in private chats, put the code together and enter it. The first correct code wins a 🛡️ shield, in secret. Everyone hears when it's been cracked.</p>
       <div class="field"><span class="label">Tries each</span><div class="seg" role="group" aria-label="Tries each">${[1, 2, 3].map(k => `<button data-act="plan" data-d="${d}" data-k="tries" data-v="${k}" aria-pressed="${+pl.tries === k}">${k}</button>`).join("")}</div>
         <span class="hint">Limited, so nobody can just try every number for a missing digit.</span></div>` : `<p class="hint">${trustDay(G, d) || lobby ? "Day 1 already has the trust vote at the round table." : "No task: the round table banishes as usual."}</p>`}</section>
     <section class="card"><h2>🗝️ Day ${d}: the Shadows' mission</h2>
-    ${lobby && !pl.task ? "" : `<div class="seg" role="group" aria-label="Day ${d}'s mission">${[...(lobby ? [] : [["", "None: they may murder"]]), ["phrase", "🗝️ Code phrase"], ...(pl.task === "whisper" ? [["addword", "✍️ Add a word to the Whisper"]] : []), ...(pl.task === "combination" ? [["mislead", "🎭 Mislead: a Guest enters a wrong code"]] : []), ...(pl.task === "lanterns" ? [["snuff", "🌬️ Snuff a lantern: a Guest lights out of turn"]] : [])].map(([k, l]) => `<button data-act="plan" data-d="${d}" data-k="mission" data-v="${k}" aria-pressed="${pl.mission === k}">${l}</button>`).join("")}</div>`}
+    ${lobby && !pl.task ? "" : `<div class="seg" role="group" aria-label="Day ${d}'s mission">${[...(lobby ? [] : [["", "None: they may murder"]]), ["phrase", "🗝️ Code phrase"], ...(pl.task === "whisper" ? [["addword", "✍️ Add a word to the Whisper"]] : []), ...(pl.task === "combination" ? [["mislead", "🎭 Mislead: a Guest enters a wrong code"]] : []), ...(pl.task === "lanterns" ? [["snuff", "🌬️ Snuff a lantern: a Guest lights out of turn"]] : []), ...(pl.task === "dayoff" ? [["plainsight", "🗡️ Murder in plain sight"]] : [])].map(([k, l]) => `<button data-act="plan" data-d="${d}" data-k="mission" data-v="${k}" aria-pressed="${pl.mission === k}">${l}</button>`).join("")}</div>`}
     ${pl.mission === "phrase" ? `<p class="hint">Each Shadow must slip this phrase into a private chat with a Guest before the round table. If they all do, and no Guest catches it (by messaging you the phrase), they may murder that night. Nothing to do with the task's shield.</p>
       <div class="field"><span class="label">Code phrase (only the Shadows see it)</span><input type="text" id="mphrase-${d}" data-plan="${d}" data-k="mphrase" maxlength="60" placeholder="e.g. the lanterns are low tonight" value="${esc(pl.mphrase)}"></div>`
+      : pl.mission === "plainsight" ? `<p class="hint">The Shadows must get a Guest to say this word in a private chat. The first Guest to say it is marked: they die tonight (you'll see who). The round table opens with "hope you enjoyed your day off… but the Shadows committed a murder in plain sight", without saying who. If no Guest says it, there's no murder tonight.</p>
+      <div class="field"><span class="label">The fatal word (only the Shadows see it)</span><input type="text" id="pword-${d}" data-plan="${d}" data-k="pword" maxlength="30" placeholder="e.g. pineapple" value="${esc(pl.pword)}"></div>
+      <p class="hint">One word. Something a Guest might say, with a little encouragement. Capitals don't matter; it must be the whole word.</p>`
       : pl.mission === "snuff" ? `<p class="hint">If a Guest lights their lantern out of turn (perhaps because a Shadow lied about their number, or said "you're next" too soon), the Shadows may murder that night. The team still has its other attempts, so the shield can still be won.</p>`
       : pl.mission === "mislead" ? `<p class="hint">Digits are shared with a 🔐 button, which always sends the truth, except that each Shadow may send one false digit that day. If a Guest enters a code using a Shadow's false digit, the Shadows may murder that night. The shield can still be won afterwards.</p>`
       : pl.mission === "addword" ? `<p class="hint">When a Shadow passes the whisper on, they may add one word to it. If a Shadow adds a word, and the next player passes the changed whisper on, the Shadows may murder that night. (A Shadow who starts the whisper can't change it.) Only the starter finds out, when it comes back, whether it changed. The shield is still won as usual.</p>`
@@ -278,6 +282,7 @@ function planProblem(pl) {
   if (pl.mission === "addword" && pl.task !== "whisper") return "Adding a word needs the Whisper as the day's task.";
   if (pl.mission === "mislead" && pl.task !== "combination") return "Misleading needs the Combination as the day's task.";
   if (pl.mission === "snuff" && pl.task !== "lanterns") return "Snuffing a lantern needs the Lanterns as the day's task.";
+  if (pl.mission === "plainsight" && normPhrase(pl.pword).split(" ").filter(Boolean).length !== 1) return "Choose one fatal word.";
   if (pl.task === "whisper" && pl.mission === "phrase" && normPhrase(pl.wphrase) === normPhrase(pl.mphrase)) return "The whisper and the code phrase need to be different.";
   return "";
 }
@@ -293,6 +298,11 @@ function writePlan(b, d, pl, dawn, sides, dead) {
     const order = shuffle([...alive]), nums = {}, attempts = +pl.attempts || 3;
     order.forEach((p, i) => { nums[p] = i + 1; b.update(gref(gid, "secret", p), { lantern: { d, num: i + 1, n: order.length, attempts } }); });
     b.update(gref(gid, "st", "grim"), { [`tasks.${d}`]: { type: "lanterns", nums, attempts, attempt: 1, cur: [], resets: [], done: false } });
+  }
+  if (pl.task === "dayoff") b.update(gref(gid, "st", "grim"), { [`tasks.${d}`]: { type: "dayoff" } });
+  if (pl.mission === "plainsight") {
+    b.update(gref(gid, "st", "grim"), { [`missions.${d}`]: { type: "plainsight", word: normPhrase(pl.pword), done: false } });
+    for (const p of sh) b.update(gref(gid, "secret", p), { mission: { d, type: "plainsight", word: normPhrase(pl.pword) } });
   }
   if (pl.mission === "snuff") {
     b.update(gref(gid, "st", "grim"), { [`missions.${d}`]: { type: "snuff", done: false } });
@@ -347,6 +357,10 @@ async function deal() {
 // How the Shadows are getting on with their mission (only the host sees this)
 function missionHtml(d) {
   const M = (GR.missions || {})[d]; if (!M) return "";
+  if (M.type === "plainsight") return `<section class="card ${M.done ? "" : "todo"}"><h2>🗡️ The Shadows' mission: murder in plain sight</h2>
+      <p class="lead">The fatal word: “${esc(M.word)}”</p>
+      <p class="lead">${M.marked ? `✅ <b>${nm(M.marked.pid)}</b> (a Guest) said it to ${nm(M.marked.to)} at ${clock(M.marked.at)}. They die tonight.` : "⏳ No Guest has said it yet."}</p>
+      <p class="lead">${M.done ? (M.passed ? "The round table has been told a murder in plain sight happened (not who)." : "Nobody said it: no murder tonight.") : `Until the round table, ${when(G.days[d].noms)}.`}</p></section>`;
   if (M.type === "snuff") return `<section class="card ${M.done ? "" : "todo"}"><h2>🌬️ The Shadows' mission: snuff a lantern</h2>
       <p class="lead">${M.snuffed ? `✅ ${nm(M.snuffed.by)} (a Guest) lit out of turn at ${clock(M.snuffed.at)}.` : "⏳ No Guest has lit out of turn yet."}</p>
       <p class="lead">${M.done ? (M.passed ? "✅ Mission complete: they may murder tonight." : "❌ Mission failed: no murder tonight.") : M.snuffed ? "So far: complete." : `They have until ${when(G.days[d].noms)}.`}</p></section>`;
@@ -400,7 +414,7 @@ function whisperHtml(d) {
     ${Object.keys(W.repeats || {}).length ? `<p class="hint">Sent it again: ${Object.entries(W.repeats).map(([p, k]) => `${nm(p)} (${k + 1} times)`).join(", ")}.</p>` : ""}
     <p class="hint">${W.failed ? "No shield today." : W.done ? (W.winner ? `🛡️ ${nm(W.winner)} said it last, and has a shield tonight.` : "No shield: it didn't make it all the way round in time.") : W.complete ? "It has gone all the way round: the winner is announced at the round table." : `${nm(holder)} has it now. ${waiting.length ? `Still to have it: ${waiting.map(nm).join(", ")}.` : "Everyone has had it: it must go back to " + nm(W.start) + "."}`}${Object.keys(out).length ? ` Said it twice (out of the running): ${Object.keys(out).map(nm).join(", ")}.` : ""}</p></section>`;
 }
-const missionOk = d => { const M = (GR.missions || {})[d]; if (!M) return true; if (M.done) return !!M.passed; if (M.type === "mislead") return !!M.misled; if (M.type === "snuff") return !!M.snuffed;
+const missionOk = d => { const M = (GR.missions || {})[d]; if (!M) return true; if (M.done) return !!M.passed; if (M.type === "mislead") return !!M.misled; if (M.type === "snuff") return !!M.snuffed; if (M.type === "plainsight") return !!M.marked;
   if (M.type === "addword") { const W = (GR.tasks || {})[d] || {}; return (W.adds || []).some(a => (W.chain || []).some(c => c.from === a.to)); } return seatIds(G).filter(p => sideOf(p) === "shadow" && !deadTruth()[p]).every(p => (M.said || {})[p]) && !M.caught; };
 
 /* ---------- The running game ---------- */
@@ -535,6 +549,8 @@ function recruitTonight() { const o = offerTonight(), a = o && answers[o.target]
 function defaultVictim() {
   const mode = modeTonight();
   if (!missionOk(G.day || 0)) return "";
+  const PM = (GR.missions || {})[G.day || 0];
+  if (PM && PM.type === "plainsight") return PM.marked && !deadTruth()[PM.marked.pid] ? PM.marked.pid : "";
   if (mode === "murder") return suggestVictim();
   const o = offerTonight(), a = o && answers[o.target];
   return mode === "blackmail" && o && ((a && a.answer === "refuse") || (!a && nowMs() >= o.until)) ? o.target : "";
@@ -759,7 +775,7 @@ document.getElementById("app").addEventListener("click", e => {
     case "deal": return run(deal);
     case "start-opt": ui.startOpt = +el.dataset.i; return render(true);
     case "plan": { const pl = ui.plan[el.dataset.d]; pl[el.dataset.k] = el.dataset.v;
-      if (el.dataset.k === "task") { const pair = { whisper: "addword", combination: "mislead", lanterns: "snuff" }[el.dataset.v]; if (pair) pl.mission = pair; else if (["addword", "mislead", "snuff"].includes(pl.mission)) pl.mission = ""; }
+      if (el.dataset.k === "task") { const pair = { whisper: "addword", combination: "mislead", lanterns: "snuff", dayoff: "plainsight" }[el.dataset.v]; if (pair) pl.mission = pair; else if (["addword", "mislead", "snuff", "plainsight"].includes(pl.mission)) pl.mission = ""; }
       return render(true); }
     case "tab": ui.tab = el.dataset.tab; ui.thread = ""; render(true); return window.scrollTo(0, 0);
     case "gtok": return tokenDialog(pid);

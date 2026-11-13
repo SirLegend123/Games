@@ -129,6 +129,13 @@ async function onChat(gid, pair, m) {
     await db.doc(`games/${gid}/st/grim`).update({ [`missions.${d}.said.${m.from}`]: { to, at } });
     await db.doc(`games/${gid}/secret/${m.from}`).update({ "mission.said": at });
   }
+  // A day off: the first Guest to say the Shadows' word in a private chat is marked to die tonight (murder in plain sight)
+  const PM = (x.grim.missions || {})[d];
+  if (PM && PM.type === "plainsight" && !PM.marked && !PM.done && dayOpenNow(x.G, d) && sides[m.from] === "guest" && saysPhrase(m.text, PM.word)) {
+    await db.doc(`games/${gid}/st/grim`).update({ [`missions.${d}.marked`]: { pid: m.from, to, at } });
+    for (const p of seatIds(x.G).filter(q => sides[q] === "shadow" && !(x.grim.dead || {})[q])) await db.doc(`games/${gid}/secret/${p}`).update({ "mission.marked": { pid: m.from, at } });
+    await notify(gid, x.G, ["st"], { title: "🗡️ Murder in plain sight", body: `${nameOf(x.G, m.from)} said the word. They die tonight.`, tag: `challenge-${gid}` });
+  }
   // The Combination: a digit shared with the button (true, or a Shadow's one lie)
   const CW = (x.grim.tasks || {})[d];
   if (m.share && CW && CW.type === "combination" && !CW.done && dayOpenNow(x.G, d)) {
@@ -347,12 +354,14 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
   // The Shadows' mission ends at the round table: every Shadow still in must have said the phrase to a Guest, uncaught
   if (M && t && now >= t.noms && !M.done) {
     const adds = (W && W.adds) || [], ch = (W && W.chain) || [];
-    const all = shadows, passed = M.type === "snuff" ? !!M.snuffed : M.type === "mislead" ? !!M.misled : M.type === "addword" ? adds.some(a => ch.some(c => c.from === a.to)) : all.every(p => (M.said || {})[p]) && !M.caught, b = db.batch();
+    const all = shadows, passed = M.type === "plainsight" ? !!M.marked : M.type === "snuff" ? !!M.snuffed : M.type === "mislead" ? !!M.misled : M.type === "addword" ? adds.some(a => ch.some(c => c.from === a.to)) : all.every(p => (M.said || {})[p]) && !M.caught, b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`missions.${d}.done`]: true, [`missions.${d}.passed`]: passed });
     for (const p of all) b.update(db.doc(`games/${gid}/secret/${p}`), { "mission.done": true, "mission.passed": passed, "mission.caught": !!M.caught });
-    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now + 2, text: passed ? "🗝️ The Shadows completed their secret mission today. Tonight, they may murder." : "🗝️ The Shadows failed their secret mission today. Tonight, nobody will be murdered." });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now + 2, text: M.type === "plainsight"
+      ? (passed ? "🌤️ We hope you all enjoyed your day off… but the Shadows were busy. They committed a murder in plain sight: someone said the fatal word today. They will die tonight, and you'll find out who at breakfast." : "🌤️ We hope you all enjoyed your day off. All was quiet… this time.")
+      : passed ? "🗝️ The Shadows completed their secret mission today. Tonight, they may murder." : "🗝️ The Shadows failed their secret mission today. Tonight, nobody will be murdered." });
     await b.commit(); M.done = true; M.passed = passed;
-    once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows completed their mission" : "❌ The Shadows failed their mission", body: passed ? "They may murder tonight." : M.type === "snuff" ? "No Guest lit out of turn: no murder tonight." : M.type === "mislead" ? "No Guest entered a wrong code: no murder tonight." : M.type === "addword" ? "No changed whisper was passed on: no murder tonight." : M.caught ? "A Guest caught the code phrase: no murder tonight." : "Not every Shadow said the phrase: no murder tonight.", tag: `challenge-${gid}` });
+    once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows completed their mission" : "❌ The Shadows failed their mission", body: passed ? (M.type === "plainsight" ? `${nameOf(G, M.marked.pid)} said the word: they die tonight.` : "They may murder tonight.") : M.type === "plainsight" ? "No Guest said the word: no murder tonight." : M.type === "snuff" ? "No Guest lit out of turn: no murder tonight." : M.type === "mislead" ? "No Guest entered a wrong code: no murder tonight." : M.type === "addword" ? "No changed whisper was passed on: no murder tonight." : M.caught ? "A Guest caught the code phrase: no murder tonight." : "Not every Shadow said the phrase: no murder tonight.", tag: `challenge-${gid}` });
   }
   // The Whisper ends at the round table: if it went all the way round, the last player still in the running to say it gets a shield
   if (W && W.type === "lanterns" && t && now >= t.noms && !W.done) {
