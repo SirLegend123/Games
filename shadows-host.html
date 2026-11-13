@@ -10,17 +10,17 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows · Host</title>
-<script>window.APP_V = 119;</script>
-<script src="update.js?v=119"></script>
+<script>window.APP_V = 120;</script>
+<script src="update.js?v=120"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=119"></script>
-<script src="shadows.js?v=119"></script>
+<script src="daily.js?v=120"></script>
+<script src="shadows.js?v=120"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=119">
-<link rel="stylesheet" href="shadows.css?v=119">
+<link rel="stylesheet" href="daily.css?v=120">
+<link rel="stylesheet" href="shadows.css?v=120">
 <link rel="manifest" href="shadows-host.webmanifest">
 </head>
 <body>
@@ -119,7 +119,7 @@ function render(force) {
   if (!force && a && a.closest && a.closest("#app") && a.matches("input[type=text], textarea")) { pending = true; return; }
   pending = false;
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=119" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=120" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="rules">📜 How to play</button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -265,7 +265,7 @@ function planHtml(d, lobby) {
     ${lobby && !pl.task ? "" : `<div class="seg" role="group" aria-label="Day ${d}'s mission">${[...(lobby ? [] : [["", "None: they may murder"]]), ["phrase", "🗝️ Code phrase"], ...(pl.task === "whisper" ? [["addword", "✍️ Add a word to the Whisper"]] : []), ...(pl.task === "combination" ? [["mislead", "🎭 Mislead: a Guest enters a wrong code"]] : [])].map(([k, l]) => `<button data-act="plan" data-d="${d}" data-k="mission" data-v="${k}" aria-pressed="${pl.mission === k}">${l}</button>`).join("")}</div>`}
     ${pl.mission === "phrase" ? `<p class="hint">Each Shadow must slip this phrase into a private chat with a Guest before the round table. If they all do, and no Guest catches it (by messaging you the phrase), they may murder that night. Nothing to do with the task's shield.</p>
       <div class="field"><span class="label">Code phrase (only the Shadows see it)</span><input type="text" id="mphrase-${d}" data-plan="${d}" data-k="mphrase" maxlength="60" placeholder="e.g. the lanterns are low tonight" value="${esc(pl.mphrase)}"></div>`
-      : pl.mission === "mislead" ? `<p class="hint">The Shadows get their real digit, like everyone else. If a Guest enters a wrong code that's wrong in a place a Shadow holds (so a Shadow's lie worked), the Shadows may murder that night. The shield can still be won afterwards.</p>`
+      : pl.mission === "mislead" ? `<p class="hint">Digits are shared with a 🔐 button, which always sends the truth, except that each Shadow may send one false digit that day. If a Guest enters a code using a Shadow's false digit, the Shadows may murder that night. The shield can still be won afterwards.</p>`
       : pl.mission === "addword" ? `<p class="hint">When a Shadow passes the whisper on, they may add one word to it. If a Shadow adds a word, and the next player passes the changed whisper on, the Shadows may murder that night. (A Shadow who starts the whisper can't change it.) Only the starter finds out, when it comes back, whether it changed. The shield is still won as usual.</p>`
       : `<p class="hint">No mission: the Shadows may murder that night.</p>`}</section>`;
 }
@@ -335,7 +335,7 @@ async function deal() {
 function missionHtml(d) {
   const M = (GR.missions || {})[d]; if (!M) return "";
   if (M.type === "mislead") return `<section class="card ${M.done ? "" : "todo"}"><h2>🎭 The Shadows' mission: mislead</h2>
-      <p class="lead">${M.misled ? `✅ ${nm(M.misled.by)} (a Guest) entered a wrong code, ${esc(M.misled.code)}, at ${clock(M.misled.at)}.` : "⏳ No Guest has entered a code wrong in a Shadow's place yet."}</p>
+      <p class="lead">${M.misled ? `✅ ${nm(M.misled.by)} (a Guest) entered ${esc(M.misled.code)} at ${clock(M.misled.at)}, using a Shadow's false digit.` : "⏳ No Guest has entered a code using a Shadow's false digit yet."}</p>
       <p class="lead">${M.done ? (M.passed ? "✅ Mission complete: they may murder tonight." : "❌ Mission failed: no murder tonight.") : M.misled ? "So far: complete." : `They have until ${when(G.days[d].noms)}.`}</p></section>`;
   if (M.type === "addword") { const W = (GR.tasks || {})[d] || {}, adds = W.adds || [], ch = W.chain || [], on = a => ch.some(c => c.from === a.to), ok = adds.some(on);
     return `<section class="card ${M.done ? "" : "todo"}"><h2>✍️ The Shadows' mission: add a word</h2>
@@ -357,6 +357,7 @@ function comboHtml(d) {
   return `<section class="card ${W.done ? "" : "todo"}"><h2>🔐 The Combination</h2>
     <p class="lead">The code: <b class="code">${esc(W.code)}</b> <span class="hint">(${W.tries} ${W.tries === 1 ? "try" : "tries"} each)</span></p>
     <div class="town">${byPos.map(([p, i]) => `<div class="prow"><span class="n">${i + 1}</span><span><b>${nm(p)}</b> holds “${W.code[i]}” ${sideChip(sideOf(p))}</span></div>`).join("")}</div>
+    <h3>🔐 Digits shared</h3>${(W.shares || []).length ? W.shares.map(x => `<p class="lead" style="margin:2px 0">${x.lie ? "🎭" : "✔️"} <b>${nm(x.from)}</b> → ${nm(x.to)}: ${esc(x.digit)} for place ${x.pos + 1}${x.lie ? ` <span class="tag evil">a lie (really ${W.code[x.pos]})</span>` : ""}</p>`).join("") : `<p class="hint">None yet.</p>`}
     <h3>Entries</h3>${(W.entries || []).length ? W.entries.map(e => `<p class="lead" style="margin:2px 0">${e.ok ? "✅" : "❌"} <b>${nm(e.pid)}</b>: ${esc(e.code)} <span class="hint">${clock(e.at)}${e.ok ? "" : ` · wrong at ${[...W.code].map((c, i) => e.code[i] !== c ? nm(byPos[i][0]) + "'s place" : "").filter(Boolean).join(", ") || "length"}`}</span></p>`).join("") : `<p class="hint">None yet.</p>`}
     <p class="lead">${W.cracked ? `🛡️ ${nm(W.winner)} cracked it at ${clock(W.cracked)}, and has the shield (in secret).` : W.done ? "Nobody cracked it: no shield." : `Open until ${when(G.days[d].noms)}.`}</p></section>`;
 }

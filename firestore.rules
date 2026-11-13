@@ -100,7 +100,8 @@ service cloud.firestore {
       match /chats/{pair}/msgs/{id} {
         allow read: if owns(pair.split('~')[0]) || owns(pair.split('~')[1]);
         allow create: if request.resource.data.from in pair.split('~') && owns(request.resource.data.from) && str(request.resource.data.text, 1000)
-          && (!shd() || (inWin(today(), 'dawn', 'noms') && !isOut(request.resource.data.from)));   // The Shadows: breakfast until the round table
+          && (!shd() || (inWin(today(), 'dawn', 'noms') && !isOut(request.resource.data.from)))   // The Shadows: breakfast until the round table
+          && (!('share' in request.resource.data) || shareOk(request.resource.data));
       }
       // A player's private chat with the Storyteller: only the two of them can read it
       match /stchat/{pid}/msgs/{id} {
@@ -144,6 +145,19 @@ service cloud.firestore {
         allow create: if owns(pid) && request.resource.data.keys().hasOnly(['answer', 'at']) && request.resource.data.answer in ['accept', 'refuse']
           && string(get(/databases/$(db)/documents/games/$(gid)/secret/$(pid)).data.offer.n) == n
           && now() < get(/databases/$(db)/documents/games/$(gid)/secret/$(pid)).data.offer.until;
+      }
+      // The Shadows, the Combination: a digit shared with the button must be the sender's own place and digit,
+      // except one false digit per Shadow per day (marked by creating their lies/ doc in the same write, which can only happen once)
+      function shareOk(m) {
+        let c = get(/databases/$(db)/documents/games/$(gid)/secret/$(m.from)).data;
+        let lie = /databases/$(db)/documents/games/$(gid)/days/$(string(c.combo.d))/lies/$(m.from);
+        return m.share.keys().hasOnly(['pos', 'digit']) && m.share.pos == c.combo.pos && m.share.digit is string && m.share.digit.matches('[0-9]')
+          && m.text == 'My digit is ' + m.share.digit + ', for place ' + string(m.share.pos + 1) + '.'
+          && (m.share.digit == c.combo.digit || (c.side == 'shadow' && !exists(lie) && existsAfter(lie)));
+      }
+      match /days/{d}/lies/{pid} {
+        allow get: if isST() || owns(pid);
+        allow create: if owns(pid) && get(/databases/$(db)/documents/games/$(gid)/secret/$(pid)).data.side == 'shadow' && request.resource.data.keys().hasOnly(['at']);
       }
       // The Shadows, the Combination: a player's code entry, between breakfast and the round table. Only the host (and the server) read them.
       match /days/{d}/codes/{id} {
