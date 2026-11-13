@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 126;</script>
-<script src="update.js?v=126"></script>
+<script>window.APP_V = 127;</script>
+<script src="update.js?v=127"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=126"></script>
-<script src="shadows.js?v=126"></script>
+<script src="daily.js?v=127"></script>
+<script src="shadows.js?v=127"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=126">
-<link rel="stylesheet" href="shadows.css?v=126">
+<link rel="stylesheet" href="daily.css?v=127">
+<link rel="stylesheet" href="shadows.css?v=127">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -161,7 +161,7 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=126" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=127" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -592,8 +592,9 @@ function revealSide() {
   dialog(`<div class="reveal reveal-${side}"><p class="label">${recruited ? "You have been recruited" : "Your role"}</p>
     <img class="emblem" src="${s.emblem}" alt="${s.one}" width="700" height="700">
     <h2>You are ${side === "shadow" ? "a Shadow" : "a Guest"}</h2>
-    ${side === "shadow" && G.dayFirst && !allies.length && !recruited ? `<p class="lead">You don't know who the other Shadows are yet: you'll meet them tonight. First, today's challenge. Before the round table, slip this phrase into a private chat with a Guest:</p>
-      <p class="quote">“${esc((SEC.mission || {}).phrase || "")}”</p><p class="hint">If every Shadow says it, and no Guest catches it, you may murder tonight.</p>`
+    ${side === "shadow" && G.dayFirst && !allies.length && !recruited ? `<p class="lead">You don't know who the other Shadows are yet: you'll meet them tonight, when your chat opens.</p>
+      ${(SEC.mission || {}).phrase ? `<p class="lead">First, today's challenge. Before the round table, slip this phrase into a private chat with a Guest:</p>
+      <p class="quote">“${esc(SEC.mission.phrase)}”</p><p class="hint">If every Shadow says it, and no Guest catches it, you may murder tonight.</p>` : `<p class="hint">Until then, blend in. Each night, the Shadows choose together who to murder.</p>`}`
       : side === "shadow" ? `<p class="lead">${allies.length ? `Your fellow Shadows: <b>${allies.map(nm).join(", ")}</b>.` : "You are the only Shadow."} Each night, choose together who to murder. Never let the Guests find you out.</p>`
       : `<p class="lead">Somewhere amongst the Guests, the Shadows are hiding. Find them, and banish them at the round table.</p>`}
     <p class="hint">Keep it to yourself. You can see this again under Me.</p>
