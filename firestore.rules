@@ -166,6 +166,13 @@ service cloud.firestore {
           && request.resource.data.code is string && request.resource.data.code.size() <= 12
           && dayT(d).get('task', '') == 'combination' && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
       }
+      // The Shadows, the Lanterns: a player lights their lantern (and names who deserves the shield). Only the host reads them.
+      match /days/{d}/lights/{id} {
+        allow read: if isST();
+        allow create: if owns(request.resource.data.pid) && !isOut(request.resource.data.pid) && request.resource.data.keys().hasOnly(['pid', 'nominee', 'at'])
+          && request.resource.data.nominee is string && request.resource.data.nominee != request.resource.data.pid
+          && dayT(d).get('task', '') == 'lanterns' && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
+      }
       // Night actions: the player's own choices while that night is open
       match /nights/{n}/acts/{pid} {
         allow get: if isST() || owns(pid);

@@ -172,6 +172,49 @@ async function onCode(gid, d, e) {
   }
   await g.update(u);
 }
+// The Lanterns: each player has a secret number, and the lanterns must be lit in order. Lighting out of turn puts them all
+// out (one attempt used). Each lighter names who deserves the shield; if all are lit, the most named gets it.
+// The Shadows' mission ("snuff"): a Guest lights out of turn.
+async function onLight(gid, d, e) {
+  const x = await load(gid); if (!x) return;
+  const { G, grim } = x, W = (grim.tasks || {})[d], sides = grim.sides || {}, pid = e.pid, at = e.at || Date.now(), dead = grim.dead || {};
+  if (!isShd(G) || !W || W.type !== "lanterns" || W.done || W.complete || W.failed || dead[pid] || !dayOpenNow(G, d) || !(pid in (W.nums || {}))) return;
+  const cur = W.cur || [], attempt = W.attempt || 1, alive = seatIds(G).filter(p => !dead[p]);
+  if (cur.some(c => c.pid === pid)) return;   // already lit this time
+  const g = db.doc(`games/${gid}/st/grim`), FV = require("firebase-admin").firestore.FieldValue;
+  if (W.nums[pid] === cur.length + 1) {
+    const lit = [...cur, { pid, nominee: e.nominee, at }], u = { [`tasks.${d}.cur`]: lit };
+    await db.doc(`games/${gid}/secret/${pid}`).update({ "lantern.lit": attempt });
+    if (lit.length === Object.keys(W.nums).length) {
+      // All lit: the most named wins (a tie: whoever reached that many first)
+      const count = {}; let best = null, top = 0;
+      for (const c of lit) { count[c.nominee] = (count[c.nominee] || 0) + 1; if (count[c.nominee] > top) { top = count[c.nominee]; best = c.nominee; } }
+      Object.assign(u, { [`tasks.${d}.complete`]: at, [`tasks.${d}.winner`]: best, [`tasks.${d}.named`]: count, [`wshield.${+d + 1}`]: best });
+      const b = db.batch();
+      b.update(db.doc(`games/${gid}`), { [`days.${d}.lan`]: { attempt, complete: at } });
+      b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d: +d, at, text: "🕯️ All the lanterns are lit! Who the flame was passed to is revealed at the round table." });
+      if (best) b.update(db.doc(`games/${gid}/secret/${best}`), { info: FV.arrayUnion({ n: +d, at, label: "Shield", text: "🕯️ The flame was passed to you most: you have a shield tonight, and can't be murdered. Everyone is told at the round table." }) });
+      await b.commit();
+      await notify(gid, G, ["st"], { title: "🕯️ All the lanterns are lit", body: best ? `${nameOf(G, best)} was named most, and has the shield.` : "", tag: `lantern-${gid}` });
+    }
+    await g.update(u);
+    return;
+  }
+  // Out of turn: the lanterns go out
+  const resets = [...(W.resets || []), { by: pid, attempt, wanted: cur.length + 1, num: W.nums[pid], at }], failed = attempt >= (W.attempts || 3);
+  const u = { [`tasks.${d}.cur`]: [], [`tasks.${d}.resets`]: resets, [`tasks.${d}.attempt`]: attempt + 1, ...(failed ? { [`tasks.${d}.failed`]: at } : {}) };
+  const M = (grim.missions || {})[d];
+  if (M && M.type === "snuff" && !M.snuffed && sides[pid] === "guest") {
+    u[`missions.${d}.snuffed`] = { by: pid, at };
+    for (const p of alive.filter(q => sides[q] === "shadow")) await db.doc(`games/${gid}/secret/${p}`).update({ "mission.snuffed": at });
+  }
+  await g.update(u);
+  const b = db.batch();
+  b.update(db.doc(`games/${gid}`), { [`days.${d}.lan`]: { attempt: attempt + 1, ...(failed ? { failed: at } : {}), out: at } });
+  b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d: +d, at, text: failed ? "🌬️ The lanterns have gone out, and there are no attempts left. No shield today." : `🌬️ The lanterns have gone out! Someone lit theirs out of turn. Attempt ${attempt + 1} of ${W.attempts || 3}: start again from 1.` });
+  await b.commit();
+  await notify(gid, G, alive, { title: "🌬️ The lanterns have gone out", body: failed ? "No attempts left: no shield today." : `Attempt ${attempt + 1} of ${W.attempts || 3}. Start again from 1.`, tag: `lantern-${gid}` });
+}
 // The whisper each player was given (the starter: the original), and one word added to it
 const words = s => normPhrase(s).split(" ").filter(Boolean);
 function oneWordAdded(a, b) {
@@ -304,14 +347,22 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
   // The Shadows' mission ends at the round table: every Shadow still in must have said the phrase to a Guest, uncaught
   if (M && t && now >= t.noms && !M.done) {
     const adds = (W && W.adds) || [], ch = (W && W.chain) || [];
-    const all = shadows, passed = M.type === "mislead" ? !!M.misled : M.type === "addword" ? adds.some(a => ch.some(c => c.from === a.to)) : all.every(p => (M.said || {})[p]) && !M.caught, b = db.batch();
+    const all = shadows, passed = M.type === "snuff" ? !!M.snuffed : M.type === "mislead" ? !!M.misled : M.type === "addword" ? adds.some(a => ch.some(c => c.from === a.to)) : all.every(p => (M.said || {})[p]) && !M.caught, b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`missions.${d}.done`]: true, [`missions.${d}.passed`]: passed });
     for (const p of all) b.update(db.doc(`games/${gid}/secret/${p}`), { "mission.done": true, "mission.passed": passed, "mission.caught": !!M.caught });
     b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now + 2, text: passed ? "🗝️ The Shadows completed their secret mission today. Tonight, they may murder." : "🗝️ The Shadows failed their secret mission today. Tonight, nobody will be murdered." });
     await b.commit(); M.done = true; M.passed = passed;
-    once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows completed their mission" : "❌ The Shadows failed their mission", body: passed ? "They may murder tonight." : M.type === "mislead" ? "No Guest entered a wrong code: no murder tonight." : M.type === "addword" ? "No changed whisper was passed on: no murder tonight." : M.caught ? "A Guest caught the code phrase: no murder tonight." : "Not every Shadow said the phrase: no murder tonight.", tag: `challenge-${gid}` });
+    once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows completed their mission" : "❌ The Shadows failed their mission", body: passed ? "They may murder tonight." : M.type === "snuff" ? "No Guest lit out of turn: no murder tonight." : M.type === "mislead" ? "No Guest entered a wrong code: no murder tonight." : M.type === "addword" ? "No changed whisper was passed on: no murder tonight." : M.caught ? "A Guest caught the code phrase: no murder tonight." : "Not every Shadow said the phrase: no murder tonight.", tag: `challenge-${gid}` });
   }
   // The Whisper ends at the round table: if it went all the way round, the last player still in the running to say it gets a shield
+  if (W && W.type === "lanterns" && t && now >= t.noms && !W.done) {
+    const outs = (W.resets || []).map(r => `${nameOf(G, r.by)} (attempt ${r.attempt})`).join(", "), b = db.batch();
+    b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: W.complete
+      ? `🕯️ The Lanterns: ✅ all lit, on attempt ${W.attempt || 1}. ${W.winner ? `The flame was passed to ${nameOf(G, W.winner)} most: they have a shield tonight.` : ""}${outs ? ` Lit out of turn: ${outs}.` : ""}`
+      : `🕯️ The Lanterns: ❌ not all lit${W.failed ? ", and no attempts left" : " in time"}. No shield today.${outs ? ` Lit out of turn: ${outs}.` : ""}` });
+    await b.commit(); W.done = true;
+  }
   if (W && W.type === "combination" && t && now >= t.noms && !W.done) {
     const b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true });
@@ -446,4 +497,4 @@ async function onGameUpdate(gid, before, after) {
     await notify(gid, after, seatIds(after), { title: "🗝️ Your role has been chosen", body: "Open The Shadows to find out: are you a Guest, or a Shadow? Keep it to yourself.", tag: `role-${gid}` });
 }
 
-module.exports = { onCode, init, vapid, notify, tick, tickGame, expired, cleanup, onGameUpdate, onConclave, autoBanish, autoTrust, saysPhrase, onOffer, onAnswer, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
+module.exports = { onLight, onCode, init, vapid, notify, tick, tickGame, expired, cleanup, onGameUpdate, onConclave, autoBanish, autoTrust, saysPhrase, onOffer, onAnswer, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
