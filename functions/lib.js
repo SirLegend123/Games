@@ -235,7 +235,10 @@ async function cleanup(now = Date.now()) {
 }
 // The Storyteller pressed "Delete this game": everything under it goes now
 async function onGameUpdate(gid, before, after) {
-  if (after.deleteReq && !before.deleteReq) await db.recursiveDelete(db.doc(`games/${gid}`));
+  if (after.deleteReq && !before.deleteReq) return db.recursiveDelete(db.doc(`games/${gid}`));
+  // The Shadows: the host has chosen the sides. Everyone is told to look (but not what they are: phones get seen).
+  if (isShd(after) && before.status === "lobby" && after.status === "running")
+    await notify(gid, after, seatIds(after), { title: "🗝️ Your role has been chosen", body: "Open The Shadows to find out: are you a Guest, or a Shadow? Keep it to yourself.", tag: `role-${gid}` });
 }
 
 module.exports = { init, vapid, notify, tick, tickGame, expired, cleanup, onGameUpdate, onConclave, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
