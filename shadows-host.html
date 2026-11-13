@@ -10,17 +10,17 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows · Host</title>
-<script>window.APP_V = 122;</script>
-<script src="update.js?v=122"></script>
+<script>window.APP_V = 123;</script>
+<script src="update.js?v=123"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=122"></script>
-<script src="shadows.js?v=122"></script>
+<script src="daily.js?v=123"></script>
+<script src="shadows.js?v=123"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=122">
-<link rel="stylesheet" href="shadows.css?v=122">
+<link rel="stylesheet" href="daily.css?v=123">
+<link rel="stylesheet" href="shadows.css?v=123">
 <link rel="manifest" href="shadows-host.webmanifest">
 </head>
 <body>
@@ -119,7 +119,7 @@ function render(force) {
   if (!force && a && a.closest && a.closest("#app") && a.matches("input[type=text], textarea")) { pending = true; return; }
   pending = false;
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=122" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=123" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="rules">📜 How to play</button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -268,7 +268,7 @@ function planHtml(d, lobby) {
     ${lobby && !pl.task ? "" : `<div class="seg" role="group" aria-label="Day ${d}'s mission">${[...(lobby ? [] : [["", "None: they may murder"]]), ["phrase", "🗝️ Code phrase"], ...(pl.task === "whisper" ? [["addword", "✍️ Add a word to the Whisper"]] : []), ...(pl.task === "combination" ? [["mislead", "🎭 Mislead: a Guest enters a wrong code"]] : []), ...(pl.task === "lanterns" ? [["snuff", "🌬️ Snuff a lantern: a Guest lights out of turn"]] : []), ...(pl.task === "dayoff" ? [["plainsight", "🗡️ Murder in plain sight"]] : [])].map(([k, l]) => `<button data-act="plan" data-d="${d}" data-k="mission" data-v="${k}" aria-pressed="${pl.mission === k}">${l}</button>`).join("")}</div>`}
     ${pl.mission === "phrase" ? `<p class="hint">Each Shadow must slip this phrase into a private chat with a Guest before the round table. If they all do, and no Guest catches it (by messaging you the phrase), they may murder that night. Nothing to do with the task's shield.</p>
       <div class="field"><span class="label">Code phrase (only the Shadows see it)</span><input type="text" id="mphrase-${d}" data-plan="${d}" data-k="mphrase" maxlength="60" placeholder="e.g. the lanterns are low tonight" value="${esc(pl.mphrase)}"></div>`
-      : pl.mission === "plainsight" ? `<p class="hint">The Shadows must get a Guest to say this word in a private chat. The first Guest to say it is marked: they die tonight (you'll see who). The round table opens with "hope you enjoyed your day off… but the Shadows committed a murder in plain sight", without saying who. If no Guest says it, there's no murder tonight.</p>
+      : pl.mission === "plainsight" ? `<p class="hint">The Shadows must get a Guest to say this word in a private chat. The first Guest to say it is marked: they die tonight (you'll see who). The round table opens with "hope you enjoyed your day off… but the Shadows committed a murder in plain sight", without saying who, or how. If no Guest says it, there's no murder tonight.</p>
       <div class="field"><span class="label">The fatal word (only the Shadows see it)</span><input type="text" id="pword-${d}" data-plan="${d}" data-k="pword" maxlength="30" placeholder="e.g. pineapple" value="${esc(pl.pword)}"></div>
       <p class="hint">One word. Something a Guest might say, with a little encouragement. Capitals don't matter; it must be the whole word.</p>`
       : pl.mission === "snuff" ? `<p class="hint">If a Guest lights their lantern out of turn (perhaps because a Shadow lied about their number, or said "you're next" too soon), the Shadows may murder that night. The team still has its other attempts, so the shield can still be won.</p>`
