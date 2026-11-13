@@ -10,17 +10,17 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows · Host</title>
-<script>window.APP_V = 126;</script>
-<script src="update.js?v=126"></script>
+<script>window.APP_V = 127;</script>
+<script src="update.js?v=127"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=126"></script>
-<script src="shadows.js?v=126"></script>
+<script src="daily.js?v=127"></script>
+<script src="shadows.js?v=127"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=126">
-<link rel="stylesheet" href="shadows.css?v=126">
+<link rel="stylesheet" href="daily.css?v=127">
+<link rel="stylesheet" href="shadows.css?v=127">
 <link rel="manifest" href="shadows-host.webmanifest">
 </head>
 <body>
@@ -120,7 +120,7 @@ function render(force) {
   if (!force && a && a.closest && a.closest("#app") && a.matches("input[type=text], textarea")) { pending = true; return; }
   pending = false;
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=126" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=127" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="rules">📜 How to play</button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
