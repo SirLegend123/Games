@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 128;</script>
-<script src="update.js?v=128"></script>
+<script>window.APP_V = 129;</script>
+<script src="update.js?v=129"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=128"></script>
-<script src="shadows.js?v=128"></script>
+<script src="daily.js?v=129"></script>
+<script src="shadows.js?v=129"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=128">
-<link rel="stylesheet" href="shadows.css?v=128">
+<link rel="stylesheet" href="daily.css?v=129">
+<link rel="stylesheet" href="shadows.css?v=129">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -163,7 +163,7 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=128" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=129" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -392,8 +392,7 @@ function breakfastHtml(bk) {
     ${ds.length ? `<p class="lead">${ds.map(x => `<b>🗡️ ${nm(x.pid)}</b>`).join(" and ")} ${ds.length === 1 ? "didn't" : "didn't"} come down to breakfast. ${ds.length === 1 ? "They were" : "They were"} murdered in the night.</p>`
       : bk.first ? `<p class="lead">Welcome to the castle. Everyone has arrived for breakfast, and somewhere amongst you, the Shadows are hiding.</p><p class="hint">No banishment today. At the round table, everyone votes for the player they trust most: they get a 🛡️ shield tonight.</p>`
       : `<p class="lead">Everyone came down to breakfast: nobody was murdered in the night.</p>`}
-    ${bk.note ? `<p class="quote">${esc(bk.note)}</p>` : ""}
-    ${bk.d === 1 ? `<p class="hint">There ${G.shadows === 1 ? "is 1 Shadow" : `are ${G.shadows || "some"} Shadows`} hidden amongst you. Find them, and banish them at the round table.</p>` : ""}</section>`;
+    ${bk.note ? `<p class="quote">${esc(bk.note)}</p>` : ""}</section>`;
 }
 function resultHtml(r) {
   if (r.trust) return `<section class="card"><h2>🛡️ Day ${r.d}: the most trusted</h2><p class="lead">${r.trusted ? `<b>${nm(r.trusted)}</b> has the castle's trust, and a 🛡️ shield tonight: the Shadows can't murder them.` : "Nobody won the trust vote."} <span class="hint">${esc(r.why || "")}</span></p></section>`;
