@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 113;</script>
-<script src="update.js?v=113"></script>
+<script>window.APP_V = 114;</script>
+<script src="update.js?v=114"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=113"></script>
-<script src="shadows.js?v=113"></script>
+<script src="daily.js?v=114"></script>
+<script src="shadows.js?v=114"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=113">
-<link rel="stylesheet" href="shadows.css?v=113">
+<link rel="stylesheet" href="daily.css?v=114">
+<link rel="stylesheet" href="shadows.css?v=114">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -35,7 +35,7 @@ const lastGame = (() => { try { return localStorage.getItem(LKEY) || ""; } catch
 // A Home Screen app always opens at the address it was saved with, which may be an old game, so it uses the last game instead
 let gid = fromHomeScreen() && lastGame ? (lastGame === "none" ? "" : lastGame) : cleanCode(params.get("g")) || (lastGame === "none" ? "" : lastGame);
 let G = null, me = "", SEC = null, joined = null, ready = false, loadErr = "", push = "";
-let square = [], chats = {}, conclave = [], ghosts = [], myAct = null, gated = {}, myBallot = undefined;
+let myAnswer = undefined, square = [], chats = {}, conclave = [], ghosts = [], myAct = null, gated = {}, myBallot = undefined;
 const ui = { tab: "today", chat: "", draft: {}, toast: "", codeIn: "", nameIn: "" };
 const subs = {}, cur = { day: 0 };
 const $ = s => document.querySelector(s);
@@ -57,7 +57,7 @@ function watch() {
     me = Object.keys(G.uids || {}).find(p => G.uids[p] === myUid) || "";
     if (me !== was) { unsub("sec"); unsub("chat"); unsub("conclave"); chats = {}; SEC = null; conclave = []; }
     if (!me) { FB.getDoc(gref(gid, "joins", myUid)).then(d => { joined = d.exists() ? d.data() : null; render(); }).catch(() => {}); return render(); }
-    sub("sec", gref(gid, "secret", me), d => { SEC = d.exists() ? d.data() : null; watchConclave(); render(); revealSide(); });
+    sub("sec", gref(gid, "secret", me), d => { SEC = d.exists() ? d.data() : null; watchConclave(); render(); revealSide(); showOffer(); });
     if (!push) refreshPush(false);
     for (const s2 of G.seats) if (s2.id !== me) {
       const pair = pairId(me, s2.id);
@@ -121,7 +121,7 @@ async function refreshGated() {
   for (const k of want) if (!gated[k]) {
     try {
       const x = await retryDenied(() => FB.getDoc(gref(gid, "gated", k)));
-      if (x.exists()) { const v = x.data(); if (k.startsWith("result")) v.deaths = v.exec ? [{ pid: v.exec, how: "banished", d: v.d }] : []; gated[k] = v; watchGhosts(); render(); }
+      if (x.exists()) { const v = x.data(); if (k.startsWith("result")) v.deaths = v.exec ? [{ pid: v.exec, how: "banished", d: v.d }] : []; gated[k] = v; watchGhosts(); render(); revealBanished(); }
     } catch (e) { /* not yet */ }
   }
   const missing = want.some(k => !gated[k]);
@@ -160,7 +160,7 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=113" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=114" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -257,6 +257,9 @@ function todayHtml(p) {
   out.push(pushCardHtml());
   if (myMurder(p) && waitingForResult()) out.push(`<section class="card"><p class="lead">🗡️ The Shadows meet once the host has revealed today's banishment. Check back soon.</p></section>`);
   else if (myMurder(p)) out.push(murderHtml(p));
+  const o = myOffer();
+  if (o) out.push(`<section class="card ${myAnswer ? "" : "todo"}"><h2>${MODES[o.type].ic} The Shadows' offer</h2><p class="lead">${myAnswer ? (myAnswer.answer === "accept" ? "You accepted. The host will confirm it before breakfast." : "You refused.") : nowMs() < o.until ? `You have until ${when(o.until)} to decide.` : "The time to decide has passed."}</p>
+    ${!myAnswer && nowMs() < o.until ? `<div class="row"><button class="btn primary" data-act="offer-open">Decide now</button></div>` : ""}</section>`);
   const d = G.day || 0, bk = gated["dawn" + d], res = gated["result" + d];
   if (res && ["dusk", "night", "dark", "over"].includes(p.k)) out.push(resultHtml(res));
   if (d && bk && ["dawn", "chats", "noms", "vote", "count", "dusk", "night", "dark"].includes(p.k)) out.push(breakfastHtml(bk));
@@ -316,8 +319,9 @@ function castleHtml() {
 function murderHtml(p) {
   const D = dead(), allies = SEC.allies || [], pick = ui.pick !== undefined ? ui.pick : myAct && myAct.n === p.n ? myAct.pick : "", saved = myAct && myAct.n === p.n && myAct.saved;
   const victims = G.seats.filter(s => !D[s.id] && s.id !== me && !allies.includes(s.id));
-  return `<section class="card todo"><h2>🗡️ Tonight's murder</h2>
-    <p class="lead">Choose who the Shadows murder tonight. Agree it with the other Shadows in <b>🗡️ The Shadows</b> chat: the host goes with your choice${allies.length ? "s" : ""}.</p>
+  const mode = SEC.mode && SEC.mode.n === p.n ? SEC.mode.type : "murder", M = MODES[mode];
+  return `<section class="card todo"><h2>${M.ic} Tonight: ${M.name}</h2>
+    <p class="lead">${esc(M.ask)} Agree it with the other Shadows in <b>🗡️ The Shadows</b> chat: the host goes with your choice${allies.length ? "s" : ""}.</p>
     <div class="picks">${victims.map(s => `<button class="pick" data-act="pick" data-pid="${s.id}" aria-pressed="${pick === s.id}">${nm(s.id)}</button>`).join("")}</div>
     <div class="row"><button class="btn primary" data-act="save-act" ${pick ? "" : "disabled"}>${saved && ui.pick === undefined ? "✅ Saved: change it" : "Save my choice"}</button>
       <button class="btn small" data-act="open-chat" data-pid="conclave">🗡️ The Shadows' chat</button>
@@ -425,10 +429,46 @@ const RULES = `<h2>📜 How to play</h2>
 function dialog(html) { const d = $("#dlg"); d.innerHTML = html; if (!d.open) d.showModal(); }
 document.getElementById("dlg").addEventListener("click", e => {
   const d = $("#dlg"), el = e.target.closest("[data-dact]");
-  if (el && el.dataset.dact === "seen-side") { try { localStorage.setItem(`shd-side-${gid}-${me}`, el.dataset.side); } catch (e2) {} return d.close(); }
+  if (el && el.dataset.dact === "seen-side") { try { localStorage.setItem(`shd-side-${gid}-${me}`, el.dataset.side); } catch (e2) {} d.close(); return revealBanished(); }
+  if (el && el.dataset.dact === "seen-ban") { try { localStorage.setItem(`shd-ban-${gid}-${el.dataset.d}`, "1"); } catch (e2) {} return d.close(); }
+  if (el && el.dataset.dact === "answer") { const o = myOffer(), v = el.dataset.v;
+    if (!o || (v === "refuse" && o.type === "blackmail" && !confirm("Refuse, and be murdered tonight?"))) return;
+    return run(async () => { await FB.setDoc(gref(gid, "nights", String(o.n), "answers", me), { answer: v, at: nowMs() }); myAnswer = { n: o.n, answer: v }; d.close(); render(true); },
+      v === "accept" ? "🗡️ You've joined the Shadows. The host will confirm it." : "You refused."); }
   if (d.querySelector(".reveal")) return;   // the reveal stays until it's been acknowledged
   if (e.target === d || (el && el.dataset.dact === "close")) return d.close();
 });
+// An offer from the Shadows (a seduction or a blackmail): answer it before the deadline
+const myOffer = () => { const o = SEC && SEC.offer, n = (G.day || 0) + 1; return o && o.n === n ? o : null; };
+async function showOffer() {
+  const o = myOffer(); if (!o) return;
+  if (myAnswer === undefined || (myAnswer && myAnswer.n !== o.n)) {
+    myAnswer = null;
+    try { const a = await FB.getDoc(gref(gid, "nights", String(o.n), "answers", me)); if (a.exists()) myAnswer = { n: o.n, ...a.data() }; } catch (e) {}
+  }
+  render();
+  if (myAnswer || nowMs() >= o.until || ($("#dlg").open && !$("#dlg .offer"))) return;
+  const bm = o.type === "blackmail";
+  dialog(`<div class="reveal offer reveal-shadow"><p class="label">${bm ? "⛓️ A blackmail" : "🌹 A seduction"}</p>
+    <img class="emblem" src="${SIDE.shadow.emblem}" alt="The Shadows" width="700" height="700">
+    <h2>The Shadows want you</h2>
+    <p class="lead">${bm ? "Join the Shadows tonight, or be murdered. There is no third way." : "The Shadows invite you to join them. If you refuse, nothing happens to you tonight."}</p>
+    <p class="hint">Only you and the host know about this. You have until <b>${when(o.until)}</b> to decide${bm ? ": no answer counts as a refusal" : ""}.</p>
+    <div class="row" style="justify-content:center"><button class="btn primary" data-dact="answer" data-v="accept">🗡️ Join the Shadows</button><button class="btn" data-dact="answer" data-v="refuse">${bm ? "Refuse, and be murdered" : "Refuse"}</button></div></div>`);
+}
+// The banished player's role, revealed to everyone at the banishment
+function revealBanished() {
+  const d = G && G.day, r = d && gated["result" + d];
+  if (!r || !r.exec || !SIDE[r.side] || $("#dlg").open) return;
+  let seenIt = false; try { seenIt = !!localStorage.getItem(`shd-ban-${gid}-${d}`); } catch (e) {}
+  if (seenIt) return;
+  const s = SIDE[r.side], you = r.exec === me;
+  dialog(`<div class="reveal reveal-${r.side}"><p class="label">⚖️ The banishment, Day ${d}</p>
+    <img class="emblem" src="${s.emblem}" alt="${s.one}" width="700" height="700">
+    <h2>${you ? "You were" : `${nm(r.exec)} was`} ${r.side === "shadow" ? "a Shadow" : "a Guest"}</h2>
+    <p class="lead">${you ? "The round table has banished you. You're out of the game, but you can still watch, and talk to the dead." : r.side === "shadow" ? "The round table found one of the Shadows." : "The round table banished one of their own. The Shadows are still hiding."}</p>
+    <div class="row" style="justify-content:center"><button class="btn primary" data-dact="seen-ban" data-d="${d}">Continue</button></div></div>`);
+}
 // The moment you find out your side (and again if you're recruited): your emblem, full screen, once
 function revealSide() {
   const side = SEC && SEC.side, s = SIDE[side];
@@ -450,6 +490,7 @@ document.getElementById("app").addEventListener("click", e => {
   const a = el.dataset.act, pid = el.dataset.pid;
   switch (a) {
     case "theme": toggleTheme("shd-theme"); return render(true);
+    case "offer-open": return showOffer();
     case "rules": return dialog(`${RULES}<div class="row"><button class="btn" data-dact="close">Close</button></div>`);
     case "cal": return downloadIcs(icsFile(G.name, G.sched, nowMs()));
     case "go-code": { const c = cleanCode($("#code").value); if (c.length !== 6) return toast("The code has 6 letters and numbers."); gid = c; history.replaceState(null, "", `?g=${c}${EMU ? "&emu=1" : ""}`); ready = false; render(true); return watch(); }

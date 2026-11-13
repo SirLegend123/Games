@@ -196,7 +196,8 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
       const b = await db.collection(`games/${gid}/days/${d}/ballots`).get(), done = new Set(b.docs.map(x => x.id));
       once(`close30-${d}-${t.close}`, alive.filter(p => !done.has(p)), { title: "🔒 30 minutes left to vote", body: `Voting ends at ${fmt(G, t.close)}.`, tag: `day-${gid}` });
     }
-    if (now >= t.close && now < t.close + 6 * H && !(grim.results || {})[d]) once(`closed-${d}-${t.close}`, ["st"], { title: "🔒 Voting has ended", body: `Confirm the banishment before ${fmt(G, t.reveal)}.`, tag: `st-day-${gid}` });
+    // When voting ends, the most votes is banished automatically (a tie goes to the host)
+    if (now >= t.close && now < t.close + 6 * H && !(grim.results || {})[d] && (await autoBanish(gid, G, grim, d, t, now)) === "tie") once(`closed-${d}-${t.close}`, ["st"], { title: "🔒 Voting has ended in a tie", body: `Decide who is banished before ${fmt(G, t.reveal)}.`, tag: `st-day-${gid}` });
     if (now >= t.reveal && now < t.reveal + 6 * H) {
       const r = await gated("result" + d);
       if (r) once(`reveal${d}`, all, { title: r.exec ? `⚖️ ${nameOf(G, r.exec)} has been banished` : "⚖️ Nobody was banished", body: r.exec ? `They were a ${r.side === "shadow" ? "Shadow 🗡️" : "Guest 🕯️"}.` : "See how everyone voted.", tag: `day-${gid}` });
@@ -214,6 +215,41 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
     }
     if (now >= w.end && now < w.end + 12 * H && d < n) once(`nightEnd${n}-${w.end}`, ["st"], { title: `🕯️ Night ${n} has closed`, body: "Work out the night and serve breakfast.", tag: `st-night-${gid}` });
   }
+}
+
+// The Shadows: count the votes and banish the player with the most. Their role is revealed at the banishment time.
+async function autoBanish(gid, G, grim, d, t, now) {
+  const sides = grim.sides || {}, dead = { ...(grim.dead || {}) }, alive = seatIds(G).filter(p => !dead[p]);
+  const ballots = (await db.collection(`games/${gid}/days/${d}/ballots`).get()).docs.map(x => x.data())
+    .filter(b => alive.includes(b.voter) && alive.includes(b.of) && b.voter !== b.of);
+  const count = {};
+  for (const b of ballots) (count[b.of] = count[b.of] || { of: b.of, count: 0, voters: [] }).count++, count[b.of].voters.push(b.voter);
+  const rows = Object.values(count).sort((a, b) => b.count - a.count), top = rows[0];
+  if (top && rows[1] && rows[1].count === top.count) return "tie";
+  const exec = top ? top.of : null, at = Math.max(t.reveal, now), b = db.batch(), g = db.doc(`games/${gid}`);
+  if (exec) dead[exec] = { how: "banished", d };
+  const uidsOf = ps => Object.fromEntries(ps.map(p => [(G.uids || {})[p], true]).filter(([u]) => u));
+  const inShadows = seatIds(G).filter(p => sides[p] === "shadow" && !dead[p]);
+  b.set(g.collection("gated").doc("result" + d), { at, d, exec, side: exec ? sides[exec] || null : null, auto: true,
+    why: top ? `${top.count} vote${top.count === 1 ? "" : "s"}, the most.` : "Nobody voted.", rows,
+    ballots: ballots.map(x => ({ voter: x.voter, of: x.of, reason: x.reason || "" })) });
+  b.update(g.collection("st").doc("grim"), { dead, cu: uidsOf(inShadows), ou: uidsOf(Object.keys(dead)), [`results.${d}`]: { exec, at, auto: true } });
+  if (exec) b.update(g.collection("secret").doc(exec), { out: true, info: require("firebase-admin").firestore.FieldValue.arrayUnion({ n: d, at, text: "⚖️ You were banished at the round table. You're out of the game, but you can still watch and talk to the dead.", label: "Banished" }) });
+  // Does the game end? No Shadows left, or as many Shadows as Guests
+  const left = seatIds(G).filter(p => !dead[p]), s = left.filter(p => sides[p] === "shadow").length, winner = s === 0 ? "guests" : s >= left.length - s ? "shadows" : "";
+  if (winner) { b.set(g.collection("gated").doc("end"), { at, winner, sides, dead }); b.update(g, { overAt: at, status: "over" }); }
+  await b.commit();
+  return exec ? "banished" : "none";
+}
+// The Shadows: an offer has gone to a player (they're told to look, not what it is), and their answer goes to the host
+async function onOffer(gid, pid, before, after) {
+  if (!after.offer || (before.offer && before.offer.n === after.offer.n)) return;
+  const x = await load(gid); if (!x) return;
+  await notify(gid, x.G, [pid], { title: "🌙 Someone wants a word with you", body: `Open The Shadows. You must decide by ${fmt(x.G, after.offer.until)}.`, tag: `offer-${gid}` });
+}
+async function onAnswer(gid, n, pid, a) {
+  const x = await load(gid); if (!x) return;
+  await notify(gid, x.G, ["st"], { title: a.answer === "accept" ? `🗡️ ${nameOf(x.G, pid)} accepted` : `❌ ${nameOf(x.G, pid)} refused`, body: "Work out the night and serve breakfast.", tag: `st-night-${gid}` });
 }
 
 /* ---------- Deleting old games ----------
@@ -241,4 +277,4 @@ async function onGameUpdate(gid, before, after) {
     await notify(gid, after, seatIds(after), { title: "🗝️ Your role has been chosen", body: "Open The Shadows to find out: are you a Guest, or a Shadow? Keep it to yourself.", tag: `role-${gid}` });
 }
 
-module.exports = { init, vapid, notify, tick, tickGame, expired, cleanup, onGameUpdate, onConclave, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
+module.exports = { init, vapid, notify, tick, tickGame, expired, cleanup, onGameUpdate, onConclave, autoBanish, onOffer, onAnswer, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
