@@ -1,0 +1,35 @@
+/* The Shadows: the game's own look, from its logo. Near-black maroon, aged bronze, and Cinzel lettering.
+   Loaded after daily.css, so it only changes The Shadows' pages. Always dark. */
+:root, :root[data-theme] {
+  --bg: #120708; --surface: #1c0d0d; --surface-2: #261312; --line: #47291f;
+  --fg: #efe3cf; --muted: #b19a80; --brass: #c9a26a; --on-brass: #1b0e07;
+  --good: #7fa6d6; --evil: #d0564a; --townsfolk: #8fb3e0; --demon: #d0564a; --warn: #d9a04b; --night: #0c0506;
+  --font-gothic: "Cinzel", "Trajan Pro", Georgia, serif;
+  --font-display: "Cinzel", "Trajan Pro", Georgia, serif;
+  color-scheme: dark;
+}
+body { background: radial-gradient(ellipse 120% 60% at 50% 0%, #2a0d10 0%, #160809 55%, #0e0506 100%) fixed var(--bg); }
+.card { background: linear-gradient(180deg, rgba(42, 18, 16, .92), rgba(26, 12, 12, .92)); border-color: var(--line); box-shadow: 0 6px 18px rgba(0, 0, 0, .35); }
+.card h2, .card h3 { font-family: var(--font-display); font-weight: 600; letter-spacing: .06em; }
+.card h2 { font-size: 1.3rem; }
+/* The phase title: bronze, like the logo's lettering */
+.goldtext { font-family: var(--font-display); font-weight: 700; letter-spacing: .04em; color: #c9a26a;
+  background: linear-gradient(180deg, #ecd3a2 0%, #c79e66 48%, #8d6537 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .8)); }
+.banner { background: linear-gradient(180deg, #24100f, #170909); border-color: #8d6537; }
+.banner.dark { background: linear-gradient(180deg, #0f0708, #070304); border-color: #5a3d26; }
+.banner .ph { font-size: 1.6rem; }
+.btn.primary, .tabs button[aria-pressed="true"] { background: linear-gradient(180deg, #d8b47c, #a97f48); border-color: #a97f48; color: var(--on-brass); }
+.tabs { background: var(--bg); }
+.tabs.bottom { background: rgba(14, 6, 7, .96); border-top: 1px solid var(--line); }
+.msg.mine { background: #6e4e2c; color: #f7ecd9; }
+.title-img { filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .7)); }
+/* The logo on the welcome screens: its square edges fade into the page */
+.shd-logo { width: min(260px, 70%); height: auto; display: block; margin: 0 auto;
+  -webkit-mask-image: radial-gradient(circle at 50% 48%, #000 58%, transparent 71%); mask-image: radial-gradient(circle at 50% 48%, #000 58%, transparent 71%); }
+/* Tokens: the Shadows in the logo's deep red, Guests in a pale moonlit blue */
+.tok.tm-demon .disc, .tok.shadow .disc { border-color: #8e1c17; }
+.tok.tm-townsfolk .disc, .tok.guest .disc { border-color: #6f8fb8; }
+.ring::before { border-color: rgba(201, 162, 106, .45); }
+.ring-centre .big { font-family: var(--font-display); }
+footer.brand { color: var(--muted); }

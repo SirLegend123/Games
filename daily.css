@@ -234,3 +234,6 @@ a.btn.game-link { flex-direction: column; align-items: flex-start; gap: 2px; tex
 .tok.gt .rem { width: calc(var(--tok) * 100cqi * .3); height: calc(var(--tok) * 100cqi * .3); min-width: 20px; min-height: 20px; border-radius: 50%; display: grid; place-items: center;
   background: radial-gradient(circle at 40% 32%, #fdf7e8, #d8c69c); border: 2px solid #8a6a2c; box-shadow: 0 2px 5px rgba(0,0,0,.45); font-size: max(11px, calc(var(--tok) * 100cqi * .16)); line-height: 1; }
 .tokline { margin: 6px 0; }
+/* The Shadows: Shadows you know about (or who've been revealed) are edged in red, revealed Guests in blue */
+.tok.shadow .disc { border-color: #9e1b1b; }
+.tok.guest .disc { border-color: #3d7ad8; }

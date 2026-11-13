@@ -24,4 +24,5 @@ exports.onNomination = doc("games/{gid}/days/{d}/noms/{nominee}").onCreate((s, c
 exports.onDefence = doc("games/{gid}/days/{d}/noms/{nominee}").onUpdate((ch, c) => lib.onDefence(c.params.gid, c.params.d, c.params.nominee, ch.before.data(), ch.after.data()));
 exports.onSquare = doc("games/{gid}/square/{id}").onCreate((s, c) => lib.onSquare(c.params.gid, s.data()));
 exports.onStChat = doc("games/{gid}/stchat/{pid}/msgs/{id}").onCreate((s, c) => lib.onStChat(c.params.gid, c.params.pid, s.data()));
+exports.onConclave = doc("games/{gid}/conclave/{id}").onCreate((s, c) => lib.onConclave(c.params.gid, s.data()));
 exports.onChat = doc("games/{gid}/chats/{pair}/msgs/{id}").onCreate((s, c) => lib.onChat(c.params.gid, c.params.pair, s.data()));

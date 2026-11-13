@@ -1,0 +1,21 @@
+{
+  "name": "The Shadows: Host",
+  "short_name": "Shadows Host",
+  "description": "Host a game of The Shadows.",
+  "display": "standalone",
+  "background_color": "#120708",
+  "theme_color": "#120708",
+  "icons": [
+    {
+      "src": "img/shadows-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "img/shadows-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
