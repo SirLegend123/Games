@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 124;</script>
-<script src="update.js?v=124"></script>
+<script>window.APP_V = 125;</script>
+<script src="update.js?v=125"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=124"></script>
-<script src="shadows.js?v=124"></script>
+<script src="daily.js?v=125"></script>
+<script src="shadows.js?v=125"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=124">
-<link rel="stylesheet" href="shadows.css?v=124">
+<link rel="stylesheet" href="daily.css?v=125">
+<link rel="stylesheet" href="shadows.css?v=125">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -145,7 +145,8 @@ const mySide = () => SEC && SEC.side;
 const revealed = () => { const out = {}; for (const [k, v] of Object.entries(gated)) if (k.startsWith("result") && v && v.exec) out[v.exec] = v.side; return out; };
 const infoNow = () => ((SEC && SEC.info) || []).filter(x => x.at <= nowMs()).sort((a, b) => b.at - a.at);
 const chatKey = pid => pid === "st" || pid === "conclave" || pid === "ghosts" ? pid : pairId(me, pid);
-const msgsOf = k => k === "conclave" ? conclave : k === "ghosts" ? ghosts : chats[k] || [];
+// The host's messages about tonight are held back until the Shadows' chat opens
+const msgsOf = k => k === "conclave" ? conclave.filter(m => !m.at || m.at <= nowMs()) : k === "ghosts" ? ghosts : chats[k] || [];
 const unreadChat = k => msgsOf(k).filter(m => m.from !== me && m.at > (seen[gid + k] || 0)).length;
 const unreadInfo = () => infoNow().filter(x => x.at > (seen[gid + "info"] || 0)).length;
 const unreadSquare = () => square.filter(m => m.at > (seen[gid + "sq"] || 0) && m.pid !== me).length;
@@ -160,7 +161,7 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=124" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=125" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
