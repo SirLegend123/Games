@@ -8,16 +8,16 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Clocktower Daily · Storyteller</title>
-<script>window.APP_V = 111;</script>
-<script src="update.js?v=111"></script>
+<script>window.APP_V = 112;</script>
+<script src="update.js?v=112"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="characters.js?v=111"></script>
-<script src="daily.js?v=111"></script>
+<script src="characters.js?v=112"></script>
+<script src="daily.js?v=112"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=111">
+<link rel="stylesheet" href="daily.css?v=112">
 <link rel="manifest" href="daily-st.webmanifest">
 </head>
 <body>
@@ -52,7 +52,7 @@ function watch() {
   sub("game", gref(gid), s => {
     if (!s.exists()) { loadErr = "There's no game with that code."; G = null; return render(); }
     G = s.data();
-    if (G.kind === "deceivers") return location.replace(`deceivers-host.html?g=${gid}${EMU ? "&emu=1" : ""}`);
+    if (G.kind === "shadows") return location.replace(`shadows-host.html?g=${gid}${EMU ? "&emu=1" : ""}`);
     if (G.next && G.next !== gid) return openGame(G.next);
     for (const s2 of G.seats || []) sub("stc" + s2.id, FB.query(gcol(gid, "stchat", s2.id, "msgs"), FB.orderBy("at")), q => { stc[s2.id] = q.docs.map(x => x.data()); render(); });
     if (G.st !== myUid) { loadErr = "This game was set up on another device: only that device can run it."; G = null; return render(); }
@@ -116,7 +116,7 @@ function render(force) {
   pending = false;
   const app = $("#app");
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  app.innerHTML = `<header><a class="home" href="${gid ? "daily-st.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-clocktower-daily.webp?v=111" alt="Clocktower Daily" width="1010" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  app.innerHTML = `<header><a class="home" href="${gid ? "daily-st.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-clocktower-daily.webp?v=112" alt="Clocktower Daily" width="1010" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="sheet">📜 Characters</button><button class="btn" data-act="theme" aria-label="Light or dark">${themeLabel()}</button></span></header>
     ${body()}<footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);

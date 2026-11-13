@@ -65,9 +65,9 @@ async function notify(gid, G, targets, msg) {
   return sent;
 }
 
-// Each game opens in its own app: Clocktower Daily, or The Deceivers
-const isDcv = G => G.kind === "deceivers";
-const pageUrl = (G, gid, host) => `${BASE}${isDcv(G) ? (host ? "deceivers-host.html" : "deceivers.html") : host ? "daily-st.html" : "daily.html"}?g=${gid}`;
+// Each game opens in its own app: Clocktower Daily, or The Shadows
+const isShd = G => G.kind === "shadows";
+const pageUrl = (G, gid, host) => `${BASE}${isShd(G) ? (host ? "shadows-host.html" : "shadows.html") : host ? "daily-st.html" : "daily.html"}?g=${gid}`;
 
 /* ---------- Instant notifications ---------- */
 // A device has just turned notifications on: send it a welcome, so people know straight away that it works
@@ -76,7 +76,7 @@ async function onSubscribe(gid, uid, s) {
   const G = g.data(), isST = s.role === "st" && uid === G.st, isPlayer = s.role === "player" && (G.uids || {})[s.pid] === uid;
   if (!isST && !isPlayer) return;
   try {
-    await sender(s.sub, { title: "🔔 Notifications are on", body: isST ? (isDcv(G) ? "You'll hear when players message you, and when the round table or the night needs you." : "You'll hear when players message you, and when the Virgin, a Slayer shot, voting or the night needs you.") : `You'll hear from ${G.name || "the game"} when it's your turn.`, tag: `hello-${gid}`, url: pageUrl(G, gid, isST) });
+    await sender(s.sub, { title: "🔔 Notifications are on", body: isST ? (isShd(G) ? "You'll hear when players message you, and when the round table or the night needs you." : "You'll hear when players message you, and when the Virgin, a Slayer shot, voting or the night needs you.") : `You'll hear from ${G.name || "the game"} when it's your turn.`, tag: `hello-${gid}`, url: pageUrl(G, gid, isST) });
   } catch (e) { if (e && (e.statusCode === 404 || e.statusCode === 410)) await db.doc(`games/${gid}/push/${uid}`).delete(); else console.warn("welcome failed", e && (e.statusCode || e.message)); }
 }
 async function onNomination(gid, d, nominee, nom) {
@@ -102,7 +102,7 @@ async function onSquare(gid, m) {
 }
 async function onStChat(gid, pid, m) {
   const x = await load(gid); if (!x) return;
-  if (m.from === "st") await notify(gid, x.G, [pid], { title: isDcv(x.G) ? "✉️ The host" : "✉️ The Storyteller", body: clip(m.text), tag: `st-${gid}` });
+  if (m.from === "st") await notify(gid, x.G, [pid], { title: isShd(x.G) ? "✉️ The host" : "✉️ The Storyteller", body: clip(m.text), tag: `st-${gid}` });
   else await notify(gid, x.G, ["st"], { title: `✉️ ${nameOf(x.G, pid)}`, body: clip(m.text), tag: `stc-${gid}-${pid}` });
 }
 async function onChat(gid, pair, m) {
@@ -112,11 +112,11 @@ async function onChat(gid, pair, m) {
   await notify(gid, x.G, [to], { title: `✉️ ${nameOf(x.G, m.from)}`, body: clip(m.text), tag: `chat-${gid}-${pair}` });
 }
 
-// The Deceivers: a message in the Schemers' chat goes to the other Schemers still in the game
+// The Shadows: a message in the Shadows' chat goes to the other Shadows still in the game
 async function onConclave(gid, m) {
   const x = await load(gid); if (!x) return;
-  const sides = x.grim.sides || {}, to = aliveOf(x.G, x.grim).filter(p => sides[p] === "schemer" && p !== m.from);
-  await notify(gid, x.G, to, { title: `🗡️ ${m.from === "host" ? "The host" : nameOf(x.G, m.from)} (Schemers)`, body: clip(m.text), tag: `conclave-${gid}` });
+  const sides = x.grim.sides || {}, to = aliveOf(x.G, x.grim).filter(p => sides[p] === "shadow" && p !== m.from);
+  await notify(gid, x.G, to, { title: `🗡️ ${m.from === "host" ? "The host" : nameOf(x.G, m.from)} (Shadows)`, body: clip(m.text), tag: `conclave-${gid}` });
 }
 
 /* ---------- Timetable notifications, checked every few minutes ---------- */
@@ -138,7 +138,7 @@ async function tickGame(gid, G, now) {
   const once = (key, targets, msg) => { if (!sent[key]) { sent[key] = now; due.push([targets, msg]); } };
   const gated = async k => { const s = await db.doc(`games/${gid}/gated/${k}`).get(); return s.exists ? s.data() : null; };
   const d = G.day || 0, t = d && (G.days || {})[d];
-  if (isDcv(G)) await deceiversDue({ gid, G, grim, now, d, t, all, alive, once, gated });
+  if (isShd(G)) await shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated });
   else if (t) {
     if (now >= t.dawn && now < t.dawn + 6 * H) {
       const dawn = await gated("dawn" + d);
@@ -155,7 +155,7 @@ async function tickGame(gid, G, now) {
     }
   }
   const n = d + 1, w = (G.nights || {})[n];
-  if (w && !G.overAt && !isDcv(G)) {
+  if (w && !G.overAt && !isShd(G)) {
     if (now >= w.open && now < w.end) {
       const secrets = await db.collection(`games/${gid}/secret`).get(), role = {};
       secrets.forEach(s => role[s.id] = s.data().role);
@@ -171,7 +171,7 @@ async function tickGame(gid, G, now) {
   let finished = false;
   if (G.overAt && now >= G.overAt) {
     const end = await gated("end");
-    if (end) { once("over", all, isDcv(G) ? { title: end.winner === "guests" ? "🕯️ The Guests win!" : "🗡️ The Schemers win!", body: "The game is over. See everyone's side.", tag: `day-${gid}` }
+    if (end) { once("over", all, isShd(G) ? { title: end.winner === "guests" ? "🕯️ The Guests win!" : "🗡️ The Shadows win!", body: "The game is over. See everyone's side.", tag: `day-${gid}` }
       : { title: end.winner === "good" ? "😇 Good wins!" : "😈 Evil wins!", body: "The game is over. See everyone's characters.", tag: `day-${gid}` }); finished = true; }
   }
   if (due.length) await stateRef.set({ sent }, { merge: true });
@@ -181,34 +181,35 @@ async function tickGame(gid, G, now) {
   return n2;
 }
 
-// The Deceivers' timetable: breakfast, the round table, the banishment, and the Schemers' night
-async function deceiversDue({ gid, G, grim, now, d, t, all, alive, once, gated }) {
-  const sides = grim.sides || {}, schemers = alive.filter(p => sides[p] === "schemer");
+// The Shadows' timetable: breakfast, the round table, the banishment, and the Shadows' night
+async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) {
+  const sides = grim.sides || {}, shadows = alive.filter(p => sides[p] === "shadow");
   if (t) {
     if (now >= t.dawn && now < t.dawn + 6 * H) {
       const bk = await gated("dawn" + d);
       if (bk) { const ds = (bk.deaths || []).map(x => nameOf(G, x.pid));
         once(`dawn${d}`, all, { title: `🍳 Breakfast is served: Day ${d}`, body: ds.length ? `${ds.join(" and ")} ${ds.length === 1 ? "was" : "were"} murdered in the night.` : "Nobody was murdered in the night.", tag: `day-${gid}` }); }
     }
-    if (now >= t.vote && now < t.close) once(`vote${d}-${t.vote}`, alive, { title: "🗳️ The round table is open", body: `Vote to banish someone before ${fmt(G, t.close)}.`, tag: `day-${gid}` });
+    if (t.noms && now >= t.noms && now < t.vote) once(`table${d}-${t.noms}`, alive, { title: "🗣️ The round table has begun", body: `Discuss with everyone until ${fmt(G, t.vote)}, when voting begins. Private chats are closed.`, tag: `day-${gid}` });
+    if (now >= t.vote && now < t.close) once(`vote${d}-${t.vote}`, alive, { title: "🗳️ Voting has begun", body: `Vote to banish someone before ${fmt(G, t.close)}.`, tag: `day-${gid}` });
     if (now >= t.close - 30 * MIN && now < t.close) {
       const b = await db.collection(`games/${gid}/days/${d}/ballots`).get(), done = new Set(b.docs.map(x => x.id));
-      once(`close30-${d}-${t.close}`, alive.filter(p => !done.has(p)), { title: "🔒 30 minutes left to vote", body: `The round table closes at ${fmt(G, t.close)}.`, tag: `day-${gid}` });
+      once(`close30-${d}-${t.close}`, alive.filter(p => !done.has(p)), { title: "🔒 30 minutes left to vote", body: `Voting ends at ${fmt(G, t.close)}.`, tag: `day-${gid}` });
     }
-    if (now >= t.close && now < t.close + 6 * H && !(grim.results || {})[d]) once(`closed-${d}-${t.close}`, ["st"], { title: "🔒 The round table has closed", body: `Confirm the banishment before ${fmt(G, t.reveal)}.`, tag: `st-day-${gid}` });
+    if (now >= t.close && now < t.close + 6 * H && !(grim.results || {})[d]) once(`closed-${d}-${t.close}`, ["st"], { title: "🔒 Voting has ended", body: `Confirm the banishment before ${fmt(G, t.reveal)}.`, tag: `st-day-${gid}` });
     if (now >= t.reveal && now < t.reveal + 6 * H) {
       const r = await gated("result" + d);
-      if (r) once(`reveal${d}`, all, { title: r.exec ? `⚖️ ${nameOf(G, r.exec)} has been banished` : "⚖️ Nobody was banished", body: r.exec ? `They were a ${r.side === "schemer" ? "Schemer 🗡️" : "Guest 🕯️"}.` : "See how everyone voted.", tag: `day-${gid}` });
+      if (r) once(`reveal${d}`, all, { title: r.exec ? `⚖️ ${nameOf(G, r.exec)} has been banished` : "⚖️ Nobody was banished", body: r.exec ? `They were a ${r.side === "shadow" ? "Shadow 🗡️" : "Guest 🕯️"}.` : "See how everyone voted.", tag: `day-${gid}` });
     }
   }
   const n = d + 1, w = (G.nights || {})[n];
   if (w && !G.overAt) {
-    // The Schemers meet once today's banishment is confirmed
+    // The Shadows meet once today's banishment is confirmed
     if (now >= w.open && now < w.end && (d === 0 || (grim.results || {})[d])) {
-      once(`night${n}`, schemers, { title: "🌙 The Schemers meet", body: `Choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
+      once(`night${n}`, shadows, { title: "🌙 The Shadows meet", body: `Your chat is open: choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
       if (now >= w.end - 30 * MIN) {
         const acts = await db.collection(`games/${gid}/nights/${n}/acts`).get(), done = new Set(acts.docs.map(a => a.id));
-        once(`nightRemind${n}-${w.end}`, schemers.filter(p => !done.has(p)), { title: "🌙 30 minutes left", body: `Choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
+        once(`nightRemind${n}-${w.end}`, shadows.filter(p => !done.has(p)), { title: "🌙 30 minutes left", body: `Choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
       }
     }
     if (now >= w.end && now < w.end + 12 * H && d < n) once(`nightEnd${n}-${w.end}`, ["st"], { title: `🕯️ Night ${n} has closed`, body: "Work out the night and serve breakfast.", tag: `st-night-${gid}` });

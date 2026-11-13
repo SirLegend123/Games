@@ -5,46 +5,46 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1a1027">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="The Deceivers">
-<script>try { const t = localStorage.getItem("dcv-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
-<link rel="icon" type="image/png" href="img/dcv-icon-180.png">
-<link rel="apple-touch-icon" href="img/dcv-icon-180.png">
-<title>The Deceivers</title>
-<script>window.APP_V = 111;</script>
-<script src="update.js?v=111"></script>
+<meta name="apple-mobile-web-app-title" content="The Shadows">
+<script>try { const t = localStorage.getItem("shd-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+<link rel="icon" type="image/png" href="img/shadows-icon-180.png">
+<link rel="apple-touch-icon" href="img/shadows-icon-180.png">
+<title>The Shadows</title>
+<script>window.APP_V = 112;</script>
+<script src="update.js?v=112"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=111"></script>
-<script src="deceivers.js?v=111"></script>
+<script src="daily.js?v=112"></script>
+<script src="shadows.js?v=112"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=UnifrakturMaguntia&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=111">
-<link rel="manifest" href="deceivers.webmanifest">
+<link rel="stylesheet" href="daily.css?v=112">
+<link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
 <div class="wrap" id="app"><p class="hint">Opening…</p></div>
 <dialog id="dlg"></dialog>
 <script>
-/* ---------- The Deceivers: the player's app ----------
+/* ---------- The Shadows: the player's app ----------
    Join with the game code, then play in your own time: talk in private, vote at the round table each evening,
-   and find out at breakfast who was murdered. The Schemers also meet each night to choose their victim. */
-const LKEY = "dcv-player-game";
+   and find out at breakfast who was murdered. The Shadows also meet each night to choose their victim. */
+const LKEY = "shd-player-game";
 const params = new URLSearchParams(location.search);
 const lastGame = (() => { try { return localStorage.getItem(LKEY) || ""; } catch (e) { return ""; } })();
 // A Home Screen app always opens at the address it was saved with, which may be an old game, so it uses the last game instead
 let gid = fromHomeScreen() && lastGame ? (lastGame === "none" ? "" : lastGame) : cleanCode(params.get("g")) || (lastGame === "none" ? "" : lastGame);
 let G = null, me = "", SEC = null, joined = null, ready = false, loadErr = "", push = "";
-let square = [], chats = {}, conclave = [], myAct = null, gated = {}, myBallot = undefined;
+let square = [], chats = {}, conclave = [], ghosts = [], myAct = null, gated = {}, myBallot = undefined;
 const ui = { tab: "today", chat: "", draft: {}, toast: "", codeIn: "", nameIn: "" };
 const subs = {}, cur = { day: 0 };
 const $ = s => document.querySelector(s);
-const seen = (() => { try { return JSON.parse(localStorage.getItem("dcv-seen")) || {}; } catch (e) { return {}; } })();
-const saveSeen = () => { try { localStorage.setItem("dcv-seen", JSON.stringify(seen)); } catch (e) {} };
+const seen = (() => { try { return JSON.parse(localStorage.getItem("shd-seen")) || {}; } catch (e) { return {}; } })();
+const saveSeen = () => { try { localStorage.setItem("shd-seen", JSON.stringify(seen)); } catch (e) {} };
 
 /* ---------- Live data ---------- */
 function sub(key, target, cb) { if (subs[key]) return; subs[key] = FB.onSnapshot(target, cb, e => { console.warn(key, e.code || e); delete subs[key]; }); }
 function unsub(prefix) { for (const k of Object.keys(subs)) if (k.startsWith(prefix)) { subs[k](); delete subs[k]; } }
-const inConclave = () => !!(SEC && SEC.side === "schemer" && !SEC.out);
+const inConclave = () => !!(SEC && SEC.side === "shadow" && !SEC.out);
 function watch() {
   sub("game", gref(gid), s => {
     if (!s.exists()) { loadErr = "There's no game with that code. Check it with your host. (Games are deleted 30 days after they end.)"; G = null; ready = true; return render(); }
@@ -70,15 +70,21 @@ function watch() {
   });
   sub("square", FB.query(gcol(gid, "square"), FB.orderBy("at", "desc"), FB.limit(300)), q => { square = q.docs.map(x => ({ id: x.id, ...x.data() })).reverse(); render(); });
 }
-// The Schemers' own chat, for as long as you're a Schemer still in the game
+// The Shadows' own chat, for as long as you're a Shadow still in the game
 function watchConclave() {
+  watchGhosts();
   if (!inConclave()) { unsub("conclave"); conclave = []; return; }
   sub("conclave", FB.query(gcol(gid, "conclave"), FB.orderBy("at")), q => { conclave = q.docs.map(x => x.data()); render(); });
+}
+// Once you're out of the game, the dead have a chat of their own
+function watchGhosts() {
+  if (!G || !me || !dead()[me]) return;
+  sub("ghosts", FB.query(gcol(gid, "ghosts"), FB.orderBy("at")), q => { ghosts = q.docs.map(x => x.data()); render(); });
 }
 function switchGame(code) {
   for (const k of Object.keys(subs)) { subs[k](); delete subs[k]; }
   clearTimeout(gatedTimer);
-  push = ""; G = null; me = ""; SEC = null; joined = null; ready = false; square = []; chats = {}; conclave = []; myAct = null; gated = {}; myBallot = undefined; cur.day = 0;
+  push = ""; G = null; me = ""; SEC = null; joined = null; ready = false; square = []; chats = {}; conclave = []; ghosts = []; myAct = null; gated = {}; myBallot = undefined; cur.day = 0;
   ui.tab = "today"; ui.chat = ""; ui.draft = {};
   gid = code;
   try { localStorage.setItem(LKEY, gid); } catch (e) {}
@@ -114,7 +120,7 @@ async function refreshGated() {
   for (const k of want) if (!gated[k]) {
     try {
       const x = await retryDenied(() => FB.getDoc(gref(gid, "gated", k)));
-      if (x.exists()) { const v = x.data(); if (k.startsWith("result")) v.deaths = v.exec ? [{ pid: v.exec, how: "banished", d: v.d }] : []; gated[k] = v; render(); }
+      if (x.exists()) { const v = x.data(); if (k.startsWith("result")) v.deaths = v.exec ? [{ pid: v.exec, how: "banished", d: v.d }] : []; gated[k] = v; watchGhosts(); render(); }
     } catch (e) { /* not yet */ }
   }
   const missing = want.some(k => !gated[k]);
@@ -137,12 +143,12 @@ const mySide = () => SEC && SEC.side;
 // Sides everyone knows: the banished, revealed at the round table
 const revealed = () => { const out = {}; for (const [k, v] of Object.entries(gated)) if (k.startsWith("result") && v && v.exec) out[v.exec] = v.side; return out; };
 const infoNow = () => ((SEC && SEC.info) || []).filter(x => x.at <= nowMs()).sort((a, b) => b.at - a.at);
-const chatKey = pid => pid === "st" ? "st" : pid === "conclave" ? "conclave" : pairId(me, pid);
-const msgsOf = k => k === "conclave" ? conclave : chats[k] || [];
+const chatKey = pid => pid === "st" || pid === "conclave" || pid === "ghosts" ? pid : pairId(me, pid);
+const msgsOf = k => k === "conclave" ? conclave : k === "ghosts" ? ghosts : chats[k] || [];
 const unreadChat = k => msgsOf(k).filter(m => m.from !== me && m.at > (seen[gid + k] || 0)).length;
 const unreadInfo = () => infoNow().filter(x => x.at > (seen[gid + "info"] || 0)).length;
 const unreadSquare = () => square.filter(m => m.at > (seen[gid + "sq"] || 0) && m.pid !== me).length;
-const roundTable = p => p.k === "vote" || p.k === "noms";
+const roundTable = p => p.k === "vote";
 const needsVote = p => roundTable(p) && p.n === G.day && !amOut() && myBallot === null;
 
 /* ---------- Screens ---------- */
@@ -153,13 +159,13 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-deceivers.webp?v=111" alt="The Deceivers" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=112" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button><button class="btn" data-act="theme" aria-label="Light or dark">${themeLabel()}</button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
   const f = $("#feed"); if (f && (atBottom || !feed)) f.scrollTop = f.scrollHeight;
 }
-const TITLE_W = 822;
+const TITLE_W = 815;
 document.addEventListener("focusout", () => setTimeout(() => { if (pending) render(); }, 0));
 function markSeen() {
   if (!G || !me) return;
@@ -182,15 +188,15 @@ const crest = `<div class="big-ico" aria-hidden="true">🗝️</div>`;
 
 /* ---------- Joining ---------- */
 const homeTipHtml = () => !isIOS() || fromHomeScreen() ? "" : `<section class="card home-tip">${gid && G ? `<h2>📲 Already on your Home Screen?</h2>
-    <p class="lead">A QR code always opens Safari. Open <b>The Deceivers</b> from your Home Screen instead, tap <b>🎲 Join a different game</b>, and enter this code:</p>
+    <p class="lead">A QR code always opens Safari. Open <b>The Shadows</b> from your Home Screen instead, tap <b>🎲 Join a different game</b>, and enter this code:</p>
     <div class="row"><span class="code">${gid}</span><button class="btn small" data-act="copy-code">📋 Copy</button></div>
     <h3>Not on your Home Screen yet?</h3>` : `<h2>📲 Want it on your Home Screen?</h2>`}
     <p class="lead">Do it <b>now</b>, before you join:</p>
-    <ol class="steps"><li>Tap <b>Share</b> <span aria-hidden="true">(the square with an arrow ⬆️)</span></li><li>Tap <b>Add to Home Screen</b>, then <b>Add</b></li><li>Open <b>The Deceivers</b> from your Home Screen and join there</li></ol>
+    <ol class="steps"><li>Tap <b>Share</b> <span aria-hidden="true">(the square with an arrow ⬆️)</span></li><li>Tap <b>Add to Home Screen</b>, then <b>Add</b></li><li>Open <b>The Shadows</b> from your Home Screen and join there</li></ol>
     <p class="hint">If you join here first and add it afterwards, the Home Screen app won't know who you are. Happy to stay in Safari? Just join below.</p></section>`;
 function joinCodeHtml() {
-  return `<section class="card">${crest}<h2>Welcome to The Deceivers</h2>
-    <p class="lead">A game of murder and suspicion that runs over several days. Schemers hide amongst the Guests: can you find them before they get you? You play on this phone, in your own time.</p>
+  return `<section class="card">${crest}<h2>Welcome to The Shadows</h2>
+    <p class="lead">A game of murder and suspicion that runs over several days. Shadows hide amongst the Guests: can you find them before they get you? You play on this phone, in your own time.</p>
     <div class="field"><span class="label">Game code</span><input type="text" id="code" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="e.g. K7QM2X" value="${esc(ui.codeIn)}"></div>
     <div class="row"><button class="btn primary" data-act="go-code">Find the game →</button></div>
     </section>${homeTipHtml()}`;
@@ -209,7 +215,7 @@ function joinNameHtml() {
 }
 function waitHtml() {
   return `${pushCardHtml()}<section class="card"><div class="big-ico">🕯️</div><h2>${esc(G.name)}</h2>
-    <p class="lead">You're in, ${nm(me)}. The host will choose the Schemers soon: you'll find out here which side you're on.</p>
+    <p class="lead">You're in, ${nm(me)}. The host will choose the Shadows soon: you'll find out here which side you're on.</p>
     <p class="hint">${plural(G.seats.length, "player")} seated so far.</p>
     <div class="row"><button class="btn small" data-act="other-game">🎲 Not this game? Join a different one</button></div></section>
     ${timetableHtml()}`;
@@ -220,45 +226,47 @@ function timetableHtml() {
     <ul class="tt">${(K => K.map(([k, ic, label, sub], i) => { const at = t ? t[k] : null, now = nowMs(), nextAt = t && i < K.length - 1 ? t[K[i + 1][0]] : Infinity;
       return `<li class="${at && now >= at ? (now < nextAt ? "now" : "past") : ""}"><b>${t ? clock(at) : s[k]}</b><span>${ic}</span><span>${esc(label)}${sub ? `<small>${esc(sub)}</small>` : ""}</span></li>`; }).join(""))(SCHED_KEYS.filter(([k]) => t ? t[k] : s[k]))}</ul>
     <div class="row"><button class="btn small" data-act="cal">📅 Add to my calendar</button></div>
-    <p class="hint">Between breakfast and the round table, talk to anyone in private: that's when alliances are made.</p></section>`;
+    <p class="hint">Between breakfast and the round table, private chats only: that's when alliances are made. The dead have their own chat.</p></section>`;
 }
 
 /* ---------- The game ---------- */
 function gameHtml() {
   const p = P();
-  const chatDot = unreadChat("st") > 0 || (inConclave() && unreadChat("conclave") > 0) || G.seats.some(s => s.id !== me && unreadChat(pairId(me, s.id)) > 0);
-  const tabs = [["today", "🏠", "Today", unreadInfo() > 0], ["square", "🗣️", "Square", unreadSquare() > 0], ["chats", "✉️", "Chats", chatDot], ["vote", "🗳️", "Vote", needsVote(p)], ["me", mySide() === "schemer" ? "🗡️" : "🕯️", "Me", false]];
+  const chatDot = unreadChat("st") > 0 || (inConclave() && unreadChat("conclave") > 0) || (amOut() && unreadChat("ghosts") > 0) || G.seats.some(s => s.id !== me && unreadChat(pairId(me, s.id)) > 0);
+  const tabs = [["today", "🏠", "Today", unreadInfo() > 0], ["square", "🗣️", "Table", unreadSquare() > 0], ["chats", "✉️", "Chats", chatDot], ["vote", "🗳️", "Vote", needsVote(p)], ["me", mySide() === "shadow" ? "🗡️" : "🕯️", "Me", false]];
   const nav = `<nav class="tabs bottom">${tabs.map(([k, ic, l, dot]) => `<button data-act="tab" data-tab="${k}" aria-pressed="${ui.tab === k}"><span class="ti" aria-hidden="true">${ic}</span> <span>${l}</span>${dot ? `<span class="dot" aria-label="new"></span>` : ""}</button>`).join("")}</nav>`;
   return `${bannerHtml(p)}${nav}${{ today: todayHtml, square: squareHtml, chats: chatsHtml, vote: voteHtml, me: meHtml }[ui.tab](p)}`;
 }
 function bannerHtml(p) {
   const dark = ["night", "dark", "wait"].includes(p.k);
   const what = {
-    night: myMurder(p) ? "The Schemers meet: choose who to murder." : "Sleep tight, and lock your door.",
-    dark: "The host is working out the night.", dawn: "Breakfast is served.", chats: "Talk to anyone in private. Who do you trust?",
-    noms: "The round table: vote to banish someone.", vote: "The round table: vote to banish someone.", count: "The votes are being counted.", dusk: "Night falls soon.", over: "", wait: "", lobby: ""
+    night: myMurder(p) ? "The Shadows meet: choose who to murder." : "Sleep tight, and lock your door.",
+    dark: "The host is working out the night.", dawn: "Breakfast is served.", chats: `Private chats only, until the round table at ${G.days[G.day] ? clock(G.days[G.day].noms) : G.sched.noms}. Who do you trust?`,
+    noms: "The round table: discuss with everyone. Private chats are closed.", vote: "Voting: banish the player you suspect.", count: "The votes are being counted.", dusk: "Night falls soon.", over: "", wait: "", lobby: ""
   }[p.k];
   const till = isFinite(p.to) ? `Until ${when(p.to)} · ${left(p.to)} left` : p.k === "dark" ? `Breakfast is usually at ${G.sched.dawn}` : "";
   return `<section class="banner ${dark ? "dark" : ""}"><span class="ph">${phaseGold(p)}</span>${till ? `<span class="till">${till}</span>` : ""}${what ? `<span>${what}</span>` : ""}</section>`;
 }
-// A Schemer still in the game chooses a victim at night (once today's banishment is known)
+// A Shadow still in the game chooses a victim at night (once today's banishment is known)
 const myMurder = p => p.k === "night" && inConclave() && !amOut();
 const waitingForResult = () => !!(G.day && !gated["result" + G.day] && !G.overAt);
 function todayHtml(p) {
   const out = [];
   if (p.k === "over") out.push(overHtml());
   out.push(pushCardHtml());
-  if (myMurder(p) && waitingForResult()) out.push(`<section class="card"><p class="lead">🗡️ The Schemers meet once the host has revealed today's banishment. Check back soon.</p></section>`);
+  if (myMurder(p) && waitingForResult()) out.push(`<section class="card"><p class="lead">🗡️ The Shadows meet once the host has revealed today's banishment. Check back soon.</p></section>`);
   else if (myMurder(p)) out.push(murderHtml(p));
   const d = G.day || 0, bk = gated["dawn" + d], res = gated["result" + d];
   if (res && ["dusk", "night", "dark", "over"].includes(p.k)) out.push(resultHtml(res));
   if (d && bk && ["dawn", "chats", "noms", "vote", "count", "dusk", "night", "dark"].includes(p.k)) out.push(breakfastHtml(bk));
   if (d && !bk && nowMs() >= G.days[d].dawn) out.push(`<section class="card"><p class="hint">Fetching the news from the night…</p></section>`);
   if (p.k === "dusk" && !res) out.push(`<section class="card"><p class="lead">The host is still counting the votes. Check back soon.</p></section>`);
-  if (roundTable(p) && p.n === d && !amOut()) out.push(`<section class="card ${myBallot === null ? "todo" : ""}"><h2>🗳️ The round table is open</h2>
+  if (roundTable(p) && p.n === d && !amOut()) out.push(`<section class="card ${myBallot === null ? "todo" : ""}"><h2>🗳️ Voting is open</h2>
     <p class="lead">${myBallot ? `You've voted to banish <b>${nm(myBallot.of)}</b>. You can change your vote until ${when(G.days[d].close)}.` : `Vote to banish the player you suspect, before ${when(G.days[d].close)}.`}</p>
     <div class="row"><button class="btn ${myBallot ? "" : "primary"}" data-act="tab" data-tab="vote">🗳️ ${myBallot ? "See your vote" : "Vote now"}</button></div></section>`);
-  if (d && p.k === "chats" && p.n === d) out.push(`<section class="card"><p class="lead">🗳️ The round table opens at ${when(G.days[d].vote)}.</p></section>`);
+  if (d && p.k === "chats" && p.n === d) out.push(`<section class="card"><p class="lead">🤫 Private chats are open until ${when(G.days[d].noms)}, when the round table begins.</p></section>`);
+  if (tableOpen(p) && p.n === d) out.push(`<section class="card todo"><h2>🗣️ The round table</h2><p class="lead">Discuss with everyone until ${when(G.days[d].vote)}, when voting begins.</p>
+    <div class="row"><button class="btn primary" data-act="tab" data-tab="square">🗣️ Join the discussion</button></div></section>`);
   const fresh = infoNow().filter(x => x.at >= (d ? G.days[d].dawn : 0) - 1);
   if (fresh.length) out.push(`<section class="card"><h2>📜 From the host</h2>${fresh.map(infoHtml).join("")}<p class="hint">Everything you've been told is under Me.</p></section>`);
   if (unreadInfo()) { seen[gid + "info"] = infoNow()[0].at; saveSeen(); }
@@ -272,7 +280,7 @@ function breakfastHtml(bk) {
     ${ds.length ? `<p class="lead">${ds.map(x => `<b>🗡️ ${nm(x.pid)}</b>`).join(" and ")} ${ds.length === 1 ? "didn't" : "didn't"} come down to breakfast. ${ds.length === 1 ? "They were" : "They were"} murdered in the night.</p>`
       : `<p class="lead">Everyone came down to breakfast: nobody was murdered in the night.</p>`}
     ${bk.note ? `<p class="quote">${esc(bk.note)}</p>` : ""}
-    ${bk.d === 1 ? `<p class="hint">There ${G.schemers === 1 ? "is 1 Schemer" : `are ${G.schemers || "some"} Schemers`} hidden amongst you. Find them, and banish them at the round table.</p>` : ""}</section>`;
+    ${bk.d === 1 ? `<p class="hint">There ${G.shadows === 1 ? "is 1 Shadow" : `are ${G.shadows || "some"} Shadows`} hidden amongst you. Find them, and banish them at the round table.</p>` : ""}</section>`;
 }
 function resultHtml(r) {
   const s = SIDE[r.side] || {};
@@ -293,8 +301,8 @@ function castleHtml() {
   const tok = n <= 6 ? 0.23 : n <= 9 ? 0.2 : n <= 12 ? 0.17 : n <= 16 ? 0.15 : 0.13;
   const seats = G.seats.map((s, i) => {
     const a = (-90 + i * 360 / n) * Math.PI / 180, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
-    const ally = mySide() === "schemer" && allies.includes(s.id), side = R[s.id] || (ally || (s.id === me && mySide() === "schemer") ? "schemer" : "");
-    const cls = [D[s.id] ? "dead" : "", s.id === me ? "me" : "", side === "schemer" ? "schemer" : side === "guest" ? "guest" : ""].join(" ").trim();
+    const ally = mySide() === "shadow" && allies.includes(s.id), side = R[s.id] || (ally || (s.id === me && mySide() === "shadow") ? "shadow" : "");
+    const cls = [D[s.id] ? "dead" : "", s.id === me ? "me" : "", side === "shadow" ? "shadow" : side === "guest" ? "guest" : ""].join(" ").trim();
     const fs = Math.min(0.22, 1.08 / Math.max(5, s.name.length));
     const mark = D[s.id] ? (D[s.id].how === "murdered" ? "🗡️" : D[s.id].how === "banished" ? "⚖️" : "💀") : side ? SIDE[side].ic : `${i + 1}`;
     return `<button class="tok ${cls}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;--fs:${fs.toFixed(3)}" data-act="tok" data-pid="${s.id}" aria-label="${esc(s.name)}${s.id === me ? " (you)" : ""}${D[s.id] ? `, ${esc(HOW[D[s.id].how] || "out")}` : ""}${side ? `, ${SIDE[side].one}` : ""}">
@@ -302,24 +310,24 @@ function castleHtml() {
   }).join("");
   return `<section class="card"><h2>🏰 The castle</h2>
     <div class="ring" style="--tok:${tok}">${seats}<div class="ring-centre"><span class="big">${alive}</span><span>still in the game</span><span class="hint">of ${n}</span></div></div>
-    <p class="hint legend">🗡️ Murdered · ⚖️ Banished (with the side they were on)${mySide() === "schemer" ? " · red: your fellow Schemers" : ""}. Tap a player to message them.</p></section>`;
+    <p class="hint legend">🗡️ Murdered · ⚖️ Banished (with the side they were on)${mySide() === "shadow" ? " · red: your fellow Shadows" : ""}. Tap a player to message them.</p></section>`;
 }
 function murderHtml(p) {
   const D = dead(), allies = SEC.allies || [], pick = ui.pick !== undefined ? ui.pick : myAct && myAct.n === p.n ? myAct.pick : "", saved = myAct && myAct.n === p.n && myAct.saved;
   const victims = G.seats.filter(s => !D[s.id] && s.id !== me && !allies.includes(s.id));
   return `<section class="card todo"><h2>🗡️ Tonight's murder</h2>
-    <p class="lead">Choose who the Schemers murder tonight. Agree it with the other Schemers in <b>🗡️ The Schemers</b> chat: the host goes with your choice${allies.length ? "s" : ""}.</p>
+    <p class="lead">Choose who the Shadows murder tonight. Agree it with the other Shadows in <b>🗡️ The Shadows</b> chat: the host goes with your choice${allies.length ? "s" : ""}.</p>
     <div class="picks">${victims.map(s => `<button class="pick" data-act="pick" data-pid="${s.id}" aria-pressed="${pick === s.id}">${nm(s.id)}</button>`).join("")}</div>
     <div class="row"><button class="btn primary" data-act="save-act" ${pick ? "" : "disabled"}>${saved && ui.pick === undefined ? "✅ Saved: change it" : "Save my choice"}</button>
-      <button class="btn small" data-act="open-chat" data-pid="conclave">🗡️ The Schemers' chat</button>
+      <button class="btn small" data-act="open-chat" data-pid="conclave">🗡️ The Shadows' chat</button>
       <span class="hint">${saved ? `Saved: ${nm(myAct.pick)}. ` : ""}You can change it until ${when(p.to)}.</span></div></section>`;
 }
 
 /* ---------- Square ---------- */
 function squareHtml(p) {
-  const open = squareOpen(p);
-  return `<section class="card"><h2>🗣️ The great hall</h2>
-    <p class="hint">Everyone can read this. ${open ? "" : "The hall is closed for the night."}</p>
+  const open = tableOpen(p) && p.n === G.day, t = G.days[G.day];
+  return `<section class="card"><h2>🗣️ The round table</h2>
+    <p class="hint">Everyone can read this. ${open ? `The discussion is open until ${when(t.vote)}.` : amOut() ? "You're out of the game, so you can only watch." : `The discussion opens at ${t && nowMs() < t.noms ? when(t.noms) : G.sched.noms} each day, for everyone.`}</p>
     <div class="feed" id="feed">${square.map(m => `<div class="msg ${m.kind === "st" ? "st" : m.pid === me ? "mine" : ""}"><small>${m.kind === "st" ? "📣 The host" : nm(m.pid)} · ${when(m.at)}</small>${esc(m.text)}</div>`).join("") || `<p class="hint">Nothing yet.</p>`}</div>
     ${open && !amOut() ? `<div class="send"><textarea id="say" maxlength="600" placeholder="Say something to everyone" aria-label="Message to everyone">${esc(ui.draft.sq || "")}</textarea><button class="btn primary" data-act="say">Post</button></div>` : ""}</section>`;
 }
@@ -333,19 +341,22 @@ function chatsHtml(p) {
       <span><b class="nm">${title}</b><br><span class="hint">${last ? `${last.from === me ? "You: " : ""}${esc(last.text.slice(0, 60))}` : sub2}</span></span>
       <span>${u ? `<span class="tag evil">${u} new</span>` : ""}</span></button>`; };
   return `<section class="card"><h2>✉️ Private chats</h2>
-    <p class="hint">Message anyone, at any time. Only the two of you can read it.</p>
-    <div class="town">${inConclave() ? row("conclave", "conclave", "🗡️ The Schemers", "Only the Schemers (and the host) can read this. Plot here.", "🗡️") : ""}
+    <p class="hint">${amOut() ? "You're out of the game: you can't message the players still in it, but you can talk to the other dead, and the host." : privateOpen(p) ? `Private chats are open until ${when(G.days[G.day].noms)}. Only the two of you can read them.` : `Private chats are open from breakfast (${G.sched.dawn}) until the round table (${G.sched.noms}).`}</p>
+    <div class="town">${inConclave() ? row("conclave", "conclave", "🗡️ The Shadows", "Only the Shadows (and the host) can read this. It opens at the banishment.", "🗡️") : ""}
+    ${amOut() ? row("ghosts", "ghosts", "👻 The dead", "Only the players out of the game (and the host) can read this.", "👻") : ""}
     ${row("st", "st", "📜 The host", "Questions or problems: only the host reads this.", "📜")}
     ${others.map(s => row(pairId(me, s.id), s.id, esc(s.name), "", dead()[s.id] ? "💀" : "💬")).join("")}</div></section>`;
 }
 function threadHtml(p, pid) {
-  const k = chatKey(pid), l = msgsOf(k), st = pid === "st", con = pid === "conclave";
-  const title = st ? "📜 The host" : con ? "🗡️ The Schemers" : nm(pid), ok = con ? inConclave() : true;
+  const k = chatKey(pid), l = msgsOf(k), st = pid === "st", con = pid === "conclave", gh = pid === "ghosts";
+  const title = st ? "📜 The host" : con ? "🗡️ The Shadows" : gh ? "👻 The dead" : nm(pid);
+  const ok = st || (gh ? amOut() : amOut() ? false : con ? inConclave() && shadowsOpen(p) : privateOpen(p));
+  const why = amOut() ? "You're out of the game, so you can't message the players still in it." : con ? `The Shadows' chat opens at the banishment (${G.sched.reveal}) and closes when the murder choice ends (${G.sched.nightEnd}).` : `Private chats are open from breakfast (${G.sched.dawn}) until the round table (${G.sched.noms}).`;
   const who = m => m.from === me ? "You" : m.from === "st" || m.from === "host" ? "📜 The host" : nm(m.from);
   return `<section class="card"><div class="row"><button class="btn small" data-act="close-chat">← Chats</button><h2 style="margin:0">${title}</h2></div>
-    ${st ? `<p class="hint">Only the host reads this, and you can message them at any time.</p>` : con ? `<p class="hint">Only the Schemers still in the game, and the host, can read this.</p>` : ""}
+    ${st ? `<p class="hint">Only the host reads this, and you can message them at any time.</p>` : con ? `<p class="hint">Only the Shadows still in the game, and the host, can read this.</p>` : gh ? `<p class="hint">Only the players out of the game, and the host, can read this.</p>` : ""}
     <div class="feed" id="feed">${l.map(m => `<div class="msg ${m.from === me ? "mine" : st || m.from === "host" ? "st" : ""}"><small>${who(m)} · ${when(m.at)}</small>${esc(m.text)}</div>`).join("") || `<p class="hint">No messages yet.</p>`}</div>
-    ${ok ? `<div class="send"><textarea id="dm" maxlength="1000" placeholder="Message ${con ? "the Schemers" : st ? "the host" : nm(pid)}" aria-label="Message">${esc(ui.draft[k] || "")}</textarea><button class="btn primary" data-act="dm" data-pid="${pid}">Send</button></div>` : ""}</section>`;
+    ${ok ? `<div class="send"><textarea id="dm" maxlength="1000" placeholder="Message ${con ? "the Shadows" : gh ? "the dead" : st ? "the host" : nm(pid)}" aria-label="Message">${esc(ui.draft[k] || "")}</textarea><button class="btn primary" data-act="dm" data-pid="${pid}">Send</button></div>` : `<p class="warn">🔒 ${esc(why)}</p>`}</section>`;
 }
 
 /* ---------- The round table ---------- */
@@ -376,7 +387,7 @@ async function refreshPush(ask) {
   render(true);
   if (ask && push === "on") toast("🔔 Notifications are on");
 }
-const pushLater = () => { try { return Date.now() - (+localStorage.getItem("dcv-push-later") || 0) < 3 * 86400000; } catch (e) { return false; } };
+const pushLater = () => { try { return Date.now() - (+localStorage.getItem("shd-push-later") || 0) < 3 * 86400000; } catch (e) { return false; } };
 function pushCardHtml() {
   if (!push || push === "on" || push === "unsupported" || pushLater()) return "";
   return `<section class="card todo"><h2>🔔 Get notified</h2>
@@ -389,9 +400,9 @@ function pushCardHtml() {
 function meHtml() {
   const s = SIDE[mySide()] || {}, info = infoNow(), allies = (SEC.allies || []).filter(q => q !== me);
   return `<section class="card"><h2>${s.ic || "❔"} You are a ${esc(s.one || "player")}</h2>
-    ${mySide() === "schemer" ? `<p class="lead">Murder the Guests one by one, and don't get caught. You win if the Schemers are ever as many as the Guests left.</p>
-      <p class="hint">${allies.length ? `Your fellow Schemers: <b>${allies.map(nm).join(", ")}</b>.` : "You're the only Schemer."} Plot together in 🗡️ The Schemers chat.</p>`
-      : `<p class="lead">Find the Schemers and banish them at the round table. The Guests win when every Schemer is gone.</p><p class="hint">Trust no one. Schemers know who each other are; you don't.</p>`}
+    ${mySide() === "shadow" ? `<p class="lead">Murder the Guests one by one, and don't get caught. You win if the Shadows are ever as many as the Guests left.</p>
+      <p class="hint">${allies.length ? `Your fellow Shadows: <b>${allies.map(nm).join(", ")}</b>.` : "You're the only Shadow."} Plot together in 🗡️ The Shadows chat.</p>`
+      : `<p class="lead">Find the Shadows and banish them at the round table. The Guests win when every Shadow is gone.</p><p class="hint">Trust no one. Shadows know who each other are; you don't.</p>`}
     ${amOut() ? `<p class="warn">${esc(HOW[dead()[me].how] || "You're out")}. You're out of the game, but you can still watch and talk.</p>` : ""}</section>
     <section class="card"><h2>🔔 Notifications</h2>${push === "on" ? `<p class="lead">On for this phone.</p><div class="row"><button class="btn small" data-act="push-off">Turn off</button></div>` : `<p class="hint">${esc(PUSH_TEXT[push] || "Get a notification when it's your turn.")}</p>${["off", "error", "not-ready", "blocked"].includes(push) ? `<div class="row"><button class="btn small primary" data-act="push-on">🔔 Turn on</button></div>` : ""}`}</section>
     <section class="card"><h2>📜 From the host</h2>${info.length ? info.map(infoHtml).join("") : `<p class="hint">Nothing yet.</p>`}</section>
@@ -399,13 +410,15 @@ function meHtml() {
     <section class="card"><h2>🔒 Your information</h2><p class="hint">What this app keeps about you, who can see it, and how long it's kept.</p><div class="row"><a class="btn" href="privacy.html">Privacy notice</a></div></section>`;
 }
 const RULES = `<h2>📜 How to play</h2>
-  <p class="lead">Some of the players are secretly <b class="t-demon">🗡️ Schemers</b>. Everyone else is a <b class="t-townsfolk">🕯️ Guest</b>. The Schemers know who each other are; the Guests don't.</p>
-  <p><b>🌙 Each night</b> the Schemers meet in secret and choose a Guest to murder.</p>
-  <p><b>🍳 At breakfast</b> everyone finds out who was murdered.</p>
-  <p><b>🤫 During the day</b> talk to anyone in private: share suspicions, make alliances, or lie.</p>
-  <p><b>🗳️ At the round table</b> everyone votes to banish one player. The player with the most votes is banished, and their side is revealed.</p>
-  <p><b>🏁 The Guests win</b> when every Schemer has been banished. <b>The Schemers win</b> if they ever equal the Guests left.</p>
-  <p class="hint">The host may give out shields (protecting someone from murder for a night), or recruit a Guest to join the Schemers.</p>`;
+  <p class="lead">Some of the players are secretly <b class="t-demon">🗡️ Shadows</b>. Everyone else is a <b class="t-townsfolk">🕯️ Guest</b>. The Shadows know who each other are; the Guests don't.</p>
+  <p class="hint">The usual times are below; your host may change them (see ⏰ Each day).</p>
+  <p><b>🍳 Breakfast</b> (07:30): find out who was murdered in the night. The dead can't talk to the living any more, but they have a chat of their own.</p>
+  <p><b>🤫 Private chats</b> until the round table: talk to anyone one to one. Share suspicions, make alliances, or lie.</p>
+  <p><b>🗣️ The round table</b> (18:00): an open discussion with everyone. Private chats close.</p>
+  <p><b>🗳️ Voting</b> (19:00 to 20:00): everyone votes to banish one player. The most votes is banished.</p>
+  <p><b>⚖️ The banishment</b> (20:30): who goes, and which side they were on. Then the Shadows' chat opens, and they choose who to murder by 22:00.</p>
+  <p><b>🏁 The Guests win</b> when every Shadow has been banished. <b>The Shadows win</b> if they ever equal the Guests left.</p>
+  <p class="hint">The host may give out shields (protecting someone from murder for a night), or recruit a Guest to join the Shadows.</p>`;
 
 /* ---------- Taps ---------- */
 function dialog(html) { const d = $("#dlg"); d.innerHTML = html; d.showModal(); }
@@ -418,7 +431,7 @@ document.getElementById("app").addEventListener("click", e => {
   if (!el || el.disabled) return;
   const a = el.dataset.act, pid = el.dataset.pid;
   switch (a) {
-    case "theme": toggleTheme("dcv-theme"); return render(true);
+    case "theme": toggleTheme("shd-theme"); return render(true);
     case "rules": return dialog(`${RULES}<div class="row"><button class="btn" data-dact="close">Close</button></div>`);
     case "cal": return downloadIcs(icsFile(G.name, G.sched, nowMs()));
     case "go-code": { const c = cleanCode($("#code").value); if (c.length !== 6) return toast("The code has 6 letters and numbers."); gid = c; history.replaceState(null, "", `?g=${c}${EMU ? "&emu=1" : ""}`); ready = false; render(true); return watch(); }
@@ -436,7 +449,7 @@ document.getElementById("app").addEventListener("click", e => {
     case "close-chat": ui.chat = ""; return render(true);
     case "dm": { const k = chatKey(pid), t = $("#dm").value.trim(); if (!t) return;
       ui.draft[k] = ""; $("#dm").value = "";
-      const where = pid === "st" ? gcol(gid, "stchat", me, "msgs") : pid === "conclave" ? gcol(gid, "conclave") : gcol(gid, "chats", k, "msgs");
+      const where = pid === "st" ? gcol(gid, "stchat", me, "msgs") : pid === "conclave" ? gcol(gid, "conclave") : pid === "ghosts" ? gcol(gid, "ghosts") : gcol(gid, "chats", k, "msgs");
       return run(() => FB.addDoc(where, { from: me, text: t, at: nowMs() })); }
     case "ballot-pick": ui.vote = pid; return render(true);
     case "ballot": { const of = ui.vote !== undefined ? ui.vote : myBallot && myBallot.of, why = ($("#why").value || "").trim().slice(0, 300), d = String(G.day);
@@ -446,7 +459,7 @@ document.getElementById("app").addEventListener("click", e => {
     case "tok": if (pid === me) { ui.tab = "me"; ui.chat = ""; } else { ui.tab = "chats"; ui.chat = pid; } render(true); return window.scrollTo(0, 0);
     case "push-on": return refreshPush(true);
     case "copy-code": navigator.clipboard && navigator.clipboard.writeText(gid).then(() => toast("Code copied"), () => toast(gid)); return;
-    case "push-later": try { localStorage.setItem("dcv-push-later", String(Date.now())); } catch (e2) {} return render(true);
+    case "push-later": try { localStorage.setItem("shd-push-later", String(Date.now())); } catch (e2) {} return render(true);
     case "push-off": return pushOff().then(() => { push = "off"; render(true); toast("Notifications are off"); });
   }
 });
