@@ -358,6 +358,17 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
     if (!ans.exists) await dieOnSpot(gid, G, grim, bo.target);
   }
   // The Shadows' mission ends at the round table: every Shadow still in must have said the phrase to a Guest, uncaught
+  // Day 1's "find your fellow Shadows": every Shadow must name at least one of the others correctly. Nothing is said at the round table:
+  // each Shadow learns how they did when the Shadows meet that night.
+  if (M && M.type === "findallies" && t && now >= t.noms && !M.done) {
+    const finds = {}; (await db.collection(`games/${gid}/days/${d}/finds`).get()).forEach(x => finds[x.id] = x.data().picks || []);
+    const result = {}; for (const p of shadows) { const picks = finds[p] || []; result[p] = { right: picks.filter(q => shadows.includes(q) && q !== p), wrong: picks.filter(q => !shadows.includes(q)) }; }
+    const passed = shadows.every(p => result[p].right.length > 0), b = db.batch();
+    b.update(db.doc(`games/${gid}/st/grim`), { [`missions.${d}.done`]: true, [`missions.${d}.passed`]: passed, [`missions.${d}.result`]: result });
+    for (const p of shadows) b.update(db.doc(`games/${gid}/secret/${p}`), { "mission.done": true, "mission.passed": passed, "mission.result": result[p] });
+    await b.commit(); M.done = true; M.passed = passed;
+    once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows found each other" : "❌ The Shadows didn't all find each other", body: passed ? "They may murder tonight." : "No murder tonight. (Nobody is told until the Shadows meet.)", tag: `challenge-${gid}` });
+  }
   if (M && t && now >= t.noms && !M.done) {
     const adds = (W && W.adds) || [], ch = (W && W.chain) || [];
     const all = shadows, passed = M.type === "plainsight" ? !!M.marked : M.type === "snuff" ? !!M.snuffed : M.type === "mislead" ? !!M.misled : M.type === "addword" ? adds.some(a => ch.some(c => c.from === a.to)) : all.every(p => (M.said || {})[p]) && !M.caught, b = db.batch();
