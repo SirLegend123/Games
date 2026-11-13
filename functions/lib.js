@@ -116,7 +116,7 @@ const normPhrase = s => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " "
 const saysPhrase = (text, phrase) => !!normPhrase(phrase) && (" " + normPhrase(text) + " ").includes(" " + normPhrase(phrase) + " ");
 const dayOpenNow = (G, d) => { const t = (G.days || {})[d] || {}; return Date.now() >= (t.dawn || Infinity) && Date.now() < (t.noms || 0); };
 const missionOpen = (G, grim) => { const d = G.day || 0, M = (grim.missions || {})[d]; return isShd(G) && M && M.phrase && !M.done && dayOpenNow(G, d) ? M : null; };
-const whisperOpen = (G, grim) => { const d = G.day || 0, W = (grim.tasks || {})[d]; return isShd(G) && W && W.type === "whisper" && !W.done && !W.complete && dayOpenNow(G, d) ? W : null; };
+const whisperOpen = (G, grim) => { const d = G.day || 0, W = (grim.tasks || {})[d]; return isShd(G) && W && W.type === "whisper" && !W.done && !W.complete && !W.failed && dayOpenNow(G, d) ? W : null; };
 async function onChat(gid, pair, m) {
   const to = pair.split("~").find(p => p !== m.from);
   if (!to) return;
@@ -142,7 +142,23 @@ async function whisperSaid(gid, G, grim, d, W, from, to, at) {
   if (!had[from]) return;   // they've not been given it: it doesn't count
   const alive = seatIds(G).filter(p => !dead[p]), everyone = alive.every(p => had[p] || p === to);
   const closing = to === W.start && alive.every(p => had[p]);
-  if (had[to] && !closing) { await db.doc(`games/${gid}/secret/${from}`).update({ "whisper.bounce": { to, at } }); return; }
+  if (had[to] && !closing) {
+    // Sent to someone who's already had it: it stays with the sender, and counts as another time for them. A third time fails the task.
+    const times = 2 + ((W.repeats || {})[to] || 0);
+    if (times >= 3) {
+      const msg = `🤫 The Whisper has failed: ${nameOf(G, to)} was sent it for the third time. No shield today.`;
+      const b = db.batch();
+      b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.repeats.${to}`]: times - 1, [`tasks.${d}.failed`]: { pid: to, by: from, at } });
+      b.update(db.doc(`games/${gid}`), { [`days.${d}.wfail`]: { pid: to, at } });
+      b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at, text: msg });
+      await b.commit();
+      await notify(gid, G, alive, { title: "🤫 The Whisper has failed", body: `${nameOf(G, to)} was sent it for the third time. No shield today.`, tag: `whisper-${gid}` });
+      return;
+    }
+    await db.doc(`games/${gid}/st/grim`).update({ [`tasks.${d}.repeats.${to}`]: times - 1 });
+    await db.doc(`games/${gid}/secret/${from}`).update({ "whisper.bounce": { to, at, times } });
+    return;
+  }
   const u = { [`tasks.${d}.passed.${from}`]: at, [`tasks.${d}.chain`]: [...(W.chain || []), { from, to, at }] };
   if (closing) u[`tasks.${d}.complete`] = at; else u[`tasks.${d}.had.${to}`] = at;
   await g.update(u);
@@ -235,6 +251,7 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
     once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows completed their mission" : "❌ The Shadows failed their mission", body: passed ? "They may murder tonight." : M.caught ? "A Guest caught the code phrase: no murder tonight." : "Not every Shadow said the phrase: no murder tonight.", tag: `challenge-${gid}` });
   }
   // The Whisper ends at the round table: if it went all the way round, the last player still in the running to say it gets a shield
+  if (W && W.type === "whisper" && t && now >= t.noms && !W.done && W.failed) { await db.doc(`games/${gid}/st/grim`).update({ [`tasks.${d}.done`]: true, [`tasks.${d}.winner`]: null }); W.done = true; }
   if (W && W.type === "whisper" && t && now >= t.noms && !W.done) {
     const chain = W.chain || [], out = W.out || {}, last = W.complete ? [...chain].reverse().find(c => !out[c.from]) : null, winner = last ? last.from : null, b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true, [`tasks.${d}.winner`]: winner, ...(winner ? { [`wshield.${d + 1}`]: winner } : {}) });
