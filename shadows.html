@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 129;</script>
-<script src="update.js?v=129"></script>
+<script>window.APP_V = 130;</script>
+<script src="update.js?v=130"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=129"></script>
-<script src="shadows.js?v=129"></script>
+<script src="daily.js?v=130"></script>
+<script src="shadows.js?v=130"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=129">
-<link rel="stylesheet" href="shadows.css?v=129">
+<link rel="stylesheet" href="daily.css?v=130">
+<link rel="stylesheet" href="shadows.css?v=130">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -163,7 +163,7 @@ function render(force) {
   pending = false;
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=129" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=130" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -322,6 +322,7 @@ function missionCardHtml(d) {
       <p class="lead">Before ${when(t.noms)}, slip this phrase into a private chat with a Guest:</p><p class="quote">“${esc(M.phrase || "")}”</p>
       <p class="lead">${M.said ? `✅ Done: you said it at ${clock(M.said)}.` : "⏳ Not yet."} If every Shadow says it, and no Guest catches it, you may murder tonight.</p>
       <p class="hint">Saying it to another Shadow doesn't count${(SEC.allies || []).length ? "" : ", but if someone says it to you, you've found a fellow Shadow"}.</p></section>`;
+  if (d === 1 && G.dayFirst) return "";   // Day 1: the Guests aren't told there's a phrase
   return `<section class="card"><h2>🔎 Listen carefully</h2>
     <p class="lead">Today the Shadows are trying to slip a secret phrase into their private chats. Heard something that sounds planted? Message the exact words to the host before ${when(t.noms)}: if you're right, the Shadows can't murder tonight.</p>
     <div class="row"><button class="btn" data-act="open-chat" data-pid="st">📜 Message the host</button></div></section>`;
