@@ -374,7 +374,8 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
     const all = shadows, passed = M.type === "plainsight" ? !!M.marked : M.type === "snuff" ? !!M.snuffed : M.type === "mislead" ? !!M.misled : M.type === "addword" ? adds.some(a => ch.some(c => c.from === a.to)) : all.every(p => (M.said || {})[p]) && !M.caught, b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`missions.${d}.done`]: true, [`missions.${d}.passed`]: passed });
     for (const p of all) b.update(db.doc(`games/${gid}/secret/${p}`), { "mission.done": true, "mission.passed": passed, "mission.caught": !!M.caught });
-    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now + 2, text: M.type === "plainsight"
+    // Day 1 is kept quiet: the Shadows find out how they did when they meet that night
+    if (!(d === 1 && G.dayFirst)) b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now + 2, text: M.type === "plainsight"
       ? (passed ? "🌤️ We hope you all enjoyed your day off… but the Shadows were busy. Today, right under your noses, they committed a murder in plain sight. One of you will not live to see breakfast." : "🌤️ We hope you all enjoyed your day off. All was quiet… this time.")
       : passed ? "🗝️ The Shadows completed their secret mission today. Tonight, they may murder." : "🗝️ The Shadows failed their secret mission today. Tonight, nobody will be murdered." });
     await b.commit(); M.done = true; M.passed = passed;
