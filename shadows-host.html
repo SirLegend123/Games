@@ -10,17 +10,17 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows · Host</title>
-<script>window.APP_V = 129;</script>
-<script src="update.js?v=129"></script>
+<script>window.APP_V = 130;</script>
+<script src="update.js?v=130"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=129"></script>
-<script src="shadows.js?v=129"></script>
+<script src="daily.js?v=130"></script>
+<script src="shadows.js?v=130"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=129">
-<link rel="stylesheet" href="shadows.css?v=129">
+<link rel="stylesheet" href="daily.css?v=130">
+<link rel="stylesheet" href="shadows.css?v=130">
 <link rel="manifest" href="shadows-host.webmanifest">
 </head>
 <body>
@@ -121,7 +121,7 @@ function render(force) {
   if (!force && a && a.closest && a.closest("#app") && a.matches("input[type=text], textarea")) { pending = true; return; }
   pending = false;
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=129" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=130" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="rules">📜 How to play</button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -362,7 +362,7 @@ async function deal() {
     const text = isS ? `You are a Shadow. ${team} ${pl.mission === "phrase" ? `First, today's challenge: before the round table (${clock(t.noms)}), slip this phrase into a private chat with a Guest: “${phrase}”. If every Shadow does it, and no Guest catches it, you may murder tonight.`
       : pl.mission === "findallies" ? `First, today's challenge: before the round table (${clock(t.noms)}), work out who the other Shadows are, and name them on your Today page. Your secret sign, to slip into your private chats so they can spot you: “${pl.sign.trim()}”. If every Shadow names at least one other Shadow correctly, you may murder tonight. You'll find out how you did when you meet.`
       : "Until then, blend in."}`
-      : "You are a Guest. Somewhere amongst you, the Shadows are hiding. Listen carefully to everyone: they may give themselves away. If you hear an odd phrase that sounds planted, message it to the host before the round table.";
+      : "You are a Guest. Somewhere amongst you, the Shadows are hiding. Listen carefully to everyone: they may give themselves away.";
     b.set(gref(gid, "secret", s.id), { name: s.name, side: S[s.id], allies: [], out: false, info: [{ n: 0, at, text, label: "Your side" }] });
   }
   b.set(gref(gid, "gated", "dawn1"), { at: t.dawn, d: 1, deaths: [], first: true });
