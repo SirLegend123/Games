@@ -117,8 +117,21 @@ label.field, .field { display: grid; gap: 6px; }
 .grim-wrap { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
 @media (min-width: 900px) { .grim-wrap { grid-template-columns: minmax(0, 1.15fr) minmax(330px, 1fr); } }
 .side { display: grid; gap: 16px; }
-.circle { position: relative; width: 100%; max-width: 640px; margin: 0 auto; aspect-ratio: 1; container-type: inline-size; border-radius: 50%; background: var(--felt); border: 1px solid var(--line); }
-.seat { position: absolute; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 2px; background: none; border: 0; padding: 0; width: var(--tok); color: inherit; }
+.circle { --rx: 39%; --ry: 39%; --tok: min(96px, var(--t1)); position: relative; width: 100%; max-width: 640px; margin: 0 auto; aspect-ratio: 1; container-type: inline-size; border-radius: 50%; background: var(--felt); border: 1px solid var(--line); }
+/* Phones: a tall oval, so the players sit further apart and everything can be bigger */
+@media (max-width: 600px) {
+  .circle { aspect-ratio: .78; --rx: 40.5%; --ry: 42.5%; --tok: var(--t2); }
+  .circle .plate { font-size: clamp(.85rem, 3.6cqi, 1rem); max-width: calc(var(--tok) * 1.5); }
+  .circle .badge { font-size: .74rem; }
+  .circle .center { inset: 24% 22%; gap: 8px; }
+  .circle .center .hint { font-size: 1rem; }
+  .circle .center .base, .circle .center .os { font-size: .82rem; }
+  .steps span { font-size: .9rem; padding: 6px 12px; }
+  .circle .seat.me .plate { max-width: calc(var(--tok) * 2); }
+  .circle.many { aspect-ratio: .68; --ry: 44%; }
+  .circle.many .plate { font-size: clamp(.8rem, 3.3cqi, .95rem); }
+}
+.seat { position: absolute; left: calc(50% + var(--c) * var(--rx)); top: calc(50% + var(--s) * var(--ry)); transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 2px; background: none; border: 0; padding: 0; width: var(--tok); color: inherit; }
 .disc { width: var(--tok); aspect-ratio: 1; border-radius: 50%; background: var(--parch); color: var(--parch-ink); border: 4px solid var(--unsure); display: grid; place-content: center; justify-items: center; text-align: center; padding: 6%; box-shadow: 0 2px 6px rgba(0,0,0,.35); overflow: hidden; line-height: 1.02; }
 .seat.trust .disc { border-color: var(--good); } .seat.suspect .disc { border-color: var(--evil); } .seat.demon .disc { border-color: var(--demon); border-width: 6px; }
 .seat.me .disc { outline: 4px solid var(--brass); outline-offset: 2px; }
@@ -317,9 +330,9 @@ header h1 { line-height: 0; }
   <main id="app"></main>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 130;</script>
-<script src="update.js?v=130"></script>
-<script src="characters.js?v=130"></script>
+<script>window.APP_V = 131;</script>
+<script src="update.js?v=131"></script>
+<script src="characters.js?v=131"></script>
 <script>
 /* A notepad for playing Blood on the Clocktower online: the players, your character,
    what you learn each night, who claims what, and who died and how. Everything stays on this device. */
@@ -592,13 +605,13 @@ function baseHtml() {
 }
 function circleHtml() {
   const L = leanings();
-  const n = S.players.length, tok = n <= 7 ? 19 : n <= 10 ? 16.5 : n <= 13 ? 14 : 12.5;
+  const n = S.players.length, tok = n <= 7 ? 19 : n <= 10 ? 16.5 : n <= 13 ? 14 : 12.5, tokPhone = n <= 7 ? 23 : n <= 10 ? 20 : n <= 12 ? 17.5 : n <= 13 ? 16 : 14;
   const seats = S.players.map((p, i) => {
-    const a = (i / n) * 2 * Math.PI - Math.PI / 2, x = 50 + 39 * Math.cos(a), y = 50 + 39 * Math.sin(a);
+    const a = (i / n) * 2 * Math.PI - Math.PI / 2;
     const A = about(p.id), me = p.id === S.me, c = me ? { role: S.role, kind: "hard" } : p.trav && A.trav ? { role: A.trav, kind: "hard" } : currentClaim(p.id), d = A.death;
     const rs = c ? rolesOf(c) : [], word = rs.length === 1 ? Math.max(...rs[0].split(/\s+/).map(w => w.length), 3) : 6;
     const flag = !me && flagsOf(p.id).length, [lean, sure] = me ? ["", 0] : leanOf(L, p.id);
-    return `<button class="seat ${me ? "me" : ""} ${c && !me ? c.kind : ""} ${lean ? `lean-${lean} sure-${sure}` : ""} ${d ? "dead" : ""} ${ui.sel === p.id ? "sel" : ""}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%" data-act="sel" data-pid="${p.id}" aria-label="${esc(p.name)}${c ? `, ${c.kind} claim ${esc(claimText(c))}` : ""}${lean ? `, likely ${lean}` : ""}${d ? ", dead" : ""}">
+    return `<button class="seat ${me ? "me" : ""} ${c && !me ? c.kind : ""} ${lean ? `lean-${lean} sure-${sure}` : ""} ${d ? "dead" : ""} ${ui.sel === p.id ? "sel" : ""}" style="--c:${Math.cos(a).toFixed(4)};--s:${Math.sin(a).toFixed(4)}" data-act="sel" data-pid="${p.id}" aria-label="${esc(p.name)}${c ? `, ${c.kind} claim ${esc(claimText(c))}` : ""}${lean ? `, likely ${lean}` : ""}${d ? ", dead" : ""}">
       <span class="disc">${!c ? `<span class="q">?</span>` : rs.length > 1 ? `<span class="ico multi" aria-hidden="true">${rs.slice(0, 3).map(iconOf).join("")}</span><span class="nm" style="--fs:.13">1 of ${rs.length}</span><span class="sm">soft</span>`
         : `<span class="ico" aria-hidden="true">${iconOf(rs[0])}</span><span class="nm" style="--fs:${Math.min(.16, 1.4 / word).toFixed(3)}">${esc(rs[0])}</span>${!me && c.kind === "soft" ? `<span class="sm">soft</span>` : ""}`}</span>
       ${flag ? `<span class="flag" aria-hidden="true">!</span>` : ""}
@@ -608,7 +621,7 @@ function circleHtml() {
     </button>`;
   }).join("");
   const live = alive().length;
-  return `<div class="circle" style="--tok:min(96px, ${tok}cqi)">${seats}
+  return `<div class="circle ${n >= 13 ? "many" : ""}" style="--t1:${tok}cqi;--t2:${tokPhone}cqi">${seats}
     <div class="center"><span class="ph">${phaseName(S.ph)}</span><span class="hint">${live} alive · ${Math.ceil(live / 2)} votes to execute</span>${baseHtml()}</div></div>`;
 }
 
