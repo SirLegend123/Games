@@ -162,6 +162,33 @@ label.field, .field { display: grid; gap: 6px; }
 .claim { display: flex; gap: 8px; align-items: center; }
 .claim .ico { width: 1.6em; text-align: center; }
 
+/* The Grid: players down the side, characters across the top */
+.gx-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.gx { border-collapse: separate; border-spacing: 0; font-size: .95rem; }
+.gx th, .gx td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 0; text-align: center; }
+.gx thead th { background: var(--surface-2); vertical-align: bottom; padding: 8px 0 6px; min-width: 40px; }
+.gx .g0 { border-left: 3px solid var(--line); }
+.gx .ch { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
+.gx .ch .ic { font-size: 1.25rem; line-height: 1; }
+.gx .ch .cn { writing-mode: vertical-rl; transform: rotate(180deg); font-weight: 800; font-size: .78rem; white-space: nowrap; flex: none; inline-size: max-content; }
+.gx th.who { position: sticky; left: 0; z-index: 1; background: var(--surface-2); text-align: left; min-width: 6.5em; max-width: 9em; }
+.gx thead th.who { z-index: 3; vertical-align: bottom; padding: 8px; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.gx th.who button { background: none; border: 0; color: inherit; font: inherit; font-weight: 800; padding: 10px 8px; width: 100%; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gx tr.dead th.who button { text-decoration: line-through; color: var(--muted); }
+.gx tr.dead td { opacity: .55; }
+.gx tr.me th.who { box-shadow: inset 4px 0 0 var(--brass); }
+.gx td button { width: 40px; height: 42px; background: none; border: 0; color: inherit; font: inherit; font-weight: 800; font-size: 1.05rem; display: grid; place-items: center; position: relative; }
+.gx td.dup { background: rgba(196, 66, 66, .16); } .gx th.dup { box-shadow: inset 0 -3px 0 var(--evil); }
+.gx .hard { color: var(--brass); font-size: 1.2rem; } .gx .soft { color: var(--brass); }
+.gx .you { color: var(--brass); }
+.gx .mk { position: absolute; right: 2px; bottom: 1px; font-size: .78rem; }
+.gx .mk.only { position: static; font-size: 1.05rem; }
+.gx .mk-y { color: var(--good); } .gx .mk-m { color: #d9a441; } .gx .mk-n { color: var(--muted); }
+.gx td.guess button { box-shadow: inset 0 0 0 2px var(--evil); border-radius: 8px; }
+@media (max-width: 600px) { .gx th.who { min-width: 5.2em; max-width: 6.5em; } .gx th.who button { padding: 10px 6px; } }
+.gx-key { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .9rem; color: var(--muted); margin: 0; }
+.gx-key b { color: var(--fg); }
+
 /* Online Notes */
 .tiles.small { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; }
 .tiles.small .tile { min-height: 66px; font-size: .8rem; padding: 6px 4px; }
@@ -245,7 +272,7 @@ label.field, .field { display: grid; gap: 6px; }
 .ping { display: grid; gap: 2px; }
 .lean-row b.pc { color: var(--fg); }
 /* Tabs */
-.tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 6px 0; }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; position: sticky; top: 0; z-index: 20; background: var(--bg); padding: 6px 0; }
 .tabs button { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; min-height: 48px; font-weight: 800; color: var(--muted); }
 .tabs button[aria-selected="true"] { background: var(--brass); color: var(--on-brass); border-color: var(--brass); }
 /* The critical realist layers */
@@ -330,9 +357,9 @@ header h1 { line-height: 0; }
   <main id="app"></main>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 131;</script>
-<script src="update.js?v=131"></script>
-<script src="characters.js?v=131"></script>
+<script>window.APP_V = 132;</script>
+<script src="update.js?v=132"></script>
+<script src="characters.js?v=132"></script>
 <script>
 /* A notepad for playing Blood on the Clocktower online: the players, your character,
    what you learn each night, who claims what, and who died and how. Everything stays on this device. */
@@ -369,7 +396,7 @@ matchMedia("(prefers-color-scheme: light)").addEventListener("change", themeBtn)
 
 /* ---------- State ---------- */
 const LS = "botc-notes-v1";
-const fresh = () => ({ step: "players", script: "tb", players: [], me: "", role: "", ph: 0, P: {}, info: [], talk: [] });
+const fresh = () => ({ step: "players", script: "tb", players: [], me: "", role: "", ph: 0, P: {}, info: [], talk: [], marks: {} });
 let S;
 try { S = JSON.parse(localStorage.getItem(LS)); } catch (e) { S = null; }
 if (!S || !S.step) S = fresh();
@@ -935,7 +962,44 @@ function overHtml() {
     <div class="row"><button class="btn" data-act="over-undo">Undo: the game went on</button><span class="spacer"></span><button class="btn danger" data-act="new-game">New game</button></div></section>`;
 }
 // Three tabs: 🌙 the Grimoire and your own night info, ☀️ the day's conversations, 📊 the analysis
-const TABS = [["grim", "🌙 Grimoire"], ["day", "☀️ Day"], ["analysis", "📊 Analysis"]];
+const TABS = [["grim", "🌙 Grimoire"], ["day", "☀️ Day"], ["grid", "🔲 Grid"], ["analysis", "📊 Analysis"]];
+// 🔲 The Grid: every player against every character, like a detective's sheet. Claims fill themselves in;
+// tap a box to add your own mark: ✓ (I think so), ? (maybe), ✕ (ruled out).
+const MARKS = ["", "y", "m", "n"], MARK_TXT = { y: "✓", m: "?", n: "✕" };
+const marksOf = pid => ((S.marks = S.marks || {})[pid] = S.marks[pid] || {});
+function gridGroups() {
+  if (S.script !== "other") return charGroups();
+  // Other scripts: only the characters in play in your notes (claimed, guessed, yours, or marked)
+  const used = new Set([S.role].filter(Boolean));
+  for (const p of S.players) { const A = about(p.id); A.claims.forEach(c => allRolesOf(c).forEach(r => used.add(r))); if (A.guess) used.add(A.guess); Object.keys(marksOf(p.id)).forEach(r => used.add(r)); }
+  return TEAMS.map(t => [TEAM_LABEL[t], [...used].filter(r => (CHAR[r] || {}).team === t).sort()]).filter(g => g[1].length);
+}
+function gridCard() {
+  const groups = gridGroups().filter(g => g[1].length), cols = groups.flatMap(g => g[1]);
+  if (!cols.length) return `<section class="card"><h2>🔲 The Grid</h2><p class="hint">Once someone claims a character, it gets a column here.</p></section>`;
+  // Columns two players hard claim at once
+  const hardBy = r => S.players.filter(p => p.id !== S.me && claimedNow(p.id).some(c => c.kind === "hard" && rolesOf(c).includes(r)));
+  const dup = new Set(cols.filter(r => hardBy(r).length + (S.role === r ? 1 : 0) > 1));
+  const first = new Set(groups.map(g => g[1][0]));
+  const head = `<tr><th class="who" scope="col">Player</th>${cols.map(r => `<th scope="col" class="${teamCls(r)} ${dup.has(r) ? "dup" : ""} ${first.has(r) ? "g0" : ""}" title="${esc(r)}"><span class="ch"><span class="ic" aria-hidden="true">${iconOf(r)}</span><span class="cn">${esc(r)}</span></span></th>`).join("")}</tr>`;
+  const rows = S.players.map(p => {
+    const me = p.id === S.me, A = about(p.id), M = marksOf(p.id), now = claimedNow(p.id);
+    return `<tr class="${me ? "me" : ""} ${A.death ? "dead" : ""}"><th class="who" scope="row"><button data-act="grid-open" data-pid="${p.id}">${me ? "★ " : ""}${p.trav ? "✈️ " : ""}${esc(p.name)}</button></th>${cols.map(r => {
+      const hard = !me && now.some(c => c.kind === "hard" && rolesOf(c).includes(r)), soft = !me && !hard && now.some(c => c.kind === "soft" && rolesOf(c).includes(r));
+      const you = me && S.role === r, mk = M[r] || "", sym = you ? `<span class="you">★</span>` : hard ? `<span class="hard">●</span>` : soft ? `<span class="soft">○</span>` : "";
+      const say = [you ? "you" : hard ? "hard claim" : soft ? "soft claim" : "", mk ? { y: "I think so", m: "maybe", n: "ruled out" }[mk] : ""].filter(Boolean).join(", ");
+      return `<td class="${dup.has(r) && (hard || you) ? "dup" : ""} ${!me && A.guess === r ? "guess" : ""} ${first.has(r) ? "g0" : ""}"><button data-act="mark" data-pid="${p.id}" data-role="${esc(r)}" aria-label="${esc(p.name)}, ${esc(r)}${say ? `: ${say}` : ""}">${sym}${mk ? `<span class="mk mk-${mk} ${sym ? "" : "only"}">${MARK_TXT[mk]}</span>` : ""}</button></td>`;
+    }).join("")}</tr>`;
+  }).join("");
+  const any = S.players.some(p => Object.keys(marksOf(p.id)).length);
+  return `<section class="card"><h2>🔲 The Grid</h2>
+    <p class="gx-key"><span class="t-townsfolk">Townsfolk</span><span class="t-outsider">Outsiders</span><span class="t-minion">Minions</span><span class="t-demon">Demon</span></p>
+    <p class="gx-key"><span><b style="color:var(--brass)">★</b> You</span><span><b style="color:var(--brass)">●</b> Hard claim</span><span><b style="color:var(--brass)">○</b> Soft claim</span><span><b style="color:var(--evil)">▢</b> Your evil guess</span></p>
+    <p class="gx-key"><span>Tap a box for your own marks:</span><span><b style="color:var(--good)">✓</b> I think so</span><span><b style="color:#d9a441">?</b> Maybe</span><span><b>✕</b> Ruled out</span></p>
+    <div class="gx-wrap"><table class="gx">${`<thead>${head}</thead>`}<tbody>${rows}</tbody></table></div>
+    <p class="hint">${dup.size ? `<b style="color:var(--evil)">Red columns:</b> two players hard claim the same character. ` : ""}Tap a name to open their notes.${cols.length > 8 ? " On a phone, scroll sideways, or turn it on its side to see more." : ""}</p>
+    ${any ? `<div class="row"><button class="btn small" data-act="marks-clear">Clear my marks</button></div>` : ""}</section>`;
+}
 const tabOf = () => TABS.some(t => t[0] === S.tab) ? S.tab : "grim";
 function notesHtml() {
   const tab = tabOf();
@@ -952,6 +1016,7 @@ function notesHtml() {
   else if (tab === "day") body = `<div class="grim-wrap">
       <div class="side">${phase}${next}${circleHtml()}<p class="hint" style="text-align:center">Tap a player to add their claims, what they say they learnt, or how they died.</p>${key}</div>
       <div class="side">${ui.sel ? panelHtml(ui.sel) : `<section class="card"><h2>☀️ After a conversation</h2><p class="hint">Tap the player you spoke to. You can note their soft or hard claim, what they say they learnt (on any night), your read on them, and anything else.</p></section>`}${talkCard()}${adviceHtml()}</div></div>`;
+  else if (tab === "grid") body = `${phase}${gridCard()}`;
   else { const WS = worldsOf(); body = `${phase}${matrixCard(WS)}${oddsCard(WS)}${worldsCard(WS)}`; }
   return `<div class="notes-page">${bar}${body}${modals}${foot}</div>`;
 }
@@ -1147,6 +1212,9 @@ document.addEventListener("click", ev => {
     case "talk-add": return addTalk();
     case "talk-del": S.talk = talkList().filter(t => t.id !== el.dataset.id); break;
     case "tab": S.tab = el.dataset.v; render(); window.scrollTo({ top: 0 }); return;
+    case "mark": { const M = marksOf(pid), r = el.dataset.role, nx = MARKS[(MARKS.indexOf(M[r] || "") + 1) % MARKS.length]; if (nx) M[r] = nx; else delete M[r]; save(); return render(); }
+    case "marks-clear": if (!confirm("Clear all your ✓ ? ✕ marks? Claims stay.")) return; S.marks = {}; save(); return render();
+    case "grid-open": S.tab = "day"; ui.sel = pid; save(); render(); window.scrollTo({ top: 0 }); return;
     case "sel": ui.claimRoles = []; if (ui.inf.by) resetInf(""); ui.sel = ui.sel === pid ? null : pid; if (ui.sel) S.tab = "day"; render(); if (ui.sel && innerWidth < 900) { const c = document.querySelector(".grim-wrap > .side + .side"); if (c) c.scrollIntoView({ behavior: "smooth" }); } return;
     case "claim-role": {
       // Soft: tap as many as they might be. Hard: just the one.
