@@ -329,9 +329,9 @@ header h1 { line-height: 0; }
   <div id="sigBox" hidden></div>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 139;</script>
-<script src="update.js?v=139"></script>
-<script src="characters.js?v=139"></script>
+<script>window.APP_V = 140;</script>
+<script src="update.js?v=140"></script>
+<script src="characters.js?v=140"></script>
 <script>
 /* A notepad for playing Blood on the Clocktower round a real table: the players, your character,
    what you learn each night, who claims what, and who died and how. Everything stays on this device.
@@ -1053,10 +1053,10 @@ function infoFormHtml() {
   const need = [F.p ? `${F.pMin === 0 ? "up to " : ""}${F.p} player${F.p === 1 ? "" : "s"}` : "", F.r ? `${F.rMin === 0 ? "up to " : ""}${F.r} character${F.r === 1 ? "" : "s"}` : "", F.n && !F.nOpt ? "a number" : "", F.yn ? "an answer" : ""].filter(Boolean);
   const nMax = Math.min(F.nMax ?? 10, Math.max(S.players.length, 1));
   return `<div class="infoform">
-    <div class="row"><b>${F.label.startsWith("👿") || F.label.startsWith("🎭") ? `${iconOf(ch)} ${esc(ch)}` : esc(F.label)}: ${ui.inf.by ? `what ${esc(nameOf(ui.inf.by))} says they learnt` : "what I learnt or did"}</b><span class="spacer"></span><button class="btn" data-act="inf-pick">${I.pick ? "Close" : "Another character…"}</button></div>
+    <div class="row"><b>${F.label.startsWith("👿") || F.label.startsWith("🎭") ? `${iconOf(ch)} ${esc(ch)}` : F.label}: ${ui.inf.by ? `what ${esc(nameOf(ui.inf.by))} says they learnt` : "what I learnt or did"}</b><span class="spacer"></span><button class="btn" data-act="inf-pick">${I.pick ? "Close" : "Another character…"}</button></div>
     ${I.pick ? `<p class="hint">Whose form? (If you were drunk, or your character changed.)</p>${typed ? `<div class="add"><input type="text" id="infChar" list="allChars" placeholder="Character" autocomplete="off"><button class="btn" data-act="inf-char-typed">Use</button></div><datalist id="allChars">${Object.keys(CHAR).sort().map(n => `<option value="${esc(n)}">`).join("")}</datalist>`
       : `<div class="tiles small">${TEAMS.flatMap(t => SCRIPTS[S.script].roles[t].map(([name, icon]) => `<button class="tile ${t}" data-act="inf-char" data-role="${esc(name)}" aria-pressed="${ch === name}"><span class="ico" aria-hidden="true">${icon}</span>${esc(name)}</button>`)).join("")}</div>`}` : ""}
-    ${fs.length > 1 ? `<div class="seg" role="group">${fs.map((x, k) => `<button data-act="inf-form" data-v="${k}" aria-pressed="${x === F}">${esc(x.label)}</button>`).join("")}</div>` : ""}
+    ${fs.length > 1 ? `<div class="seg" role="group">${fs.map((x, k) => `<button data-act="inf-form" data-v="${k}" aria-pressed="${x === F}">${x.label}</button>`).join("")}</div>` : ""}
     ${need.length ? `<p class="hint">Pick ${andList(need)}.</p>` : `<p class="hint">Write it down below.</p>`}
     ${F.p ? `<div class="pick-row">${S.players.map(p => `<button class="pbtn" data-act="inf-p" data-pid="${p.id}" aria-pressed="${I.ps.includes(p.id)}">${esc(p.name)}</button>`).join("")}</div>` : ""}
     ${F.none ? `<div class="pick-row"><button class="pbtn" data-act="inf-none" aria-pressed="${I.none}">${esc(F.none)}</button></div>` : ""}
