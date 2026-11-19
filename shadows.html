@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 134;</script>
-<script src="update.js?v=134"></script>
+<script>window.APP_V = 135;</script>
+<script src="update.js?v=135"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=134"></script>
-<script src="shadows.js?v=134"></script>
+<script src="daily.js?v=135"></script>
+<script src="shadows.js?v=135"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=134">
-<link rel="stylesheet" href="shadows.css?v=134">
+<link rel="stylesheet" href="daily.css?v=135">
+<link rel="stylesheet" href="shadows.css?v=135">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -170,7 +170,7 @@ function render(force) {
   square = allSquare.filter(m => !m.at || m.at <= nowMs());   // a host post can be held back until its time
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=134" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=135" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -328,6 +328,8 @@ function todayHtml(p) {
   return out.join("");
 }
 // What a Spy answer looks like on screen
+// Where the talking happens: private chats, or (live) the breakout rooms
+const talkIn = () => isLive(G) ? "in the breakout rooms" : "in private chats";
 const spyShown = (task, a) => task === "whisper" ? nm(a) : task === "seal" ? esc(sealName(a)) : task === "key" ? esc(KEY_ROOMS.includes(a) ? `not in the ${a}` : `not ${a}`) : esc(a);
 // The choices for a Spy answer: everything the target's piece could be
 function spyChoices(task) {
@@ -363,7 +365,7 @@ function missionCardHtml(d) {
     const picks = ui.finds || (myFinds && myFinds.picks) || [], saved = (myFinds && myFinds.picks) || [], same = picks.length === saved.length && picks.every(q => saved.includes(q)), open = nowMs() < t.noms;
     return `<section class="card ${saved.length ? "" : "todo"}"><h2>🔎 Your mission: find your fellow Shadows</h2>
       <p class="lead">There are <b>${M.count || "?"} Shadows</b>, including you. ${want === 1 ? "Who is the other Shadow?" : `Who are the other ${want}?`} Name them before ${when(t.noms)}.</p>
-      <p class="lead">Your secret sign, to slip into your private chats:</p><p class="quote">“${esc(M.sign || "")}”</p>
+      <p class="lead">Your secret sign, to slip into what you say${isLive(G) ? "" : " in your private chats"}:</p><p class="quote">“${esc(M.sign || "")}”</p>
       ${open ? `<div class="picks">${others.map(q => `<button class="pick" data-act="find-pick" data-pid="${q}" data-max="${want}" aria-pressed="${picks.includes(q)}">${nm(q)}</button>`).join("")}</div>
       <p class="hint">Pick up to ${want}. You can change your mind until the round table.</p>
       <div class="row"><button class="btn ${same ? "" : "primary"}" data-act="find-save" ${same ? "disabled" : ""}>${saved.length && same ? "✅ Saved" : "Save my guess"}</button></div>`
@@ -405,7 +407,7 @@ function lanternsCardHtml(d) {
   return `${head}<p class="lead">You are number <b>${L.num}</b> of ${L.n}.${L.num === 1 ? " You go first!" : ` Light your lantern only when lanterns 1${L.num > 2 ? ` to ${L.num - 1}` : ""} are lit.`}</p>
     <p class="lead">Attempt <b>${attempt}</b> of ${L.attempts}.${pub.out ? " 🌬️ The lanterns went out: start again from 1." : ""}</p>
     ${L.lit === attempt ? `<p class="lead">🕯️ Your lantern is lit. Now help the others.</p>`
-      : taskOpenAt(t) ? `<p class="hint">Nobody can see how many lanterns are lit: share numbers in private chats and agree whose turn it is. Light out of turn and they all go out. Not everyone will tell you the truth.</p>
+      : taskOpenAt(t) ? `<p class="hint">Nobody can see how many lanterns are lit: share numbers ${talkIn()} and agree whose turn it is. Light out of turn and they all go out. Not everyone will tell you the truth.</p>
         <h3>🔥 Pass the flame</h3><p class="hint">As you light yours, name who deserves the shield (not yourself). If all the lanterns are lit, whoever is named most gets it.</p>
         <div class="picks">${others.map(q => `<button class="pick" data-act="flame-to" data-pid="${q}" aria-pressed="${to === q}">${nm(q)}</button>`).join("")}</div>
         <div class="row"><button class="btn primary" data-act="light" ${to ? "" : "disabled"}>🕯️ Light my lantern${to ? `, and pass the flame to ${nm(to)}` : ""}</button></div>` : ""}</section>`;
@@ -425,7 +427,7 @@ function comboCardHtml(d) {
     ${lie ? (C.lied ? `<p class="hint">🎭 You've told your one lie today: you told ${nm(C.lied.to)} your digit was ${esc(C.lied.digit)}.</p>`
       : `<div class="row"><span class="hint">🎭 Or lie (once today):</span><select id="lieDigit" aria-label="False digit">${[...Array(10).keys()].filter(k => String(k) !== C.digit).map(k => `<option>${k}</option>`).join("")}</select><button class="btn small" data-act="share-lie" ${to ? "" : "disabled"}>Send ${to ? nm(to) : "…"} a false digit</button></div>`) : ""}`;
   return `${head}<p class="lead">Your digit is <b>${C.digit}</b>, and it goes in place <b>${C.pos + 1}</b> of ${C.len}:</p><div class="slots">${slots}</div>
-    <p class="hint">Two players hold each place, so you can check each other. But beware: up to two players have been given a false digit, and don't know it. The 🔐 button sends exactly what your phone shows. Put the code together and enter it before ${when(t.noms)}. The first correct code wins a 🛡️ shield. At the round table, everyone learns the code, who cracked it, and whose digits were false.</p>
+    <p class="hint">Two players hold each place, so you can check each other. But beware: up to two players have been given a false digit, and don't know it.${isLive(G) ? " It's a bomb: each wrong code anyone enters burns 20 seconds off the fuse." : ` The 🔐 button sends exactly what your phone shows. Put the code together and enter it before ${when(t.noms)}.`} The first correct code wins a 🛡️ shield. At the round table, everyone learns the code, who cracked it, and whose digits were false.</p>
     ${share}
     ${(C.results || []).map(r => `<p class="lead" style="margin:2px 0">${r.ok ? "✅" : "❌"} You tried ${esc(r.code)}${r.ok ? ": correct! You have the shield." : ": wrong."}</p>`).join("")}
     ${t.cracked ? (mine ? "" : `<p class="lead">🔐 Someone has cracked it. Too late for this one.</p>`) : left > 0 ? `<div class="field"><span class="label">The code (${left} ${left === 1 ? "try" : "tries"} left)</span><input type="text" id="combo" inputmode="numeric" maxlength="${C.len}" placeholder="${"0".repeat(C.len)}" value="${esc(ui.combo || "")}"></div>
@@ -436,7 +438,7 @@ function keyCardHtml(d) {
   const K = SEC.key && SEC.key.d === d ? SEC.key : null, t = G.days[d];
   const head = `<section class="card ${K && !K.search && !t.found ? "todo" : ""}"><h2>🗝️ Today's task: the Hidden Key</h2>`;
   if (!K) return `${head}<p class="lead">The search for the key is under way.</p></section>`;
-  const rules = `<p class="hint">The key is hidden in one of ${K.rooms.length} rooms (${K.rooms.join(", ")}), in one of ${K.spots.length} hiding places (${K.spots.join(", ")}). Everyone knows one place it isn't. Share clues in private chats, but not everyone will tell the truth. You have <b>one search</b>: the first to search the right room and hiding place wins a 🛡️ shield. At the round table, everyone learns who searched where.</p>`;
+  const rules = `<p class="hint">The key is hidden in one of ${K.rooms.length} rooms (${K.rooms.join(", ")}), in one of ${K.spots.length} hiding places (${K.spots.join(", ")}). Everyone knows one place it isn't. Share clues ${talkIn()}, but not everyone will tell the truth. You have <b>one search</b>: the first to search the right room and hiding place wins a 🛡️ shield. At the round table, everyone learns who searched where.</p>`;
   const clue = `<p class="lead">Your clue:</p><p class="quote">${esc(keyClueText(K.clue))}</p>`;
   if (K.search) return `${head}${clue}<p class="lead">You searched the ${esc(K.search.room)}, ${esc(K.search.spot)}: ${K.search.ok ? "✅ <b>you found the key!</b> You have the shield tonight." : "❌ nothing there."}</p>${t.found && !K.search.ok ? `<p class="lead">🗝️ Someone has found the key.</p>` : ""}${rules}</section>`;
   if (t.found) return `${head}${clue}<p class="lead">🗝️ Someone has found the key. Too late for this one.</p></section>`;
@@ -453,7 +455,7 @@ function sealCardHtml(d) {
   const head = `<section class="card ${S2 && !t.sealed && (S2.used || 0) < S2.tries && !S2.named ? "todo" : ""}"><h2>🤝 Today's task: the Broken Seal</h2>`;
   if (!S2) return `${head}<p class="lead">The seals are being matched.</p></section>`;
   const mine = `<p class="lead">Your half of a seal:</p><p class="quote">${esc(sealName(S2.seal))}</p>`;
-  const rules = `<p class="hint">Somewhere in the castle is the player holding the other half of your seal… probably. Find them in your private chats (not everyone will tell the truth), then both name each other here. If the halves fit, you <b>both</b> win a 🛡️ shield. Only the first pair to do it wins. You can name someone ${S2.tries === 1 ? "once" : `${S2.tries} times`}.</p>`;
+  const rules = `<p class="hint">Somewhere in the castle is the player holding the other half of your seal… probably. Find them ${talkIn()} (not everyone will tell the truth), then both name each other here. If the halves fit, you <b>both</b> win a 🛡️ shield. Only the first pair to do it wins. You can name someone ${S2.tries === 1 ? "once" : `${S2.tries} times`}.</p>`;
   const offers = (S2.offers || []).filter(q => q !== S2.named && q !== S2.nofit), left = S2.tries - (S2.used || 0);
   const news = `${S2.won ? `<p class="lead">✅ <b>The halves fit!</b> You and ${nm(S2.won)} both have a shield tonight.</p>` : ""}
     ${S2.nofit ? `<p class="warn">❌ You and ${nm(S2.nofit)} named each other, but the halves didn't fit.</p>` : ""}

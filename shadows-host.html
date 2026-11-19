@@ -10,17 +10,17 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows · Host</title>
-<script>window.APP_V = 134;</script>
-<script src="update.js?v=134"></script>
+<script>window.APP_V = 135;</script>
+<script src="update.js?v=135"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=134"></script>
-<script src="shadows.js?v=134"></script>
+<script src="daily.js?v=135"></script>
+<script src="shadows.js?v=135"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=134">
-<link rel="stylesheet" href="shadows.css?v=134">
+<link rel="stylesheet" href="daily.css?v=135">
+<link rel="stylesheet" href="shadows.css?v=135">
 <link rel="manifest" href="shadows-host.webmanifest">
 </head>
 <body>
@@ -137,7 +137,7 @@ function render(force) {
   if (!force && a && a.closest && a.closest("#app") && a.matches("input[type=text], textarea")) { pending = true; return; }
   pending = false;
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=134" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=135" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="rules">📜 How to play</button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -562,7 +562,8 @@ function modeHtml() {
     ${on ? `<p class="hint">Everyone meets on Zoom, with breakout rooms they choose themselves. You move the game on, step by step, from your 🎥 Live tab; every phone follows. Share the show screen in Zoom so everyone can see the countdowns, the votes and the reveals.</p>
       ${dur("task", "🛡️ A shield task", [3, 4, 5, 6])}${dur("whisper", "🤫 The Whisper", [6, 8, 10])}${dur("combination", "💣 The Combination's fuse", [1, 2, 3])}
       ${dur("roam", "🚶 Roaming after the task", [1, 2, 3])}${dur("dayoff", "🚶 Roaming on a day with no task", [5, 7, 9])}${dur("table", "🗣️ The round table", [2, 3, 4, 5])}${dur("vote", "🗳️ The vote", [1, 2])}
-      <p class="hint">These are where the countdowns start. You can always add a minute, pause, or move on early. The night lasts as long as you like.</p>`
+      <p class="hint">These are where the countdowns start. You can always add a minute, pause, or move on early. The night lasts as long as you like.</p>
+      <div class="row"><a class="btn small" href="guide/The-Shadows-Live-Host-Crib-Sheet.pdf" target="_blank" rel="noopener">🗒️ Your crib sheet (PDF)</a><a class="btn small" href="guide/The-Shadows-Live-Players-Guide.pptx">📽️ The live guide (slides)</a><a class="btn small" href="guide/The-Shadows-Live-Script.docx">📄 Its script</a></div>`
       : `<p class="hint">The game runs on the daily timetable below, and everyone plays on their phone in their own time.</p>`}</section>`;
 }
 // What to do in Zoom as each step begins
