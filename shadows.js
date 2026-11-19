@@ -33,8 +33,8 @@ for (const k of Object.keys(PUSH_TEXT)) PUSH_TEXT[k] = PUSH_TEXT[k].replace(/Clo
 
 /* ---------- The two sides ---------- */
 const SIDE = {
-  guest: { ic: "🕯️", one: "Guest", many: "Guests", cls: "t-townsfolk", emblem: "img/emblem-guest.webp?v=133" },
-  shadow: { ic: "🗡️", one: "Shadow", many: "Shadows", cls: "t-demon", emblem: "img/emblem-shadow.webp?v=133" }
+  guest: { ic: "🕯️", one: "Guest", many: "Guests", cls: "t-townsfolk", emblem: "img/emblem-guest.webp?v=134" },
+  shadow: { ic: "🗡️", one: "Shadow", many: "Shadows", cls: "t-demon", emblem: "img/emblem-shadow.webp?v=134" }
 };
 const sideChip = s => s && SIDE[s] ? `<span class="${SIDE[s].cls}">${SIDE[s].ic} ${SIDE[s].one}</span>` : `<span class="hint">no side yet</span>`;
 // How many Shadows to start with
@@ -107,6 +107,46 @@ const SPY_WHAT = { combination: "digit", lanterns: "lantern number", whisper: "w
 // What the Shadows must find out, about a named player (the name already escaped or made bold)
 const spyAsk = (task, who) => task === "whisper" ? `who gave ${who} the whisper` : `${who}'s ${SPY_WHAT[task]}`;
 const VOTE_MISSIONS = ["frame", "clean"];
+const MISSION_NAME = { findallies: "🔎 Find your fellow Shadows", spy: "🕵️ The Spy", frame: "🎯 Frame a Guest", clean: "🧤 Clean hands", rest: "🚫 No murder tonight" };
+
+/* ---------- The live game: one evening on a video call ----------
+   The host moves the game on, step by step. Each step moves the day's clock (the same clock the daily game runs on)
+   to now, so everything else works as it does over several days. Times the host hasn't reached yet sit far ahead. */
+const LIVE_FAR = 6 * 3600000;
+const LIVE_DUR = { task: 5, whisper: 8, combination: 2, dayoff: 7, roam: 2, table: 3, vote: 1 };   // minutes
+const LIVE_STEP = {
+  lobby: ["🏰", "Gathering"], breakfast: ["🍳", "Breakfast"], explain: ["📜", "Today's task"], task: ["🛡️", "The task"], roam: ["🚶", "Roam the castle"],
+  table: ["🗣️", "The round table"], vote: ["🗳️", "The vote"], count: ["⚖️", "The votes"], verdict: ["⚖️", "The verdict"], reveal: ["⚖️", "The truth"],
+  night: ["🌙", "Night falls"], over: ["🏁", "Game over"]
+};
+// Where everyone should be on the call: the main room, the breakout rooms, or muted in the dark
+const LIVE_WHERE = { breakfast: "main", explain: "main", task: "rooms", roam: "rooms", table: "main", vote: "main", count: "main", verdict: "main", reveal: "main", night: "dark" };
+const isLive = G => !!(G && G.live && G.live.on);
+const liveStep = G => isLive(G) ? (G.overAt && nowMs() >= G.overAt ? "over" : G.live.step || "lobby") : "";
+// A live day's clock: breakfast now, and everything after it waiting for the host
+function liveTimes(now) {
+  const F = LIVE_FAR;
+  return { dawn: now, chats: now, taskStart: now + F, taskEnd: now + F + 500, noms: now + F + 1000, vote: now + F + 2000, close: now + F + 3000, reveal: now + F + 4000, night: now + F + 5000, nightEnd: now + F + 6000 };
+}
+// The day's task is open (the daily game: breakfast until the round table; live: while the host's task runs)
+const taskOpenAt = (t, now = nowMs()) => !!t && now >= (t.taskStart || t.dawn) && now < (t.taskEnd || t.noms);
+// The Shadows' mission can be done from the task's start until the round table
+const missionOpenAt = (t, now = nowMs()) => !!t && now >= (t.taskStart || t.dawn) && now < t.noms;
+// How long the task runs live
+const liveTaskMins = (G, task) => { const D = { ...LIVE_DUR, ...((G.live || {}).dur || {}) }; return task === "whisper" ? D.whisper : task === "combination" ? D.combination : task && task !== "dayoff" ? D.task : D.dayoff; };
+
+// A read that asks the server afresh. (A page that has been refused a document a few times, while it was still locked,
+// can go on being refused after it unlocks: a transaction's read always goes to the server.)
+async function getFresh(ref) {
+  try { return await FB.getDoc(ref); }
+  catch (e) { if (e.code !== "permission-denied") throw e; return FB.runTransaction(db, tx => tx.get(ref)); }
+}
+// Everyone's votes, once voting has ended (live: read one by one if the list is refused)
+async function readBallots(gid, d, voters) {
+  try { const q = await FB.getDocs(gcol(gid, "days", String(d), "ballots")); return q.docs.map(x => x.data()); }
+  catch (e) { if (e.code !== "permission-denied" || !voters || !voters.length) throw e;
+    return FB.runTransaction(db, async tx => { const out = []; for (const v of voters) { const x = await tx.get(gref(gid, "days", String(d), "ballots", v)); if (x.exists()) out.push(x.data()); } return out; }); }
+}
 
 /* ---------- The round table ---------- */
 // ballots: [{voter, of, reason?, at}]. Only living players' votes count, and only for living players.

@@ -114,7 +114,8 @@ async function onStChat(gid, pid, m) {
 // The Shadows: today's code phrase (the Shadows' mission) and the Whisper (today's task), until the round table
 const normPhrase = s => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const saysPhrase = (text, phrase) => !!normPhrase(phrase) && (" " + normPhrase(text) + " ").includes(" " + normPhrase(phrase) + " ");
-const dayOpenNow = (G, d) => { const t = (G.days || {})[d] || {}; return Date.now() >= (t.dawn || Infinity) && Date.now() < (t.noms || 0); };
+// The day's task window: breakfast until the round table (live: while the host's task runs)
+const dayOpenNow = (G, d) => { const t = (G.days || {})[d] || {}; return Date.now() >= (t.taskStart || t.dawn || Infinity) && Date.now() < (t.taskEnd || t.noms || 0); };
 const missionOpen = (G, grim) => { const d = G.day || 0, M = (grim.missions || {})[d]; return isShd(G) && M && M.phrase && !M.done && dayOpenNow(G, d) ? M : null; };
 const whisperOpen = (G, grim) => { const d = G.day || 0, W = (grim.tasks || {})[d]; return isShd(G) && W && W.type === "whisper" && !W.done && !W.complete && !W.failed && dayOpenNow(G, d) ? W : null; };
 async function onChat(gid, pair, m) {
@@ -168,6 +169,11 @@ async function onCode(gid, d, e) {
       u[`missions.${d}.misled`] = { by: pid, at, code };
       for (const p of seatIds(G).filter(q => sides[q] === "shadow" && !(grim.dead || {})[q])) await db.doc(`games/${gid}/secret/${p}`).update({ "mission.misled": at });
     }
+  }
+  // Live, the Combination is a bomb: each wrong code burns 20 seconds off the fuse
+  if (!ok && G.live && G.live.on) {
+    const FV = require("firebase-admin").firestore.FieldValue, t = (G.days || {})[d] || {};
+    await db.doc(`games/${gid}`).update({ [`days.${d}.taskEnd`]: FV.increment(-20000), [`days.${d}.burnt`]: FV.increment(20000), ...(G.live.step === "task" && G.live.endsAt ? { "live.endsAt": FV.increment(-20000) } : {}) });
   }
   if (ok) {
     u[`tasks.${d}.cracked`] = at; u[`tasks.${d}.winner`] = pid; u[`wshield.${+d + 1}`] = pid;
@@ -467,7 +473,7 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
     once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows completed their mission" : "❌ The Shadows failed their mission", body: passed ? (M.type === "plainsight" ? `${nameOf(G, M.marked.pid)} said the word: they die tonight.` : "They may murder tonight.") : M.type === "plainsight" ? "No Guest said the word: no murder tonight." : M.type === "snuff" ? "No Guest lit out of turn: no murder tonight." : M.type === "mislead" ? "No Guest entered a wrong code: no murder tonight." : M.type === "addword" ? "No changed whisper was passed on: no murder tonight." : M.caught ? "A Guest caught the code phrase: no murder tonight." : "Not every Shadow said the phrase: no murder tonight.", tag: `challenge-${gid}` });
   }
   // The Whisper ends at the round table: if it went all the way round, the last player still in the running to say it gets a shield
-  if (W && W.type === "lanterns" && t && now >= t.noms && !W.done) {
+  if (W && W.type === "lanterns" && t && now >= (t.taskEnd || t.noms) && !W.done) {
     const outs = (W.resets || []).map(r => `${nameOf(G, r.by)} (attempt ${r.attempt})`).join(", "), b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true });
     b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: W.complete
@@ -475,7 +481,7 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
       : `🕯️ The Lanterns: ❌ not all lit${W.failed ? ", and no attempts left" : " in time"}. No shield today.${outs ? ` Lit out of turn: ${outs}.` : ""}` });
     await b.commit(); W.done = true;
   }
-  if (W && W.type === "combination" && t && now >= t.noms && !W.done) {
+  if (W && W.type === "combination" && t && now >= (t.taskEnd || t.noms) && !W.done) {
     const b = db.batch(), H2 = W.herrings || [];
     const herr = W.shown ? (H2.length ? ` Red herrings (given a false digit, without knowing): ${H2.map(p => nameOf(G, p)).join(" and ")}.` : " There were no red herrings today: every digit given out was true.") : "";
     b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true });
@@ -484,7 +490,7 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
       : `🔐 The Combination: ❌ nobody cracked it in time, so no shield. The code was ${W.code}.`) + herr + " Check it against the digits you were told…" });
     await b.commit(); W.done = true;
   }
-  if (W && W.type === "key" && t && now >= t.noms && !W.done) {
+  if (W && W.type === "key" && t && now >= (t.taskEnd || t.noms) && !W.done) {
     const b = db.batch(), S = W.searches || [], wrong = S.filter(x => !x.ok || x.pid !== W.winner);
     b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true });
     b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: (W.found
@@ -492,7 +498,7 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
       : `🗝️ The Hidden Key: ❌ nobody found it, so no shield. It was in the ${W.room}, ${W.spot}.`) + (wrong.length ? ` Searched in vain: ${wrong.map(x => `${nameOf(G, x.pid)} (the ${x.room}, ${x.spot})`).join("; ")}.` : " Nobody else searched.") });
     await b.commit(); W.done = true;
   }
-  if (W && W.type === "seal" && t && now >= t.noms && !W.done) {
+  if (W && W.type === "seal" && t && now >= (t.taskEnd || t.noms) && !W.done) {
     const b = db.batch(), win = W.winners || [], seal = win.length ? W.seals[win[0]] : "";
     b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true });
     b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: win.length
@@ -500,8 +506,8 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
       : "🤝 The Broken Seal: ❌ no seal was made whole, so no shield." });
     await b.commit(); W.done = true;
   }
-  if (W && W.type === "whisper" && t && now >= t.noms && !W.done && W.failed) { await db.doc(`games/${gid}/st/grim`).update({ [`tasks.${d}.done`]: true, [`tasks.${d}.winner`]: null }); W.done = true; }
-  if (W && W.type === "whisper" && t && now >= t.noms && !W.done) {
+  if (W && W.type === "whisper" && t && now >= (t.taskEnd || t.noms) && !W.done && W.failed) { await db.doc(`games/${gid}/st/grim`).update({ [`tasks.${d}.done`]: true, [`tasks.${d}.winner`]: null }); W.done = true; }
+  if (W && W.type === "whisper" && t && now >= (t.taskEnd || t.noms) && !W.done) {
     const chain = W.chain || [], out = W.out || {}, last = W.complete ? [...chain].reverse().find(c => !out[c.from]) : null, winner = last ? last.from : null, b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true, [`tasks.${d}.winner`]: winner, ...(winner ? { [`wshield.${d + 1}`]: winner } : {}) });
     b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: W.complete ? `🤫 The Whisper: ✅ passed. It went all the way round${winner ? `, and ${nameOf(G, winner)} said it last: they have a shield tonight.` : ", but everyone who could have won had said it twice: no shield."}` : "🤫 The Whisper: ❌ failed. It didn't make it round everyone in time: no shield." });
@@ -517,24 +523,26 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
     b.update(db.doc(`games/${gid}/st/grim`), { met: true });
     await b.commit();
   }
+  // Live, everyone is on the call: the timetable notifications (with their times) are left out, but the counting still happens
+  const live = !!(G.live && G.live.on);
   if (t) {
-    if (now >= t.dawn && now < t.dawn + 6 * H) {
+    if (!live && now >= t.dawn && now < t.dawn + 6 * H) {
       const bk = await gated("dawn" + d);
       if (bk) { const ds = (bk.deaths || []).map(x => nameOf(G, x.pid));
         once(`dawn${d}`, all, { title: `🍳 Breakfast is served: Day ${d}`, body: ds.length ? `${ds.join(" and ")} ${ds.length === 1 ? "was" : "were"} murdered in the night.` : "Nobody was murdered in the night.", tag: `day-${gid}` }); }
     }
-    if (t.noms && now >= t.noms && now < t.vote) once(`table${d}-${t.noms}`, alive, { title: "🗣️ The round table has begun", body: `Discuss with everyone until ${fmt(G, t.vote)}, when voting begins. Private chats are closed.`, tag: `day-${gid}` });
-    if (now >= t.vote && now < t.close) once(`vote${d}-${t.vote}`, alive, { title: "🗳️ Voting has begun", body: `Vote to banish someone before ${fmt(G, t.close)}.`, tag: `day-${gid}` });
+    if (!live && t.noms && now >= t.noms && now < t.vote) once(`table${d}-${t.noms}`, alive, { title: "🗣️ The round table has begun", body: `Discuss with everyone until ${fmt(G, t.vote)}, when voting begins. Private chats are closed.`, tag: `day-${gid}` });
+    if (!live && now >= t.vote && now < t.close) once(`vote${d}-${t.vote}`, alive, { title: "🗳️ Voting has begun", body: `Vote to banish someone before ${fmt(G, t.close)}.`, tag: `day-${gid}` });
     if (now >= t.close - 30 * MIN && now < t.close) {
       const b = await db.collection(`games/${gid}/days/${d}/ballots`).get(), done = new Set(b.docs.map(x => x.id));
-      once(`close30-${d}-${t.close}`, alive.filter(p => !done.has(p)), { title: "🔒 30 minutes left to vote", body: `Voting ends at ${fmt(G, t.close)}.`, tag: `day-${gid}` });
+      if (!live) once(`close30-${d}-${t.close}`, alive.filter(p => !done.has(p)), { title: "🔒 30 minutes left to vote", body: `Voting ends at ${fmt(G, t.close)}.`, tag: `day-${gid}` });
     }
     // When voting ends, the most votes is banished automatically (a tie goes to the host)
     const voted = now >= t.close && now < t.close + 6 * H && !(grim.results || {})[d] ? await (first ? autoTrust : autoBanish)(gid, G, grim, d, t, now) : null;
     // Voting has ended: the host has until the banishment to decide what the Shadows' night will be
-    if (voted && voted !== "tie" && !G.overAt) once(`decide${d}`, ["st"], { title: "🔒 Voting has ended", body: `${voted.exec ? `${nameOf(G, voted.exec)} (${voted.side === "shadow" ? "🗡️ a Shadow" : "🕯️ a Guest"}) will be banished at ${fmt(G, t.reveal)}.` : first ? "The trust vote is in." : "Nobody will be banished."} Decide tonight's plan.`, tag: `st-day-${gid}` });
-    if (voted === "tie") once(`closed-${d}-${t.close}`, ["st"], { title: "🔒 Voting has ended in a tie", body: `Decide who is banished before ${fmt(G, t.reveal)}.`, tag: `st-day-${gid}` });
-    if (now >= t.reveal && now < t.reveal + 6 * H) {
+    if (!live && voted && voted !== "tie" && !G.overAt) once(`decide${d}`, ["st"], { title: "🔒 Voting has ended", body: `${voted.exec ? `${nameOf(G, voted.exec)} (${voted.side === "shadow" ? "🗡️ a Shadow" : "🕯️ a Guest"}) will be banished at ${fmt(G, t.reveal)}.` : first ? "The trust vote is in." : "Nobody will be banished."} Decide tonight's plan.`, tag: `st-day-${gid}` });
+    if (!live && voted === "tie") once(`closed-${d}-${t.close}`, ["st"], { title: "🔒 Voting has ended in a tie", body: `Decide who is banished before ${fmt(G, t.reveal)}.`, tag: `st-day-${gid}` });
+    if (!live && now >= t.reveal && now < t.reveal + 6 * H) {
       const r = await gated("result" + d);
       if (r && r.trust) once(`reveal${d}`, all, { title: r.trusted ? `🛡️ ${nameOf(G, r.trusted)} is the most trusted` : "🛡️ Nobody won the trust vote", body: r.trusted ? "They have a shield tonight: the Shadows can't murder them." : "", tag: `day-${gid}` });
       else if (r) once(`reveal${d}`, all, { title: r.exec ? `⚖️ ${nameOf(G, r.exec)} has been banished` : "⚖️ Nobody was banished", body: r.exec ? `They were a ${r.side === "shadow" ? "Shadow 🗡️" : "Guest 🕯️"}.` : "See how everyone voted.", tag: `day-${gid}` });
@@ -544,13 +552,13 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
   if (w && !G.overAt) {
     // The Shadows meet once today's banishment is confirmed
     if (now >= w.open && now < w.end && (d === 0 || (grim.results || {})[d])) {
-      once(`night${n}`, shadows, { title: "🌙 The Shadows meet", body: (grim.allow || {})[n] === false || ((grim.allow || {})[n] !== true && (grim.missions || {})[d] && !(grim.missions || {})[d].passed) ? "Your chat is open. There's no murder tonight." : `Your chat is open: choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
+      once(`night${n}`, shadows, { title: "🌙 The Shadows meet", body: (grim.allow || {})[n] === false || ((grim.allow || {})[n] !== true && (grim.missions || {})[d] && !(grim.missions || {})[d].passed) ? "Your chat is open. There's no murder tonight." : live ? "Your chat is open: choose tonight's victim." : `Your chat is open: choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
       if (now >= w.end - 30 * MIN) {
         const acts = await db.collection(`games/${gid}/nights/${n}/acts`).get(), done = new Set(acts.docs.map(a => a.id));
-        once(`nightRemind${n}-${w.end}`, shadows.filter(p => !done.has(p)), { title: "🌙 30 minutes left", body: `Choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
+        if (!live) once(`nightRemind${n}-${w.end}`, shadows.filter(p => !done.has(p)), { title: "🌙 30 minutes left", body: `Choose tonight's victim before ${fmt(G, w.end)}.`, tag: `night-${gid}` });
       }
     }
-    if (now >= w.end && now < w.end + 12 * H && d < n) once(`nightEnd${n}-${w.end}`, ["st"], { title: `🕯️ Night ${G.dayFirst ? n - 1 : n} has closed`, body: "Work out the night and serve breakfast.", tag: `st-night-${gid}` });
+    if (!live && now >= w.end && now < w.end + 12 * H && d < n) once(`nightEnd${n}-${w.end}`, ["st"], { title: `🕯️ Night ${G.dayFirst ? n - 1 : n} has closed`, body: "Work out the night and serve breakfast.", tag: `st-night-${gid}` });
   }
 }
 
@@ -654,6 +662,8 @@ async function cleanup(now = Date.now()) {
 async function onGameUpdate(gid, before, after) {
   if (after.deleteReq && !before.deleteReq) return db.recursiveDelete(db.doc(`games/${gid}`));
   // The Shadows: the host has chosen the sides. Everyone is told to look (but not what they are: phones get seen).
+  // The Shadows, live: the host has moved the game on, so do straight away what the timetable check would do in a few minutes
+  if (isShd(after) && after.live && after.live.on && after.status !== "lobby" && !after.pushDone) await tickGame(gid, after, Date.now());
   if (isShd(after) && before.status === "lobby" && after.status === "running")
     await notify(gid, after, seatIds(after), { title: "🗝️ Your role has been chosen", body: "Open The Shadows to find out: are you a Guest, or a Shadow? Keep it to yourself.", tag: `role-${gid}` });
 }

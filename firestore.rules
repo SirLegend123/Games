@@ -33,6 +33,10 @@ service cloud.firestore {
       function today() { return G().days.get(string(G().get('day', 0)), {}); }
       function tonight() { return G().nights.get(string(G().get('day', 0) + 1), {}); }
       function inWin(t, a, b) { return t.get(a, 9000000000000000) <= now() && now() < t.get(b, 0); }
+      // The day's task: breakfast until the round table (live: from when the host starts it until it ends).
+      // The Shadows' mission: from the task's start until the round table.
+      function taskOpen(d) { return dayT(d).get('taskStart', dayT(d).get('dawn', 9000000000000000)) <= now() && now() < dayT(d).get('taskEnd', dayT(d).get('noms', 0)); }
+      function missionWin(d) { return dayT(d).get('taskStart', dayT(d).get('dawn', 9000000000000000)) <= now() && now() < dayT(d).get('noms', 0); }
       function isOut(pid) { return get(/databases/$(db)/documents/games/$(gid)/secret/$(pid)).data.get('out', false) == true; }
       // A seduction or blackmail offer not yet answered (and not yet run out): the player can't contribute until they decide
       function offerPending(pid) {
@@ -169,28 +173,28 @@ service cloud.firestore {
         allow read: if isST();
         allow create: if owns(request.resource.data.pid) && !isOut(request.resource.data.pid) && request.resource.data.keys().hasOnly(['pid', 'code', 'at'])
           && request.resource.data.code is string && request.resource.data.code.size() <= 12
-          && dayT(d).get('task', '') == 'combination' && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
+          && dayT(d).get('task', '') == 'combination' && taskOpen(d);
       }
       // The Shadows, the Lanterns: a player lights their lantern (and names who deserves the shield). Only the host reads them.
       match /days/{d}/lights/{id} {
         allow read: if isST();
         allow create: if owns(request.resource.data.pid) && !isOut(request.resource.data.pid) && request.resource.data.keys().hasOnly(['pid', 'nominee', 'at'])
           && request.resource.data.nominee is string && request.resource.data.nominee != request.resource.data.pid
-          && dayT(d).get('task', '') == 'lanterns' && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
+          && dayT(d).get('task', '') == 'lanterns' && taskOpen(d);
       }
       // The Shadows, the Hidden Key: a player's one search, between breakfast and the round table. Only the host (and the server) read them.
       match /days/{d}/searches/{pid} {
         allow read: if isST();
         allow create: if owns(pid) && !isOut(pid) && !offerPending(pid) && request.resource.data.keys().hasOnly(['room', 'spot', 'at'])
           && str(request.resource.data.room, 40) && str(request.resource.data.spot, 40)
-          && dayT(d).get('task', '') == 'key' && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
+          && dayT(d).get('task', '') == 'key' && taskOpen(d);
       }
       // The Shadows, the Broken Seal: a player names who they think holds the other half of their seal. Only the host (and the server) read them.
       match /days/{d}/binds/{id} {
         allow read: if isST();
         allow create: if owns(request.resource.data.pid) && !isOut(request.resource.data.pid) && !offerPending(request.resource.data.pid)
           && request.resource.data.keys().hasOnly(['pid', 'of', 'at']) && request.resource.data.of is string && request.resource.data.of != request.resource.data.pid
-          && dayT(d).get('task', '') == 'seal' && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
+          && dayT(d).get('task', '') == 'seal' && taskOpen(d);
       }
       // The Shadows, the Spy: each Shadow's one answer, until the round table. Only the host (and they) can read it.
       match /days/{d}/spy/{pid} {
@@ -198,7 +202,7 @@ service cloud.firestore {
         allow list: if isST();
         allow create: if owns(pid) && !isOut(pid) && get(/databases/$(db)/documents/games/$(gid)/secret/$(pid)).data.side == 'shadow'
           && request.resource.data.keys().hasOnly(['answer', 'at']) && str(request.resource.data.answer, 40)
-          && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
+          && missionWin(d);
       }
       // The Shadows, Day 1: each Shadow's guess at who the other Shadows are, until the round table. Only the host (and they) can read it.
       match /days/{d}/finds/{pid} {
@@ -206,7 +210,7 @@ service cloud.firestore {
         allow list: if isST();
         allow create, update: if owns(pid) && get(/databases/$(db)/documents/games/$(gid)/secret/$(pid)).data.side == 'shadow'
           && request.resource.data.keys().hasOnly(['picks', 'at']) && request.resource.data.picks is list && request.resource.data.picks.size() <= 12
-          && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
+          && missionWin(d);
       }
       // Night actions: the player's own choices while that night is open
       match /nights/{n}/acts/{pid} {

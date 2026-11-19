@@ -10,17 +10,17 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows · Host</title>
-<script>window.APP_V = 133;</script>
-<script src="update.js?v=133"></script>
+<script>window.APP_V = 134;</script>
+<script src="update.js?v=134"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=133"></script>
-<script src="shadows.js?v=133"></script>
+<script src="daily.js?v=134"></script>
+<script src="shadows.js?v=134"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=133">
-<link rel="stylesheet" href="shadows.css?v=133">
+<link rel="stylesheet" href="daily.css?v=134">
+<link rel="stylesheet" href="shadows.css?v=134">
 <link rel="manifest" href="shadows-host.webmanifest">
 </head>
 <body>
@@ -137,7 +137,7 @@ function render(force) {
   if (!force && a && a.closest && a.closest("#app") && a.matches("input[type=text], textarea")) { pending = true; return; }
   pending = false;
   const y = window.scrollY, feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40;
-  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=133" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><a class="home" href="${gid ? "shadows-host.html" + (EMU ? "?emu=1" : "") : "index.html"}" aria-label="${gid ? "Your games" : "Home"}">${gid ? "←" : "🏠"}</a><h1><img class="title-img" src="img/title-the-shadows.webp?v=134" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns"><button class="btn" data-act="rules">📜 How to play</button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -245,11 +245,12 @@ function lobbyHtml() {
         <span class="hint">Suggested for ${n} players: ${suggestShadows(n)}.</span></div>
         <div class="row"><button class="btn" data-act="random-sides">🎲 Choose ${plural(want, "Shadow")} at random</button>${k ? `<span class="hint">${plural(k, "Shadow")} chosen.</span>` : ""}</div>` : ""}
     </section>
-    ${schedHtml()}
+    ${modeHtml()}
+    ${isLive(G) ? "" : schedHtml()}
     ${planHtml(1, true)}
     <section class="card"><h2>Start: Day 1</h2>
       <p class="hint">Everyone learns their side at breakfast on Day 1. The Shadows are told how many Shadows there are, and today's mission, but not who the others are: they meet when their chat opens on Night 1. Day 1's round table is a trust vote: the most trusted player gets a 🛡️ shield for Night 1.</p>
-      <div class="seg" role="group" aria-label="When Day 1 starts">${starts.map((o, i) => `<button data-act="start-opt" data-i="${i}" aria-pressed="${o === so}">${esc(o.label)}</button>`).join("")}</div>
+      ${isLive(G) ? `<p class="hint">Live: Day 1's breakfast starts as soon as you deal. Have everyone on the call first.</p>` : `<div class="seg" role="group" aria-label="When Day 1 starts">${starts.map((o, i) => `<button data-act="start-opt" data-i="${i}" aria-pressed="${o === so}">${esc(o.label)}</button>`).join("")}</div>`}
       ${ok ? "" : `<p class="warn">Seat at least 4 players and give everyone a side, with fewer Shadows than Guests.</p>`}
       <div class="row"><button class="btn primary" data-act="deal" ${ok ? "" : "disabled"}>🗝️ Tell everyone their side &amp; start Day 1</button></div></section>
     ${deleteCard()}`;
@@ -383,25 +384,26 @@ function startOptions() {
 async function deal() {
   const pl = { ...(ui.plan[1] || {}) }, problem = planProblem(pl);
   if (problem) return toast("⚠️ " + problem);
-  if (!schedOk(G.sched)) return toast("⚠️ Fix the timetable first.");
-  const starts = startOptions(), so = starts[Math.min(ui.startOpt || 0, starts.length - 1)], t = dTimes(so.slot, G.sched, so.start);
-  if (!confirm(`Tell everyone their side? Day 1 starts ${when(t.dawn)}.`)) return;
+  const live = isLive(G);
+  if (!live && !schedOk(G.sched)) return toast("⚠️ Fix the timetable first.");
+  const starts = startOptions(), so = starts[Math.min(ui.startOpt || 0, starts.length - 1)], t = live ? liveTimes(nowMs()) : dTimes(so.slot, G.sched, so.start);
+  if (!confirm(live ? "Tell everyone their side, and start Day 1's breakfast now?" : `Tell everyone their side? Day 1 starts ${when(t.dawn)}.`)) return;
   const S = GR.sides, sch = seatIds(G).filter(p => S[p] === "shadow"), b = FB.writeBatch(db), at = nowMs();
   if (pl.mission === "spy" && !pl.target) { const gs = seatIds(G).filter(p => S[p] !== "shadow" && p !== pl.start); pl.target = gs[rnd(gs.length)] || ""; }
   for (const s of G.seats) {
     const isS = S[s.id] === "shadow";
     const team = sch.length > 1 ? `There are ${sch.length} Shadows, including you, but you don't know who the others are yet: you'll meet them tonight.` : "You are the only Shadow.";
-    const text = isS ? `You are a Shadow. ${team} ${pl.mission === "findallies" ? `First, today's challenge: before the round table (${clock(t.noms)}), work out who the other Shadows are, and name them on your Today page. Your secret sign, to slip into your private chats so they can spot you: “${pl.sign.trim()}”. If every Shadow names at least one other Shadow correctly, you may murder tonight. You'll find out how you did when you meet.`
+    const text = isS ? `You are a Shadow. ${team} ${live ? "Today's mission, if there is one, arrives with today's task. Until then, blend in." : pl.mission === "findallies" ? `First, today's challenge: before the round table (${clock(t.noms)}), work out who the other Shadows are, and name them on your Today page. Your secret sign, to slip into your private chats so they can spot you: “${pl.sign.trim()}”. If every Shadow names at least one other Shadow correctly, you may murder tonight. You'll find out how you did when you meet.`
       : pl.mission === "spy" ? `First, today's challenge: before the round table (${clock(t.noms)}), find out ${spyAsk(pl.task, seatName(G, pl.target))}, and enter it on your Today page. If any Shadow gets it right, you may murder tonight.`
       : pl.mission === "rest" ? "There's no mission today, and no murder tonight. Until then, blend in."
       : "There's no mission today: you may murder tonight. Until then, blend in."}`
       : "You are a Guest. Somewhere amongst you, the Shadows are hiding. Listen carefully to everyone: they may give themselves away.";
     b.set(gref(gid, "secret", s.id), { name: s.name, side: S[s.id], allies: [], out: false, info: [{ n: 0, at, text, label: "Your side" }] });
   }
-  b.set(gref(gid, "gated", "dawn1"), { at: t.dawn, d: 1, deaths: [], first: true });
+  b.set(gref(gid, "gated", "dawn1"), { at: live ? t.dawn - 60000 : t.dawn, d: 1, deaths: [], first: true });
   b.update(gref(gid, "st", "grim"), { cu: conclaveUids(S, {}), ou: outUids({}) });
   const flags = writePlan(b, 1, pl, t.dawn, S, {});
-  b.update(gref(gid), { status: "running", dayFirst: true, days: { 1: { ...t, ...flags } }, nights: { 2: { open: t.night, end: t.nightEnd } }, day: 1, night: 2, started: at, tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/London" });
+  b.update(gref(gid), { status: "running", dayFirst: true, days: { 1: { ...t, ...flags } }, ...(live ? { "live.step": "breakfast", "live.endsAt": null } : {}), nights: { 2: { open: t.night, end: t.nightEnd } }, day: 1, night: 2, started: at, tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/London" });
   await b.commit();
   delete ui.plan[1];   // a day's plan is used once
 }
@@ -550,16 +552,129 @@ const missionOk = d => { const M = (GR.missions || {})[d]; if (!M) return true; 
   if (M.type === "findallies") { const sch = seatIds(G).filter(p => sideOf(p) === "shadow" && !deadTruth()[p]); return sch.every(p => ((finds[p] || {}).picks || []).some(q => q !== p && sideOf(q) === "shadow")); }
   if (M.type === "addword") { const W = (GR.tasks || {})[d] || {}; return (W.adds || []).some(a => (W.chain || []).some(c => c.from === a.to)); } return seatIds(G).filter(p => sideOf(p) === "shadow" && !deadTruth()[p]).every(p => (M.said || {})[p]) && !M.caught; };
 
+/* ---------- The live game: the host moves it on, step by step ---------- */
+// How to play: over several days, or live in one evening on a video call
+function modeHtml() {
+  const L = G.live || {}, on = !!L.on, D = { ...LIVE_DUR, ...(L.dur || {}) };
+  const dur = (k, label, opts) => `<div class="field"><span class="label">${label}</span><div class="seg" role="group" aria-label="${esc(label)}">${opts.map(m => `<button data-act="live-dur" data-k="${k}" data-v="${m}" aria-pressed="${+D[k] === m}">${m} min</button>`).join("")}</div></div>`;
+  return `<section class="card"><h2>🎥 How will you play?</h2>
+    <div class="seg" role="group" aria-label="How to play"><button data-act="live-mode" data-v="" aria-pressed="${!on}">☀️ Over several days</button><button data-act="live-mode" data-v="1" aria-pressed="${on}">🎥 Live, in one evening</button></div>
+    ${on ? `<p class="hint">Everyone meets on Zoom, with breakout rooms they choose themselves. You move the game on, step by step, from your 🎥 Live tab; every phone follows. Share the show screen in Zoom so everyone can see the countdowns, the votes and the reveals.</p>
+      ${dur("task", "🛡️ A shield task", [3, 4, 5, 6])}${dur("whisper", "🤫 The Whisper", [6, 8, 10])}${dur("combination", "💣 The Combination's fuse", [1, 2, 3])}
+      ${dur("roam", "🚶 Roaming after the task", [1, 2, 3])}${dur("dayoff", "🚶 Roaming on a day with no task", [5, 7, 9])}${dur("table", "🗣️ The round table", [2, 3, 4, 5])}${dur("vote", "🗳️ The vote", [1, 2])}
+      <p class="hint">These are where the countdowns start. You can always add a minute, pause, or move on early. The night lasts as long as you like.</p>`
+      : `<p class="hint">The game runs on the daily timetable below, and everyone plays on their phone in their own time.</p>`}</section>`;
+}
+// What to do in Zoom as each step begins
+const ZOOM = {
+  breakfast: ["Security: tick <b>Start Video</b> again (or turn off Focus Mode)", "Tick <b>Allow participants to unmute themselves</b>, then <b>Ask All to Unmute</b>"],
+  explain: ["Everyone in the main room", "Share the show screen, and read the task out"],
+  task: ["<b>Breakout Rooms → Open All Rooms</b>: players choose their own room", "The countdown is on every phone"],
+  roam: ["The rooms stay open"],
+  table: ["<b>Breakout Rooms → Close All Rooms</b> (10-second countdown)", "Everyone back in the main room"],
+  vote: ["Everyone votes on their phone"],
+  count: ["Reveal the votes one at a time, with <b>Next vote</b>"],
+  verdict: ["Unmute the banished player, and let them speak", "Turn the music down"],
+  reveal: ["Turn the music up"],
+  night: ["<b>Mute All</b>, and untick <b>Allow participants to unmute themselves</b>", "Security: untick <b>Start Video</b> (or turn on Focus Mode)", "Watch the Shadows' chat: you decide when night ends"]
+};
+const ORDER = ["breakfast", "explain", "task", "roam", "table", "vote", "count", "verdict", "reveal", "night"];
+// The step after this one (the night: breakfast, through the Night tab's choices)
+function liveNextStep(step, t) {
+  if (step === "explain") return t.task && t.task !== "dayoff" ? "task" : "roam";
+  if (step === "night") return "breakfast";
+  return ORDER[ORDER.indexOf(step) + 1] || "";
+}
+const liveLeft = L => L.paused ? L.left || 0 : L.endsAt ? Math.max(0, L.endsAt - nowMs()) : null;
+const mmss = ms => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
+async function liveNext() {
+  const L = G.live || {}, step = liveStep(G), d = G.day || 0, t = G.days[d] || {}, now = nowMs(), D = { ...LIVE_DUR, ...(L.dur || {}) };
+  const u = {}, set = (k, v) => u[`days.${d}.${k}`] = v, go = (s2, mins) => { u["live.step"] = s2; u["live.endsAt"] = mins ? now + mins * 60000 : null; u["live.paused"] = false; u["live.left"] = null; };
+  if (step === "night") return run(release);
+  if (step === "breakfast") go("explain");
+  else if (step === "explain") {
+    set("taskStart", now);
+    if (t.task && t.task !== "dayoff") { const m = liveTaskMins(G, t.task); set("taskEnd", now + m * 60000); go("task", m); }
+    else { set("taskEnd", now); go("roam", D.dayoff); }
+  }
+  else if (step === "task") { set("taskEnd", Math.min(t.taskEnd, now)); go("roam", D.roam); }
+  else if (step === "roam") { set("taskEnd", Math.min(t.taskEnd, now)); set("noms", now); go("table", D.table); }
+  else if (step === "table") { set("vote", now); go("vote", D.vote); }
+  else if (step === "vote") {
+    // The votes are revealed one at a time, in a shuffled order, with the votes for whoever has the most saved till last
+    const alive = aliveIds(), bs = ballots.filter(b2 => alive.includes(b2.voter) && alive.includes(b2.of) && b2.voter !== b2.of), top = banishVerdict(countDay()).exec;
+    set("close", now); go("count"); u["live.order"] = [...shuffle(bs.filter(b2 => b2.of !== top)), ...shuffle(bs.filter(b2 => b2.of === top))].map(b2 => b2.voter); u["live.shown"] = 0;
+  }
+  else if (step === "count") {
+    const res = (GR.results || {})[d]; if (!res) return toast("The votes are still being counted.");
+    go("verdict"); u["live.banished"] = trustDay(G, d) ? res.trusted || null : res.exec || null;
+  }
+  else if (step === "verdict") {
+    // The truth: the banished player's side (or the shield), the Shadows' mission, and the end of the game if it's over
+    const b = FB.writeBatch(db);
+    set("reveal", now); go("reveal");
+    // (The news is unlocked a minute early, so a phone or server clock a little behind doesn't hold it back: only this button reveals it)
+    if (G.overAt) { u.overAt = now; b.update(gref(gid, "gated", "end"), { at: now - 60000 }); }
+    b.update(gref(gid, "gated", "result" + d), { at: now - 60000 });
+    for (const m of square.filter(x => x.kind === "st" && x.d === d && x.at > now)) b.update(gref(gid, "square", m.id), { at: now + 1 });
+    b.update(gref(gid), u);
+    return run(() => b.commit());
+  }
+  else if (step === "reveal") { u[`nights.${d + 1}`] = { open: now, end: now + LIVE_FAR }; go("night"); }
+  return run(() => FB.updateDoc(gref(gid), u));
+}
+async function liveTime(kind) {
+  const L = G.live || {}, d = G.day || 0, t = G.days[d] || {}, now = nowMs(), u = {}, running = liveStep(G) === "task" && taskOpenAt(t);
+  if (kind === "plus" && L.endsAt && !L.paused) { u["live.endsAt"] = L.endsAt + 60000; if (running) u[`days.${d}.taskEnd`] = t.taskEnd + 60000; }
+  else if (kind === "plus" && L.paused) u["live.left"] = (L.left || 0) + 60000;
+  else if (kind === "pause" && L.endsAt && !L.paused) { u["live.paused"] = true; u["live.left"] = Math.max(0, L.endsAt - now); u["live.endsAt"] = null; if (running) { u[`days.${d}.taskEnd`] = now + LIVE_FAR; u["live.taskLeft"] = t.taskEnd - now; } }
+  else if (kind === "resume" && L.paused) { u["live.paused"] = false; u["live.endsAt"] = now + (L.left || 0); u["live.left"] = null; if (L.taskLeft) { u[`days.${d}.taskEnd`] = now + L.taskLeft; u["live.taskLeft"] = null; } }
+  else return;
+  await FB.updateDoc(gref(gid), u);
+}
+const showLink = () => new URL(`shadows-show.html?g=${gid}${EMU ? "&emu=1" : ""}`, location.href).toString();
+function liveHtml() {
+  const L = G.live || {}, step = liveStep(G), d = G.day || 0, t = G.days[d] || {}, [ic, name] = LIVE_STEP[step] || ["", step];
+  const left = liveLeft(L), next = liveNextStep(step, t), res = (GR.results || {})[d], trust = trustDay(G, d);
+  if (step === "over") return `<section class="card"><h2>🏁 The game is over</h2><p class="lead">Everyone's side is on the show screen and every phone.</p></section>`;
+  const order = L.order || [], shown = L.shown || 0, byVoter = Object.fromEntries(ballots.map(b2 => [b2.voter, b2]));
+  const nextLabel = step === "count" && shown < order.length ? "" : step === "night" ? "🍳 Serve breakfast" : step === "verdict" ? `⚖️ Reveal ${trust ? "the shield" : "their side"}` : next ? `Next: ${LIVE_STEP[next][0]} ${LIVE_STEP[next][1]}` : "";
+  const blocked = step === "count" && !res ? (banishVerdict(countDay()).tied.length > 1 || trust && countDay()[0] && countDay()[1] && countDay()[0].count === countDay()[1].count ? "It's a tie: decide below." : "Counting the votes…") : "";
+  const control = `<section class="card live-ctl"><p class="label">Day ${d} · now</p><h2>${ic} ${esc(name)}</h2>
+    ${left !== null ? `<p class="clock" data-ends="${L.paused ? "" : L.endsAt}">${mmss(left)}</p>` : ""}
+    <div class="row">${left !== null ? `<button class="btn" data-act="live-time" data-k="plus">+1 min</button><button class="btn" data-act="live-time" data-k="${L.paused ? "resume" : "pause"}">${L.paused ? "▶️ Resume" : "⏸️ Pause"}</button>` : ""}
+      <a class="btn" href="${showLink()}" target="_blank" rel="noopener">📺 Show screen</a></div>
+    ${ZOOM[step] ? `<h3>In Zoom, now</h3><ul class="zoom">${ZOOM[step].map(x => `<li>${x}</li>`).join("")}</ul>` : ""}
+    ${blocked ? `<p class="warn">${blocked}</p>` : ""}
+    ${nextLabel ? `<div class="row"><button class="btn primary big" data-act="live-next" ${blocked ? "disabled" : ""}>${nextLabel}</button></div>` : ""}
+    ${next && ZOOM[next] && nextLabel ? `<p class="hint">Then in Zoom: ${ZOOM[next].join("; ")}.</p>` : ""}</section>`;
+  let more = "";
+  if (step === "count") more = `<section class="card"><h2>🗳️ The votes, one at a time</h2>
+    ${order.slice(0, shown).map(v => `<p class="lead" style="margin:2px 0"><b>${nm(v)}</b> → ${nm((byVoter[v] || {}).of)}</p>`).join("") || `<p class="hint">None shown yet.</p>`}
+    ${shown < order.length ? `<div class="row"><button class="btn primary big" data-act="live-vote">🗳️ Next vote (${shown + 1} of ${order.length})</button></div>` : `<p class="hint">All ${order.length} votes shown.</p>`}</section>
+    ${!res && blocked !== "Counting the votes…" ? (trust ? trustVerdictHtml(countDay()) : verdictHtml(countDay())) : ""}`;
+  else if (step === "verdict") more = `<section class="card"><h2>${trust ? "🛡️ The most trusted" : "⚖️ Banished"}</h2><p class="lead">${L.banished ? `<b>${nm(L.banished)}</b>${trust ? " has the shield tonight." : ` is banished. They're really a ${sideChip(sideOf(L.banished))}. Let them speak, then reveal.`}` : trust ? "Nobody won the trust vote." : "Nobody is banished."}</p></section>`;
+  else if (step === "night") more = nightHtml();
+  else if (["explain", "task", "roam"].includes(step)) more = `${missionHtml(d)}${whisperHtml(d)}${comboHtml(d)}${lanternsHtml(d)}${keyHtml(d)}${sealHtml(d)}`;
+  else if (["table", "vote"].includes(step)) { const alive = aliveIds(), voted = ballots.filter(b2 => alive.includes(b2.voter)).length;
+    more = `${missionHtml(d)}<section class="card"><h2>🗳️ ${voted} of ${alive.length} have voted</h2><p class="hint">Live votes, only you can see them: ${countDay().map(r => `${nm(r.of)} ${r.count}`).join(", ") || "none yet"}.</p></section>`; }
+  else if (step === "breakfast") more = `<section class="card"><h2>📋 Today</h2><p class="lead">${t.task ? `${TASKS[t.task].ic} ${TASKS[t.task].name}` : "No task"}. ${(GR.missions || {})[d] ? `The Shadows' mission: ${MISSION_NAME[(GR.missions[d] || {}).type] || "a retired one"}.` : "No Shadow mission."}</p></section>`;
+  return control + more;
+}
+
 /* ---------- The running game ---------- */
 const P = () => phaseOf(G);
 function runningHtml() {
   const p = P(), n = (G.day || 0) + 1, d = G.day || 0;
   const nightTodo = G.nights[n] && nowMs() >= G.nights[n].end && !G.overAt;
   const dayTodo = d && !(GR.results || {})[d] && nowMs() >= G.days[d].close && !G.overAt;
-  const tabs = [["castle", "🏰 Castle"], ["night", `🌙 Night ${nightNo(G, n)}`, nightTodo], ["day", d ? `☀️ Day ${d}` : "☀️ Day", dayTodo], ["msgs", "✉️ Messages", stUnreadAll() > 0], ["shadows", "🗡️ Shadows", conUnread() > 0], ["ghosts", "👻 Dead"], ["square", "🗣️ Table"], ["set", "⚙️ Settings"]];
+  const tabs = [...(isLive(G) ? [["live", "🎥 Live"]] : []), ["castle", "🏰 Castle"], ["night", `🌙 Night ${nightNo(G, n)}`, nightTodo], ["day", d ? `☀️ Day ${d}` : "☀️ Day", dayTodo], ["msgs", "✉️ Messages", stUnreadAll() > 0], ["shadows", "🗡️ Shadows", conUnread() > 0], ["ghosts", "👻 Dead"], ["square", "🗣️ Table"], ["set", "⚙️ Settings"]];
   const nav = `<nav class="tabs">${tabs.map(([k, l, dot]) => `<button data-act="tab" data-tab="${k}" aria-pressed="${ui.tab === k}">${l}${dot ? `<span class="dot" aria-label="needs you"></span>` : ""}</button>`).join("")}</nav>`;
-  const tab = { castle: castleHtml, night: nightHtml, day: dayHtml, msgs: msgsHtml, shadows: shadowsHtml, ghosts: ghostsHtml, square: squareHtml, set: setHtml }[ui.tab]();
-  return `${bannerHtml(p)}${todoHtml(nightTodo, dayTodo)}${nav}${tab}`;
+  if (ui.tab === "live" && !isLive(G)) ui.tab = "castle";
+  if (isLive(G) && !ui.tabChosen) ui.tab = "live";
+  const tab = { live: liveHtml, castle: castleHtml, night: nightHtml, day: dayHtml, msgs: msgsHtml, shadows: shadowsHtml, ghosts: ghostsHtml, square: squareHtml, set: setHtml }[ui.tab]();
+  // Live, the 🎥 Live tab says what is happening: the daily banner and its times would only confuse
+  return `${isLive(G) && G.status === "running" ? "" : bannerHtml(p) + todoHtml(nightTodo, dayTodo)}${nav}${tab}`;
 }
 function bannerHtml(p) {
   const dark = ["night", "dark", "wait"].includes(p.k);
@@ -694,7 +809,7 @@ function defaultVictim() {
   if (PM && PM.type === "plainsight") return PM.marked && !deadTruth()[PM.marked.pid] ? PM.marked.pid : "";
   if (mode === "murder") return suggestVictim();
   const o = offerTonight(), a = o && answers[o.target];
-  return mode === "blackmail" && o && a && a.answer === "refuse" ? o.target : "";
+  return mode === "blackmail" && o && (a ? a.answer === "refuse" : nowMs() >= o.until) ? o.target : "";
 }
 const currentVictim = () => ui.draft && ui.draft.victimSet ? ui.draft.victim : defaultVictim();
 async function setMode(type) {
@@ -710,6 +825,7 @@ async function sendOffer(target) {
   const morning = (G.days[n] || {}).dawn || nextClock(nowMs(), G.sched.dawn);
   let until = type === "blackmail" ? atClock(morning, ui.draft.bmAt || "12:00") : (G.days[n] || {}).noms || atClock(morning, G.sched.noms);
   if (until <= morning) until = addDays(until, 1);
+  if (isLive(G)) until = nowMs() + 60000;   // live: a minute to decide
   if (!confirm(`Send ${seatName(G, target)} the ${MODES[type].name.toLowerCase()}? They must answer by ${when(until)}.`)) return;
   const b = FB.writeBatch(db);
   b.update(gref(gid, "st", "grim"), { [`offer.${n}`]: { type, target, until, at: nowMs() } });
@@ -737,10 +853,10 @@ function dawnOptions(n) {
 async function release() {
   const n = (G.day || 0) + 1, D = ui.draft, o = dawnOptions(n), pick = o[Math.min(D.dawnOpt, o.length - 1)], pl = ui.plan[n] || {};
   if (planProblem(pl)) return toast("⚠️ " + planProblem(pl));
-  const t = dTimes(pick.slot, G.sched, pick.start), b = FB.writeBatch(db);
-  if (!confirm(`Serve breakfast for Day ${n}? It starts ${when(t.dawn)}.`)) return;
+  const live = isLive(G), t = live ? liveTimes(nowMs()) : dTimes(pick.slot, G.sched, pick.start), b = FB.writeBatch(db);
+  if (!confirm(live ? `Serve breakfast for Day ${n} now?` : `Serve breakfast for Day ${n}? It starts ${when(t.dawn)}.`)) return;
   const victim = currentVictim(), recruit = recruitTonight();
-  b.set(gref(gid, "gated", "dawn" + n), { at: t.dawn, d: n, deaths: victim ? [{ pid: victim, how: "murdered", n }] : [], note: (D.note || "").trim() });
+  b.set(gref(gid, "gated", "dawn" + n), { at: live ? t.dawn - 60000 : t.dawn, d: n, deaths: victim ? [{ pid: victim, how: "murdered", n }] : [], note: (D.note || "").trim() });
   const dead = { ...deadTruth() };
   if (victim) {
     dead[victim] = { how: "murdered", n };
@@ -754,7 +870,8 @@ async function release() {
   }
   b.update(gref(gid, "st", "grim"), { dead, sides, cu: conclaveUids(sides, dead), ou: outUids(dead) });
   const flags = writePlan(b, n, pl, t.dawn, sides, dead);
-  b.update(gref(gid), { [`days.${n}`]: { ...t, ...flags }, [`nights.${n + 1}`]: { open: t.night, end: t.nightEnd }, day: n, night: n + 1, dead: deadTruth() });
+  b.update(gref(gid), { [`days.${n}`]: { ...t, ...flags }, [`nights.${n + 1}`]: { open: t.night, end: t.nightEnd }, day: n, night: n + 1, dead: deadTruth(),
+    ...(live ? { [`nights.${n}.end`]: Math.min(G.nights[n].end, nowMs()), "live.step": "breakfast", "live.endsAt": null, "live.order": null, "live.shown": 0, "live.banished": null, "live.paused": false } : {}) });
   await b.commit();
   delete ui.plan[n]; ui.draft = null; ui.tab = "day";
 }
@@ -919,7 +1036,7 @@ document.getElementById("app").addEventListener("click", e => {
     case "deal": return run(deal);
     case "start-opt": ui.startOpt = +el.dataset.i; return render(true);
     case "plan": ui.plan[el.dataset.d][el.dataset.k] = el.dataset.v; return render(true);
-    case "tab": ui.tab = el.dataset.tab; ui.thread = ""; render(true); return window.scrollTo(0, 0);
+    case "tab": ui.tab = el.dataset.tab; ui.tabChosen = true; ui.thread = ""; render(true); return window.scrollTo(0, 0);
     case "gtok": return tokenDialog(pid);
     case "msg": ui.tab = "msgs"; ui.thread = pid; render(true); return window.scrollTo(0, 0);
     case "shield": return run(() => toggleShield(pid), "Shield updated");
@@ -939,6 +1056,11 @@ document.getElementById("app").addEventListener("click", e => {
     case "send-offer": return run(() => sendOffer(pid), "Offer sent");
     case "dawn-opt": ui.draft.dawnOpt = +el.dataset.i; return render(true);
     case "release": return run(release);
+    case "live-mode": return run(() => FB.updateDoc(gref(gid), { live: el.dataset.v ? { on: true, step: "lobby", dur: { ...LIVE_DUR, ...((G.live || {}).dur || {}) } } : FB.deleteField() }));
+    case "live-dur": return run(() => FB.updateDoc(gref(gid), { [`live.dur.${el.dataset.k}`]: +el.dataset.v }));
+    case "live-next": return liveNext();
+    case "live-time": return run(() => liveTime(el.dataset.k));
+    case "live-vote": return run(() => FB.updateDoc(gref(gid), { "live.shown": Math.min((G.live.shown || 0) + 1, (G.live.order || []).length) }));
     case "ex": ui.ex = pid || null; return render(true);
     case "end": ui.end = el.dataset.v; ui.endSet = true; return render(true);
     case "trust-pick": ui.trustPick = pid || ""; return render(true);
@@ -993,6 +1115,8 @@ const RULES = `<h2>📜 How to play</h2>
   <p><b>🏁 The Guests win</b> when every Shadow has been banished. <b>The Shadows win</b> if they ever equal the Guests left.</p>
   <p class="hint">Your extras: give a 🛡️ shield (that player can't be murdered that night), or 🗡️ recruit a Guest to join the Shadows. Tap a player in the castle.</p>`;
 setInterval(() => render(), 30000);
+// Live countdowns tick every second (without redrawing the page)
+setInterval(() => { for (const e of document.querySelectorAll("[data-ends]")) { const at = +e.dataset.ends; if (at) e.textContent = mmss(Math.max(0, at - nowMs())); } }, 1000);
 fbStart().then(() => { if (gid) watch(); render(); }).catch(e => { loadErr = "Couldn't connect: " + (e.message || e); render(); });
 </script>
 </body>

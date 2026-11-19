@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#120708">
+<script>document.documentElement.dataset.theme = "dark";</script>
+<link rel="icon" type="image/png" href="img/shadows-icon-180.png">
+<title>The Shadows: show screen</title>
+<script>window.APP_V = 134;</script>
+<script src="update.js?v=134"></script>
+<script src="vendor/firebase.js"></script>
+<script src="daily.js?v=134"></script>
+<script src="shadows.js?v=134"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="daily.css?v=134">
+<link rel="stylesheet" href="shadows.css?v=134">
+<style>
+/* The show screen: shared in Zoom, so big, bold and readable from a little window */
+html, body { height: 100%; }
+body { margin: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 20%, #2a1210 0%, #120708 70%); }
+.show { height: 100vh; display: grid; grid-template-rows: auto 1fr auto; padding: 2.2vh 3vw; box-sizing: border-box; gap: 1.5vh; }
+.show-top { display: flex; align-items: center; justify-content: space-between; gap: 2vw; }
+.show-top img { height: 6vh; width: auto; }
+.show-top .day { font-family: var(--font-display); color: var(--muted); font-size: 2.4vh; letter-spacing: .08em; text-transform: uppercase; }
+.stage { display: grid; place-content: center; justify-items: center; text-align: center; gap: 2vh; min-height: 0; }
+.stage h1 { font-family: var(--font-display); color: var(--brass); font-size: 7.5vh; margin: 0; line-height: 1.05; font-weight: 700; }
+.stage h2 { font-family: var(--font-display); color: var(--fg); font-size: 4.4vh; margin: 0; font-weight: 600; }
+.stage p { font-size: 3vh; margin: 0; max-width: 70vw; line-height: 1.35; }
+.stage .ic { font-size: 9vh; line-height: 1; }
+.stage .big { font-family: var(--font-display); font-size: 16vh; line-height: 1; color: var(--brass); font-weight: 700; font-variant-numeric: tabular-nums; }
+.stage .where { font-size: 3vh; color: var(--muted); font-weight: 600; }
+.rules { display: grid; gap: 1.4vh; max-width: 72vw; text-align: left; }
+.rules p { font-size: 3vh; }
+.rules .prize { color: var(--brass); font-weight: 700; }
+.fuse { width: 60vw; height: 2.4vh; border-radius: 99px; background: #3a1d17; overflow: hidden; border: 1px solid #5a3d26; }
+.fuse > span { display: block; height: 100%; background: linear-gradient(90deg, #f7c86b, #e2572f); }
+.votes { display: grid; grid-template-columns: repeat(2, minmax(20vw, 32vw)); gap: .8vh 4vw; text-align: left; }
+.votes p { font-size: 3vh; animation: pop .5s ease; }
+.tally { display: flex; gap: 2vw; flex-wrap: wrap; justify-content: center; }
+.tally span { font-size: 3vh; background: #2a1412; border: 1px solid #5a3d26; border-radius: 12px; padding: .6vh 1.4vw; }
+.tally b { color: var(--brass); }
+.emblem-big { width: 34vh; height: 34vh; animation: turn 1.4s ease; }
+@keyframes turn { from { transform: rotateY(90deg) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+.feed-big { display: grid; gap: 1vh; max-width: 70vw; text-align: left; }
+.feed-big p { font-size: 2.8vh; background: #24110f; border: 1px solid #47291f; border-radius: 12px; padding: 1vh 1.4vw; margin: 0; }
+.castle-row { display: flex; flex-wrap: wrap; gap: .8vh 1vw; justify-content: center; }
+.castle-row span { font-size: 2.2vh; padding: .5vh 1vw; border-radius: 99px; border: 1px solid #5a3d26; background: #1d0d0c; }
+.castle-row span.out { opacity: .5; text-decoration: line-through; }
+.shadow-t { color: #e0675b; } .guest-t { color: #8fb3e6; }
+.night .stage h1 { color: #b9c4e8; }
+</style>
+</head>
+<body>
+<div id="app" class="show"><p class="hint">Opening…</p></div>
+<script>
+/* ---------- The Shadows: the show screen ----------
+   The host opens this on their laptop and shares it in Zoom. It only ever shows what's already public: a banished player's
+   side reaches it only when the host reveals it. Countdowns, the task's explanation, the votes one at a time, and the reveals. */
+const gid = cleanCode(new URLSearchParams(location.search).get("g"));
+let G = null, gated = {}, ballots = { d: 0, list: null }, square = [], loadErr = "";
+const $ = s => document.querySelector(s);
+const nm = pid => esc(seatName(G, pid));
+const mm = ms => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
+// How each task works, read out as it's shown
+const EXPLAIN = {
+  combination: ["Each of you holds one digit of the code, and where it goes. Two of you hold each place.", "Find the others in the rooms, put the code together, and enter it on your phone.", "Beware: not every digit is true. Up to two of you were given a false one, and don't know it.", "Every wrong code burns 20 seconds off the fuse."],
+  whisper: ["One of you starts with a phrase. Pass it on, on your phone, to someone who hasn't had it.", "It must go round everyone, then back to whoever started it.", "Say it twice and you're out of the running. Anyone sent it a third time, and the Whisper fails.", "The last to say it wins."],
+  lanterns: ["Each of you has a secret number. The lanterns must be lit in that order.", "Nobody can see how many are lit: share numbers in the rooms, and agree whose turn it is.", "Light out of turn, and they all go out.", "As you light yours, name who deserves the shield. The most named wins it."],
+  key: ["A key is hidden in one room of the castle, in one hiding place.", "Each of you knows one place it is not. Share your clues in the rooms.", "Not everyone will tell the truth.", "You each get one search. The first to find it wins."],
+  seal: ["Each of you holds half of a wax seal: a colour and a crest.", "Somewhere in the castle is the player with the other half… probably.", "Find them, and both name each other on your phones.", "If the halves fit, you both win a shield. Only the first pair."]
+};
+const PRIZE = { combination: "Crack it, and you win the 🛡️ shield.", whisper: "Say it last, and you win the 🛡️ shield.", lanterns: "Light them all, and the most named wins the 🛡️ shield.", key: "Find it, and you win the 🛡️ shield.", seal: "Make a seal whole, and you both win a 🛡️ shield." };
+const WHERE = { main: "🏛️ Everyone in the main room", rooms: "🚪 The breakout rooms are open", dark: "🌙 Mute, and stay in the dark" };
+
+function render() {
+  const app = $("#app");
+  if (loadErr) { app.innerHTML = `<div class="stage"><p>${esc(loadErr)}</p></div>`; return; }
+  if (!G) return;
+  const step = liveStep(G) || "lobby", d = G.day || 0, L = G.live || {}, t = (G.days || {})[d] || {};
+  const left = L.paused ? L.left : L.endsAt ? Math.max(0, L.endsAt - nowMs()) : null;
+  const clock = left !== null && left !== undefined ? `<div class="big" ${L.paused ? "" : `data-ends="${L.endsAt}"`}>${mm(left)}${L.paused ? " ⏸" : ""}</div>` : "";
+  const where = LIVE_WHERE[step] ? `<div class="where">${WHERE[LIVE_WHERE[step]]}</div>` : "";
+  const [ic, name] = LIVE_STEP[step] || ["", ""];
+  document.body.classList.toggle("night", step === "night");
+  app.innerHTML = `<div class="show-top"><img src="img/title-the-shadows.webp?v=134" alt="The Shadows" width="544" height="150"><span class="day">${esc(G.name || "")}${d ? ` · Day ${d}` : ""}</span></div>
+    <div class="stage">${stage(step, d, t, L, ic, name, clock, where)}</div>
+    <div>${castleRow()}</div>`;
+}
+const hostNews = d => square.filter(m => m.kind === "st" && m.d === d && m.at <= nowMs());
+function stage(step, d, t, L, ic, name, clock, where) {
+  if (!isLive(G)) return `<p>This game is played over several days: the show screen is for live games.</p>`;
+  if (step === "lobby") return `<div class="ic">🏰</div><h1>Welcome to Hollow Hall</h1><p>Join on your phone with the code <b>${gid}</b>. Keep your screen to yourself.</p>`;
+  if (step === "over") { const e = gated.end; return `<div class="ic">${e ? (e.winner === "guests" ? "🕯️" : "🗡️") : "🏁"}</div><h1>${e ? (e.winner === "guests" ? "The Guests win!" : "The Shadows win!") : "The game is over"}</h1>
+    ${e ? `<div class="castle-row">${G.seats.map(s => `<span class="${e.sides[s.id] === "shadow" ? "shadow-t" : "guest-t"}">${SIDE[e.sides[s.id]] ? SIDE[e.sides[s.id]].ic : ""} ${esc(s.name)}</span>`).join("")}</div>` : ""}`; }
+  if (step === "breakfast") { const bk = gated["dawn" + d], ds = bk ? (bk.deaths || []).map(x => x.pid) : null;
+    return `<div class="ic">🍳</div><h1>Breakfast, Day ${d}</h1>${!bk ? "" : bk.first ? `<p>Welcome to Hollow Hall. Everyone has arrived for breakfast… and somewhere amongst you, the Shadows are hiding.</p>`
+      : ds.length ? `<h2>${ds.map(nm).join(" and ")}</h2><p>did not come down to breakfast. Murdered in the night.</p>` : `<p>Everyone came down to breakfast. Nobody was murdered in the night.</p>`}
+      ${bk && bk.note ? `<p><i>${esc(bk.note)}</i></p>` : ""}${where}`; }
+  if (step === "explain") {
+    if (!t.task || t.task === "dayoff") return `<div class="ic">🌤️</div><h1>No task today</h1><p>Roam the castle: talk to whoever you like, in whichever room you like.</p><p>Check your phone now: some of you may have something to do.</p>`;
+    const T = TASKS[t.task]; return `<div class="ic">${t.task === "combination" ? "💣" : T.ic}</div><h1>${T.name}</h1><div class="rules">${(EXPLAIN[t.task] || []).map(x => `<p>${x}</p>`).join("")}<p class="prize">${PRIZE[t.task] || ""}</p>
+      <p>⏳ ${t.task === "combination" ? `The fuse: ${liveTaskMins(G, t.task)} minutes.` : `You have ${liveTaskMins(G, t.task)} minutes.`}</p></div><p>Check your phone now.</p>`; }
+  if (step === "task") { const T = t.task === "combination" ? { ic: "💣", name: "The Combination" } : TASKS[t.task] || { ic: "🛡️", name: "The task" };
+    let prog = "";
+    if (t.task === "combination") { const total = (t.taskEnd || 0) - (t.taskStart || 0) + (t.burnt || 0), frac = t.cracked ? 1 : Math.max(0, Math.min(1, ((t.taskEnd || 0) - nowMs()) / Math.max(1, total)));
+      prog = t.cracked ? `<h2>🔓 Cracked! The shield is won.</h2>` : nowMs() >= t.taskEnd ? `<h2>💥 BOOM. The bomb has gone off: no shield.</h2>` : `<div class="fuse"><span style="width:${(frac * 100).toFixed(1)}%"></span></div>${t.burnt ? `<p>🔥 ${t.burnt / 20000} wrong ${t.burnt === 20000 ? "code has" : "codes have"} burnt the fuse.</p>` : ""}`; }
+    if (t.task === "lanterns") prog = t.lan && t.lan.complete ? `<h2>🕯️ All the lanterns are lit!</h2>` : t.lan && t.lan.failed ? `<h2>🌬️ The lanterns are out, for good.</h2>` : t.lan && t.lan.attempt > 1 ? `<p>🌬️ The lanterns went out. Attempt ${t.lan.attempt}: start again from 1.</p>` : "";
+    if (t.task === "key") prog = t.found ? `<h2>🗝️ The key has been found!</h2>` : "";
+    if (t.task === "seal") prog = t.sealed ? `<h2>🤝 A seal has been made whole!</h2>` : "";
+    if (t.task === "whisper") prog = t.wfail ? `<h2>❌ The Whisper has failed.</h2>` : "";
+    return `<div class="ic">${T.ic}</div><h1>${T.name}</h1>${clock}${prog}${where}`; }
+  if (step === "roam") { const news = hostNews(d).slice(-1);
+    return `<div class="ic">🚶</div><h1>Roam the castle</h1>${clock}${news.map(m => `<p>${esc(m.text)}</p>`).join("")}${where}`; }
+  if (step === "table") { const says = square.filter(m => m.kind === "say" && m.d === d && m.at >= (t.noms || 0)).slice(-4);
+    return `<div class="ic">🗣️</div><h1>The round table</h1>${clock}${says.length ? `<div class="feed-big">${says.map(m => `<p><b>${nm(m.pid)}:</b> ${esc(m.text)}</p>`).join("")}</div>` : `<p>Accuse, defend, persuade. Type at the 🗣️ Table on your phone if you'd rather.</p>`}`; }
+  if (step === "vote") return `<div class="ic">🗳️</div><h1>${trustDay(G, d) ? "Who do you trust most?" : "Vote now"}</h1>${clock}<p>${trustDay(G, d) ? "Vote on your phone. The most trusted gets a 🛡️ shield tonight." : "On your phone: who should be banished? Votes are secret, until they're revealed one at a time."}</p>`;
+  if (step === "count" || step === "verdict") { const order = L.order || [], shown = L.shown || 0, by = Object.fromEntries(((ballots.d === d && ballots.list) || []).map(b => [b.voter, b])), tally = {};
+    for (const v of order.slice(0, shown)) if (by[v]) tally[by[v].of] = (tally[by[v].of] || 0) + 1;
+    const trust = trustDay(G, d);
+    if (step === "verdict") return L.banished ? `<div class="ic">${trust ? "🛡️" : "⚖️"}</div><h1>${nm(L.banished)}</h1><h2>${trust ? "is the most trusted, with a shield tonight" : "you have been banished"}</h2>${trust ? "" : `<p>Your last words: who are you, really?</p>`}`
+      : `<div class="ic">⚖️</div><h1>${trust ? "Nobody won the trust vote" : "Nobody is banished"}</h1>`;
+    return `<h1>${trust ? "The trust vote" : "The votes"}</h1><div class="votes">${order.slice(0, shown).map(v => `<p><b>${nm(v)}</b> → ${by[v] ? nm(by[v].of) : "…"}</p>`).join("")}</div>
+      <div class="tally">${Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([p, k]) => `<span>${nm(p)} <b>${k}</b></span>`).join("")}</div>`; }
+  if (step === "reveal") { const r = gated["result" + d], news = hostNews(d).filter(m => /secret mission/.test(m.text));
+    if (!r) return `<div class="ic">⚖️</div><h1>…</h1>`;
+    if (r.trust) return `<div class="ic">🛡️</div><h1>${r.trusted ? nm(r.trusted) : "Nobody"}</h1><h2>${r.trusted ? "has the castle's trust, and a shield tonight" : "won the trust vote"}</h2>`;
+    if (!r.exec) return `<div class="ic">⚖️</div><h1>Nobody was banished</h1>${news.map(m => `<p>${esc(m.text)}</p>`).join("")}`;
+    const s = SIDE[r.side] || {};
+    return `<img class="emblem-big" src="${s.emblem}" alt="${s.one}" width="700" height="700"><h1>${nm(r.exec)} was ${r.side === "shadow" ? "a Shadow" : "a Guest"}</h1>
+      <p>${r.side === "shadow" ? "The round table has found one of the Shadows." : "The round table has banished one of its own."}</p>${news.map(m => `<p>${esc(m.text)}</p>`).join("")}`; }
+  if (step === "night") return `<div class="ic">🌙</div><h1>Night falls over Hollow Hall</h1><p>Mute, and stay in the dark. The Shadows are choosing…</p>`;
+  return `<div class="ic">${ic}</div><h1>${esc(name)}</h1>${clock}`;
+}
+// Everyone at the table: who's out, and (once revealed) which side the banished were on
+function castleRow() {
+  if (!G.seats) return "";
+  const dead = deadNow(G, gated), R = {}; for (const [k, v] of Object.entries(gated)) if (k.startsWith("result") && v && v.exec) { R[v.exec] = v.side; dead[v.exec] = { how: "banished" }; }
+  return `<div class="castle-row">${G.seats.map(s => `<span class="${dead[s.id] ? "out" : ""} ${R[s.id] === "shadow" ? "shadow-t" : R[s.id] === "guest" ? "guest-t" : ""}">${dead[s.id] ? (dead[s.id].how === "murdered" ? "🗡️" : "⚖️") : ""}${R[s.id] ? SIDE[R[s.id]].ic : ""} ${esc(s.name)}</span>`).join("")}</div>`;
+}
+// The news that waits for its moment: breakfast, the banishment, the end
+async function refreshGated() {
+  if (!G || G.status === "lobby") return;
+  const d = G.day || 0, want = [];
+  for (let i = 1; i <= d; i++) want.push("dawn" + i, "result" + i);
+  if (G.overAt) want.push("end");
+  let missing = false;
+  for (const k of want) if (!gated[k]) {
+    try { const x = await getFresh(gref(gid, "gated", k)); if (x.exists()) { gated[k] = x.data(); render(); } } catch (e) { missing = true; }
+  }
+  // Breakfast and the reveal are on their way: keep looking (the host's step and the news can arrive a moment apart)
+  clearTimeout(refreshGated.t);
+  if (missing && ["breakfast", "reveal", "night", "over"].includes(liveStep(G))) refreshGated.t = setTimeout(refreshGated, 2000);
+  const step = liveStep(G);
+  if (["count", "verdict", "reveal"].includes(step) && d && nowMs() >= G.days[d].close && !(ballots.d === d && ballots.list)) {
+    try { ballots = { d, list: await readBallots(gid, d, (G.live || {}).order) }; render(); } catch (e) { setTimeout(refreshGated, 2500); }
+  }
+}
+function watch() {
+  FB.onSnapshot(gref(gid), s => {
+    if (!s.exists()) { loadErr = "There's no game with that code."; return render(); }
+    G = s.data(); loadErr = ""; render(); refreshGated();
+  }, e => { loadErr = "Couldn't open the game: " + (e.code || e); render(); });
+  FB.onSnapshot(FB.query(gcol(gid, "square"), FB.orderBy("at", "desc"), FB.limit(60)), q => { square = q.docs.map(x => x.data()).reverse(); render(); });
+}
+setInterval(() => {
+  for (const e of document.querySelectorAll("[data-ends]")) { const at = +e.dataset.ends; if (at) e.textContent = mm(Math.max(0, at - nowMs())); }
+  if (G && liveStep(G) === "task") { const t = G.days[G.day] || {}; if (t.task === "combination" && !t.cracked) render(); }
+}, 1000);
+setInterval(() => { if (G) { refreshGated(); render(); } }, 15000);
+if (!gid) loadErr = "Open this from your 🎥 Live tab (it needs the game code).";
+fbStart().then(() => { if (gid) watch(); render(); }).catch(e => { loadErr = "Couldn't connect: " + (e.message || e); render(); });
+render();
+</script>
+</body>
+</html>

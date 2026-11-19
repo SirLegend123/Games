@@ -10,16 +10,16 @@
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <link rel="apple-touch-icon" href="img/shadows-icon-180.png">
 <title>The Shadows</title>
-<script>window.APP_V = 133;</script>
-<script src="update.js?v=133"></script>
+<script>window.APP_V = 134;</script>
+<script src="update.js?v=134"></script>
 <script src="vendor/firebase.js"></script>
-<script src="daily.js?v=133"></script>
-<script src="shadows.js?v=133"></script>
+<script src="daily.js?v=134"></script>
+<script src="shadows.js?v=134"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=133">
-<link rel="stylesheet" href="shadows.css?v=133">
+<link rel="stylesheet" href="daily.css?v=134">
+<link rel="stylesheet" href="shadows.css?v=134">
 <link rel="manifest" href="shadows.webmanifest">
 </head>
 <body>
@@ -71,7 +71,10 @@ function watch() {
     sub("chat-st", FB.query(gcol(gid, "stchat", me, "msgs"), FB.orderBy("at")), q => { chats.st = q.docs.map(x => x.data()); render(); });
     const d = G.day || 0;
     if (d !== cur.day) { cur.day = d; myBallot = undefined; }
-    loadBallot(); loadAct(); refreshGated(); ping();
+    loadBallot(); loadAct(); refreshGated(); ping(); loadLiveBallots();
+    // Live: every phone buzzes as the game moves on (where phones can)
+    const st = liveStep(G); if (st && cur.step && st !== cur.step) { try { navigator.vibrate && navigator.vibrate([160, 80, 160]); } catch (e) {} }
+    cur.step = st;
     render();
   });
   sub("square", FB.query(gcol(gid, "square"), FB.orderBy("at", "desc"), FB.limit(300)), q => { allSquare = q.docs.map(x => ({ id: x.id, ...x.data() })).reverse(); render(); });
@@ -125,7 +128,7 @@ async function refreshGated() {
   if (G.overAt && now >= G.overAt) want.push("end");
   for (const k of want) if (!gated[k]) {
     try {
-      const x = await retryDenied(() => FB.getDoc(gref(gid, "gated", k)));
+      const x = await retryDenied(() => getFresh(gref(gid, "gated", k)));
       if (x.exists()) { const v = x.data(); if (k.startsWith("result")) v.deaths = v.exec ? [{ pid: v.exec, how: "banished", d: v.d }] : []; gated[k] = v; watchGhosts(); render(); revealBanished(); }
     } catch (e) { /* not yet */ }
   }
@@ -167,7 +170,7 @@ function render(force) {
   square = allSquare.filter(m => !m.at || m.at <= nowMs());   // a host post can be held back until its time
   markSeen();
   const feed = $("#feed"), atBottom = feed && feed.scrollHeight - feed.scrollTop - feed.clientHeight < 40, y = window.scrollY;
-  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=133" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
+  $("#app").innerHTML = `<header><h1><img class="title-img" src="img/title-the-shadows.webp?v=134" alt="The Shadows" width="${TITLE_W}" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <span class="head-btns">${G && G.sched ? `<button class="btn" data-act="cal" aria-label="Add the timetable to your calendar">📅</button>` : ""}<button class="btn" data-act="rules" aria-label="How to play">📜<span class="lbl"> How to play</span></button></span></header>
     ${body()}<footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ""}`;
   window.scrollTo(0, y);
@@ -245,7 +248,33 @@ function gameHtml() {
   const nav = `<nav class="tabs bottom">${tabs.map(([k, ic, l, dot]) => `<button data-act="tab" data-tab="${k}" aria-pressed="${ui.tab === k}"><span class="ti" aria-hidden="true">${ic}</span> <span>${l}</span>${dot ? `<span class="dot" aria-label="new"></span>` : ""}</button>`).join("")}</nav>`;
   return `${bannerHtml(p)}${nav}${{ today: todayHtml, square: squareHtml, chats: chatsHtml, vote: voteHtml, me: meHtml }[ui.tab](p)}`;
 }
+// Live: what's happening, the countdown, and where to be on the call
+const WHERE_TXT = { main: "🏛️ Everyone in the main room", rooms: "🚪 The breakout rooms are open: go wherever you like", dark: "🌙 Mute, and stay in the dark" };
+// Live: the votes, revealed one at a time by the host (everyone's votes can be read once voting has ended)
+let liveBallots = { d: 0, list: null };
+async function loadLiveBallots() {
+  const d = G.day || 0;
+  if (!isLive(G) || !["count", "verdict", "reveal"].includes(liveStep(G)) || !d || nowMs() < G.days[d].close || (liveBallots.d === d && liveBallots.list)) return;
+  try { liveBallots = { d, list: await retryDenied(() => readBallots(gid, d, (G.live || {}).order)) }; render(); } catch (e) { setTimeout(loadLiveBallots, 3000); }
+}
+function liveVotesHtml() {
+  const L = G.live || {}, order = L.order || [], shown = L.shown || 0, trust = trustDay(G, G.day), ban = L.banished;
+  const by = Object.fromEntries(((liveBallots.d === G.day && liveBallots.list) || []).map(b => [b.voter, b]));
+  const verdict = liveStep(G) !== "verdict" ? "" : trust ? `<p class="lead">🛡️ ${ban ? `<b>${nm(ban)}</b> is the most trusted, and has a shield tonight.` : "Nobody won the trust vote."}</p>`
+    : ban === me ? `<p class="warn">⚖️ <b>You have been banished.</b> It's your turn: unmute, and tell everyone who you really are. The truth is revealed when you've finished.</p>`
+    : ban ? `<p class="lead">⚖️ <b>${nm(ban)}</b> has been banished. Listen to their last words…</p>` : `<p class="lead">⚖️ Nobody is banished.</p>`;
+  return `<section class="card ${ban === me && liveStep(G) === "verdict" ? "todo" : ""}"><h2>🗳️ ${trust ? "The trust vote" : "The votes"}</h2>
+    ${order.slice(0, shown).map(v => `<p class="lead" style="margin:2px 0"><b>${nm(v)}</b> → ${by[v] ? nm(by[v].of) : "…"}</p>`).join("") || `<p class="hint">The first vote is coming…</p>`}${verdict}</section>`;
+}
+function liveBarHtml() {
+  const L = G.live || {}, step = liveStep(G), [ic, name] = LIVE_STEP[step] || ["", ""], where = LIVE_WHERE[step];
+  const left = L.paused ? L.left : L.endsAt ? Math.max(0, L.endsAt - nowMs()) : null, mm = ms => `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
+  const sub = step === "night" && myMurder(P()) ? "The Shadows meet: choose who to murder." : step === "table" ? "Speak up on the call, or type at the 🗣️ Table." : step === "vote" ? (trustDay(G, G.day) ? "Who do you trust most? Vote on your phone." : "Vote on your phone: who should be banished?") : step === "count" ? "The votes are being revealed, one at a time." : "";
+  return `<section class="banner live-bar ${step === "night" ? "dark" : ""}"><span><span class="ph">${ic} ${esc(name)}</span>${where ? `<span class="where">${WHERE_TXT[where]}</span>` : ""}${sub ? `<span>${sub}</span>` : ""}</span>
+    ${left !== null && left !== undefined ? `<span class="clock" ${L.paused ? "" : `data-ends="${L.endsAt}"`}>${mm(left)}${L.paused ? " ⏸️" : ""}</span>` : ""}</section>`;
+}
 function bannerHtml(p) {
+  if (isLive(G) && G.status === "running" && liveStep(G) !== "over") return liveBarHtml();
   const dark = ["night", "dark", "wait"].includes(p.k);
   const what = {
     night: myMurder(p) ? "The Shadows meet: choose who to murder." : "Sleep tight, and lock your door.",
@@ -262,6 +291,8 @@ function todayHtml(p) {
   const out = [];
   if (p.k === "over") out.push(overHtml());
   out.push(pushCardHtml());
+  const step = liveStep(G), early = step === "breakfast";
+  if (step === "verdict" || step === "count") out.push(liveVotesHtml());
   if (myMurder(p) && waitingForResult()) out.push(`<section class="card"><p class="lead">🗡️ The Shadows meet once the host has revealed today's banishment. Check back soon.</p></section>`);
   else if (myMurder(p)) out.push(murderHtml(p));
   const o = myOffer();
@@ -272,7 +303,8 @@ function todayHtml(p) {
   if (d && bk && ["dawn", "chats", "noms", "vote", "count", "dusk", "night", "dark"].includes(p.k)) out.push(breakfastHtml(bk));
   if (d && !bk && nowMs() >= G.days[d].dawn) out.push(`<section class="card"><p class="hint">Fetching the news from the night…</p></section>`);
   if (p.k === "dusk" && !res) out.push(`<section class="card"><p class="lead">The host is still counting the votes. Check back soon.</p></section>`);
-  if (d && (p.k === "chats" || p.k === "dawn") && p.n === d && !amOut()) { const t = G.days[d] || {};
+  if (d && (p.k === "chats" || p.k === "dawn") && p.n === d && !amOut() && !early) { const t = G.days[d] || {};
+    if (isLive(G) && nowMs() < (t.taskStart || 0) && t.task && t.task !== "dayoff") out.push(`<section class="card todo"><p class="lead">⏳ The task starts when the host says go. Read your card now.</p></section>`);
     if (t.task === "whisper") out.push(whisperCardHtml(d));
     if (t.task === "combination") out.push(comboCardHtml(d));
     if (t.task === "lanterns") out.push(lanternsCardHtml(d));
@@ -281,18 +313,18 @@ function todayHtml(p) {
     if (t.task === "dayoff") out.push(`<section class="card"><h2>🌤️ A day off</h2><p class="lead">No task today. Relax, chat, and enjoy the castle.</p></section>`);
     if (t.mission && mySide() !== "shadow") out.push(missionCardHtml(d)); }
   // The Shadows' mission card, from breakfast until the banishment
-  if (d && mySide() === "shadow" && !amOut() && p.n === d && ["dawn", "chats", "noms", "vote", "count", "dusk"].includes(p.k)) out.push(missionCardHtml(d));
+  if (d && mySide() === "shadow" && !amOut() && p.n === d && !early && ["dawn", "chats", "noms", "vote", "count", "dusk"].includes(p.k)) out.push(missionCardHtml(d));
   const trust = trustDay(G, d);
   if (roundTable(p) && p.n === d && !amOut()) out.push(`<section class="card ${myBallot === null ? "todo" : ""}"><h2>🗳️ ${trust ? "The trust vote is open" : "Voting is open"}</h2>
     <p class="lead">${myBallot ? `You've voted for <b>${nm(myBallot.of)}</b>. You can change your vote until ${when(G.days[d].close)}.` : trust ? `Who do you trust most? The winner gets a shield tonight. Vote before ${when(G.days[d].close)}.` : `Vote to banish the player you suspect, before ${when(G.days[d].close)}.`}</p>
     <div class="row"><button class="btn ${myBallot ? "" : "primary"}" data-act="tab" data-tab="vote">🗳️ ${myBallot ? "See your vote" : "Vote now"}</button></div></section>`);
-  if (d && p.k === "chats" && p.n === d) out.push(`<section class="card"><p class="lead">🤫 Private chats are open until ${when(G.days[d].noms)}, when the round table begins.</p></section>`);
+  if (d && p.k === "chats" && p.n === d && !isLive(G)) out.push(`<section class="card"><p class="lead">🤫 Private chats are open until ${when(G.days[d].noms)}, when the round table begins.</p></section>`);
   if (tableOpen(p) && p.n === d) out.push(`<section class="card todo"><h2>🗣️ The round table</h2><p class="lead">Discuss with everyone until ${when(G.days[d].vote)}, when voting begins.</p>
     <div class="row"><button class="btn primary" data-act="tab" data-tab="square">🗣️ Join the discussion</button></div></section>`);
   const fresh = infoNow().filter(x => x.at >= (d ? G.days[d].dawn : 0) - 1);
   if (fresh.length) out.push(`<section class="card"><h2>📜 From the host</h2>${fresh.map(infoHtml).join("")}<p class="hint">Everything you've been told is under Me.</p></section>`);
   if (unreadInfo()) { seen[gid + "info"] = infoNow()[0].at; saveSeen(); }
-  out.push(castleHtml(), timetableHtml());
+  out.push(castleHtml(), isLive(G) ? "" : timetableHtml());
   return out.join("");
 }
 // What a Spy answer looks like on screen
@@ -373,7 +405,7 @@ function lanternsCardHtml(d) {
   return `${head}<p class="lead">You are number <b>${L.num}</b> of ${L.n}.${L.num === 1 ? " You go first!" : ` Light your lantern only when lanterns 1${L.num > 2 ? ` to ${L.num - 1}` : ""} are lit.`}</p>
     <p class="lead">Attempt <b>${attempt}</b> of ${L.attempts}.${pub.out ? " 🌬️ The lanterns went out: start again from 1." : ""}</p>
     ${L.lit === attempt ? `<p class="lead">🕯️ Your lantern is lit. Now help the others.</p>`
-      : privateOpen(P()) ? `<p class="hint">Nobody can see how many lanterns are lit: share numbers in private chats and agree whose turn it is. Light out of turn and they all go out. Not everyone will tell you the truth.</p>
+      : taskOpenAt(t) ? `<p class="hint">Nobody can see how many lanterns are lit: share numbers in private chats and agree whose turn it is. Light out of turn and they all go out. Not everyone will tell you the truth.</p>
         <h3>🔥 Pass the flame</h3><p class="hint">As you light yours, name who deserves the shield (not yourself). If all the lanterns are lit, whoever is named most gets it.</p>
         <div class="picks">${others.map(q => `<button class="pick" data-act="flame-to" data-pid="${q}" aria-pressed="${to === q}">${nm(q)}</button>`).join("")}</div>
         <div class="row"><button class="btn primary" data-act="light" ${to ? "" : "disabled"}>🕯️ Light my lantern${to ? `, and pass the flame to ${nm(to)}` : ""}</button></div>` : ""}</section>`;
@@ -385,7 +417,7 @@ function comboCardHtml(d) {
   if (!C) return `${head}<p class="lead">The Combination is under way.</p></section>`;
   const slots = Array.from({ length: C.len }, (_, i) => i === C.pos ? C.digit : "•").map((c, i) => `<span class="slot ${i === C.pos ? "mine" : ""}">${c}</span>`).join("");
   const left = C.tries - (C.used || 0), mine = (C.results || []).find(r => r.ok);
-  const others = G.seats.filter(s2 => s2.id !== me && !dead()[s2.id]).map(s2 => s2.id), to = others.includes(ui.shareTo) ? ui.shareTo : "", open = privateOpen(P()) && !t.cracked;
+  const others = G.seats.filter(s2 => s2.id !== me && !dead()[s2.id]).map(s2 => s2.id), to = others.includes(ui.shareTo) ? ui.shareTo : "", open = taskOpenAt(t) && !t.cracked && !isLive(G);
   const lie = mySide() === "shadow" && SEC.mission && SEC.mission.d === d && SEC.mission.type === "mislead";   // (a retired mission, for games already running)
   const share = !open ? "" : `<h3>🔐 Share your digit</h3>
     <div class="picks">${others.map(q => `<button class="pick" data-act="share-to" data-pid="${q}" aria-pressed="${to === q}">${nm(q)}</button>`).join("")}</div>
@@ -408,7 +440,7 @@ function keyCardHtml(d) {
   const clue = `<p class="lead">Your clue:</p><p class="quote">${esc(keyClueText(K.clue))}</p>`;
   if (K.search) return `${head}${clue}<p class="lead">You searched the ${esc(K.search.room)}, ${esc(K.search.spot)}: ${K.search.ok ? "✅ <b>you found the key!</b> You have the shield tonight." : "❌ nothing there."}</p>${t.found && !K.search.ok ? `<p class="lead">🗝️ Someone has found the key.</p>` : ""}${rules}</section>`;
   if (t.found) return `${head}${clue}<p class="lead">🗝️ Someone has found the key. Too late for this one.</p></section>`;
-  if (!privateOpen(P())) return `${head}${clue}<p class="lead">The search is over.</p></section>`;
+  if (!taskOpenAt(t)) return `${head}${clue}<p class="lead">${nowMs() < (t.taskStart || 0) ? "" : "The search is over."}</p>${nowMs() < (t.taskStart || 0) ? rules : ""}</section>`;
   const r = ui.keyRoom || "", sp = ui.keySpot || "";
   return `${head}${clue}${rules}
     <h3>🔍 Your search</h3><p class="label">The room</p><div class="picks">${K.rooms.map(x => `<button class="pick" data-act="key-room" data-v="${esc(x)}" aria-pressed="${r === x}">${esc(x)}</button>`).join("")}</div>
@@ -428,7 +460,7 @@ function sealCardHtml(d) {
     ${S2.named && !S2.won ? `<p class="lead">⏳ You've named <b>${nm(S2.named)}</b>. Now they must name you.</p>` : ""}
     ${offers.length && !S2.won ? `<p class="lead">🤝 ${offers.map(q => `<b>${nm(q)}</b>`).join(", ")} ${offers.length === 1 ? "has" : "have"} named you.</p>` : ""}`;
   if (S2.won || t.sealed) return `${head}${mine}${news}${t.sealed && !S2.won ? `<p class="lead">🤝 A seal has been made whole. Too late for this one.</p>` : ""}</section>`;
-  if (!privateOpen(P())) return `${head}${mine}${news}<p class="lead">It's too late to name anyone now.</p></section>`;
+  if (!taskOpenAt(t)) return `${head}${mine}${news}${nowMs() < (t.taskStart || 0) ? rules : `<p class="lead">It's too late to name anyone now.</p>`}</section>`;
   const others = G.seats.filter(s2 => s2.id !== me && !dead()[s2.id]).map(s2 => s2.id), to = others.includes(ui.sealTo) ? ui.sealTo : "";
   return `${head}${mine}${news}${rules}
     ${left > 0 ? `<h3>🤝 Who holds the other half?</h3><div class="picks">${others.map(q => `<button class="pick" data-act="seal-pick" data-pid="${q}" aria-pressed="${to === q}">${nm(q)}</button>`).join("")}</div>
@@ -530,13 +562,13 @@ function squareHtml(p) {
 /* ---------- Private chats ---------- */
 function chatsHtml(p) {
   if (ui.chat) return threadHtml(p, ui.chat);
-  const others = G.seats.filter(s => s.id !== me);
+  const others = isLive(G) ? [] : G.seats.filter(s => s.id !== me);
   const row = (k, pid, title, sub2, icon) => { const l = msgsOf(k), last = l[l.length - 1], u = unreadChat(k);
     return `<button class="prow" data-act="open-chat" data-pid="${pid}" style="border:0;text-align:left;width:100%"><span class="n">${icon}</span>
       <span><b class="nm">${title}</b><br><span class="hint">${last ? `${last.from === me ? "You: " : ""}${esc(last.text.slice(0, 60))}` : sub2}</span></span>
       <span>${u ? `<span class="tag evil">${u} new</span>` : ""}</span></button>`; };
   return `<section class="card"><h2>✉️ Private chats</h2>
-    <p class="hint">${amOut() ? "You're out of the game: you can't message the players still in it, but you can talk to the other dead, and the host." : privateOpen(p) ? `Private chats are open until ${when(G.days[G.day].noms)}. Only the two of you can read them.` : `Private chats are open from breakfast (${G.sched.dawn}) until the round table (${G.sched.noms}).`}</p>
+    <p class="hint">${isLive(G) ? "Live, private talk happens in the breakout rooms on the call. Here: the host, and (if you're one of them) the Shadows' chat at night." : amOut() ? "You're out of the game: you can't message the players still in it, but you can talk to the other dead, and the host." : privateOpen(p) ? `Private chats are open until ${when(G.days[G.day].noms)}. Only the two of you can read them.` : `Private chats are open from breakfast (${G.sched.dawn}) until the round table (${G.sched.noms}).`}</p>
     <div class="town">${inConclave() ? row("conclave", "conclave", "🗡️ The Shadows", "Only the Shadows (and the host) can read this. It opens at the banishment.", "🗡️") : ""}
     ${amOut() ? row("ghosts", "ghosts", "👻 The dead", "Only the players out of the game (and the host) can read this.", "👻") : ""}
     ${row("st", "st", "📜 The host", "Questions or problems: only the host reads this.", "📜")}
@@ -678,7 +710,7 @@ function revealSide() {
     <h2>You are ${side === "shadow" ? "a Shadow" : "a Guest"}</h2>
     ${side === "shadow" && G.dayFirst && !allies.length && !recruited ? `<p class="lead">You don't know who the other Shadows are yet: you'll meet them tonight, when your chat opens.</p>
       ${(SEC.mission || {}).count > 1 ? `<p class="lead">There are <b>${SEC.mission.count} Shadows</b>, including you.</p>` : ""}
-      ${(SEC.mission || {}).type === "findallies" ? `<p class="lead">First, today's challenge. Before the round table, work out who the other Shadows are, and name them on your Today page. Your secret sign, to slip into your private chats so they can spot you:</p>
+      ${isLive(G) ? `<p class="hint">Today's mission, if there is one, arrives with today's task. Until then, blend in.</p>` : (SEC.mission || {}).type === "findallies" ? `<p class="lead">First, today's challenge. Before the round table, work out who the other Shadows are, and name them on your Today page. Your secret sign, to slip into your private chats so they can spot you:</p>
       <p class="quote">“${esc(SEC.mission.sign)}”</p><p class="hint">If every Shadow names at least one other Shadow correctly, you may murder tonight. You'll find out how you did when you meet.</p>`
       : (SEC.mission || {}).type === "spy" ? `<p class="lead">First, today's challenge. Before the round table, find out ${spyAsk(SEC.mission.task, `<b>${nm(SEC.mission.target)}</b>`)}, and enter it on your Today page.</p><p class="hint">If any Shadow gets it right, you may murder tonight.</p>`
       : (SEC.mission || {}).type === "rest" ? `<p class="lead">There's no mission today, and no murder tonight. Until then, blend in.</p>`
@@ -746,7 +778,7 @@ document.getElementById("app").addEventListener("click", e => {
       if (!confirm(`Enter ${code}? You have ${C.tries - (C.used || 0)} ${C.tries - (C.used || 0) === 1 ? "try" : "tries"} left.`)) return;
       return run(async () => { await FB.addDoc(gcol(gid, "days", String(C.d), "codes"), { pid: me, code, at: nowMs() }); ui.combo = ""; }, "🔐 Entered: checking…"); }
     case "wpass": { const w = SEC.whisper; if (!w) return; const to = w.last && w.start && w.start !== true ? w.start : ui.wpick; if (!to) return;
-      if (!privateOpen(P())) return toast("Private chats are closed now.");
+      if (!taskOpenAt(G.days[w.d])) return toast("The Whisper is over.");
       const box = $("#wtext"), text = box ? box.value.trim() : w.phrase;
       if (box && normPhrase(text) !== normPhrase(w.phrase) && !oneWordAdded(w.phrase, text)) return toast("You can only add one word: everything else must stay the same.");
       return run(async () => { await FB.addDoc(gcol(gid, "chats", pairId(me, to), "msgs"), { from: me, text, at: nowMs(), whisper: true }); ui.wpick = ""; ui.wtext = undefined; }, `🤫 You passed the whisper to ${seatName(G, to)}`); }
@@ -774,7 +806,8 @@ document.getElementById("app").addEventListener("click", e => {
       if (!of) return;
       const b = { voter: me, of, at: nowMs() }; if (why) b.reason = why;
       return run(async () => { await FB.setDoc(gref(gid, "days", d, "ballots", me), b); myBallot = b; ui.vote = undefined; ui.draft.why = undefined; render(true); }, `🗳️ You voted to banish ${seatName(G, of)} (secret until voting closes)`); }
-    case "tok": if (pid === me) { ui.tab = "me"; ui.chat = ""; } else { ui.tab = "chats"; ui.chat = pid; } render(true); return window.scrollTo(0, 0);
+    case "tok": if (isLive(G) && pid !== me) return;
+      if (pid === me) { ui.tab = "me"; ui.chat = ""; } else { ui.tab = "chats"; ui.chat = pid; } render(true); return window.scrollTo(0, 0);
     case "push-on": return refreshPush(true);
     case "copy-code": navigator.clipboard && navigator.clipboard.writeText(gid).then(() => toast("Code copied"), () => toast(gid)); return;
     case "push-later": try { localStorage.setItem("shd-push-later", String(Date.now())); } catch (e2) {} return render(true);
@@ -806,6 +839,10 @@ function ping(force) {
   FB.setDoc(gref(gid, "joins", myUid), { seen: nowMs() }, { merge: true }).catch(() => {});
 }
 setInterval(() => { if (G) { refreshGated(); loadAct(); loadBallot(); ping(); } render(); }, 20000);
+// Live countdowns tick every second (without redrawing the page)
+setInterval(() => { for (const e of document.querySelectorAll("[data-ends]")) { const at = +e.dataset.ends; if (at) { const ms = Math.max(0, at - nowMs()); e.textContent = `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`; } } }, 1000);
+// Live: a time the host hasn't reached yet reads as "the host's signal"
+const whenAt = when; when = (ms, now) => isLive(G) && isFinite(ms) && ms - nowMs() > 45 * 60000 ? "the host's signal" : whenAt(ms, now);
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && G) { refreshGated(); ping(true); render(); } });
 fbStart().then(() => { if (gid) watch(); else render(); }).catch(e => { loadErr = "Couldn't connect: " + (e.message || e); ready = true; render(); });
 </script>

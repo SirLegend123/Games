@@ -47,3 +47,15 @@ dialog:has(.reveal) { max-width: min(460px, 94vw); background: radial-gradient(e
 .slots { display: flex; gap: 6px; flex-wrap: wrap; }
 .slot { width: 40px; height: 48px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); font-family: var(--font-display); font-size: 1.4rem; color: var(--muted); }
 .slot.mine { border-color: var(--brass); color: var(--brass); font-weight: 700; }
+
+/* ---------- The live game ---------- */
+.live-ctl h2 { font-size: 1.6rem; margin: 2px 0 6px; }
+.clock { font-family: var(--font-display); font-size: 3.2rem; font-weight: 700; line-height: 1; margin: 6px 0 10px; color: var(--brass); font-variant-numeric: tabular-nums; }
+.btn.big { font-size: 1.15rem; padding: 14px 22px; }
+ul.zoom { margin: 4px 0 12px; padding-left: 1.2em; }
+ul.zoom li { margin: 3px 0; }
+.live-bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+.live-bar .clock { font-size: 2rem; margin: 0; }
+.where { font-weight: 700; }
+.live-bar > span:first-child { display: grid; gap: 3px; }
+.live-bar .ph { font-size: 1.15rem; }
