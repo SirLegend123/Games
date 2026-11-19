@@ -361,9 +361,9 @@ header h1 { line-height: 0; }
   <main id="app"></main>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 140;</script>
-<script src="update.js?v=140"></script>
-<script src="characters.js?v=140"></script>
+<script>window.APP_V = 141;</script>
+<script src="update.js?v=141"></script>
+<script src="characters.js?v=141"></script>
 <script>
 /* A notepad for playing Blood on the Clocktower online: the players, your character,
    what you learn each night, who claims what, and who died and how. Everything stays on this device. */
@@ -987,10 +987,13 @@ function pingsOf(pid) {
   }
   return P;
 }
-// A box's colour: red where the player's been pinged evil (as this kind of evil character), blue where they've been pinged good
-function pingCls(P, r) {
-  const t = teamOf(r), evilCol = t === "minion" || t === "demon";
-  const w = evilCol ? P.evil + (t === "demon" ? P.demon : P.minion) : t === "traveller" ? 0 : P.good;
+// A box's colour: red where the player looks evil (pinged evil, as this kind of evil character, or from all your info), blue where they look good
+// (pinged good, or from your info: an Empath 0 next to them, a Fortune Teller "no", and so on, the same reading as the Analysis tab)
+function pingCls(P, r, lean, sure) {
+  const t = teamOf(r), evilCol = t === "minion" || t === "demon", fromInfo = sure >= 2 ? 1.5 : sure ? 1 : 0;
+  let w = evilCol ? P.evil + (t === "demon" ? P.demon : P.minion) : t === "traveller" ? 0 : P.good;
+  // (A ping as the Demon, or as a Minion, keeps to those columns rather than colouring every evil one)
+  if (t !== "traveller" && lean === (evilCol ? "evil" : "good") && !(evilCol && (P.demon || P.minion))) w = Math.max(w, fromInfo);
   return !w ? "" : `${evilCol ? "pe" : "pg"}${w >= 1.5 ? " strong" : ""}`;
 }
 function gridCard() {
@@ -999,15 +1002,15 @@ function gridCard() {
   // Columns two players hard claim at once
   const hardBy = r => S.players.filter(p => p.id !== S.me && claimedNow(p.id).some(c => c.kind === "hard" && rolesOf(c).includes(r)));
   const dup = new Set(cols.filter(r => hardBy(r).length + (S.role === r ? 1 : 0) > 1));
-  const first = new Set(groups.map(g => g[1][0]));
+  const first = new Set(groups.map(g => g[1][0])), L = leanings();
   const head = `<tr><th class="who" scope="col">Player</th>${cols.map(r => `<th scope="col" class="${teamCls(r)} ${dup.has(r) ? "dup" : ""} ${first.has(r) ? "g0" : ""}" title="${esc(r)}"><span class="ch"><span class="ic" aria-hidden="true">${iconOf(r)}</span><span class="cn">${esc(r)}</span></span></th>`).join("")}</tr>`;
   const rows = S.players.map(p => {
-    const me = p.id === S.me, A = about(p.id), M = marksOf(p.id), now = claimedNow(p.id), P = pingsOf(p.id);
+    const me = p.id === S.me, A = about(p.id), M = marksOf(p.id), now = claimedNow(p.id), P = pingsOf(p.id), [lean, sure] = leanOf(L, p.id);
     return `<tr class="${me ? "me" : ""} ${A.death ? "dead" : ""}"><th class="who" scope="row"><button data-act="grid-open" data-pid="${p.id}">${me ? "★ " : ""}${p.trav ? "✈️ " : ""}${esc(p.name)}</button></th>${cols.map(r => {
       const hard = !me && now.some(c => c.kind === "hard" && rolesOf(c).includes(r)), soft = !me && !hard && now.some(c => c.kind === "soft" && rolesOf(c).includes(r));
       const you = me && S.role === r, mk = M[r] || "", sym = you ? `<span class="you">★</span>` : hard ? `<span class="hard">●</span>` : soft ? `<span class="soft">○</span>` : "";
       const say = [you ? "you" : hard ? "hard claim" : soft ? "soft claim" : "", mk ? { y: "I think so", m: "maybe", n: "ruled out" }[mk] : ""].filter(Boolean).join(", ");
-      const pc = me ? "" : pingCls(P, r);
+      const pc = me ? "" : pingCls(P, r, lean, sure);
       return `<td class="${dup.has(r) && (hard || you) ? "dup" : ""} ${pc} ${!me && A.guess === r ? "guess" : ""} ${first.has(r) ? "g0" : ""}"><button data-act="mark" data-pid="${p.id}" data-role="${esc(r)}" aria-label="${esc(p.name)}, ${esc(r)}${say ? `: ${say}` : ""}">${sym}${mk ? `<span class="mk mk-${mk} ${sym ? "" : "only"}">${MARK_TXT[mk]}</span>` : ""}</button></td>`;
     }).join("")}</tr>`;
   }).join("");
@@ -1015,7 +1018,7 @@ function gridCard() {
   return `<section class="card"><h2>🔲 The Grid</h2>
     <p class="gx-key"><span class="t-townsfolk">Townsfolk</span><span class="t-outsider">Outsiders</span><span class="t-minion">Minions</span><span class="t-demon">Demon</span></p>
     <p class="gx-key"><span><b style="color:var(--brass)">★</b> You</span><span><b style="color:var(--brass)">●</b> Hard claim</span><span><b style="color:var(--brass)">○</b> Soft claim</span><span><b style="color:var(--evil)">▢</b> Your evil guess</span></p>
-    <p class="gx-key"><span><b class="sw pe"></b> Pinged evil</span><span><b class="sw pg"></b> Pinged good</span><span class="hint">(from 📣 Nomination talk; darker for stronger)</span></p>
+    <p class="gx-key"><span><b class="sw pe"></b> Pinged evil</span><span><b class="sw pg"></b> Pinged good</span><span class="hint">(from 📣 Nomination talk and your info, as in 📊 Analysis; darker for stronger)</span></p>
     <p class="gx-key"><span>Tap a box for your own marks:</span><span><b style="color:var(--good)">✓</b> I think so</span><span><b style="color:#d9a441">?</b> Maybe</span><span><b>✕</b> Ruled out</span></p>
     <div class="gx-wrap"><table class="gx">${`<thead>${head}</thead>`}<tbody>${rows}</tbody></table></div>
     <p class="hint">${dup.size ? `<b style="color:var(--evil)">Red columns:</b> two players hard claim the same character. ` : ""}Tap a name to open their notes.${cols.length > 8 ? " On a phone, scroll sideways, or turn it on its side to see more." : ""}</p>
