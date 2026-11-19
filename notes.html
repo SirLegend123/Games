@@ -178,7 +178,11 @@ label.field, .field { display: grid; gap: 6px; }
 .gx tr.dead td { opacity: .55; }
 .gx tr.me th.who { box-shadow: inset 4px 0 0 var(--brass); }
 .gx td button { width: 40px; height: 42px; background: none; border: 0; color: inherit; font: inherit; font-weight: 800; font-size: 1.05rem; display: grid; place-items: center; position: relative; }
-.gx td.dup { background: rgba(196, 66, 66, .16); } .gx th.dup { box-shadow: inset 0 -3px 0 var(--evil); }
+.gx td.dup { background: rgba(196, 66, 66, .16); }
+.gx td.pe { background: rgba(214, 62, 62, .2); } .gx td.pe.strong { background: rgba(214, 62, 62, .38); }
+.gx td.pg { background: rgba(66, 128, 222, .2); } .gx td.pg.strong { background: rgba(66, 128, 222, .38); }
+.gx-key .sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; }
+.gx-key .sw.pe { background: rgba(214, 62, 62, .45); } .gx-key .sw.pg { background: rgba(66, 128, 222, .45); } .gx th.dup { box-shadow: inset 0 -3px 0 var(--evil); }
 .gx .hard { color: var(--brass); font-size: 1.2rem; } .gx .soft { color: var(--brass); }
 .gx .you { color: var(--brass); }
 .gx .mk { position: absolute; right: 2px; bottom: 1px; font-size: .78rem; }
@@ -357,9 +361,9 @@ header h1 { line-height: 0; }
   <main id="app"></main>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 139;</script>
-<script src="update.js?v=139"></script>
-<script src="characters.js?v=139"></script>
+<script>window.APP_V = 140;</script>
+<script src="update.js?v=140"></script>
+<script src="characters.js?v=140"></script>
 <script>
 /* A notepad for playing Blood on the Clocktower online: the players, your character,
    what you learn each night, who claims what, and who died and how. Everything stays on this device. */
@@ -974,6 +978,21 @@ function gridGroups() {
   for (const p of S.players) { const A = about(p.id); A.claims.forEach(c => allRolesOf(c).forEach(r => used.add(r))); if (A.guess) used.add(A.guess); Object.keys(marksOf(p.id)).forEach(r => used.add(r)); }
   return TEAMS.map(t => [TEAM_LABEL[t], [...used].filter(r => (CHAR[r] || {}).team === t).sort()]).filter(g => g[1].length);
 }
+// What the nomination talk says about a player, so far: how strongly they've been pinged evil (and as which kind), or good
+function pingsOf(pid) {
+  const P = { evil: 0, demon: 0, minion: 0, good: 0 };
+  for (const t of talkList()) if (t.pid === pid && (t.ph === undefined || t.ph <= S.ph)) {
+    const [k, , w, says] = talkOf(t.tag);
+    if (w < 0) P.good += -w; else if (says === "demon") P.demon += w; else if (says === "minion") P.minion += w; else P.evil += w;
+  }
+  return P;
+}
+// A box's colour: red where the player's been pinged evil (as this kind of evil character), blue where they've been pinged good
+function pingCls(P, r) {
+  const t = teamOf(r), evilCol = t === "minion" || t === "demon";
+  const w = evilCol ? P.evil + (t === "demon" ? P.demon : P.minion) : t === "traveller" ? 0 : P.good;
+  return !w ? "" : `${evilCol ? "pe" : "pg"}${w >= 1.5 ? " strong" : ""}`;
+}
 function gridCard() {
   const groups = gridGroups().filter(g => g[1].length), cols = groups.flatMap(g => g[1]);
   if (!cols.length) return `<section class="card"><h2>🔲 The Grid</h2><p class="hint">Once someone claims a character, it gets a column here.</p></section>`;
@@ -983,18 +1002,20 @@ function gridCard() {
   const first = new Set(groups.map(g => g[1][0]));
   const head = `<tr><th class="who" scope="col">Player</th>${cols.map(r => `<th scope="col" class="${teamCls(r)} ${dup.has(r) ? "dup" : ""} ${first.has(r) ? "g0" : ""}" title="${esc(r)}"><span class="ch"><span class="ic" aria-hidden="true">${iconOf(r)}</span><span class="cn">${esc(r)}</span></span></th>`).join("")}</tr>`;
   const rows = S.players.map(p => {
-    const me = p.id === S.me, A = about(p.id), M = marksOf(p.id), now = claimedNow(p.id);
+    const me = p.id === S.me, A = about(p.id), M = marksOf(p.id), now = claimedNow(p.id), P = pingsOf(p.id);
     return `<tr class="${me ? "me" : ""} ${A.death ? "dead" : ""}"><th class="who" scope="row"><button data-act="grid-open" data-pid="${p.id}">${me ? "★ " : ""}${p.trav ? "✈️ " : ""}${esc(p.name)}</button></th>${cols.map(r => {
       const hard = !me && now.some(c => c.kind === "hard" && rolesOf(c).includes(r)), soft = !me && !hard && now.some(c => c.kind === "soft" && rolesOf(c).includes(r));
       const you = me && S.role === r, mk = M[r] || "", sym = you ? `<span class="you">★</span>` : hard ? `<span class="hard">●</span>` : soft ? `<span class="soft">○</span>` : "";
       const say = [you ? "you" : hard ? "hard claim" : soft ? "soft claim" : "", mk ? { y: "I think so", m: "maybe", n: "ruled out" }[mk] : ""].filter(Boolean).join(", ");
-      return `<td class="${dup.has(r) && (hard || you) ? "dup" : ""} ${!me && A.guess === r ? "guess" : ""} ${first.has(r) ? "g0" : ""}"><button data-act="mark" data-pid="${p.id}" data-role="${esc(r)}" aria-label="${esc(p.name)}, ${esc(r)}${say ? `: ${say}` : ""}">${sym}${mk ? `<span class="mk mk-${mk} ${sym ? "" : "only"}">${MARK_TXT[mk]}</span>` : ""}</button></td>`;
+      const pc = me ? "" : pingCls(P, r);
+      return `<td class="${dup.has(r) && (hard || you) ? "dup" : ""} ${pc} ${!me && A.guess === r ? "guess" : ""} ${first.has(r) ? "g0" : ""}"><button data-act="mark" data-pid="${p.id}" data-role="${esc(r)}" aria-label="${esc(p.name)}, ${esc(r)}${say ? `: ${say}` : ""}">${sym}${mk ? `<span class="mk mk-${mk} ${sym ? "" : "only"}">${MARK_TXT[mk]}</span>` : ""}</button></td>`;
     }).join("")}</tr>`;
   }).join("");
   const any = S.players.some(p => Object.keys(marksOf(p.id)).length);
   return `<section class="card"><h2>🔲 The Grid</h2>
     <p class="gx-key"><span class="t-townsfolk">Townsfolk</span><span class="t-outsider">Outsiders</span><span class="t-minion">Minions</span><span class="t-demon">Demon</span></p>
     <p class="gx-key"><span><b style="color:var(--brass)">★</b> You</span><span><b style="color:var(--brass)">●</b> Hard claim</span><span><b style="color:var(--brass)">○</b> Soft claim</span><span><b style="color:var(--evil)">▢</b> Your evil guess</span></p>
+    <p class="gx-key"><span><b class="sw pe"></b> Pinged evil</span><span><b class="sw pg"></b> Pinged good</span><span class="hint">(from 📣 Nomination talk; darker for stronger)</span></p>
     <p class="gx-key"><span>Tap a box for your own marks:</span><span><b style="color:var(--good)">✓</b> I think so</span><span><b style="color:#d9a441">?</b> Maybe</span><span><b>✕</b> Ruled out</span></p>
     <div class="gx-wrap"><table class="gx">${`<thead>${head}</thead>`}<tbody>${rows}</tbody></table></div>
     <p class="hint">${dup.size ? `<b style="color:var(--evil)">Red columns:</b> two players hard claim the same character. ` : ""}Tap a name to open their notes.${cols.length > 8 ? " On a phone, scroll sideways, or turn it on its side to see more." : ""}</p>
@@ -1118,10 +1139,10 @@ function infoFormHtml() {
   const need = [F.p ? `${F.pMin === 0 ? "up to " : ""}${F.p} player${F.p === 1 ? "" : "s"}` : "", F.r ? `${F.rMin === 0 ? "up to " : ""}${F.r} character${F.r === 1 ? "" : "s"}` : "", F.n && !F.nOpt ? "a number" : "", F.yn ? "an answer" : ""].filter(Boolean);
   const nMax = Math.min(F.nMax ?? 10, Math.max(S.players.length, 1));
   return `<div class="infoform">
-    <div class="row"><b>${F.label.startsWith("👿") || F.label.startsWith("🎭") ? `${iconOf(ch)} ${esc(ch)}` : esc(F.label)}: ${ui.inf.by ? `what ${esc(nameOf(ui.inf.by))} says they learnt` : "what I learnt or did"}</b><span class="spacer"></span><button class="btn" data-act="inf-pick">${I.pick ? "Close" : "Another character…"}</button></div>
+    <div class="row"><b>${F.label.startsWith("👿") || F.label.startsWith("🎭") ? `${iconOf(ch)} ${esc(ch)}` : F.label}: ${ui.inf.by ? `what ${esc(nameOf(ui.inf.by))} says they learnt` : "what I learnt or did"}</b><span class="spacer"></span><button class="btn" data-act="inf-pick">${I.pick ? "Close" : "Another character…"}</button></div>
     ${I.pick ? `<p class="hint">Whose form? (If you were drunk, or your character changed.)</p>${typed ? `<div class="add"><input type="text" id="infChar" list="allChars" placeholder="Character" autocomplete="off"><button class="btn" data-act="inf-char-typed">Use</button></div><datalist id="allChars">${Object.keys(CHAR).sort().map(n => `<option value="${esc(n)}">`).join("")}</datalist>`
       : `<div class="tiles small">${TEAMS.flatMap(t => SCRIPTS[S.script].roles[t].map(([name, icon]) => `<button class="tile ${t}" data-act="inf-char" data-role="${esc(name)}" aria-pressed="${ch === name}"><span class="ico" aria-hidden="true">${icon}</span>${esc(name)}</button>`)).join("")}</div>`}` : ""}
-    ${fs.length > 1 ? `<div class="seg" role="group">${fs.map((x, k) => `<button data-act="inf-form" data-v="${k}" aria-pressed="${x === F}">${esc(x.label)}</button>`).join("")}</div>` : ""}
+    ${fs.length > 1 ? `<div class="seg" role="group">${fs.map((x, k) => `<button data-act="inf-form" data-v="${k}" aria-pressed="${x === F}">${x.label}</button>`).join("")}</div>` : ""}
     ${need.length ? `<p class="hint">Pick ${andList(need)}.</p>` : `<p class="hint">Write it down below.</p>`}
     ${F.p ? `<div class="pick-row">${S.players.map(p => `<button class="pbtn" data-act="inf-p" data-pid="${p.id}" aria-pressed="${I.ps.includes(p.id)}">${esc(p.name)}</button>`).join("")}</div>` : ""}
     ${F.none ? `<div class="pick-row"><button class="pbtn" data-act="inf-none" aria-pressed="${I.none}">${esc(F.none)}</button></div>` : ""}
