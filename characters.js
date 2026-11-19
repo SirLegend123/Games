@@ -129,12 +129,28 @@ SCRIPTS.snv.travellers = [
   ["Bone Collector", "⚱️", "Once per game, at night*, choose a dead player: they regain their ability until dusk."],
   ["Deviant", "🤡", "If you were funny today, you cannot die by exile."]
 ];
+// Our own character icons, drawn for these apps: Trouble Brewing and its Travellers. Good characters are blue,
+// evil ones red, and Travellers (who can be either) half and half. They sit on parchment, like a real token.
+// Other characters keep their symbols. Each character's .emoji is a symbol for plain-text places (a <select>).
+const ROLE_ART = ["Washerwoman", "Librarian", "Investigator", "Chef", "Empath", "Fortune Teller", "Undertaker", "Monk", "Ravenkeeper", "Virgin", "Slayer", "Soldier", "Mayor",
+  "Butler", "Drunk", "Recluse", "Saint", "Poisoner", "Spy", "Scarlet Woman", "Baron", "Imp", "Scapegoat", "Gunslinger", "Beggar", "Bureaucrat", "Thief"];
+const EMOJI = {};
+const roleArt = n => `<img class="ri" src="img/roles/${n.toLowerCase().replace(/ /g, "-")}.svg" alt="" draggable="false">`;
+for (const sc of Object.values(SCRIPTS)) for (const list of [...Object.values(sc.roles), sc.travellers || []]) for (const r of list) {
+  EMOJI[r[0]] = EMOJI[r[0]] || r[1];
+  if (ROLE_ART.includes(r[0]) && !r[1].startsWith("<")) r[1] = roleArt(r[0]);
+}
+if (typeof document !== "undefined") document.head.insertAdjacentHTML("beforeend", `<style>
+  .ri { width: 1.3em; height: 1.3em; vertical-align: -.3em; object-fit: contain; border-radius: 50%; box-sizing: border-box; padding: .06em;
+    background: radial-gradient(circle at 40% 32%, #fdf7e8 0%, #efe4c9 55%, #d8c69c 100%); }
+  .disc .ri { background: none; padding: 0; width: 1.35em; height: 1.35em; }
+</style>`);
 const TEAMS = ["townsfolk", "outsider", "minion", "demon"];
 const TEAM_LABEL = { townsfolk: "Townsfolk", outsider: "Outsiders", minion: "Minions", demon: "Demon", traveller: "Travellers" };
 const TEAM_ONE = { townsfolk: "Townsfolk", outsider: "Outsider", minion: "Minion", demon: "Demon", traveller: "Traveller" };
 const CHAR = {};
-for (const sc of Object.values(SCRIPTS)) for (const t of TEAMS) for (const [name, icon, text] of sc.roles[t]) CHAR[name] = { name, icon, text, team: t };
-for (const sc of Object.values(SCRIPTS)) for (const [name, icon, text] of sc.travellers || []) CHAR[name] = { name, icon, text, team: "traveller" };
+for (const sc of Object.values(SCRIPTS)) for (const t of TEAMS) for (const [name, icon, text] of sc.roles[t]) CHAR[name] = { name, icon, text, team: t, emoji: EMOJI[name] || icon };
+for (const sc of Object.values(SCRIPTS)) for (const [name, icon, text] of sc.travellers || []) CHAR[name] = { name, icon, text, team: "traveller", emoji: EMOJI[name] || icon };
 const teamOf = r => (CHAR[r] || {}).team || "townsfolk";
 const alignOf = r => ["minion", "demon"].includes(teamOf(r)) ? "evil" : "good";
 // Townsfolk / Outsiders / Minions / Demon by player count
