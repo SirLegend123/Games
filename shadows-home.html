@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120708">
+<script>document.documentElement.dataset.theme = "dark";</script>
+<link rel="icon" type="image/png" href="img/shadows-icon-180.png">
+<link rel="apple-touch-icon" href="img/shadows-icon-180.png">
+<title>The Shadows</title>
+<script>window.APP_V = 137;</script>
+<script src="update.js?v=137"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="daily.css?v=137">
+<link rel="stylesheet" href="shadows.css?v=137">
+<style>
+/* The Shadows' own menu: host, join, the show screen, and the guides */
+.menu { display: grid; gap: 14px; }
+.back { color: var(--muted); text-decoration: none; font-weight: 700; }
+.back:hover { color: var(--brass); }
+.hero { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.hero img.logo { width: 140px; height: auto; }
+.hero img.title { height: 52px; width: auto; max-width: 100%; }
+a.choice { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: center; text-decoration: none; color: inherit; }
+a.choice .ico { grid-row: span 2; font-size: 2rem; }
+a.choice h2 { margin: 0; }
+a.choice p { margin: 0; color: var(--muted); }
+a.choice:hover h2, a.choice:focus-visible h2 { color: var(--fg); }
+.guides { display: grid; gap: 8px; }
+.guides a { color: var(--fg); }
+.guides small { color: var(--muted); }
+.code-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.code-row input { flex: 1 1 140px; min-width: 0; text-transform: uppercase; letter-spacing: .15em; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap menu">
+  <a class="back" href="index.html">← Game Night</a>
+  <div class="hero"><img class="logo" src="img/shadows-logo.webp" alt="The Shadows" width="600" height="600">
+    <p class="hint">A game of murder and suspicion. Shadows hide amongst the Guests, murder one each night, and everyone votes to banish someone.</p></div>
+  <a class="card choice" href="shadows-host.html"><span class="ico" aria-hidden="true">🗝️</span><h2>Host a game</h2><p>Over several days, or 🎥 live in one evening on Zoom.</p></a>
+  <a class="card choice" href="shadows.html"><span class="ico" aria-hidden="true">🕯️</span><h2>Join a game</h2><p>For players: type the game code, and your name.</p></a>
+  <section class="card"><h2>📺 Show screen</h2>
+    <p class="hint">For a live game: open this on the laptop you share in Zoom. (It's also on your 🎥 Live tab.)</p>
+    <div class="code-row"><input id="code" maxlength="6" placeholder="Game code" aria-label="Game code" autocomplete="off"><button class="btn primary" id="open">Open</button></div>
+    <p class="warn" id="err" hidden>The code has 6 letters and numbers.</p></section>
+  <section class="card"><h2>📖 Guides</h2>
+    <div class="guides">
+      <a href="guide/The-Shadows-Live-Host-Crib-Sheet.pdf" target="_blank" rel="noopener">🗒️ The host's crib sheet, for a live game</a>
+      <span><a href="guide/The-Shadows-Live-Players-Guide.pptx">📽️ Live: how to play</a> <small>· <a href="guide/The-Shadows-Live-Script.docx">its script</a></small></span>
+      <span><a href="guide/The-Shadows-Players-Guide.pptx">📽️ Over several days: how to play</a> <small>· <a href="guide/The-Shadows-Script.docx">its script</a></small></span>
+      <a href="guide/The-Shadows-poster.png" target="_blank" rel="noopener">🖼️ The poster</a>
+    </div></section>
+  <footer class="brand"><span>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></span></footer>
+</div>
+<script>
+const code = document.getElementById("code"), err = document.getElementById("err");
+const open = () => { const c = code.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); if (c.length !== 6) { err.hidden = false; return; } location.href = `shadows-show.html?g=${c}`; };
+document.getElementById("open").addEventListener("click", open);
+code.addEventListener("keydown", e => { if (e.key === "Enter") open(); });
+code.addEventListener("input", () => { err.hidden = true; });
+</script>
+</body>
+</html>
