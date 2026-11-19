@@ -29,4 +29,6 @@ exports.onOffer = doc("games/{gid}/secret/{pid}").onUpdate((ch, c) => lib.onOffe
 exports.onAnswer = doc("games/{gid}/nights/{n}/answers/{pid}").onCreate((s, c) => lib.onAnswer(c.params.gid, c.params.n, c.params.pid, s.data()));
 exports.onCode = doc("games/{gid}/days/{d}/codes/{id}").onCreate((s, c) => lib.onCode(c.params.gid, c.params.d, s.data()));
 exports.onLight = doc("games/{gid}/days/{d}/lights/{id}").onCreate((s, c) => lib.onLight(c.params.gid, c.params.d, s.data()));
+exports.onSearch = doc("games/{gid}/days/{d}/searches/{pid}").onCreate((s, c) => lib.onSearch(c.params.gid, c.params.d, c.params.pid, s.data()));
+exports.onBind = doc("games/{gid}/days/{d}/binds/{id}").onCreate((s, c) => lib.onBind(c.params.gid, c.params.d, s.data()));
 exports.onChat = doc("games/{gid}/chats/{pair}/msgs/{id}").onCreate((s, c) => lib.onChat(c.params.gid, c.params.pair, s.data()));
