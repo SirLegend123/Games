@@ -178,6 +178,28 @@ service cloud.firestore {
           && request.resource.data.nominee is string && request.resource.data.nominee != request.resource.data.pid
           && dayT(d).get('task', '') == 'lanterns' && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
       }
+      // The Shadows, the Hidden Key: a player's one search, between breakfast and the round table. Only the host (and the server) read them.
+      match /days/{d}/searches/{pid} {
+        allow read: if isST();
+        allow create: if owns(pid) && !isOut(pid) && !offerPending(pid) && request.resource.data.keys().hasOnly(['room', 'spot', 'at'])
+          && str(request.resource.data.room, 40) && str(request.resource.data.spot, 40)
+          && dayT(d).get('task', '') == 'key' && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
+      }
+      // The Shadows, the Broken Seal: a player names who they think holds the other half of their seal. Only the host (and the server) read them.
+      match /days/{d}/binds/{id} {
+        allow read: if isST();
+        allow create: if owns(request.resource.data.pid) && !isOut(request.resource.data.pid) && !offerPending(request.resource.data.pid)
+          && request.resource.data.keys().hasOnly(['pid', 'of', 'at']) && request.resource.data.of is string && request.resource.data.of != request.resource.data.pid
+          && dayT(d).get('task', '') == 'seal' && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
+      }
+      // The Shadows, the Spy: each Shadow's one answer, until the round table. Only the host (and they) can read it.
+      match /days/{d}/spy/{pid} {
+        allow get: if isST() || owns(pid);
+        allow list: if isST();
+        allow create: if owns(pid) && !isOut(pid) && get(/databases/$(db)/documents/games/$(gid)/secret/$(pid)).data.side == 'shadow'
+          && request.resource.data.keys().hasOnly(['answer', 'at']) && str(request.resource.data.answer, 40)
+          && dayT(d).get('dawn', 9000000000000000) <= now() && now() < dayT(d).get('noms', 0);
+      }
       // The Shadows, Day 1: each Shadow's guess at who the other Shadows are, until the round table. Only the host (and they) can read it.
       match /days/{d}/finds/{pid} {
         allow get: if isST() || owns(pid);

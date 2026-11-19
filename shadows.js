@@ -33,8 +33,8 @@ for (const k of Object.keys(PUSH_TEXT)) PUSH_TEXT[k] = PUSH_TEXT[k].replace(/Clo
 
 /* ---------- The two sides ---------- */
 const SIDE = {
-  guest: { ic: "🕯️", one: "Guest", many: "Guests", cls: "t-townsfolk", emblem: "img/emblem-guest.webp?v=132" },
-  shadow: { ic: "🗡️", one: "Shadow", many: "Shadows", cls: "t-demon", emblem: "img/emblem-shadow.webp?v=132" }
+  guest: { ic: "🕯️", one: "Guest", many: "Guests", cls: "t-townsfolk", emblem: "img/emblem-guest.webp?v=133" },
+  shadow: { ic: "🗡️", one: "Shadow", many: "Shadows", cls: "t-demon", emblem: "img/emblem-shadow.webp?v=133" }
 };
 const sideChip = s => s && SIDE[s] ? `<span class="${SIDE[s].cls}">${SIDE[s].ic} ${SIDE[s].one}</span>` : `<span class="hint">no side yet</span>`;
 // How many Shadows to start with
@@ -72,6 +72,41 @@ function oneWordAdded(a, b) {
   return null;
 }
 const saysPhrase = (text, phrase) => !!normPhrase(phrase) && (" " + normPhrase(text) + " ").includes(" " + normPhrase(phrase) + " ");
+
+/* ---------- The shield tasks ---------- */
+// The Hidden Key: the key is in one room, in one hiding place. Each player is told one room, or one hiding place, it is NOT in.
+const KEY_ROOMS = ["Library", "Cellar", "Chapel", "Conservatory", "Gallery", "Kitchen"];
+const KEY_SPOTS = ["under the rug", "behind a portrait", "inside the clock", "up the chimney", "in a suit of armour"];
+// As many rooms and hiding places as the players can rule out between them (each holds one clue)
+function keyGrid(n) {
+  let r = 2, s = 2;
+  for (;;) {
+    if (r <= s && r < KEY_ROOMS.length && r + s - 1 <= n) r++;
+    else if (s < KEY_SPOTS.length && r + s - 1 <= n) s++;
+    else if (r < KEY_ROOMS.length && r + s - 1 <= n) r++;
+    else break;
+  }
+  return { rooms: KEY_ROOMS.slice(0, r), spots: KEY_SPOTS.slice(0, s) };
+}
+const keyClueText = c => c ? (c.kind === "room" ? `The key is not in the ${c.name}.` : `The key is not ${c.name}.`) : "";
+// The Broken Seal: everyone holds half a seal (a colour and a crest). Find who holds the other half.
+const SEAL_COLS = ["Crimson", "Azure", "Emerald", "Gold"];
+const SEAL_SYMS = [["🦅", "Eagle"], ["🐺", "Wolf"], ["🦉", "Owl"], ["🐍", "Serpent"], ["🦌", "Stag"], ["🐻", "Bear"], ["🦁", "Lion"], ["🐉", "Dragon"]];
+const sealName = id => { const [c, s] = String(id || "").split("-"), y = SEAL_SYMS[+s]; return y ? `${SEAL_COLS[+c]} ${y[0]} ${y[1]}` : ""; };
+const TASKS = {
+  whisper: { ic: "🤫", name: "The Whisper" }, combination: { ic: "🔐", name: "The Combination" }, lanterns: { ic: "🕯️", name: "The Lanterns" },
+  key: { ic: "🗝️", name: "The Hidden Key" }, seal: { ic: "🤝", name: "The Broken Seal" }, dayoff: { ic: "🌤️", name: "A day off" }
+};
+
+/* ---------- The Shadows' missions ----------
+   Each runs alongside the day's task, whatever happens to the shield, and earns that night's murder.
+   The Spy: find out a named Guest's piece of today's task. Frame a Guest: they get enough votes at the banishment.
+   Clean hands: a Guest is banished, and no Shadow votes for them. (Day 1: find your fellow Shadows.) */
+const SPY_TASKS = ["combination", "lanterns", "whisper", "key", "seal"];
+const SPY_WHAT = { combination: "digit", lanterns: "lantern number", whisper: "whisper (who gave it to them)", key: "clue", seal: "half seal" };
+// What the Shadows must find out, about a named player (the name already escaped or made bold)
+const spyAsk = (task, who) => task === "whisper" ? `who gave ${who} the whisper` : `${who}'s ${SPY_WHAT[task]}`;
+const VOTE_MISSIONS = ["frame", "clean"];
 
 /* ---------- The round table ---------- */
 // ballots: [{voter, of, reason?, at}]. Only living players' votes count, and only for living players.

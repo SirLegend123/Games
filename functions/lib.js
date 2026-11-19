@@ -139,7 +139,8 @@ async function onChat(gid, pair, m) {
   // The Combination: a digit shared with the button (true, or a Shadow's one lie)
   const CW = (x.grim.tasks || {})[d];
   if (m.share && CW && CW.type === "combination" && !CW.done && dayOpenNow(x.G, d)) {
-    const share = { from: m.from, to, pos: m.share.pos, digit: String(m.share.digit), lie: String(m.share.digit) !== CW.code[m.share.pos], at };
+    const truth = (CW.shown || {})[m.from] || CW.code[m.share.pos];   // what their phone shows (a red herring is no lie)
+    const share = { from: m.from, to, pos: m.share.pos, digit: String(m.share.digit), lie: String(m.share.digit) !== truth, at };
     await db.doc(`games/${gid}/st/grim`).update({ [`tasks.${d}.shares`]: require("firebase-admin").firestore.FieldValue.arrayUnion(share) });
     if (share.lie) await db.doc(`games/${gid}/secret/${m.from}`).update({ "combo.lied": { to, digit: share.digit, at } });
   }
@@ -221,6 +222,55 @@ async function onLight(gid, d, e) {
   b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d: +d, at, text: failed ? "🌬️ The lanterns have gone out, and there are no attempts left. No shield today." : `🌬️ The lanterns have gone out! Someone lit theirs out of turn. Attempt ${attempt + 1} of ${W.attempts || 3}: start again from 1.` });
   await b.commit();
   await notify(gid, G, alive, { title: "🌬️ The lanterns have gone out", body: failed ? "No attempts left: no shield today." : `Attempt ${attempt + 1} of ${W.attempts || 3}. Start again from 1.`, tag: `lantern-${gid}` });
+}
+// The Hidden Key: a player's one search. The first to search the right room and hiding place wins the shield.
+async function onSearch(gid, d, pid, e) {
+  const x = await load(gid); if (!x) return;
+  const { G, grim } = x, W = (grim.tasks || {})[d], at = e.at || Date.now();
+  if (!isShd(G) || !W || W.type !== "key" || W.done || (grim.dead || {})[pid] || !dayOpenNow(G, d) || !(pid in (W.clues || {}))) return;
+  if ((W.searches || []).some(s2 => s2.pid === pid)) return;
+  const ok = e.room === W.room && e.spot === W.spot, win = ok && !W.found, FV = require("firebase-admin").firestore.FieldValue;
+  const b = db.batch(), g = db.doc(`games/${gid}/st/grim`), sref = db.doc(`games/${gid}/secret/${pid}`);
+  b.update(g, { [`tasks.${d}.searches`]: FV.arrayUnion({ pid, room: String(e.room || ""), spot: String(e.spot || ""), ok, at }), ...(win ? { [`tasks.${d}.found`]: at, [`tasks.${d}.winner`]: pid, [`wshield.${+d + 1}`]: pid } : {}) });
+  b.update(sref, { "key.search": { room: String(e.room || ""), spot: String(e.spot || ""), ok: win, at }, ...(win ? { info: FV.arrayUnion({ n: +d, at, label: "Shield", text: "🗝️ You found the key: you have a shield tonight, and can't be murdered. Everyone is told at the round table." }) } : {}) });
+  if (win) {
+    b.update(db.doc(`games/${gid}`), { [`days.${d}.found`]: at });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d: +d, at, text: "🗝️ The key has been found! Who found it, and where, is revealed at the round table." });
+  }
+  await b.commit();
+  if (win) await notify(gid, G, ["st"], { title: "🗝️ The key has been found", body: `${nameOf(G, pid)} found it, and has the shield.`, tag: `key-${gid}` });
+}
+// The Broken Seal: a player names who they think holds the other half of their seal. When two players name each other,
+// the halves fit (both win a shield, if nobody has yet) or they don't (both are told). Each player has a few tries.
+async function onBind(gid, d, e) {
+  const x = await load(gid); if (!x) return;
+  const { G, grim } = x, W = (grim.tasks || {})[d], pid = e.pid, of = e.of, at = e.at || Date.now(), dead = grim.dead || {};
+  if (!isShd(G) || !W || W.type !== "seal" || W.done || (W.winners || []).length || dead[pid] || dead[of] || !dayOpenNow(G, d)) return;
+  const seals = W.seals || {}; if (!(pid in seals) || !(of in seals) || pid === of) return;
+  const sref = db.doc(`games/${gid}/secret/${pid}`), oref = db.doc(`games/${gid}/secret/${of}`), sec = (await sref.get()).data() || {}, S = sec.seal || {};
+  if (S.d !== +d || (S.used || 0) >= (W.tries || 2)) return;
+  const picks = { ...(W.picks || {}), [pid]: of }, mutual = picks[of] === pid, fits = mutual && seals[pid] === seals[of], FV = require("firebase-admin").firestore.FieldValue;
+  const b = db.batch(), g = db.doc(`games/${gid}/st/grim`), u = { [`tasks.${d}.tried`]: FV.arrayUnion({ pid, of, at, mutual, ok: fits }) };
+  b.update(sref, { "seal.used": (S.used || 0) + 1, "seal.named": of });
+  if (fits) {
+    Object.assign(u, { [`tasks.${d}.winners`]: [of, pid], [`tasks.${d}.sealed`]: at, [`tasks.${d}.picks`]: picks, [`wshield.${+d + 1}`]: of, [`wshield2.${+d + 1}`]: pid });
+    const won = { n: +d, at, label: "Shield", text: "🤝 Your seal is whole: you have a shield tonight, and can't be murdered. Everyone is told at the round table." };
+    b.update(sref, { "seal.won": of, info: FV.arrayUnion(won) }); b.update(oref, { "seal.won": pid, info: FV.arrayUnion(won) });
+    b.update(db.doc(`games/${gid}`), { [`days.${d}.sealed`]: at });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d: +d, at, text: "🤝 A seal has been made whole! Who, is revealed at the round table." });
+  } else if (mutual) {
+    // They named each other, but the halves don't fit: both are told, and both are free to try again
+    delete picks[pid]; delete picks[of];
+    u[`tasks.${d}.picks`] = picks;
+    b.update(sref, { "seal.nofit": of, "seal.named": null }); b.update(oref, { "seal.nofit": pid, "seal.named": null });
+  } else {
+    u[`tasks.${d}.picks`] = picks;
+    b.update(oref, { "seal.offers": FV.arrayUnion(pid) });
+  }
+  b.update(g, u);
+  await b.commit();
+  if (fits) await notify(gid, G, ["st"], { title: "🤝 A seal has been made whole", body: `${nameOf(G, pid)} and ${nameOf(G, of)} both have a shield.`, tag: `seal-${gid}` });
+  else await notify(gid, G, [of], { title: mutual ? "🤝 The halves didn't fit" : "🤝 Someone has named you", body: mutual ? `You and ${nameOf(G, pid)} named each other, but your seals don't match.` : `${nameOf(G, pid)} thinks you hold the other half of their seal.`, tag: `seal-${gid}` });
 }
 // The whisper each player was given (the starter: the original), and one word added to it
 const words = s => normPhrase(s).split(" ").filter(Boolean);
@@ -348,6 +398,20 @@ async function tickGame(gid, G, now) {
   return n2;
 }
 
+// The Shadows' missions and tasks (as in shadows.js)
+const VOTE_MISSIONS = ["frame", "clean"];
+const SEAL_COLS = ["Crimson", "Azure", "Emerald", "Gold"], SEAL_SYMS = ["Eagle", "Wolf", "Owl", "Serpent", "Stag", "Bear", "Lion", "Dragon"];
+const sealLabel = id => { const [c, k] = String(id || "").split("-"); return `${SEAL_COLS[+c] || ""} ${SEAL_SYMS[+k] || ""}`.trim(); };
+// The Spy: the target's piece of today's task (what their phone shows)
+function spyTruth(M, W, grim, d) {
+  const p = M.target; W = W || {};
+  if (M.task === "combination") return (W.shown || {})[p] || "";
+  if (M.task === "lanterns") return String((W.nums || {})[p] || "");
+  if (M.task === "whisper") return ((W.chain || []).find(c => c.to === p) || {}).from || "";
+  if (M.task === "key") return ((W.clues || {})[p] || {}).name || "";
+  if (M.task === "seal") return (W.seals || {})[p] || "";
+  return "";
+}
 // The Shadows' timetable: breakfast, the round table, the banishment, and the Shadows' night
 async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) {
   const sides = grim.sides || {}, shadows = alive.filter(p => sides[p] === "shadow");
@@ -369,7 +433,28 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
     await b.commit(); M.done = true; M.passed = passed;
     once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows found each other" : "❌ The Shadows didn't all find each other", body: passed ? "They may murder tonight." : "No murder tonight. (Nobody is told until the Shadows meet.)", tag: `challenge-${gid}` });
   }
-  if (M && t && now >= t.noms && !M.done) {
+  // The Spy, decided at the round table; framing and clean hands, once the votes are counted. Each Shadow learns how it went straight
+  // away; everyone else hears whether the Shadows succeeded (never what the mission was) with the banishment. Day 1 stays quiet.
+  const res = (grim.results || {})[d];
+  if (M && t && !M.done && (M.type === "spy" ? now >= t.noms : VOTE_MISSIONS.includes(M.type) && res)) {
+    let passed = false;
+    if (M.type === "spy") {
+      const truth = spyTruth(M, W, grim, d), answers = (await db.collection(`games/${gid}/days/${d}/spy`).get()).docs.filter(x => sides[x.id] === "shadow").map(x => String(x.data().answer || ""));
+      passed = !!truth && answers.includes(truth);
+    } else {
+      const ballots = (await db.collection(`games/${gid}/days/${d}/ballots`).get()).docs.map(x => x.data());
+      if (M.type === "frame") passed = ballots.filter(x => x.of === M.target && x.voter !== M.target).length >= (M.need || 3);
+      else passed = !!res.exec && sides[res.exec] !== "shadow" && !ballots.some(x => x.of === res.exec && sides[x.voter] === "shadow");
+    }
+    const b = db.batch(), mine = seatIds(G).filter(p => sides[p] === "shadow");
+    b.update(db.doc(`games/${gid}/st/grim`), { [`missions.${d}.done`]: true, [`missions.${d}.passed`]: passed });
+    for (const p of mine) b.update(db.doc(`games/${gid}/secret/${p}`), { "mission.done": true, "mission.passed": passed });
+    if (!(d === 1 && G.dayFirst)) b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: Math.max(t.reveal || now, now) + 2,
+      text: passed ? "🗝️ The Shadows completed their secret mission today. Tonight, they may murder." : "🗝️ The Shadows failed their secret mission today. Tonight, nobody will be murdered." });
+    await b.commit(); M.done = true; M.passed = passed;
+    once(`mission${d}`, ["st"], { title: passed ? "✅ The Shadows completed their mission" : "❌ The Shadows failed their mission", body: passed ? "They may murder tonight." : "No murder tonight.", tag: `challenge-${gid}` });
+  }
+  if (M && t && now >= t.noms && !M.done && !["spy", ...VOTE_MISSIONS].includes(M.type)) {
     const adds = (W && W.adds) || [], ch = (W && W.chain) || [];
     const all = shadows, passed = M.type === "plainsight" ? !!M.marked : M.type === "snuff" ? !!M.snuffed : M.type === "mislead" ? !!M.misled : M.type === "addword" ? adds.some(a => ch.some(c => c.from === a.to)) : all.every(p => (M.said || {})[p]) && !M.caught, b = db.batch();
     b.update(db.doc(`games/${gid}/st/grim`), { [`missions.${d}.done`]: true, [`missions.${d}.passed`]: passed });
@@ -391,11 +476,28 @@ async function shadowsDue({ gid, G, grim, now, d, t, all, alive, once, gated }) 
     await b.commit(); W.done = true;
   }
   if (W && W.type === "combination" && t && now >= t.noms && !W.done) {
-    const b = db.batch();
+    const b = db.batch(), H2 = W.herrings || [];
+    const herr = W.shown ? (H2.length ? ` Red herrings (given a false digit, without knowing): ${H2.map(p => nameOf(G, p)).join(" and ")}.` : " There were no red herrings today: every digit given out was true.") : "";
     b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true });
-    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: W.cracked
-      ? `🔐 The Combination: ✅ cracked by ${nameOf(G, W.winner)}, who has a shield tonight. The code was ${W.code}. Check it against the digits you were told…`
-      : `🔐 The Combination: ❌ nobody cracked it in time, so no shield. The code was ${W.code}. Check it against the digits you were told…` });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: (W.cracked
+      ? `🔐 The Combination: ✅ cracked by ${nameOf(G, W.winner)}, who has a shield tonight. The code was ${W.code}.`
+      : `🔐 The Combination: ❌ nobody cracked it in time, so no shield. The code was ${W.code}.`) + herr + " Check it against the digits you were told…" });
+    await b.commit(); W.done = true;
+  }
+  if (W && W.type === "key" && t && now >= t.noms && !W.done) {
+    const b = db.batch(), S = W.searches || [], wrong = S.filter(x => !x.ok || x.pid !== W.winner);
+    b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: (W.found
+      ? `🗝️ The Hidden Key: ✅ found by ${nameOf(G, W.winner)}, in the ${W.room}, ${W.spot}. They have a shield tonight.`
+      : `🗝️ The Hidden Key: ❌ nobody found it, so no shield. It was in the ${W.room}, ${W.spot}.`) + (wrong.length ? ` Searched in vain: ${wrong.map(x => `${nameOf(G, x.pid)} (the ${x.room}, ${x.spot})`).join("; ")}.` : " Nobody else searched.") });
+    await b.commit(); W.done = true;
+  }
+  if (W && W.type === "seal" && t && now >= t.noms && !W.done) {
+    const b = db.batch(), win = W.winners || [], seal = win.length ? W.seals[win[0]] : "";
+    b.update(db.doc(`games/${gid}/st/grim`), { [`tasks.${d}.done`]: true });
+    b.set(db.collection(`games/${gid}/square`).doc(), { pid: "", kind: "st", d, at: now, text: win.length
+      ? `🤝 The Broken Seal: ✅ ${nameOf(G, win[0])} and ${nameOf(G, win[1])} made the ${sealLabel(seal)} seal whole. They both have a shield tonight.`
+      : "🤝 The Broken Seal: ❌ no seal was made whole, so no shield." });
     await b.commit(); W.done = true;
   }
   if (W && W.type === "whisper" && t && now >= t.noms && !W.done && W.failed) { await db.doc(`games/${gid}/st/grim`).update({ [`tasks.${d}.done`]: true, [`tasks.${d}.winner`]: null }); W.done = true; }
@@ -556,4 +658,4 @@ async function onGameUpdate(gid, before, after) {
     await notify(gid, after, seatIds(after), { title: "🗝️ Your role has been chosen", body: "Open The Shadows to find out: are you a Guest, or a Shadow? Keep it to yourself.", tag: `role-${gid}` });
 }
 
-module.exports = { onLight, onCode, init, vapid, notify, tick, tickGame, expired, cleanup, onGameUpdate, onConclave, autoBanish, autoTrust, saysPhrase, onOffer, onAnswer, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
+module.exports = { onLight, onCode, onSearch, onBind, init, vapid, notify, tick, tickGame, expired, cleanup, onGameUpdate, onConclave, autoBanish, autoTrust, saysPhrase, onOffer, onAnswer, onSubscribe, onNomination, onDefence, onSquare, onStChat, onChat, actsAt };
