@@ -7,17 +7,17 @@
 <script>document.documentElement.dataset.theme = "dark";</script>
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <title>The Shadows: show screen</title>
-<script>window.APP_V = 137;</script>
-<script src="update.js?v=137"></script>
+<script>window.APP_V = 138;</script>
+<script src="update.js?v=138"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=137"></script>
-<script src="shadows.js?v=137"></script>
+<script src="daily.js?v=138"></script>
+<script src="shadows.js?v=138"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=137">
-<link rel="stylesheet" href="shadows.css?v=137">
+<link rel="stylesheet" href="daily.css?v=138">
+<link rel="stylesheet" href="shadows.css?v=138">
 <style>
 /* The show screen: shared in Zoom, so big, bold and readable from a little window */
 html, body { height: 100%; }
@@ -53,6 +53,11 @@ body { margin: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 2
 .castle-row span.out { opacity: .5; text-decoration: line-through; }
 .shadow-t { color: #e0675b; } .guest-t { color: #8fb3e6; }
 .night .stage h1 { color: #b9c4e8; }
+/* The way back: hidden while everyone's watching, it appears when the host moves the mouse or taps */
+.back-btn { position: fixed; top: 1.6vh; left: 50%; transform: translateX(-50%); z-index: 10; font-size: 2vh; font-weight: 700; color: var(--fg); text-decoration: none;
+  background: #24110f; box-shadow: 0 4px 14px rgba(0, 0, 0, .6); border: 1px solid #c9a26a; border-radius: 99px; padding: .8vh 1.6vw; opacity: 0; pointer-events: none; transition: opacity .4s; }
+.back-btn.on { opacity: 1; pointer-events: auto; }
+.back-btn:hover { border-color: var(--brass); color: var(--brass); }
 /* The lobby: how to join, and who's been seated so far */
 .lobby { display: grid; grid-template-columns: auto 1fr; gap: 5vw; align-items: center; text-align: left; }
 .join { display: grid; justify-items: center; gap: 1.5vh; text-align: center; }
@@ -67,6 +72,7 @@ body { margin: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 2
 </style>
 </head>
 <body>
+<a id="back" class="back-btn" href="shadows-home.html">← The Shadows</a>
 <div id="app" class="show"><p class="hint">Opening…</p></div>
 <script>
 /* ---------- The Shadows: the show screen ----------
@@ -98,7 +104,7 @@ function render() {
   const where = LIVE_WHERE[step] ? `<div class="where">${WHERE[LIVE_WHERE[step]]}</div>` : "";
   const [ic, name] = LIVE_STEP[step] || ["", ""];
   document.body.classList.toggle("night", step === "night");
-  app.innerHTML = `<div class="show-top"><img src="img/title-the-shadows.webp?v=137" alt="The Shadows" width="544" height="150"><span class="day">${esc(G.name || "")}${d ? ` · Day ${d}` : ""}</span></div>
+  app.innerHTML = `<div class="show-top"><img src="img/title-the-shadows.webp?v=138" alt="The Shadows" width="544" height="150"><span class="day">${esc(G.name || "")}${d ? ` · Day ${d}` : ""}</span></div>
     <div class="stage">${stage(step, d, t, L, ic, name, clock, where)}</div>
     <div>${step === "lobby" ? "" : castleRow()}</div>`;
 }
@@ -188,6 +194,11 @@ setInterval(() => {
   if (G && liveStep(G) === "task") { const t = G.days[G.day] || {}; if (t.task === "combination" && !t.cracked) render(); }
 }, 1000);
 setInterval(() => { if (G) { refreshGated(); render(); } }, 15000);
+// Show the back button for a few seconds after the mouse moves (or the screen is tapped)
+{ const btn = $("#back"); let t = 0;
+  const wake = () => { btn.classList.add("on"); clearTimeout(t); t = setTimeout(() => { if (!btn.matches(":hover")) btn.classList.remove("on"); }, 3000); };
+  for (const ev of ["mousemove", "touchstart", "keydown"]) addEventListener(ev, wake, { passive: true });
+  btn.addEventListener("mouseleave", () => { clearTimeout(t); t = setTimeout(() => btn.classList.remove("on"), 1500); }); }
 if (!gid) loadErr = "Open this from your 🎥 Live tab (it needs the game code).";
 fbStart().then(() => { if (gid) watch(); render(); }).catch(e => { loadErr = "Couldn't connect: " + (e.message || e); render(); });
 render();
