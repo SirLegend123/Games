@@ -305,12 +305,12 @@ document.getElementById("homeBtn").addEventListener("click", e => {
 <div id="qrBig" class="qr-big" hidden role="dialog" aria-modal="true" aria-label="Scan to join"></div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
-<script>window.APP_V = 149;</script>
-<script src="update.js?v=149"></script>
-<script src="characters.js?v=149"></script>
+<script>window.APP_V = 150;</script>
+<script src="update.js?v=150"></script>
+<script src="characters.js?v=150"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="net.js?v=149"></script>
+<script src="net.js?v=150"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -435,6 +435,9 @@ function joinBanner() {
     <p class="${town.status === "error" ? "warn" : "hint"}">${town.status === "on" ? (S.players.length ? `📱 ${on.length} of ${S.players.length} joined${on.length ? `: ${esc(listJoin(on.map(nameOf)))}` : ""}.` : "Add the players, then they can join.") : town.status === "error" ? esc(town.err || "Connection problem. Trying again…") : "Starting…"}</p>
   </section>`;
 }
+// ✉️ Private notes on phones: to anyone (in the private chats), neighbours only, or off. Asked before the game, changeable in the day.
+const notesHtml = () => `<div class="field"><span class="label">✉️ Private notes on phones</span><div class="seg" role="group" aria-label="Private notes on phones"><button data-act="nb-only" data-v="" aria-pressed="${!nbOnly() && !notesOff()}">To anyone</button><button data-act="nb-only" data-v="1" aria-pressed="${nbOnly()}">Neighbours only</button><button data-act="nb-only" data-v="off" aria-pressed="${notesOff()}">Off (face to face)</button></div>
+      <span class="hint">${notesOff() ? "No private notes on phones, day or night: players talk to each other in person." : nbOnly() ? "Players have their private chats in person; on their phones they can only pass notes to the players either side of them." : "Players can pass a private note to anyone on their phone during private chats (neighbours only, the rest of the day and at night). Face to face, choose neighbours only, or off."}</span></div>`;
 function playersHtml() {
   const all = S.players.length, n = tCount();
   const rows = S.players.map((p, i) => `<div class="prow" data-i="${i}">
@@ -461,6 +464,7 @@ function playersHtml() {
     ${all ? `<div class="players">${rows}</div>` : ""}
     <p class="hint">Tap ✈️ to make a player a Traveller: they're not in the bag, and you give them a Traveller character on the Grimoire.</p>
     <p class="hint">${tv ? `✈️ ${plural(tv, "Traveller")}, plus ` : ""}${n < 5 ? `${plural(n, "player")}. You need at least 5.` : n > 15 ? `${n} players. The most is 15.` : `${plural(n, "player")}: ${ex.c.map((x, i) => `${x} ${i === 3 ? "Demon" : TEAM_LABEL[TEAMS[i]]}`).join(", ")}.`}</p>
+    ${S.townOn ? notesHtml() : ""}
     <div class="row">
       ${all ? `<button class="btn danger" data-act="clear-players">Clear all</button>` : ""}
       <span class="spacer"></span>
@@ -1458,8 +1462,7 @@ function phaseHtml() {
   const l = timerLeft(), next = PHASES[ph + 1];
   return `<div class="phases" role="list">${PHASES.map((x, k) => `<button class="phase ${k === ph ? "on" : k < ph ? "past" : ""}" role="listitem" data-act="phase-go" data-v="${k}" ${k === ph || (k < ph && locked) ? "disabled" : ""} ${k === ph ? 'aria-current="step"' : ""}><span>${x.icon}</span> ${x.name}<small>${phaseMins(k)} min</small></button>`).join("")}</div>
     <p class="notice">${P.icon} <b>${P.name}.</b> ${phaseTip(ph)}</p>
-    <div class="field"><span class="label">✉️ Private notes on phones</span><div class="seg" role="group" aria-label="Private notes on phones"><button data-act="nb-only" data-v="" aria-pressed="${!nbOnly() && !notesOff()}">To anyone</button><button data-act="nb-only" data-v="1" aria-pressed="${nbOnly()}">Neighbours only</button><button data-act="nb-only" data-v="off" aria-pressed="${notesOff()}">Off (face to face)</button></div>
-      <span class="hint">${notesOff() ? "No private notes on phones, day or night: players talk to each other in person." : nbOnly() ? "Players have their private chats in person; on their phones they can only pass notes to the players either side of them." : "Players can pass a private note to anyone on their phone during private chats (neighbours only, the rest of the day and at night). Face to face, choose neighbours only, or off."}</span></div>
+    ${notesHtml()}
     <div class="row">
       <span class="phase-clock ${timerState()}" id="tBadge" role="timer">${fmtTime(l)}</span>
       <button class="btn ${T.end ? "" : "primary"}" data-act="timer-go" ${l ? "" : "disabled"}>${T.end ? "⏸ Pause" : l < T.total ? "▶ Carry on" : "▶ Start the timer"}</button>
