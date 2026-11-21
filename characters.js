@@ -104,7 +104,47 @@ const SCRIPTS = {
       ["No Dashii", "🦑", "Each night*, choose a player: they die. Your 2 Townsfolk neighbours are poisoned."],
       ["Vortox", "🌪️", "Each night*, choose a player: they die. Townsfolk abilities yield false info. Each day, if no-one is executed, evil wins."]
     ]
-  } }
+  } },
+  // A homebrew script by Tej
+  op: { name: "Onion Pies (by Tej)", roles: {
+    townsfolk: [
+      ["Noble", "💎", "You start knowing 3 players, 1 and only 1 of which is evil."],
+      ["Chef", "🍳", "You start knowing how many pairs of evil players there are."],
+      ["Washerwoman", "🧺", "You start knowing that 1 of 2 players is a particular Townsfolk."],
+      ["Librarian", "📚", "You start knowing that 1 of 2 players is a particular Outsider. (Or that zero are in play.)"],
+      ["Pixie", "🧚", "You start knowing 1 in-play Townsfolk. If you were mad that you were this character, you gain their ability when they die."],
+      ["Empath", "💞", "Each night, you learn how many of your 2 alive neighbours are evil."],
+      ["Fortune Teller", "🔮", "Each night, choose 2 players: you learn if either is a Demon. There is a good player that registers as a Demon to you."],
+      ["Monk", "🙏", "Each night*, choose a player (not yourself): they are safe from the Demon tonight."],
+      ["Slayer", "🏹", "Once per game, during the day, publicly choose a player: if they are the Demon, they die."],
+      ["Soldier", "🛡️", "You are safe from the Demon."],
+      ["Ravenkeeper", "🪶", "If you die at night, you are woken to choose a player: you learn their character."],
+      ["Virgin", "🕊️", "The 1st time you are nominated, if the nominator is a Townsfolk, they are executed immediately."],
+      ["Cannibal", "🍖", "You have the ability of the recently killed executee. If they are evil, you are poisoned until a good player dies by execution."],
+      ["Mayor", "🎩", "If only 3 players live & no execution occurs, your team wins. If you die at night, another player might die instead."]
+    ],
+    outsider: [
+      ["Ogre", "🧌", "On your 1st night, choose a player (not yourself): you become their alignment (you don't know which) even if drunk or poisoned."],
+      ["Saint", "😇", "If you die by execution, your team loses."],
+      ["Recluse", "🕸️", "You might register as evil & as a Minion or Demon, even if dead."],
+      ["Drunk", "🍺", "You do not know you are the Drunk. You think you are a Townsfolk character, but you are not."]
+    ],
+    minion: [
+      ["Poisoner", "🧪", "Each night, choose a player: they are poisoned tonight and tomorrow day."],
+      ["Spy", "🕵️", "Each night, you see the Grimoire. You might register as good & as a Townsfolk or Outsider, even if dead."],
+      ["Baron", "🏰", "There are extra Outsiders in play. [+2 Outsiders]"],
+      ["Scarlet Woman", "💋", "If there are 5 or more players alive & the Demon dies, you become the Demon. (Travellers don't count.)"],
+      ["Marionette", "🎎", "You think you are a good character, but you are not. The Demon knows who you are. [You neighbour the Demon]"]
+    ],
+    demon: [
+      ["Imp", "😈", "Each night*, choose a player: they die. If you kill yourself this way, a Minion becomes the Imp."]
+    ]
+  },
+  // Jinxes: how two characters work together on this script
+  jinxes: [
+    ["Recluse", "Ogre", "If the Recluse registers as evil to the Ogre, the Ogre learns that they are evil."],
+    ["Spy", "Ogre", "The Spy registers as evil to the Ogre."]
+  ] }
 };
 // ✈️ Travellers: for players who arrive late or leave early. They're not in the bag or the setup numbers;
 // the Storyteller gives them a character (which everyone knows) and a side (which only they know).
@@ -156,4 +196,4 @@ const alignOf = r => ["minion", "demon"].includes(teamOf(r)) ? "evil" : "good";
 // Townsfolk / Outsiders / Minions / Demon by player count
 const COMP = { 5: [3,0,1,1], 6: [3,1,1,1], 7: [5,0,1,1], 8: [5,1,1,1], 9: [5,2,1,1], 10: [7,0,2,1], 11: [7,1,2,1], 12: [7,2,2,1], 13: [9,0,3,1], 14: [9,1,3,1], 15: [9,2,3,1] };
 // Characters who are shown something else when they draw
-const SHOWN = { Drunk: "townsfolk", Lunatic: "demon" };
+const SHOWN = { Drunk: "townsfolk", Lunatic: "demon", Marionette: "townsfolk" };

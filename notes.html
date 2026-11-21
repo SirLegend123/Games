@@ -372,9 +372,9 @@ header h1 { line-height: 0; }
     <div class="row"><button class="btn primary huge" data-act="show-grim">Open my notes</button></div></div></div>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 158;</script>
-<script src="update.js?v=158"></script>
-<script src="characters.js?v=158"></script>
+<script>window.APP_V = 159;</script>
+<script src="update.js?v=159"></script>
+<script src="characters.js?v=159"></script>
 <script>
 /* A notepad for playing Blood on the Clocktower online: the players, your character,
    what you learn each night, who claims what, and who died and how. Everything stays on this device. */
@@ -1121,7 +1121,10 @@ const INFO = {
   Cerenovus: { p: 1, r: 1, rt: ["townsfolk", "outsider"], say: f => `I made ${f.ps[0]} mad about being the ${f.rs[0]}` },
   "Pit-Hag": { p: 1, r: 1, rt: ALL_TEAMS, say: f => `I turned ${f.ps[0]} into the ${f.rs[0]}` },
   Barber: { p: 2, say: f => `I swapped ${andList(f.ps)}` },
-  "Fang Gu": chose("I attacked"), Vigormortis: chose("I attacked"), "No Dashii": chose("I attacked"), Vortox: chose("I attacked")
+  "Fang Gu": chose("I attacked"), Vigormortis: chose("I attacked"), "No Dashii": chose("I attacked"), Vortox: chose("I attacked"),
+  Noble: { p: 3, say: f => `One, and only one, of ${andList(f.ps)} is evil` },
+  Pixie: { r: 1, rt: ["townsfolk"], say: f => `The ${f.rs[0]} is in play (I'm mad that I'm the ${f.rs[0]})` },
+  Ogre: chose("I chose"), Cannibal: { r: 1, rt: ["townsfolk", "outsider", "minion", "demon"], say: f => `I think I have the ${f.rs[0]}'s ability` }
 };
 // Anything else: players, characters or a number, as you like
 const GENERIC = { p: 3, pMin: 0, r: 2, rMin: 0, rt: ALL_TEAMS, n: true, nOpt: true, say: f => [andList(f.ps), orList(f.rs), f.n != null ? nm(f.n) : ""].filter(Boolean).join(" · ") };

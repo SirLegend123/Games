@@ -7,12 +7,12 @@
 <link rel="icon" type="image/png" href="img/espionage-icon-64.png">
 <link rel="apple-touch-icon" href="img/espionage-icon-180.png">
 <title>Espionage</title>
-<script>window.APP_V = 158;</script>
-<script src="update.js?v=158"></script>
+<script>window.APP_V = 159;</script>
+<script src="update.js?v=159"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="espionage.css?v=158">
+<link rel="stylesheet" href="espionage.css?v=159">
 <style>
 /* The phone: your role, your badge, the scanner, your reports and the vote */
 .brand { display: flex; align-items: center; gap: 10px; }
@@ -61,9 +61,9 @@ select { font: inherit; color: var(--fg); background: #0a1322; border: 1px solid
 <div class="wrap" id="app"><p class="hint">Loading…</p></div>
 <div id="scan" hidden></div>
 <div id="cover" hidden><div class="card"><h2>Screen covered</h2><p class="hint">Tap anywhere to come back.</p></div></div>
-<script src="vendor/firebase.js?v=158"></script>
-<script src="vendor/qrcode.js?v=158"></script>
-<script src="espionage.js?v=158"></script>
+<script src="vendor/firebase.js?v=159"></script>
+<script src="vendor/qrcode.js?v=159"></script>
+<script src="espionage.js?v=159"></script>
 <script>
 const $ = id => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
@@ -148,9 +148,9 @@ function draw() {
   h += `<footer>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></footer>`;
   app.innerHTML = h;
 }
-const head = () => `<div class="brand"><h1 class="grow"><img class="wordmark" src="img/espionage-wordmark.webp?v=158" alt="Espionage" width="900" height="135" style="width:min(240px,62vw)"></h1>${S.pid && S.G && S.G.status === "running" ? `<button class="btn small cover-btn" data-act="cover" aria-label="Cover the screen">🙈 Cover</button>` : ""}</div>`;
+const head = () => `<div class="brand"><h1 class="grow"><img class="wordmark" src="img/espionage-wordmark.webp?v=159" alt="Espionage" width="900" height="135" style="width:min(240px,62vw)"></h1>${S.pid && S.G && S.G.status === "running" ? `<button class="btn small cover-btn" data-act="cover" aria-label="Cover the screen">🙈 Cover</button>` : ""}</div>`;
 function joinForm(withCode) {
-  return `<img class="emblem" src="img/espionage-emblem.webp?v=158" alt="" width="300" height="338">
+  return `<img class="emblem" src="img/espionage-emblem.webp?v=159" alt="" width="300" height="338">
     <p class="hint" style="text-align:center">Agents and Spies, in one room. Scan badges, share what you learn, and catch the Black Hat.</p>
     <section class="card"><h2>Join a game</h2>
     ${withCode ? `<input id="code" maxlength="6" placeholder="Game code" aria-label="Game code" autocomplete="off" style="text-transform:uppercase;letter-spacing:.2em" value="${esc(S.gid)}">` : `<p class="hint">Game <b class="mono">${esc(S.gid)}</b></p>`}
@@ -281,7 +281,7 @@ async function startCamera() {
   if (!SC.open) return stopCamera();
   drawScan();
   if ("BarcodeDetector" in window) { try { SC.detector = new BarcodeDetector({ formats: ["qr_code"] }); } catch (e) { SC.detector = null; } }
-  if (!SC.detector && !window.jsQR) await new Promise(ok => { const s = document.createElement("script"); s.src = "vendor/jsqr.min.js?v=158"; s.onload = ok; s.onerror = ok; document.head.appendChild(s); });
+  if (!SC.detector && !window.jsQR) await new Promise(ok => { const s = document.createElement("script"); s.src = "vendor/jsqr.min.js?v=159"; s.onload = ok; s.onerror = ok; document.head.appendChild(s); });
   scanLoop();
 }
 function stopCamera() { cancelAnimationFrame(SC.loop); if (SC.stream) SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; }
