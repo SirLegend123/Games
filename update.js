@@ -20,6 +20,15 @@
     b.onclick = () => { const u = new URL(location.href); u.searchParams.set("v", v); location.replace(u.toString()); };
     document.body.appendChild(b);
   }
+  // A button can ask straight away: update if there's a newer version, otherwise say it's up to date
+  window.appUpdate = async function () {
+    try {
+      const r = await fetch("version.json?t=" + Date.now(), { cache: "no-store" });
+      const { v } = await r.json();
+      if (v && window.APP_V && v > window.APP_V) { const u = new URL(location.href); u.searchParams.set("v", v); location.replace(u.toString()); return "updating"; }
+      return "current";
+    } catch (e) { return "offline"; }
+  };
   check();
   setInterval(check, 120000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
