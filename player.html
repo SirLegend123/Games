@@ -319,11 +319,11 @@ header h1 { line-height: 0; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 150;</script>
-<script src="update.js?v=150"></script>
-<script src="characters.js?v=150"></script>
+<script>window.APP_V = 151;</script>
+<script src="update.js?v=151"></script>
+<script src="characters.js?v=151"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=150"></script>
+<script src="net.js?v=151"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -435,18 +435,20 @@ function waitHtml() {
   <p class="hint" style="text-align:center">Holding a real token from the Storyteller instead? <button class="btn" data-act="pick-own">Choose it myself</button></p>`;
 }
 // The token arrives: tap to see it, so nobody nearby catches a glimpse
+// Picked the wrong name when joining? Change seat, before (or after) looking at the token
+const unseatHint = () => { const lb = link.lobby; return lb && lb.you ? `<p class="hint" style="text-align:center">Joined as <b>${esc(lname(lb.you))}</b>. <button class="btn small" data-act="link-unseat">Not you? Change seat</button></p>` : ""; };
 function revealHtml() {
   const c = CHAR[S.role] || { icon: "", text: "", team: "townsfolk", name: S.role }, evil = S.side === "evil";
   if (!ui.peek) return `<section class="card reveal"><h2>Your token has arrived</h2>
     <p class="lead">Make sure nobody can see your screen, then tap to see your character.</p>
-    <button class="btn primary huge" data-act="peek">Show me</button></section>`;
+    <button class="btn primary huge" data-act="peek">Show me</button></section>${unseatHint()}`;
   return `<section class="card reveal">
     <p class="lead">You are the</p>
     <div class="token-big ${evil ? "evil" : c.team}"><span class="ico" aria-hidden="true">${c.icon}</span><span>${esc(S.role)}</span></div>
     <p class="lead"><span class="t-${c.team}" style="font-weight:800">${TEAM_LABEL[c.team] ? TEAM_LABEL[c.team].replace(/s$/, "") : ""}</span> · <b style="color:var(--${evil ? "evil" : "good"})">${evil ? "Evil" : "Good"}</b></p>
     ${c.text ? `<p class="ability">${esc(c.text)}${c.text.includes("night*") ? "<small>* not the first night</small>" : ""}</p>` : ""}
     <div class="row" style="justify-content:center"><button class="btn" data-act="unpeek">Hide it</button><button class="btn primary" data-act="to-grim">Open my Grimoire →</button></div>
-  </section>`;
+  </section>${unseatHint()}`;
 }
 function tokenHtml() {
   const R = SCRIPTS[S.script].roles;
@@ -977,8 +979,9 @@ function linkCard() {
   if (!lb) return `<section class="card">${head}</section>`;
   if (!me) return `<section class="card">${head}${seatPick(lb)}</section>`;
   const ch = link.chat;
+  const unseat = `<button class="btn small" data-act="link-unseat">Not ${esc(lname(me))}? Change seat</button>`;
   // Face to face, the Storyteller may have turned private notes off: then there's nobody to message
-  if (lb.notesOff) return `<section class="card">${head}<p class="hint">You're <b>${esc(lname(me))}</b>. ✉️ Private notes are off in this game: talk to each other in person.</p>
+  if (lb.notesOff) return `<section class="card">${head}<p class="hint">You're <b>${esc(lname(me))}</b>. ✉️ Private notes are off in this game: talk to each other in person.</p>${unseat}
     ${(lb.v || 0) < window.APP_V ? `<p class="warn">⚠ The Storyteller's app is an older version. Ask the Storyteller to reload their app.</p>` : ""}</section>`;
   const rows = lb.players.filter(p => p.id !== me).map(p => {
     const can = (lb.day || nightOf(lb)) && (lb.chatOk || []).includes(p.id), u = unreadOf(p.id);
@@ -986,6 +989,7 @@ function linkCard() {
   }).join("");
   return `<section class="card">${head}
     <p class="hint">You're <b>${esc(lname(me))}</b>. ${nightOf(lb) ? "🌙 Night: you can only pass notes to your neighbours." : !lb.day ? "Private notes open when the day starts." : lb.phase ? `${lb.phase === 2 ? "📢 Nominations" : "🗣️ Public discussion"}: you can only pass notes to your neighbours now.` : lb.nbOnly ? "✉️ Today, private notes are only to your neighbours: talk to anyone else in person." : "✉️ Tap ✉️ to pass anyone a private note. Only the two of you can read it, and it arrives even if their phone drops out for a moment."}</p>
+    ${unseat}
     ${ch ? `<button class="btn" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>` : ""}
     ${link.note ? `<p class="warn">${esc(link.note)}</p>` : ""}
     ${(lb.v || 0) < window.APP_V ? `<p class="warn">⚠ The Storyteller's app is an older version, so the night screen, the dawn news and night chats may not work. Ask the Storyteller to reload their app.</p>` : ""}
@@ -1244,6 +1248,13 @@ document.addEventListener("click", ev => {
     case "link-join": { const c = ($("joinCode").value || "").trim().toUpperCase(); if (!c) return; L.code = c; L.pid = ""; saveLink(); link.asked = false; linkStart(); return; }
     case "link-leave": if (!confirm("Leave the Storyteller's game? You can join again with the code.")) return; linkStop(); if (S.step === "token" && !S.role) S.step = "players"; break;
     case "link-seat": link.err = ""; joinAs(pid); return;
+    // Picked the wrong name: give the seat back, forget anything that came for it, and choose again
+    case "link-unseat": { const lb = link.lobby; if (!lb || !lb.you) return;
+      if (!confirm(`Not ${lname(lb.you)}? You'll choose your seat again.${S.role ? " The character sent to this seat is cleared from your phone." : ""}`)) return;
+      toHost({ t: "leave", secret: L.secret }); L.pid = ""; saveLink(); link.asked = true; link.err = "";
+      link.lobby = { ...lb, you: null, chatOk: [] }; link.chat = null;
+      if (S.role) { S.role = ""; S.side = ""; } if (S.step !== "players") S.step = "token";
+      save(); render(); renderLink(); return; }
     case "chat-ask": link.note = ""; toHost({ t: "chat-req", to: pid }); return;
     case "chat-cancel": toHost({ t: "chat-cancel", id: link.waiting.id }); link.waiting = null; renderLink(); return;
     case "chat-yes": toHost({ t: "chat-ans", id: link.incoming.id, ok: true }); link.incoming = null; renderLink(); return;
