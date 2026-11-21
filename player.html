@@ -180,6 +180,12 @@ label.field, .field { display: grid; gap: 6px; }
 .night-ov .comp .cc b { font-size: 1.3rem; }
 .night-ov .comp .cc.t-townsfolk { border-color: var(--townsfolk); } .night-ov .comp .cc.t-outsider { border-color: var(--outsider); } .night-ov .comp .cc.t-minion, .night-ov .comp .cc.t-demon { border-color: #ff8a9a; }
 .notice-dead { margin: 0; font-size: 1.15rem; background: rgba(0,0,0,.3); border: 2px solid #ffd27a; border-radius: 12px; padding: 10px 14px; }
+/* 🙈 Hidden: a plain cover over the Grimoire (voting and hand-raising stay on top) */
+.hide-cover { position: fixed; inset: 0; z-index: 28; background: var(--bg); display: grid; place-items: center; text-align: center; padding: 24px; }
+.hide-cover[hidden] { display: none; }
+.hide-cover .moon { font-size: 4rem; }
+.reveal-ov .big-ico { font-size: clamp(5rem, 22vw, 9rem); line-height: 1; }
+.reveal-ov .big-ico .ri { background: radial-gradient(circle at 40% 32%, #fdf7e8 0%, #efe4c9 55%, #d8c69c 100%); padding: .08em; }
 .night-pill { position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 35; background: #0e1226; color: #f6f2fa; border: 2px solid #f0c66a; border-radius: 999px; padding: 8px 16px; font-weight: 800; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
 /* The Grimoire as a list, for the Spy */
 .night-ov .g-list { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; gap: 8px; text-align: left; }
@@ -294,22 +300,23 @@ header h1 { line-height: 0; }
   <header>
     <h1><img class="title-img" src="img/title-players-grimoire.webp" alt="Player's Grimoire" width="1077" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <nav class="steps" id="steps" aria-label="Steps"></nav>
-    <span class="head-btns"><button class="btn" data-act="sheet-open" aria-label="Characters on the script">📜 Characters</button><button class="btn" id="themeBtn" data-act="theme"></button></span>
+    <span class="head-btns"><button class="btn" data-act="hide-grim" aria-label="Hide my Grimoire">🙈<span class="lbl"> Hide</span></button><button class="btn" data-act="sheet-open" aria-label="Characters on the script">📜 Characters</button><button class="btn" id="themeBtn" data-act="theme"></button></span>
   </header>
   <main id="app"></main>
   <div id="chatBox"></div>
   <div id="noteBox"></div>
   <div id="handBar"></div>
   <div id="sleepBox" hidden></div>
+  <div id="hideBox" class="hide-cover" hidden><div><div class="moon" aria-hidden="true">🙈</div><h2>Your Grimoire is hidden</h2><p class="hint">Nobody can see your character or notes.</p><button class="btn primary huge" data-act="show-grim">Show my Grimoire</button></div></div>
   <div id="sheetBox" class="chat-cover" hidden role="dialog" aria-modal="true" aria-label="Characters on the script"></div>
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 144;</script>
-<script src="update.js?v=144"></script>
-<script src="characters.js?v=144"></script>
+<script>window.APP_V = 145;</script>
+<script src="update.js?v=145"></script>
+<script src="characters.js?v=145"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=144"></script>
+<script src="net.js?v=145"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -1059,8 +1066,28 @@ function neighboursOf(lb, me) {
 }
 // Night, even from an older Storyteller app that doesn't say so directly
 const nightOf = lb => lb.night || (lb.ph != null && lb.ph % 2 === 0 && /^Night/.test(lb.label || "") ? lb.ph / 2 + 1 : null);
+// 🏁 The end of the game: the reveal, live, as the Storyteller turns each token over
+const overKey = () => { const o = link.lobby && link.lobby.over; return o ? `${link.lobby.gameId}:${o.roles.length}:${o.spot ? o.spot.at : 0}` : ""; };
+let spotSeen = "", spotUntil = 0;
+function overHtml(lb, me) {
+  const o = lb.over, nm = id => esc(lname(id)), byId = Object.fromEntries(o.roles.map(r => [r.id, r]));
+  if (ui.overClosed === overKey()) return `<button class="night-pill" data-act="over-open">🏁 The reveal · Back to it</button>`;
+  // A newly revealed character fills the screen for a few seconds
+  const sp = o.spot && byId[o.spot.id];
+  if (sp) { const k = o.spot.id + o.spot.at; if (k !== spotSeen) { spotSeen = k; spotUntil = Date.now() + 6000; setTimeout(renderLink, 6100); } }
+  if (sp && Date.now() < spotUntil) { const c = CHAR[sp.role] || {};
+    return `<div class="night-ov reveal-ov ${sp.side === "evil" ? "tint-evil" : "tint-townsfolk"}"><div class="draw-inner"><p class="lead">${nm(sp.id)}${sp.id === me ? " (you)" : ""} was the</p>
+      <div class="big-ico">${c.icon || ""}</div><h1>${esc(sp.role)}</h1><p class="lead"><b>${sp.side === "evil" ? "Evil!" : "Good"}</b></p></div></div>`; }
+  const rows = lb.players.filter(p => byId[p.id]).map(p => { const r = byId[p.id], c = CHAR[r.role] || {};
+    return `<li class="g-row ${r.side} ${r.dead ? "dead" : ""}"><span class="g-n">${r.dead ? "💀" : ""}</span><span class="g-ico">${c.icon || ""}</span><span class="g-txt"><b>${nm(p.id)}</b>${p.id === me ? " (you)" : ""}<br>${esc(r.role)} · <span class="g-side">${r.side === "evil" ? "Evil" : "Good"}</span></span></li>`; }).join("");
+  return `<div class="night-ov reveal-ov ${o.winner === "evil" ? "tint-evil" : "tint-townsfolk"}"><div class="draw-inner">
+    <h1>${o.winner === "good" ? "Good wins!" : "Evil wins!"}</h1>${o.reason ? `<p class="lead">${esc(o.reason)}</p>` : `<p class="lead">The Storyteller is revealing the Grimoire…</p>`}
+    ${rows ? `<ol class="g-list">${rows}</ol>` : ""}${o.left ? `<p class="hint">${o.left} still to reveal.</p>` : ""}
+    <button class="btn" data-act="over-close">📖 Back to my notes</button></div></div>`;
+}
 function sleepHtml() {
   const lb = link.lobby, me = lb && lb.you;
+  if (me && lb.over) return overHtml(lb, me);
   if (!me || S.step === "players") return "";
   if (lb.dawn && ui.dawnSeen !== `${lb.gameId}:${lb.dawn.n}`) {
     const ids = lb.dawn.ids, mine = ids.includes(me);
@@ -1212,6 +1239,10 @@ document.addEventListener("click", ev => {
     case "q-val": { const q = QUICK.find(x => x[0] === ui.qp.k); ui.qp.picks.push(el.dataset.v); if (ui.qp.picks.length === q[2].length) { const t = q[3](...ui.qp.picks); ui.qp = null; addQuick(t); } else renderLink(); return; }
     case "q-cancel": ui.qp = null; renderLink(); return;
     case "theme": toggleTheme(); return;
+    case "hide-grim": $("hideBox").hidden = false; window.scrollTo(0, 0); return;
+    case "show-grim": $("hideBox").hidden = true; return;
+    case "over-close": ui.overClosed = overKey(); renderLink(); return;
+    case "over-open": ui.overClosed = ""; renderLink(); return;
     case "dawn-ok": ui.dawnSeen = `${link.lobby.gameId}:${link.lobby.dawn.n}`; renderLink(); return;
     case "night-peek": ui.nightPeek = `${link.lobby.gameId}:${nightOf(link.lobby)}`; renderLink(); return;
     case "night-unpeek": ui.nightPeek = ""; renderLink(); return;

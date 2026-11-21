@@ -7,17 +7,17 @@
 <script>document.documentElement.dataset.theme = "dark";</script>
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <title>The Shadows: show screen</title>
-<script>window.APP_V = 144;</script>
-<script src="update.js?v=144"></script>
+<script>window.APP_V = 145;</script>
+<script src="update.js?v=145"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=144"></script>
-<script src="shadows.js?v=144"></script>
+<script src="daily.js?v=145"></script>
+<script src="shadows.js?v=145"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=144">
-<link rel="stylesheet" href="shadows.css?v=144">
+<link rel="stylesheet" href="daily.css?v=145">
+<link rel="stylesheet" href="shadows.css?v=145">
 <style>
 /* The show screen: shared in Zoom, so big, bold and readable from a little window */
 html, body { height: 100%; }
@@ -104,7 +104,7 @@ function render() {
   const where = LIVE_WHERE[step] ? `<div class="where">${WHERE[LIVE_WHERE[step]]}</div>` : "";
   const [ic, name] = LIVE_STEP[step] || ["", ""];
   document.body.classList.toggle("night", step === "night");
-  app.innerHTML = `<div class="show-top"><img src="img/title-the-shadows.webp?v=144" alt="The Shadows" width="544" height="150"><span class="day">${esc(G.name || "")}${d ? ` · Day ${d}` : ""}</span></div>
+  app.innerHTML = `<div class="show-top"><img src="img/title-the-shadows.webp?v=145" alt="The Shadows" width="544" height="150"><span class="day">${esc(G.name || "")}${d ? ` · Day ${d}` : ""}</span></div>
     <div class="stage">${stage(step, d, t, L, ic, name, clock, where)}</div>
     <div>${step === "lobby" ? "" : castleRow()}</div>`;
 }
