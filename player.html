@@ -319,11 +319,11 @@ header h1 { line-height: 0; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 148;</script>
-<script src="update.js?v=148"></script>
-<script src="characters.js?v=148"></script>
+<script>window.APP_V = 149;</script>
+<script src="update.js?v=149"></script>
+<script src="characters.js?v=149"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=148"></script>
+<script src="net.js?v=149"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -977,6 +977,9 @@ function linkCard() {
   if (!lb) return `<section class="card">${head}</section>`;
   if (!me) return `<section class="card">${head}${seatPick(lb)}</section>`;
   const ch = link.chat;
+  // Face to face, the Storyteller may have turned private notes off: then there's nobody to message
+  if (lb.notesOff) return `<section class="card">${head}<p class="hint">You're <b>${esc(lname(me))}</b>. ✉️ Private notes are off in this game: talk to each other in person.</p>
+    ${(lb.v || 0) < window.APP_V ? `<p class="warn">⚠ The Storyteller's app is an older version. Ask the Storyteller to reload their app.</p>` : ""}</section>`;
   const rows = lb.players.filter(p => p.id !== me).map(p => {
     const can = (lb.day || nightOf(lb)) && (lb.chatOk || []).includes(p.id), u = unreadOf(p.id);
     return `<div class="claim"><span class="ico">${p.online ? "🟢" : "⚪"}</span><span style="flex:1"><b>${esc(p.name)}</b>${p.dead ? ` <span class="hint">(dead)</span>` : ""}</span><button class="btn ${u ? "primary" : ""}" data-act="note-open" data-pid="${p.id}" ${can || notesWith(p.id).length ? "" : "disabled"}>✉️ ${u ? `${u} new` : "Note"}</button></div>`;
@@ -1122,7 +1125,7 @@ function sleepHtml() {
     ${tv ? `<p class="trav-side">✈️ You're the ${esc(S.role)} · <b>${S.side === "evil" ? "Evil" : "Good"}</b></p>` : ""}
     <div class="moon" aria-hidden="true">🌙</div><h1>Night ${night}</h1>
     <p class="lead">Close your eyes. The Storyteller will wake you if you need to act.</p>
-    ${ch && !ch.ended ? `<button class="btn primary huge" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>`
+    ${lb.notesOff ? "" : ch && !ch.ended ? `<button class="btn primary huge" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>`
       : `<p class="hint">Quietly message a neighbour:</p>
       <div class="draw-foot">${nb.map(p => `<button class="btn huge" data-act="note-open" data-pid="${p.id}" ${(lb.chatOk || []).includes(p.id) ? "" : "disabled"}>✉️ ${esc(p.name)}${unreadOf(p.id) ? `<small>${unreadOf(p.id)} new</small>` : !p.online ? "<small>gets it when back</small>" : ""}</button>`).join("")}</div>`}
     ${link.note ? `<p class="warn">${esc(link.note)}</p>` : ""}
