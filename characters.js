@@ -144,7 +144,29 @@ const SCRIPTS = {
   jinxes: [
     ["Recluse", "Ogre", "If the Recluse registers as evil to the Ogre, the Ogre learns that they are evil."],
     ["Spy", "Ogre", "The Spy registers as evil to the Ogre."]
-  ] }
+  ] },
+  // A Teensyville script: for 5 or 6 players
+  tv: { name: "Teensyville Brewing", roles: {
+    townsfolk: [
+      ["Chef", "🍳", "You start knowing how many pairs of evil players there are."],
+      ["Monk", "🙏", "Each night*, choose a player (not yourself): they are safe from the Demon tonight."],
+      ["Fortune Teller", "🔮", "Each night, choose 2 players: you learn if either is a Demon. There is a good player that registers as a Demon to you."],
+      ["Empath", "💞", "Each night, you learn how many of your 2 alive neighbours are evil."],
+      ["Washerwoman", "🧺", "You start knowing that 1 of 2 players is a particular Townsfolk."],
+      ["Mayor", "🎩", "If only 3 players live & no execution occurs, your team wins. If you die at night, another player might die instead."]
+    ],
+    outsider: [
+      ["Saint", "😇", "If you die by execution, your team loses."],
+      ["Drunk", "🍺", "You do not know you are the Drunk. You think you are a Townsfolk character, but you are not."]
+    ],
+    minion: [
+      ["Spy", "🕵️", "Each night, you see the Grimoire. You might register as good & as a Townsfolk or Outsider, even if dead."],
+      ["Poisoner", "🧪", "Each night, choose a player: they are poisoned tonight and tomorrow day."]
+    ],
+    demon: [
+      ["Imp", "😈", "Each night*, choose a player: they die. If you kill yourself this way, a Minion becomes the Imp."]
+    ]
+  } }
 };
 // ✈️ Travellers: for players who arrive late or leave early. They're not in the bag or the setup numbers;
 // the Storyteller gives them a character (which everyone knows) and a side (which only they know).
