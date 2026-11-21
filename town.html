@@ -156,12 +156,12 @@ header h1 { line-height: 0; }
 <a class="back-btn on" id="backBtn" href="botc.html">← BoTC apps</a>
 <div id="app"></div>
 <div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
-<script>window.APP_V = 157;</script>
-<script src="update.js?v=157"></script>
-<script src="characters.js?v=157"></script>
-<script src="music.js?v=157"></script>
+<script>window.APP_V = 158;</script>
+<script src="update.js?v=158"></script>
+<script src="characters.js?v=158"></script>
+<script src="music.js?v=158"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=157"></script>
+<script src="net.js?v=158"></script>
 <script src="vendor/qrcode.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -302,8 +302,8 @@ const TOWN_TRACKS = { lobby: ["lobby", "The Old Tower Inn"], day: ["day", "Marke
   vote: ["vote", "Medieval Battle"], "good-wins": ["good-wins", "Victory"], "evil-wins": ["evil-wins", "Defeat"] };
 let music = null;
 function musicNow() {
-  music = music || gameMusic({ dir: "audio/botc/", tracks: TOWN_TRACKS, store: "town", side: "left", accent: "#d9b45a", dim: true, once: ["good-wins", "evil-wins"], v: 157 });
-  if (!G) return music.set(null);
+  music = music || gameMusic({ dir: "audio/botc/", tracks: TOWN_TRACKS, store: "town", side: "left", accent: "#d9b45a", dim: true, once: ["good-wins", "evil-wins"], v: 158 });
+  if (!G) return music.set("lobby");   // the inn, while the TV waits for the Storyteller
   const m = G.mode;
   music.set(m === "over" ? (G.winner === "good" ? "good-wins" : G.winner === "evil" ? "evil-wins" : "day") : G.vote ? "vote" : G.announce ? "dawn" : m === "night" ? "night" : m === "day" ? "day" : "lobby");
 }
