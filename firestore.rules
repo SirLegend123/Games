@@ -220,5 +220,49 @@ service cloud.firestore {
           && (!shd() || inConclave()));
       }
     }
+
+    // Espionage: the TV is the host. It moves the game from phase to phase; the server does everything else.
+    // Nobody's device, the TV's included, can read the roles (esp/{gid}/srv is the server's alone).
+    match /esp/{gid} {
+      function E() { return get(/databases/$(db)/documents/esp/$(gid)).data; }
+      function me(pid) { return signedIn() && E().uids.get(pid, '') == request.auth.uid; }
+      function isHost() { return signedIn() && E().host == request.auth.uid; }
+      function live(pid) { return !(pid in E().get('out', {})); }
+      allow get: if signedIn();
+      allow create: if signedIn() && request.resource.data.host == request.auth.uid && request.resource.data.code == gid
+        && request.resource.data.status == 'lobby' && request.resource.data.seats.size() == 0 && request.resource.data.uids.size() == 0;
+      allow update: if signedIn() && resource.data.host == request.auth.uid && request.resource.data.host == resource.data.host
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['phase', 'round', 'ends', 'paused', 'mins', 'deleteReq', 'status', 'seats', 'uids', 'err'])
+        // In the lobby the host may only take people out (not seat anyone)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['seats', 'uids'])
+          || (resource.data.status == 'lobby' && request.resource.data.seats.size() <= resource.data.seats.size() && request.resource.data.uids.size() <= resource.data.uids.size()))
+        // ...and start the game, which the server then deals
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) || (resource.data.status == 'lobby' && request.resource.data.status == 'deal'))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['phase', 'round']) || resource.data.status == 'running');
+      allow delete: if signedIn() && resource.data.host == request.auth.uid;
+      // Asking to join: a player writes their own name, and the server seats them
+      match /joins/{uid} {
+        allow create, update: if signedIn() && request.auth.uid == uid && request.resource.data.keys().hasOnly(['name', 'at']) && str(request.resource.data.name, 20);
+        allow get: if signedIn() && (request.auth.uid == uid || isHost());
+      }
+      // A player's role, badge seed and reports: only them
+      match /secret/{pid} {
+        allow get: if me(pid);
+      }
+      // A badge scan, during the mingle. Only the server reads it.
+      match /scans/{id} {
+        allow create: if me(request.resource.data.by) && live(request.resource.data.by) && E().status == 'running' && E().phase == 'mingle'
+          && request.resource.data.keys().hasOnly(['by', 'tok', 'act', 'pick', 'at']) && str(request.resource.data.tok, 60) && str(request.resource.data.act, 12)
+          && (!('pick' in request.resource.data) || str(request.resource.data.pick, 6));
+      }
+      // The vote: one each, changeable while voting is open. The TV counts them, and the server reveals them.
+      match /votes/{pid} {
+        allow get: if me(pid) || isHost();
+        allow list: if isHost();
+        allow create, update: if me(pid) && live(pid) && E().status == 'running' && E().phase == 'vote'
+          && request.resource.data.keys().hasOnly(['of', 'r', 'at']) && request.resource.data.r == E().round
+          && request.resource.data.of is string && request.resource.data.of != pid && (request.resource.data.of == 'skip' || live(request.resource.data.of));
+      }
+    }
   }
 }

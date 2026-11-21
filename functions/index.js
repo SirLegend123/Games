@@ -2,10 +2,12 @@
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const lib = require("./lib");
+const esp = require("./esp");
 
 admin.initializeApp();
 const db = admin.firestore();
 // In the local emulator, notifications are written to pushtest/ instead of being sent
+esp.init(db);
 lib.init(db, process.env.FUNCTIONS_EMULATOR === "true" ? async (sub, payload) => { await db.collection("pushtest").add({ endpoint: sub.endpoint, ...payload, at: Date.now() }); } : undefined);
 
 const R = functions.region("europe-west2");
@@ -14,7 +16,7 @@ const doc = path => R.firestore.document(path);
 // Every 5 minutes: dawn, nominations open, voting closing, the execution, night actions, the end
 exports.tick = R.pubsub.schedule("every 5 minutes").onRun(() => lib.tick(Date.now()));
 // Every 6 hours: delete games that ended 30 days ago (see lib.js)
-exports.cleanup = R.pubsub.schedule("every 6 hours").onRun(() => lib.cleanup(Date.now()));
+exports.cleanup = R.pubsub.schedule("every 6 hours").onRun(async () => { await lib.cleanup(Date.now()); await esp.cleanup(Date.now()); });
 // The Storyteller deleted a game: remove everything in it
 exports.onGameUpdate = doc("games/{gid}").onUpdate((ch, c) => lib.onGameUpdate(c.params.gid, ch.before.data(), ch.after.data()));
 // A welcome as soon as a device turns notifications on
@@ -32,3 +34,8 @@ exports.onLight = doc("games/{gid}/days/{d}/lights/{id}").onCreate((s, c) => lib
 exports.onSearch = doc("games/{gid}/days/{d}/searches/{pid}").onCreate((s, c) => lib.onSearch(c.params.gid, c.params.d, c.params.pid, s.data()));
 exports.onBind = doc("games/{gid}/days/{d}/binds/{id}").onCreate((s, c) => lib.onBind(c.params.gid, c.params.d, s.data()));
 exports.onChat = doc("games/{gid}/chats/{pair}/msgs/{id}").onCreate((s, c) => lib.onChat(c.params.gid, c.params.pair, s.data()));
+
+// Espionage: seating, badge scans, and the host moving the game on
+exports.espJoin = doc("esp/{gid}/joins/{uid}").onWrite((ch, c) => ch.after.exists && !ch.after.data().refused ? esp.onJoin(c.params.gid, c.params.uid, ch.after.data()) : null);
+exports.espScan = doc("esp/{gid}/scans/{id}").onCreate((s, c) => esp.onScan(c.params.gid, c.params.id, s.data()));
+exports.espUpdate = doc("esp/{gid}").onUpdate((ch, c) => esp.onUpdate(c.params.gid, ch.before.data(), ch.after.data()));
