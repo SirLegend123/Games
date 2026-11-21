@@ -7,12 +7,12 @@
 <link rel="icon" type="image/png" href="img/espionage-icon-64.png">
 <link rel="apple-touch-icon" href="img/espionage-icon-180.png">
 <title>Espionage: the screen</title>
-<script>window.APP_V = 154;</script>
-<script src="update.js?v=154"></script>
+<script>window.APP_V = 155;</script>
+<script src="update.js?v=155"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="espionage.css?v=154">
+<link rel="stylesheet" href="espionage.css?v=155">
 <style>
 /* The TV: the host's screen, for everyone in the room to see. It never knows anyone's role until the game is over. */
 html { font-size: clamp(16px, 1.15vw, 28px); }
@@ -65,15 +65,23 @@ body { font-size: 1.05rem; overflow-x: hidden; }
 .over-roles .it.spy { border-color: #6a1a2a; }
 .back { position: fixed; top: 10px; left: 10px; z-index: 5; opacity: 0; transition: opacity .3s; }
 body.moving .back { opacity: 1; }
+/* The music: always in the corner, outside the redrawn screen */
+#music { position: fixed; right: 14px; bottom: 12px; z-index: 6; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 99px;
+  background: rgba(10, 17, 31, .85); border: 1px solid var(--line); }
+#music .btn { min-height: 36px; padding: 4px 12px; font-size: .95rem; }
+#music input[type=range] { width: 110px; min-height: 0; padding: 0; accent-color: var(--cyan); background: none; border: 0; }
+#music .now { color: var(--muted); font-size: .85rem; max-width: 16em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 800px) { .main { grid-template-columns: 1fr; } .lobby-grid { grid-template-columns: 1fr; justify-items: center; text-align: center; } }
 </style>
 </head>
 <body>
 <a class="btn small back" href="espionage-home.html">← Back</a>
 <div class="tv" id="app"><p class="hint">Loading…</p></div>
-<script src="vendor/firebase.js?v=154"></script>
-<script src="vendor/qrcode.js?v=154"></script>
-<script src="espionage.js?v=154"></script>
+<div id="music" role="group" aria-label="Music"><button class="btn" id="musicBtn" aria-pressed="false">🎵 Music: off</button>
+  <input type="range" id="musicVol" min="0" max="100" value="60" aria-label="Music volume"><span class="now" id="musicNow" aria-live="polite"></span></div>
+<script src="vendor/firebase.js?v=155"></script>
+<script src="vendor/qrcode.js?v=155"></script>
+<script src="espionage.js?v=155"></script>
 <script>
 const $ = id => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
@@ -139,20 +147,22 @@ function render() {
   if (!G) return app.innerHTML = `<div></div><div class="stage"><p class="${S.err ? "bad" : "hint"}">${esc(S.err || "Connecting…")}</p><a class="btn" href="espionage-tv.html">Start a new game</a></div><div></div>`;
   document.body.classList.toggle("mingle", G.phase === "mingle");
   const p = PHASES[G.phase] || PHASES.lobby, timed = ["mingle", "council", "vote"].includes(G.phase);
-  app.innerHTML = `<div class="top"><img class="wordmark" src="img/espionage-wordmark.webp?v=154" alt="Espionage" width="900" height="135">
+  app.innerHTML = `<div class="top"><img class="wordmark" src="img/espionage-wordmark.webp?v=155" alt="Espionage" width="900" height="135">
       <span class="code" title="Game code">${esc(G.code)}</span>
       <div class="ph"><div class="n">${p[0]} ${esc(p[1])}</div>${G.round ? `<div class="hint">Round ${G.round}</div>` : ""}</div></div>
     <div class="main">${stage()}${mapSvg()}</div>
     <div class="ctl">${isHost() ? controls() : `<span class="hint">Viewing only: the host's screen runs the game.</span>`}</div>`;
   tickTimer();
+  music();
 }
 function startScreen() {
   const mine = LS.get("esp-host");
-  return `<div class="top"><img class="wordmark" src="img/espionage-wordmark.webp?v=154" alt="Espionage" width="900" height="135"></div>
-    <div class="stage"><img src="img/espionage-emblem.webp?v=154" alt="" width="300" height="338" style="width:clamp(160px,16vw,300px);height:auto;mix-blend-mode:lighten">
+  return `<div class="top"><img class="wordmark" src="img/espionage-wordmark.webp?v=155" alt="Espionage" width="900" height="135"></div>
+    <div class="stage"><img src="img/espionage-emblem.webp?v=155" alt="" width="300" height="338" style="width:clamp(160px,16vw,300px);height:auto;mix-blend-mode:lighten">
       <p class="lead">Put this screen where everyone can see it. Players join on their phones by scanning the code.</p>
       <div class="ctl"><button class="btn primary" data-act="new">📡 Start a new game</button>${mine ? `<a class="btn" href="espionage-tv.html?g=${esc(mine)}${EMU ? "&emu=1" : ""}">Back to game ${esc(mine)}</a>` : ""}</div>
-      ${S.err ? `<p class="bad">${esc(S.err)}</p>` : ""}</div><div></div>`;
+      ${S.err ? `<p class="bad">${esc(S.err)}</p>` : ""}
+      <p class="hint">🎵 Music: public domain (CC0) tracks from OpenGameArt.org. <a href="audio/esp/CREDITS.md" target="_blank" rel="noopener">The composers</a></p></div><div></div>`;
 }
 function stage() {
   const G = S.G, ph = G.phase, r = G.round || 0, names = ps => ps.map(p => `<b>${esc(nameOf(G, p))}</b>`).join(", ");
@@ -225,11 +235,11 @@ function mapSvg() {
   const st = id => { const o = (G.out || {})[id]; return o && !(hideDet === id) ? (o === "detained" ? "det" : "off") : ""; };
   return `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="The network: ${n} players">
     ${pts.map(p => `<line class="ln ${st(p.s.id)}" x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}"/>`).join("")}
-    <image href="img/espionage-emblem.webp?v=154" x="${cx - 62}" y="${cy - 70}" width="124" height="140" style="mix-blend-mode:lighten"/>
+    <image href="img/espionage-emblem.webp?v=155" x="${cx - 62}" y="${cy - 70}" width="124" height="140" style="mix-blend-mode:lighten"/>
     ${pts.map((p, i) => { const c = st(p.s.id); return `<g><circle class="pulse" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="30" style="animation-delay:${(i * .37) % 2.4}s"/>
       <circle class="node ${c} ${voted.has(p.s.id) ? "voted" : ""}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="30"/>
       <text class="st" x="${p.x.toFixed(1)}" y="${(p.y + 8).toFixed(1)}">${showRoles ? "" : c === "det" ? "🔒" : c === "off" ? "📴" : voted.has(p.s.id) ? "✔" : "📶"}</text>
-      ${showRoles && ROLES[(G.reveal || {})[p.s.id]] ? `<image href="img/esp/${G.reveal[p.s.id]}.webp?v=154" x="${(p.x - 26).toFixed(1)}" y="${(p.y - 26).toFixed(1)}" width="52" height="52"/>` : ""}
+      ${showRoles && ROLES[(G.reveal || {})[p.s.id]] ? `<image href="img/esp/${G.reveal[p.s.id]}.webp?v=155" x="${(p.x - 26).toFixed(1)}" y="${(p.y - 26).toFixed(1)}" width="52" height="52"/>` : ""}
       <text x="${p.x.toFixed(1)}" y="${(p.y + (p.y > cy ? 56 : -40)).toFixed(1)}" font-size="22">${esc(p.s.name)}</text></g>`; }).join("")}
   </svg>`;
 }
@@ -266,6 +276,47 @@ function tickTimer() {
   if (timed && G.ends && Date.now() >= G.ends) go(NEXT[G.phase]);
 }
 setInterval(tickTimer, 250);
+
+/* ---------- The music (public domain, CC0: see audio/esp/CREDITS.md) ---------- */
+// Each part of the game has its own track; they fade into each other. Pausing the timer pauses the music.
+const TRACKS = {
+  lobby: ["lobby", "Electric City"], mingle1: ["mingle1", "Covert Action"], mingle2: ["mingle2", "Tense Drive"], council: ["council", "Espionage"],
+  vote: ["vote", "Dark City"], "agents-win": ["agents-win", "Cyber March"], "spies-win": ["spies-win", "Darkest Hour"]
+};
+const M = { on: LS.get("esp-music") === "on", vol: +(LS.get("esp-vol") || 60) / 100, key: null, el: null, blocked: false };
+function trackFor(G) {
+  if (!G || !S.gid) return "lobby";
+  if (G.status === "over" || G.phase === "over") return S.shown["over" + (G.round || 0)] || !isHost() ? (G.winner === "agents" ? "agents-win" : "spies-win") : "vote";
+  return { mingle: (G.round || 1) % 2 ? "mingle1" : "mingle2", brief: "council", council: "council", vote: "vote", result: "vote" }[G.phase] || "lobby";
+}
+function fade(el, to, ms, done) {
+  const from = el.volume, t0 = performance.now();
+  const step = t => { const k = Math.min(1, (t - t0) / ms), end = typeof to === "function" ? to() : to; el.volume = Math.max(0, Math.min(1, from + (end - from) * k)); if (k < 1) requestAnimationFrame(step); else if (done) done(); };
+  requestAnimationFrame(step);
+}
+function music() {
+  const G = S.G, key = trackFor(G), paused = !!(G && G.paused != null);
+  if (!M.on) { if (M.el) { const e = M.el; M.el = null; M.key = null; fade(e, 0, 600, () => e.pause()); } return musicUi(); }
+  if (key !== M.key) {
+    const old = M.el; if (old) fade(old, 0, 1500, () => old.pause());
+    const el = new Audio(`audio/esp/${TRACKS[key][0]}.mp3?v=155`);
+    el.loop = !/win$/.test(key); el.volume = 0; M.el = el; M.key = key;
+    el.play().then(() => { M.blocked = false; if (paused) el.pause(); else fade(el, () => M.vol, 1500); musicUi(); }).catch(() => { M.blocked = true; M.key = null; musicUi(); });
+  } else if (M.el) {
+    if (paused && !M.el.paused) fade(M.el, 0, 500, () => M.el && M.el.pause());
+    else if (!paused && M.el.paused) { M.el.play().catch(() => {}); fade(M.el, () => M.vol, 800); }
+  }
+  musicUi();
+}
+function musicUi() {
+  const b = $("musicBtn");
+  b.textContent = !M.on ? "🎵 Music: off" : M.blocked ? "🎵 Tap to play" : "🎵 Music: on";
+  b.setAttribute("aria-pressed", String(M.on));
+  $("musicNow").textContent = M.on && M.key && !M.blocked ? `♪ ${TRACKS[M.key][1]}` : "";
+}
+$("musicBtn").addEventListener("click", () => { if (M.on && !M.blocked) M.on = false; else M.on = true; M.blocked = false; LS.set("esp-music", M.on ? "on" : "off"); music(); });
+$("musicVol").value = Math.round(M.vol * 100);
+$("musicVol").addEventListener("input", e => { M.vol = e.target.value / 100; LS.set("esp-vol", String(e.target.value)); if (M.el && !M.el.paused) M.el.volume = M.vol; });
 
 /* ---------- Taps ---------- */
 document.addEventListener("click", async e => {
