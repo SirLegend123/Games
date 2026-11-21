@@ -193,6 +193,14 @@ label.field { display: grid; gap: 6px; }
 .town-card { border-color: var(--brass); }
 .join-banner { border-color: var(--brass); }
 .join-banner .town-code { font-size: clamp(2.2rem, 7vw, 3.2rem); }
+/* The QR code for joining: small on the game-code card, and full screen for scanning round the table */
+.qr-small { flex: none; width: 120px; height: 120px; padding: 6px; background: #fff; border: 0; border-radius: 12px; cursor: zoom-in; }
+.qr-small svg, .qr-img svg { width: 100%; height: 100%; display: block; }
+.qr-big { position: fixed; inset: 0; z-index: 60; background: rgba(10, 6, 20, .985); display: grid; place-items: center; padding: 20px; }
+.qr-big[hidden] { display: none; }
+.qr-card { display: grid; justify-items: center; gap: 10px; text-align: center; }
+.qr-img { width: min(70vw, 62vh, 460px); aspect-ratio: 1; background: #fff; border-radius: 18px; padding: 12px; }
+@media (max-width: 560px) { .qr-small { width: 96px; height: 96px; } }
 .town-code { font-weight: 800; font-size: clamp(3rem, 12vw, 5rem); letter-spacing: .2em; text-align: center; color: var(--brass); font-variant-numeric: tabular-nums; }
 .kill { display: grid; gap: 6px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
 .history summary { cursor: pointer; padding: 6px 0; }
@@ -280,6 +288,7 @@ header h1 { line-height: 0; }
     <h1><img class="title-img" src="img/title-storyteller.webp" alt="Storyteller" width="634" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <nav class="steps" id="steps" aria-label="Steps"></nav>
     <button class="btn" id="newBtn" data-act="new-game">＋ New game</button>
+    <button class="btn" id="qrBtn" data-act="qr-big" aria-label="QR code for players to join" title="QR code for players to join">📱</button>
     <button class="btn" id="townBtn" data-act="town-open" aria-label="Town Square">📺</button>
   </header>
   <div id="townBox"></div>
@@ -293,13 +302,15 @@ document.getElementById("homeBtn").addEventListener("click", e => {
   <main id="app"></main>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
+<div id="qrBig" class="qr-big" hidden role="dialog" aria-modal="true" aria-label="Scan to join"></div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
-<script>window.APP_V = 141;</script>
-<script src="update.js?v=141"></script>
-<script src="characters.js?v=141"></script>
+<script>window.APP_V = 142;</script>
+<script src="update.js?v=142"></script>
+<script src="characters.js?v=142"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=141"></script>
+<script src="vendor/qrcode.js"></script>
+<script src="net.js?v=142"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -400,14 +411,27 @@ function render() {
   save();
 }
 
+// Joining on a phone: the Player app's address with the game code, as a QR code to scan round the table
+const joinUrl = () => `${location.href.replace(/storyteller\.html.*$/, "")}player.html?code=${encodeURIComponent(S.townCode || "")}`;
+function qrSvg(url, cell) { try { const q = qrcode(0, "M"); q.addData(url); q.make(); return q.createSvgTag({ cellSize: cell, margin: 2, scalable: true }); } catch (e) { return ""; } }
+// Full screen, for passing the tablet round or holding it up: tap anywhere to close
+function showQr() {
+  const box = $("qrBig");
+  if (!S.townOn || !S.townCode) { box.innerHTML = `<div class="qr-card"><p class="lead">Sharing is off, so players can't join on their phones.</p><p class="hint">Tap to close.</p></div>`; }
+  else box.innerHTML = `<div class="qr-card"><p class="label">Scan to join</p><div class="qr-img">${qrSvg(joinUrl(), 8)}</div>
+    <div class="town-code">${esc(S.townCode)}</div><p class="hint">or open <b>${esc(joinUrl().replace(/^https?:\/\//, "").replace(/\?.*$/, ""))}</b> and enter the code</p><p class="hint">Tap anywhere to close.</p></div>`;
+  box.hidden = false; box.onclick = () => { box.hidden = true; };
+  document.addEventListener("keydown", function esc1(e) { if (e.key === "Escape") { box.hidden = true; document.removeEventListener("keydown", esc1); } });
+}
 // The game code, and who has joined on their phone, like a Jackbox lobby
 function joinBanner() {
   if (!S.townOn) return `<section class="card"><div class="row"><span class="hint" style="flex:1">Sharing is off, so players can't join on their phones.</span><button class="btn" data-act="town-start">📺 Share the game</button></div></section>`;
   const on = Object.keys(town.players);
-  const url = location.href.replace(/storyteller\.html.*$/, "").replace(/^https?:\/\//, "");
+  const url = location.href.replace(/storyteller\.html.*$/, "player.html").replace(/^https?:\/\//, "");
   return `<section class="card join-banner" id="joinBanner">
     <div class="row"><div style="flex:1"><span class="label">Game code</span><div class="town-code" style="text-align:left">${esc(S.townCode || "…")}</div></div>
-      <p class="hint" style="flex:2">Put the <b>Town Square</b> on the TV, and everyone joins on their phone with the <b>Player</b> app at <b>${esc(url)}</b>, or by scanning the code on the TV.</p></div>
+      <p class="hint" style="flex:2">Everyone joins on their phone by scanning this QR code (tap it to make it bigger), or the one on the Town Square TV, or with the <b>Player</b> app at <b>${esc(url)}</b>.</p>
+      ${S.townCode ? `<button class="qr-small" data-act="qr-big" aria-label="Show the QR code full screen">${qrSvg(joinUrl(), 4)}</button>` : ""}</div>
     <p class="${town.status === "error" ? "warn" : "hint"}">${town.status === "on" ? (S.players.length ? `📱 ${on.length} of ${S.players.length} joined${on.length ? `: ${esc(listJoin(on.map(nameOf)))}` : ""}.` : "Add the players, then they can join.") : town.status === "error" ? esc(town.err || "Connection problem. Trying again…") : "Starting…"}</p>
   </section>`;
 }
@@ -2278,6 +2302,7 @@ document.addEventListener("click", ev => {
     case "night-dawn": { const before = JSON.stringify(S); S.chron = [...(S.chron || []), { type: "night", n: S.n, recs: S.night.recs || [], deaths: S.night.deaths.map(q => ({ pid: q, role: roleOf(q) })) }]; S.history.push({ h: `Night ${S.n}`, lines: [...S.log, S.night.deaths.length ? `${esc(names(S.night.deaths))} died.` : "Nobody died."] }); S.announce = { n: S.n, pids: [...S.night.deaths] }; S.preNight = null; startDay(); checkOver(before, {}); break; }
     case "announce-close": S.announce = null; break;
     case "town-open": ui.townOpen = !ui.townOpen; renderTown(); return;
+    case "qr-big": return showQr();
     case "town-close": ui.townOpen = false; renderTown(); return;
     case "town-start": S.townOn = true; save(); townStart(); renderTown(); return;
     case "town-stop": townStop(); save(); renderTown(); return;
