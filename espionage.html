@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#060a12">
+<link rel="icon" type="image/svg+xml" href="img/espionage-icon.svg">
+<link rel="apple-touch-icon" href="img/espionage-icon-180.png">
+<title>Espionage</title>
+<script>window.APP_V = 152;</script>
+<script src="update.js?v=152"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="espionage.css?v=152">
+<style>
+/* The phone: your role, your badge, the scanner, your reports and the vote */
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand h1 { flex: 1; font-size: 1.6rem; }
+.badge { background: #fff; color: #061018; border-radius: 18px; padding: 14px 14px 10px; display: grid; justify-items: center; gap: 4px; box-shadow: 0 0 30px rgba(45, 226, 230, .25); }
+.badge .qr svg { width: min(64vw, 280px); height: auto; display: block; }
+.badge .who { font-weight: 700; font-size: 1.3rem; }
+.badge .short { font-family: "JetBrains Mono", monospace; font-size: 1.9rem; font-weight: 700; letter-spacing: .25em; }
+.badge .tick { width: 100%; height: 4px; background: #d9e6f2; border-radius: 4px; overflow: hidden; }
+.badge .tick i { display: block; height: 100%; background: #0e8f9a; }
+.role { border-width: 2px; }
+.role.agent { border-color: #24508f; }
+.role.spy { border-color: #8f2436; }
+.role .big { font-size: 1.7rem; font-weight: 700; }
+.role .ic { font-size: 2.6rem; }
+.reports { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.reports li { display: grid; grid-template-columns: 1.6em 1fr; gap: 8px; padding: 10px 12px; background: #0a1322; border: 1px solid var(--line); border-radius: 12px; font-size: 1.1rem; }
+.reports li.hq { border-color: #6a5a1a; background: #1a1708; }
+.people { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.people .btn { text-align: left; }
+.scanbar { display: grid; gap: 8px; }
+.last { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: #0a1322; }
+.last.ok { border-color: #1f6a47; }
+.last.no { border-color: #7a2236; }
+/* The scanner, full screen */
+#scan { position: fixed; inset: 0; z-index: 10; background: #000; display: grid; grid-template-rows: auto 1fr auto; }
+#scan[hidden] { display: none; }
+#scan .top, #scan .bottom { padding: calc(10px + env(safe-area-inset-top)) 14px 10px; background: rgba(6, 10, 18, .94); display: grid; gap: 8px; }
+#scan .bottom { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+#scan .view { position: relative; overflow: hidden; }
+#scan video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#scan .frame { position: absolute; inset: 18% 12%; border: 3px solid var(--cyan); border-radius: 18px; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .35); }
+#scan .msg { position: absolute; left: 12px; right: 12px; bottom: 12px; text-align: center; font-weight: 700; padding: 10px; border-radius: 12px; background: rgba(6, 10, 18, .85); }
+#scan .code-in { display: flex; gap: 8px; }
+#scan .code-in input::placeholder { letter-spacing: normal; text-transform: none; font-family: "Rajdhani", sans-serif; }
+#scan .code-in input { text-transform: uppercase; letter-spacing: .3em; font-family: "JetBrains Mono", monospace; font-weight: 700; }
+.acts { display: flex; gap: 8px; flex-wrap: wrap; }
+select { font: inherit; color: var(--fg); background: #0a1322; border: 1px solid #2a4068; border-radius: 12px; padding: 10px; min-height: 44px; width: 100%; }
+.cover-btn { margin-left: auto; }
+#cover { position: fixed; inset: 0; z-index: 20; background: var(--bg); display: grid; place-items: center; text-align: center; padding: 24px; }
+#cover[hidden] { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><p class="hint">Loading…</p></div>
+<div id="scan" hidden></div>
+<div id="cover" hidden><div class="card"><h2>Screen covered</h2><p class="hint">Tap anywhere to come back.</p></div></div>
+<script src="vendor/firebase.js?v=152"></script>
+<script src="vendor/qrcode.js?v=152"></script>
+<script src="espionage.js?v=152"></script>
+<script>
+const $ = id => document.getElementById(id);
+const Q = new URLSearchParams(location.search);
+const S = { gid: (Q.get("g") || "").toUpperCase(), G: null, join: null, sec: null, vote: null, pid: null, showRole: false, err: "", subs: [], secSub: null, voteSub: null };
+const LS = { get: k => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+const round = () => (S.G && S.G.round) || 0;
+const myScans = () => S.sec && S.sec.round === round() ? S.sec.scans || [] : [];
+const isOut = () => S.G && S.pid && (S.G.out || {})[S.pid];
+
+/* ---------- Joining ---------- */
+async function start() {
+  try { await fbStart(); } catch (e) { $("app").innerHTML = `<section class="card"><p class="bad">Couldn't connect. Check your internet and reload.</p></section>`; return; }
+  if (!S.gid) return render();
+  watchGame();
+}
+function watchGame() {
+  S.subs.forEach(f => f()); S.subs = [];
+  S.subs.push(FB.onSnapshot(eref(S.gid), s => { S.G = s.exists() ? s.data() : null; if (!s.exists()) S.err = "There's no game with that code."; seated(); render(); },
+    e => { S.err = "Couldn't open the game."; render(); }));
+  S.subs.push(FB.onSnapshot(eref(S.gid, "joins", myUid), s => { S.join = s.exists() ? s.data() : null; render(); }, () => {}));
+}
+// Once the server has given me a seat, listen to my own role and reports
+function seated() {
+  const G = S.G; if (!G) return;
+  const pid = Object.keys(G.uids || {}).find(p => G.uids[p] === myUid) || null;
+  if (pid === S.pid) return;
+  S.pid = pid;
+  if (S.secSub) S.secSub(); if (S.voteSub) S.voteSub(); S.secSub = S.voteSub = null;
+  if (!pid) return;
+  S.secSub = FB.onSnapshot(eref(S.gid, "secret", pid), s => { const was = S.sec; S.sec = s.exists() ? s.data() : null; ackCheck(); if (!was || !S.sec || badgeSeed !== S.sec.seed) badgeTick(true); render(); }, () => {});
+  S.voteSub = FB.onSnapshot(eref(S.gid, "votes", pid), s => { S.vote = s.exists() ? s.data() : null; render(); }, () => {});
+}
+async function join(name) {
+  name = String(name || "").trim().slice(0, 20);
+  if (!name) { S.err = "Type your name."; return render(); }
+  LS.set("esp-name", name); S.err = "";
+  try { await FB.setDoc(eref(S.gid, "joins", myUid), { name, at: Date.now() }); } catch (e) { S.err = "Couldn't join. Is the code right?"; }
+  render();
+}
+
+/* ---------- The badge ---------- */
+let badgeSeed = "", badgeWin = -1, badgeHtml = "";
+async function badgeTick(force) {
+  if (!S.sec || !S.G || !S.pid) return;
+  const w = Math.floor(Date.now() / BADGE_WIN);
+  if (!force && w === badgeWin && badgeSeed === S.sec.seed) return;
+  badgeWin = w; badgeSeed = S.sec.seed;
+  const b = await badgeNow(S.G, S.pid, S.sec.seed);
+  let svg = ""; try { const q = qrcode(0, "M"); q.addData(b.qr); q.make(); svg = q.createSvgTag({ cellSize: 6, margin: 1, scalable: true }); } catch (e) {}
+  badgeHtml = `<div class="qr">${svg}</div><div class="who">${esc(nameOf(S.G, S.pid))}</div><div class="short" aria-label="Badge code">${esc(b.short)}</div>`;
+  const el = $("badgeBox"); if (el) el.innerHTML = badgeHtml + tickBar();
+}
+const tickBar = () => `<div class="tick" aria-hidden="true"><i style="width:${100 - (Date.now() % BADGE_WIN) / BADGE_WIN * 100}%"></i></div>`;
+function badgeCard() {
+  return `<section class="badge" id="badgeBox" aria-label="Your badge: let others scan it">${badgeHtml || "<p>…</p>"}${tickBar()}</section>
+    <p class="hint" style="text-align:center">Your badge. Others scan it with their phone (or type the code). It changes every 30 seconds.</p>`;
+}
+
+/* ---------- The screens ---------- */
+// Keep whatever is being typed when the screen redraws
+function render() {
+  const f = document.activeElement, keep = f && f.id && f.tagName === "INPUT" && $("app").contains(f) ? [f.id, f.value, f.selectionStart] : null;
+  draw();
+  if (keep && $(keep[0])) { const el = $(keep[0]); el.value = keep[1]; el.focus(); try { el.setSelectionRange(keep[2], keep[2]); } catch (e) {} }
+}
+function draw() {
+  const app = $("app"), G = S.G;
+  if (!S.gid) return app.innerHTML = head() + joinForm(true);
+  if (!G) return app.innerHTML = head() + `<section class="card"><p class="${S.err ? "bad" : "hint"}">${esc(S.err || "Connecting…")}</p>${S.err ? `<a class="btn" href="espionage.html">Try another code</a>` : ""}</section>`;
+  if (!S.pid) {
+    if (S.join && S.join.refused) return app.innerHTML = head() + `<section class="card"><p class="bad">${S.join.refused === "full" ? "The game is full (12 players)." : "This game has already started."}</p></section>`;
+    if (G.status !== "lobby") return app.innerHTML = head() + `<section class="card"><p class="bad">This game has already started.</p></section>`;
+    if (S.join) return app.innerHTML = head() + `<section class="card"><p>Joining as <b>${esc(S.join.name)}</b>…</p></section>`;
+    return app.innerHTML = head() + joinForm(false);
+  }
+  let h = head() + phaseBar();
+  if (G.status === "lobby" || G.status === "deal") h += lobby();
+  else if (G.status === "over") h += over();
+  else h += game();
+  h += `<footer>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></footer>`;
+  app.innerHTML = h;
+}
+const head = () => `<div class="brand"><h1>Espionage</h1>${S.pid && S.G && S.G.status === "running" ? `<button class="btn small cover-btn" data-act="cover" aria-label="Cover the screen">🙈 Cover</button>` : ""}</div>`;
+function joinForm(withCode) {
+  return `<section class="card"><h2>Join a game</h2>
+    ${withCode ? `<input id="code" maxlength="6" placeholder="Game code" aria-label="Game code" autocomplete="off" style="text-transform:uppercase;letter-spacing:.2em" value="${esc(S.gid)}">` : `<p class="hint">Game <b class="mono">${esc(S.gid)}</b></p>`}
+    <input id="name" maxlength="20" placeholder="Your name" aria-label="Your name" autocomplete="off" value="${esc(LS.get("esp-name"))}">
+    <button class="btn primary" data-act="join">Join</button>
+    ${S.err ? `<p class="bad">${esc(S.err)}</p>` : ""}</section>`;
+}
+function phaseBar() {
+  const G = S.G, p = PHASES[G.phase] || PHASES.lobby, timed = ["mingle", "council", "vote"].includes(G.phase) && (G.ends || G.paused != null);
+  return `<section class="card phase" aria-live="polite"><span style="font-size:1.6rem">${p[0]}</span><span class="name">${esc(p[1])}${G.round ? ` <span class="hint">· round ${G.round}</span>` : ""}</span>
+    ${timed ? `<span class="timer" id="timer">${G.paused != null ? "⏸ " : ""}${mmss(leftMs(G))}</span>` : ""}</section>`;
+}
+function lobby() {
+  const G = S.G, n = (G.seats || []).length;
+  return `<section class="card"><p>You're in as <b>${esc(nameOf(G, S.pid))}</b>.</p>
+      <p class="hint">${G.status === "deal" ? "Dealing the roles…" : `Waiting for the host to start. ${n} player${n === 1 ? "" : "s"} so far (4 to 12).`}</p>
+      <div class="row"><input id="name" maxlength="20" class="grow" style="width:auto" value="${esc(nameOf(G, S.pid))}" aria-label="Your name"><button class="btn small" data-act="rename">Change name</button></div></section>
+    ${peopleCard()}`;
+}
+function roleCard() {
+  const s = S.sec; if (!s) return "";
+  if (!S.showRole) return `<button class="btn block" data-act="role">🪪 Show my role</button>`;
+  const R = ROLES[s.role], T = TEAM[s.team];
+  return `<section class="card role ${s.team}"><div class="row"><span class="ic">${R.ic}</span><div class="grow"><div class="big ${T.cls}">${esc(R.name)}</div><div class="${T.cls}">${T.ic} ${T.one}</div></div>
+      <button class="btn small" data-act="role">Hide</button></div>
+    <p>${esc(R.does)}</p>
+    ${s.cover ? `<p class="hint">Your cover: if anyone checks, you're the <b>${esc(ROLES[s.cover].name)}</b>.</p>` : ""}
+    ${s.allies && s.allies.length ? `<p>Your fellow Spies: ${s.allies.map(a => `<b>${esc(nameOf(S.G, a.pid))}</b> (${esc(ROLES[a.role].name)})`).join(", ")}.</p>` : s.team === "spy" ? `<p class="hint">You're the only Spy.</p>` : ""}
+    <p class="hint">🎯 ${esc(T.goal)}</p></section>`;
+}
+function game() {
+  const G = S.G, out = isOut(), ph = G.phase;
+  let h = "";
+  if (out && ph !== "result") h += `<section class="card"><p class="${out === "detained" ? "bad" : "warn"}">${out === "detained" ? "🔒 You've been detained." : "📴 You've been taken offline."}</p>
+    <p class="hint">You can still talk and ask questions, but you can't scan or vote. Keep your badge showing: Forensics may want to scan it.</p></section>`;
+  if (ph === "roles") h += `<section class="card"><p>Look at your role, then hide it. Don't show anyone.</p></section>` + roleCard() + `<p class="hint" style="text-align:center">The host starts the first mingle.</p>`;
+  else if (ph === "mingle") h += (out ? "" : scanCard()) + badgeCard() + roleCard();
+  else if (ph === "brief") h += briefCard() + reportsCard(true) + roleCard();
+  else if (ph === "council") h += `<section class="card"><p>🗣️ Talk it over. Share what you learned, or don't.</p></section>` + reportsCard(true) + briefCard() + roleCard();
+  else if (ph === "vote") h += voteCard() + reportsCard(false) + roleCard();
+  else if (ph === "result") h += `<section class="card"><p style="font-size:1.3rem">📺 The verdict is on the screen.</p></section>` + roleCard();
+  if (ph !== "roles") h += peopleCard();
+  return h;
+}
+function scanCard() {
+  const left = SCANS - myScans().length, L = S.sec && S.sec.last;
+  return `<section class="card scanbar"><button class="btn primary block" data-act="scan" ${left ? "" : "disabled"}>📷 Scan a badge</button>
+    <p class="hint">${left ? `${left} scan${left === 1 ? "" : "s"} left this round. Use at least one, or the briefing names you.` : "You've used both scans. Reports arrive at the briefing."}</p>
+    ${L && Date.now() - L.at < 120000 ? `<div class="last ${L.ok ? "ok" : "no"}">${L.ok ? "✅" : "⚠️"} ${esc(L.msg)}</div>` : ""}</section>`;
+}
+function briefCard() {
+  const G = S.G, b = (G.brief || {})[round()], prev = (G.result || {})[round() - 1];
+  if (!b) return `<section class="card"><p class="hint">Decrypting the briefing…</p></section>`;
+  const names = ps => ps.map(p => `<b>${esc(nameOf(G, p))}</b>`).join(", ");
+  return `<section class="card"><h2>What happened</h2>
+    <p>${b.offline.length ? `📴 ${names(b.offline)} ${b.offline.length === 1 ? "was" : "were"} taken offline.` : "📶 Nobody was taken offline."}</p>
+    ${b.blocked ? `<p>🧱 A Firewall blocked an attack.</p>` : ""}
+    <p>${b.idle.length ? `🚫 Didn't scan: ${names(b.idle)}.` : "✅ Everyone scanned."}</p></section>`;
+}
+function reportsCard(now) {
+  const rs = (S.sec && S.sec.reports) || {}, r = round(), mine = rs[r] || [];
+  const li = x => `<li class="${x.icon === "📨" ? "hq" : ""}"><span>${x.icon}</span><span>${esc(x.text)}</span></li>`;
+  const earlier = Object.keys(rs).map(Number).filter(k => k < r).sort((a, b) => b - a);
+  return `<section class="card"><h2>🔐 Your reports</h2>
+    ${mine.length ? `<ul class="reports">${mine.map(li).join("")}</ul>` : `<p class="hint">${(S.G.brief || {})[r] ? "Nothing for you this round." : "Waiting for the briefing…"}</p>`}
+    ${earlier.length ? `<details><summary class="hint">Earlier rounds</summary>${earlier.map(k => `<p class="hint">Round ${k}</p><ul class="reports">${(rs[k] || []).map(li).join("") || "<li><span></span><span class='hint'>Nothing</span></li>"}</ul>`).join("")}</details>` : ""}</section>`;
+}
+function voteCard() {
+  const G = S.G;
+  if (isOut()) return `<section class="card"><p class="hint">Everyone still online is voting. You can't vote.</p></section>`;
+  const mine = S.vote && S.vote.r === round() ? S.vote.of : null;
+  const opts = onlineIds(G).filter(p => p !== S.pid);
+  return `<section class="card"><h2>🗳️ Who do you detain?</h2>
+    <div class="people">${opts.map(p => `<button class="btn" data-act="vote" data-pid="${p}" aria-pressed="${mine === p}">${esc(nameOf(G, p))}</button>`).join("")}
+      <button class="btn" data-act="vote" data-pid="skip" aria-pressed="${mine === "skip"}">🤷 Nobody</button></div>
+    <p class="hint">${mine ? "Voted. You can change it until the time's up." : "The most votes is detained. A tie detains nobody."}</p></section>`;
+}
+function peopleCard() {
+  const G = S.G;
+  return `<section class="card"><h2>🖧 The network</h2><div class="row">${(G.seats || []).map(s => {
+    const o = (G.out || {})[s.id], hide = G.phase === "result" && (G.result || {})[round()] && G.result[round()].detained === s.id;
+    return `<span class="pill ${o && !hide ? (o === "detained" ? "det" : "off") : ""}">${esc(s.name)}${s.id === S.pid ? " (you)" : ""}${o && !hide ? (o === "detained" ? " 🔒" : " 📴") : ""}</span>`; }).join("")}</div></section>`;
+}
+function over() {
+  const G = S.G, s = S.sec || {}, won = G.winner === "agents" ? "agent" : "spy";
+  return `<section class="card" style="text-align:center"><h1 style="font-size:2.2rem" class="${TEAM[won].cls}">${TEAM[won].ic} The ${TEAM[won].many} win!</h1>
+      <p>${G.winner === "agents" ? "The Black Hat has been detained." : "The Spies have taken over the network."}</p>
+      ${s.team ? `<p class="${s.team === won ? "good" : "bad"}">${s.team === won ? "You won." : "You lost."}</p>` : ""}</section>
+    <section class="card"><h2>Who was who</h2><ul class="reports">${(G.seats || []).map(x => { const r = (G.reveal || {})[x.id], R = ROLES[r] || {};
+      return `<li style="grid-template-columns:1fr"><span><b>${esc(x.name)}</b>: ${roleChip(r)}${(G.out || {})[x.id] ? ` <span class="hint">(${G.out[x.id]})</span>` : ""}</span></li>`; }).join("")}</ul></section>`;
+}
+
+/* ---------- The scanner ---------- */
+const SC = { open: false, act: null, pick: "", stream: null, busy: false, wait: null, msg: "", detector: null, loop: 0 };
+function myActs() {
+  const R = ROLES[S.sec.role], used = myScans().filter(x => x.act === R.act).length, acts = [];
+  if (used < R.n) acts.push([R.act, `${R.ic} ${R.verb}`]);
+  acts.push(["ping", "📶 Ping"]);
+  return acts;
+}
+function openScan() {
+  if (!S.sec) return;
+  SC.open = true; SC.msg = ""; SC.busy = false;
+  const acts = myActs(); if (!acts.some(a => a[0] === SC.act)) SC.act = acts[0][0];
+  drawScan(); startCamera();
+}
+function drawScan() {
+  const box = $("scan"); if (!SC.open) { box.hidden = true; box.innerHTML = ""; return; }
+  const acts = myActs(), G = S.G;
+  const keep = box.querySelector("video");
+  box.innerHTML = `<div class="top"><div class="row"><b class="grow">📷 Scan a badge</b><button class="btn small" data-act="scan-close">✕ Close</button></div>
+      <div class="acts" role="group" aria-label="What this scan does">${acts.map(a => `<button class="btn small" data-act="scan-act" data-v="${a[0]}" aria-pressed="${SC.act === a[0]}">${a[1]}</button>`).join("")}</div>
+      ${SC.act === "phish" ? `<select id="pick" aria-label="Who the fake message names"><option value="">Fake message: who is "not the Black Hat"?</option>${seatIds(G).map(p => `<option value="${p}" ${SC.pick === p ? "selected" : ""}>${esc(nameOf(G, p))}</option>`).join("")}</select>` : ""}
+    </div>
+    <div class="view"><div class="frame"></div><div class="msg" id="scanMsg">${esc(SC.msg || "Point the camera at someone's badge.")}</div></div>
+    <div class="bottom"><div class="code-in"><input id="typed" maxlength="4" placeholder="Or type their code" aria-label="Badge code" autocomplete="off"><button class="btn" data-act="scan-typed">Send</button></div></div>`;
+  const view = box.querySelector(".view");
+  if (keep) view.prepend(keep); else if (SC.stream) { const v = document.createElement("video"); v.playsInline = true; v.muted = true; v.srcObject = SC.stream; v.play().catch(() => {}); view.prepend(v); }
+  box.hidden = false;
+}
+const scanMsg = m => { SC.msg = m; const el = $("scanMsg"); if (el) el.textContent = m; };
+async function startCamera() {
+  if (SC.stream) return drawScan();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return scanMsg("No camera here: type their code below.");
+  try { SC.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }); }
+  catch (e) { return scanMsg("The camera isn't available (allow it in your browser), so type their code below."); }
+  if (!SC.open) return stopCamera();
+  drawScan();
+  if ("BarcodeDetector" in window) { try { SC.detector = new BarcodeDetector({ formats: ["qr_code"] }); } catch (e) { SC.detector = null; } }
+  if (!SC.detector && !window.jsQR) await new Promise(ok => { const s = document.createElement("script"); s.src = "vendor/jsqr.min.js?v=152"; s.onload = ok; s.onerror = ok; document.head.appendChild(s); });
+  scanLoop();
+}
+function stopCamera() { cancelAnimationFrame(SC.loop); if (SC.stream) SC.stream.getTracks().forEach(t => t.stop()); SC.stream = null; }
+const cv = document.createElement("canvas"), cx = cv.getContext("2d", { willReadFrequently: true });
+let lastLook = 0;
+async function scanLoop() {
+  if (!SC.open || !SC.stream) return;
+  SC.loop = requestAnimationFrame(scanLoop);
+  if (SC.busy || Date.now() - lastLook < 180) return;
+  const v = $("scan").querySelector("video"); if (!v || v.readyState < 2) return;
+  lastLook = Date.now();
+  let text = null;
+  try {
+    if (SC.detector) { const r = await SC.detector.detect(v); text = r[0] && r[0].rawValue; }
+    else if (window.jsQR) { const w = 480, h = Math.round(w * v.videoHeight / v.videoWidth) || 360; cv.width = w; cv.height = h; cx.drawImage(v, 0, 0, w, h);
+      const r = jsQR(cx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: "dontInvert" }); text = r && r.data; }
+  } catch (e) {}
+  if (text && /^ESP1\./.test(text)) sendScan(text);
+}
+async function sendScan(tok) {
+  if (SC.busy) return;
+  const G = S.G, who = badgeWho(G, tok);
+  if (!who) return scanMsg(/^ESP1\./.test(tok) ? "That badge is from a different game." : "That code doesn't look right: 4 letters and numbers.");
+  if (who === S.pid) return scanMsg("That's your own badge.");
+  if (SC.act === "phish" && !SC.pick) return scanMsg("First choose who the fake message names.");
+  if (SC.act === "phish" && SC.pick === who) return scanMsg("The message can't name the person you send it to.");
+  SC.busy = true; scanMsg(`Scanning ${nameOf(G, who)}…`);
+  try {
+    const d = await FB.addDoc(ecol(S.gid, "scans"), { by: S.pid, tok, act: SC.act, ...(SC.act === "phish" ? { pick: SC.pick } : {}), at: Date.now() });
+    SC.wait = d.id; ackCheck();
+    setTimeout(() => { if (SC.wait === d.id) { SC.wait = null; SC.busy = false; scanMsg("No answer from the server. Try again."); } }, 15000);
+  } catch (e) { SC.busy = false; scanMsg(isOut() ? "You're offline: you can't scan." : S.G.phase !== "mingle" ? "The mingle is over." : "Couldn't send that scan. Try again."); }
+}
+// The server's answer to my scan
+function ackCheck() {
+  const L = S.sec && S.sec.last; if (!SC.wait || !L || L.id !== SC.wait) return;
+  SC.wait = null; scanMsg((L.ok ? "✅ " : "⚠️ ") + L.msg);
+  setTimeout(() => { SC.busy = false; if (L.ok) closeScan(); else drawScan(); }, L.ok ? 1600 : 1400);
+}
+function closeScan() { SC.open = false; SC.wait = null; SC.busy = false; stopCamera(); drawScan(); render(); }
+
+/* ---------- Taps ---------- */
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "join") { const c = $("code"); if (c) { const v = c.value.toUpperCase().replace(/[^A-Z0-9]/g, ""); if (v.length !== 6) { S.err = "The code has 6 letters and numbers."; return render(); }
+      S.gid = v; history.replaceState(null, "", `?g=${v}${EMU ? "&emu=1" : ""}`); watchGame(); } return join($("name").value); }
+  if (a === "rename") return join($("name").value);
+  if (a === "role") { S.showRole = !S.showRole; return render(); }
+  if (a === "cover") { $("cover").hidden = false; S.showRole = false; return render(); }
+  if (a === "scan") return openScan();
+  if (a === "scan-close") return closeScan();
+  if (a === "scan-act") { SC.act = b.dataset.v; return drawScan(); }
+  if (a === "scan-typed") { const v = $("typed").value.toUpperCase().replace(/[^A-Z0-9]/g, ""); return sendScan(v); }
+  if (a === "vote") { try { await FB.setDoc(eref(S.gid, "votes", S.pid), { of: b.dataset.pid, r: round(), at: Date.now() }); } catch (err) { S.err = "Voting has closed."; } return; }
+});
+document.addEventListener("change", e => { if (e.target.id === "pick") SC.pick = e.target.value; });
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.id === "typed") $("scan").querySelector('[data-act="scan-typed"]').click();
+  if (e.key === "Enter" && (e.target.id === "name" || e.target.id === "code")) { const j = document.querySelector('[data-act="join"],[data-act="rename"]'); if (j) j.click(); } });
+$("cover").addEventListener("click", () => { $("cover").hidden = true; });
+
+/* ---------- The clock: the timer, and the badge's code ---------- */
+let wake = null;
+setInterval(() => {
+  const G = S.G; if (!G) return;
+  const t = $("timer"); if (t) { const ms = leftMs(G); t.textContent = (G.paused != null ? "⏸ " : "") + mmss(ms); t.classList.toggle("low", ms < 30000); }
+  if (G.phase === "mingle" || isOut()) { badgeTick(false); const k = $("badgeBox"), i = k && k.querySelector(".tick i"); if (i) i.style.width = `${100 - (Date.now() % BADGE_WIN) / BADGE_WIN * 100}%`; }
+  if (SC.open && G.phase !== "mingle") closeScan();
+  // Keep the screen on during a game, so the badge stays up
+  if (G.status === "running" && !wake && navigator.wakeLock && document.visibilityState === "visible") navigator.wakeLock.request("screen").then(w => { wake = w; w.addEventListener("release", () => { wake = null; }); }).catch(() => {});
+}, 500);
+start();
+</script>
+</body>
+</html>
