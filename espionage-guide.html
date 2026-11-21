@@ -7,12 +7,12 @@
 <link rel="icon" type="image/png" href="img/espionage-icon-64.png">
 <link rel="apple-touch-icon" href="img/espionage-icon-180.png">
 <title>Espionage: how to play</title>
-<script>window.APP_V = 156;</script>
-<script src="update.js?v=156"></script>
+<script>window.APP_V = 157;</script>
+<script src="update.js?v=157"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="espionage.css?v=156">
+<link rel="stylesheet" href="espionage.css?v=157">
 <style>
 /* How to play: printable, and readable on a phone */
 .wrap { width: min(820px, 100%); }
@@ -31,7 +31,7 @@
 <body>
 <div class="wrap">
   <a class="back" href="espionage-home.html">← Espionage</a>
-  <img class="wordmark" src="img/espionage-wordmark.webp?v=156" alt="Espionage" width="900" height="135" style="width:min(420px,90%)">
+  <img class="wordmark" src="img/espionage-wordmark.webp?v=157" alt="Espionage" width="900" height="135" style="width:min(420px,90%)">
   <section class="card"><h2>The idea</h2>
     <p>Everyone is an <b class="t-agent">🛡️ Agent</b>, except a few <b class="t-spy">🕶️ Spies</b> hiding amongst them, led by the <b class="t-spy">Black Hat</b>. Your phone is your badge. Scanning someone's badge uses your role's ability, and what you learn arrives at the briefing. Then you talk, and vote to detain someone.</p>
     <p><b class="t-agent">The Agents win</b> when they detain the Black Hat. <b class="t-spy">The Spies win</b> when there are as many Spies still online as Agents.</p>
@@ -54,7 +54,7 @@
     <p class="hint">📨 <b>HQ</b> sends one real message to an Agent each round: "X is not the Black Hat." It's always true. The Phisher's fakes look exactly the same.</p></section>
   <footer>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></footer>
 </div>
-<script src="espionage.js?v=156"></script>
+<script src="espionage.js?v=157"></script>
 <script>
 const card = r => `<div class="role ${ROLES[r].team}">${roleImg(r, 64)}<div><h3 class="${TEAM[ROLES[r].team].cls}">${esc(ROLES[r].name)}</h3><p>${esc(ROLES[r].does)}</p></div></div>`;
 document.getElementById("agents").innerHTML = AGENT_ROLES.map(card).join("");

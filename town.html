@@ -145,17 +145,23 @@ h1 { font-family: "UnifrakturMaguntia", var(--font-gothic); font-weight: 400; co
 /* Titles in the logo's style: blackletter, the logo's gold, a heavy dark shadow */
 .goldtext { font-family: "UnifrakturMaguntia", var(--font-gothic, serif); font-weight: 400; color: #e3c46e; background: url(img/gold.webp) center / cover; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(.04em .07em 0 rgba(12,6,3,.95)); }
 header h1 { line-height: 0; }
+/* Back to the BoTC menu: always on the connect screen; in a game, it shows when the mouse moves or the screen is tapped */
+.back-btn { position: fixed; top: 12px; left: 12px; z-index: 20; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--line); background: rgba(18, 10, 28, .85);
+  color: var(--fg); font-weight: 800; font-size: .85rem; text-decoration: none; opacity: 0; pointer-events: none; transition: opacity .3s; }
+.back-btn.on { opacity: 1; pointer-events: auto; }
+.back-btn:hover, .back-btn:focus-visible { border-color: var(--brass); color: var(--brass); opacity: 1; pointer-events: auto; }
 </style>
 </head>
 <body>
+<a class="back-btn on" id="backBtn" href="botc.html">← BoTC apps</a>
 <div id="app"></div>
 <div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
-<script>window.APP_V = 156;</script>
-<script src="update.js?v=156"></script>
-<script src="characters.js?v=156"></script>
-<script src="music.js?v=156"></script>
+<script>window.APP_V = 157;</script>
+<script src="update.js?v=157"></script>
+<script src="characters.js?v=157"></script>
+<script src="music.js?v=157"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=156"></script>
+<script src="net.js?v=157"></script>
 <script src="vendor/qrcode.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -296,14 +302,19 @@ const TOWN_TRACKS = { lobby: ["lobby", "The Old Tower Inn"], day: ["day", "Marke
   vote: ["vote", "Medieval Battle"], "good-wins": ["good-wins", "Victory"], "evil-wins": ["evil-wins", "Defeat"] };
 let music = null;
 function musicNow() {
-  music = music || gameMusic({ dir: "audio/botc/", tracks: TOWN_TRACKS, store: "town", side: "left", accent: "#d9b45a", dim: true, once: ["good-wins", "evil-wins"], v: 156 });
+  music = music || gameMusic({ dir: "audio/botc/", tracks: TOWN_TRACKS, store: "town", side: "left", accent: "#d9b45a", dim: true, once: ["good-wins", "evil-wins"], v: 157 });
   if (!G) return music.set(null);
   const m = G.mode;
   music.set(m === "over" ? (G.winner === "good" ? "good-wins" : G.winner === "evil" ? "evil-wins" : "day") : G.vote ? "vote" : G.announce ? "dawn" : m === "night" ? "night" : m === "day" ? "day" : "lobby");
 }
+// The back button: hidden in a game until the mouse moves or someone taps the screen
+let backTimer = 0;
+const backShow = () => { const b = $("backBtn"); b.classList.add("on"); clearTimeout(backTimer); if (G) backTimer = setTimeout(() => b.classList.remove("on"), 3000); };
+["mousemove", "pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, backShow, { passive: true }));
 function render() {
   const app = $("app");
   musicNow();
+  if (!G) { clearTimeout(backTimer); $("backBtn").classList.add("on"); } else if (!backTimer) backShow();
   $("corner").hidden = !G;
   $("dot").className = "dot" + (status === "live" || status === "local" ? "" : " off");
   $("cstat").textContent = status === "live" ? `Live · ${code}` : status === "local" ? "Live on this device" : status === "lost" ? "Reconnecting…" : "";
