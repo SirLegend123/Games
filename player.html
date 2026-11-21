@@ -319,11 +319,11 @@ header h1 { line-height: 0; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 147;</script>
-<script src="update.js?v=147"></script>
-<script src="characters.js?v=147"></script>
+<script>window.APP_V = 148;</script>
+<script src="update.js?v=148"></script>
+<script src="characters.js?v=148"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=147"></script>
+<script src="net.js?v=148"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -1076,14 +1076,15 @@ const nightOf = lb => lb.night || (lb.ph != null && lb.ph % 2 === 0 && /^Night/.
 // 🏁 The end of the game: the reveal, live, as the Storyteller turns each token over
 const overKey = () => { const o = link.lobby && link.lobby.over; return o ? `${link.lobby.gameId}:${o.roles.length}:${o.spot ? o.spot.at : 0}` : ""; };
 let spotSeen = "", spotUntil = 0;
+const SPOT_MS = 3000;   // how long a newly revealed character fills the screen (tap to go straight back to the circle)
 function overHtml(lb, me) {
   const o = lb.over, nm = id => esc(lname(id)), byId = Object.fromEntries(o.roles.map(r => [r.id, r]));
   if (ui.overClosed === overKey()) return `<button class="night-pill" data-act="over-open">🏁 The reveal · Back to it</button>`;
   // A newly revealed character fills the screen for a few seconds
   const sp = o.spot && byId[o.spot.id];
-  if (sp) { const k = o.spot.id + o.spot.at; if (k !== spotSeen) { spotSeen = k; spotUntil = Date.now() + 6000; setTimeout(renderLink, 6100); } }
+  if (sp) { const k = o.spot.id + o.spot.at; if (k !== spotSeen) { spotSeen = k; spotUntil = Date.now() + SPOT_MS; setTimeout(renderLink, SPOT_MS + 100); } }
   if (sp && Date.now() < spotUntil) { const c = CHAR[sp.role] || {};
-    return `<div class="night-ov reveal-ov ${sp.side === "evil" ? "tint-evil" : "tint-townsfolk"}"><div class="draw-inner"><p class="lead">${nm(sp.id)}${sp.id === me ? " (you)" : ""} was the</p>
+    return `<div class="night-ov reveal-ov ${sp.side === "evil" ? "tint-evil" : "tint-townsfolk"}" data-act="spot-skip"><div class="draw-inner"><p class="lead">${nm(sp.id)}${sp.id === me ? " (you)" : ""} was the</p>
       <div class="big-ico">${c.icon || ""}</div><h1>${esc(sp.role)}</h1><p class="lead"><b>${sp.side === "evil" ? "Evil!" : "Good"}</b></p></div></div>`; }
   // The Grimoire, as a circle: each player's token turned over as the Storyteller reveals it (blue good, red evil)
   const n = lb.players.length, tok = n <= 7 ? 19 : n <= 10 ? 16.5 : n <= 13 ? 14 : 12.5;
@@ -1255,6 +1256,7 @@ document.addEventListener("click", ev => {
     case "hide-grim": $("hideBox").hidden = false; window.scrollTo(0, 0); return;
     case "show-grim": $("hideBox").hidden = true; return;
     case "over-close": ui.overClosed = overKey(); renderLink(); return;
+    case "spot-skip": spotUntil = 0; renderLink(); return;
     case "over-open": ui.overClosed = ""; renderLink(); return;
     case "dawn-ok": ui.dawnSeen = `${link.lobby.gameId}:${link.lobby.dawn.n}`; renderLink(); return;
     case "night-peek": ui.nightPeek = `${link.lobby.gameId}:${nightOf(link.lobby)}`; renderLink(); return;
