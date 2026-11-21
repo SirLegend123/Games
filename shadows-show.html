@@ -7,17 +7,18 @@
 <script>document.documentElement.dataset.theme = "dark";</script>
 <link rel="icon" type="image/png" href="img/shadows-icon-180.png">
 <title>The Shadows: show screen</title>
-<script>window.APP_V = 155;</script>
-<script src="update.js?v=155"></script>
+<script>window.APP_V = 156;</script>
+<script src="update.js?v=156"></script>
 <script src="vendor/firebase.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="daily.js?v=155"></script>
-<script src="shadows.js?v=155"></script>
+<script src="daily.js?v=156"></script>
+<script src="shadows.js?v=156"></script>
+<script src="music.js?v=156"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
-<link rel="stylesheet" href="daily.css?v=155">
-<link rel="stylesheet" href="shadows.css?v=155">
+<link rel="stylesheet" href="daily.css?v=156">
+<link rel="stylesheet" href="shadows.css?v=156">
 <style>
 /* The show screen: shared in Zoom, so big, bold and readable from a little window */
 html, body { height: 100%; }
@@ -104,9 +105,23 @@ function render() {
   const where = LIVE_WHERE[step] ? `<div class="where">${WHERE[LIVE_WHERE[step]]}</div>` : "";
   const [ic, name] = LIVE_STEP[step] || ["", ""];
   document.body.classList.toggle("night", step === "night");
-  app.innerHTML = `<div class="show-top"><img src="img/title-the-shadows.webp?v=155" alt="The Shadows" width="544" height="150"><span class="day">${esc(G.name || "")}${d ? ` · Day ${d}` : ""}</span></div>
+  app.innerHTML = `<div class="show-top"><img src="img/title-the-shadows.webp?v=156" alt="The Shadows" width="544" height="150"><span class="day">${esc(G.name || "")}${d ? ` · Day ${d}` : ""}</span></div>
     <div class="stage">${stage(step, d, t, L, ic, name, clock, where)}</div>
     <div>${step === "lobby" ? "" : castleRow()}</div>`;
+  musicNow(step, L);
+}
+/* ---------- The music (public domain, CC0: see audio/shadows/CREDITS.md) ---------- */
+// A track for each part of the evening; they fade into each other. Pausing the host's timer pauses the music.
+// (On Zoom, tick "Share sound" when you share this screen, so everyone hears it.)
+const SHD_TRACKS = { lobby: ["lobby", "Spooky Waltz"], breakfast: ["breakfast", "Sad Tune"], task: ["task", "Kokopelli's Graveyard"], table: ["table", "I Swear I Saw It"],
+  vote: ["vote", "Ambient Horror"], night: ["night", "Haunted Mansion"], "guests-win": ["guests-win", "Forgotten Victory"], "shadows-win": ["shadows-win", "Death Waltz"] };
+let music = null;
+function musicNow(step, L) {
+  music = music || gameMusic({ dir: "audio/shadows/", tracks: SHD_TRACKS, store: "shd", side: "right", accent: "#c9a26a", dim: true, once: ["guests-win", "shadows-win"], v: 156 });
+  const end = gated.end;
+  const key = step === "over" ? (end ? (end.winner === "guests" ? "guests-win" : "shadows-win") : "vote")
+    : { lobby: "lobby", explain: "lobby", breakfast: "breakfast", task: "task", roam: "task", table: "table", vote: "vote", count: "vote", verdict: "vote", reveal: "vote", night: "night" }[step] || "lobby";
+  music.set(key, !!L.paused);
 }
 const hostNews = d => square.filter(m => m.kind === "st" && m.d === d && m.at <= nowMs());
 function stage(step, d, t, L, ic, name, clock, where) {

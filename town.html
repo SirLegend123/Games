@@ -150,11 +150,12 @@ header h1 { line-height: 0; }
 <body>
 <div id="app"></div>
 <div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
-<script>window.APP_V = 155;</script>
-<script src="update.js?v=155"></script>
-<script src="characters.js?v=155"></script>
+<script>window.APP_V = 156;</script>
+<script src="update.js?v=156"></script>
+<script src="characters.js?v=156"></script>
+<script src="music.js?v=156"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=155"></script>
+<script src="net.js?v=156"></script>
 <script src="vendor/qrcode.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -288,8 +289,21 @@ function lobbyHtml() {
       ${G.dealt ? `<p class="big">The first night is about to begin.</p>` : G.players.length && joined.size === G.players.length ? `<p class="big">Everyone's here! The Storyteller will hand out the tokens.</p>` : ""}
     </div></div>`;
 }
+/* ---------- The music (public domain, CC0: see audio/botc/CREDITS.md) ---------- */
+// A track for each part of the game: the inn while everyone gathers, the market by day, the dark forest by night,
+// a lament for the dawn's deaths, drums for a vote, and a fanfare (or a dirge) at the end.
+const TOWN_TRACKS = { lobby: ["lobby", "The Old Tower Inn"], day: ["day", "Market Day"], dawn: ["dawn", "Lament for a Warrior's Soul"], night: ["night", "Dark Forest"],
+  vote: ["vote", "Medieval Battle"], "good-wins": ["good-wins", "Victory"], "evil-wins": ["evil-wins", "Defeat"] };
+let music = null;
+function musicNow() {
+  music = music || gameMusic({ dir: "audio/botc/", tracks: TOWN_TRACKS, store: "town", side: "left", accent: "#d9b45a", dim: true, once: ["good-wins", "evil-wins"], v: 156 });
+  if (!G) return music.set(null);
+  const m = G.mode;
+  music.set(m === "over" ? (G.winner === "good" ? "good-wins" : G.winner === "evil" ? "evil-wins" : "day") : G.vote ? "vote" : G.announce ? "dawn" : m === "night" ? "night" : m === "day" ? "day" : "lobby");
+}
 function render() {
   const app = $("app");
+  musicNow();
   $("corner").hidden = !G;
   $("dot").className = "dot" + (status === "live" || status === "local" ? "" : " off");
   $("cstat").textContent = status === "live" ? `Live · ${code}` : status === "local" ? "Live on this device" : status === "lost" ? "Reconnecting…" : "";
