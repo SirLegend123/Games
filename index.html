@@ -7,8 +7,8 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Game Night</title>
-<script>window.APP_V = 152;</script>
-<script src="update.js?v=152"></script>
+<script>window.APP_V = 153;</script>
+<script src="update.js?v=153"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
@@ -37,6 +37,10 @@ a.game .go { font-weight: 800; font-size: 1.05rem; }
 .shd:hover, .shd:focus-visible { border-color: #c9a26a; }
 .shd img.logo { width: 150px; height: auto; }
 .icon-row { min-height: 120px; display: grid; place-items: center; }
+.upd { font: inherit; font-weight: 800; color: var(--fg); background: #2a1c24; border: 1px solid #5a3d4a; border-radius: 999px; padding: 10px 20px; cursor: pointer; }
+.upd:hover, .upd:focus-visible { border-color: var(--gold); outline: none; }
+.upd:disabled { opacity: .6; cursor: default; }
+.ver { margin: 8px 0 0; color: var(--muted); font-size: .9rem; min-height: 1.3em; }
 footer { color: var(--muted); font-size: .8rem; line-height: 1.5; }
 footer a { color: var(--muted); }
 </style>
@@ -57,7 +61,20 @@ footer a { color: var(--muted); }
     <span class="go">The Shadows →</span>
   </a>
 </div>
+<div><button class="upd" id="upd">🔄 Check for updates</button><p class="ver" id="ver"></p></div>
 <footer>Unofficial, fan-made games. <i>Blood on the Clocktower</i> belongs to The Pandemonium Institute. <a href="privacy.html">Privacy notice</a></footer>
 </main>
+<script>
+// Check for a new version now (the banner also appears by itself when there is one)
+const upd = document.getElementById("upd"), ver = document.getElementById("ver");
+ver.textContent = `Version ${window.APP_V}`;
+upd.addEventListener("click", async () => {
+  upd.disabled = true; ver.textContent = "Checking…";
+  const r = window.appUpdate ? await window.appUpdate() : "offline";
+  if (r === "updating") { ver.textContent = "Updating…"; return; }
+  upd.disabled = false;
+  ver.textContent = r === "current" ? `✓ You have the latest version (${window.APP_V}).` : "Couldn't check: are you online?";
+});
+</script>
 </body>
 </html>
