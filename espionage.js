@@ -78,7 +78,9 @@ const ROLES = {
 const AGENT_ROLES = Object.keys(ROLES).filter(k => ROLES[k].team === "agent");
 const SPY_ROLES = Object.keys(ROLES).filter(k => ROLES[k].team === "spy");
 const spyCount = n => n >= 11 ? 4 : n >= 9 ? 3 : n >= 6 ? 2 : 1;
-const roleChip = r => ROLES[r] ? `<span class="${TEAM[ROLES[r].team].cls}">${ROLES[r].ic} ${esc(ROLES[r].name)}</span>` : "";
+// The role badges (from the Espionage artwork)
+const roleImg = (r, px = 28) => ROLES[r] ? `<img class="ri" src="img/esp/${r}.webp?v=152" alt="" width="${px}" height="${px}">` : "";
+const roleChip = r => ROLES[r] ? `<span class="chip ${TEAM[ROLES[r].team].cls}">${roleImg(r, 26)} ${esc(ROLES[r].name)}</span>` : "";
 
 /* ---------- The phases ---------- */
 const PHASES = {

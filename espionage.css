@@ -43,3 +43,6 @@ input:focus { outline: none; border-color: var(--cyan); }
 .pill.det { color: var(--spy); border-color: #6a1a2a; }
 footer { color: var(--muted); font-size: .8rem; text-align: center; }
 footer a { color: var(--muted); }
+.ri { display: inline-block; vertical-align: middle; object-fit: contain; filter: drop-shadow(0 0 6px rgba(0, 0, 0, .6)); }
+.chip { display: inline-flex; align-items: center; gap: 6px; }
+.wordmark { display: block; height: auto; mix-blend-mode: lighten; }
