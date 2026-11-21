@@ -184,6 +184,8 @@ label.field, .field { display: grid; gap: 6px; }
 .hide-cover { position: fixed; inset: 0; z-index: 28; background: var(--bg); display: grid; place-items: center; text-align: center; padding: 24px; }
 .hide-cover[hidden] { display: none; }
 .hide-cover .moon { font-size: 4rem; }
+.reveal-ov .reveal-circle { width: min(560px, 100%); }
+.reveal-ov .reveal-circle .hint { color: var(--muted); }
 .reveal-ov .big-ico { font-size: clamp(5rem, 22vw, 9rem); line-height: 1; }
 .reveal-ov .big-ico .ri { background: radial-gradient(circle at 40% 32%, #fdf7e8 0%, #efe4c9 55%, #d8c69c 100%); padding: .08em; }
 .night-pill { position: fixed; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 35; background: #0e1226; color: #f6f2fa; border: 2px solid #f0c66a; border-radius: 999px; padding: 8px 16px; font-weight: 800; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
@@ -312,11 +314,11 @@ header h1 { line-height: 0; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 145;</script>
-<script src="update.js?v=145"></script>
-<script src="characters.js?v=145"></script>
+<script>window.APP_V = 146;</script>
+<script src="update.js?v=146"></script>
+<script src="characters.js?v=146"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=145"></script>
+<script src="net.js?v=146"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -1078,11 +1080,17 @@ function overHtml(lb, me) {
   if (sp && Date.now() < spotUntil) { const c = CHAR[sp.role] || {};
     return `<div class="night-ov reveal-ov ${sp.side === "evil" ? "tint-evil" : "tint-townsfolk"}"><div class="draw-inner"><p class="lead">${nm(sp.id)}${sp.id === me ? " (you)" : ""} was the</p>
       <div class="big-ico">${c.icon || ""}</div><h1>${esc(sp.role)}</h1><p class="lead"><b>${sp.side === "evil" ? "Evil!" : "Good"}</b></p></div></div>`; }
-  const rows = lb.players.filter(p => byId[p.id]).map(p => { const r = byId[p.id], c = CHAR[r.role] || {};
-    return `<li class="g-row ${r.side} ${r.dead ? "dead" : ""}"><span class="g-n">${r.dead ? "💀" : ""}</span><span class="g-ico">${c.icon || ""}</span><span class="g-txt"><b>${nm(p.id)}</b>${p.id === me ? " (you)" : ""}<br>${esc(r.role)} · <span class="g-side">${r.side === "evil" ? "Evil" : "Good"}</span></span></li>`; }).join("");
+  // The Grimoire, as a circle: each player's token turned over as the Storyteller reveals it (blue good, red evil)
+  const n = lb.players.length, tok = n <= 7 ? 19 : n <= 10 ? 16.5 : n <= 13 ? 14 : 12.5;
+  const seats = lb.players.map((p, i) => {
+    const ang = (i / n) * 2 * Math.PI - Math.PI / 2, x = 50 + 39 * Math.cos(ang), y = 50 + 39 * Math.sin(ang), r = byId[p.id], c = r && CHAR[r.role];
+    const word = r ? Math.max(...r.role.split(/\s+/).map(w => w.length)) : 1, dead = r ? r.dead : p.dead;
+    return `<span class="seat ${r ? (r.side === "evil" ? "suspect" : "trust") : ""} ${p.id === me ? "me" : ""} ${dead ? "dead" : ""}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%">
+      <span class="disc">${r ? `<span class="ico" aria-hidden="true">${c ? c.icon : ""}</span><span class="nm" style="--fs:${Math.min(.17, 1.45 / word).toFixed(3)}">${esc(r.role)}</span>` : `<span class="q">?</span>`}</span>
+      <span class="plate">${p.id === me ? "★ " : ""}${nm(p.id)}</span></span>`; }).join("");
   return `<div class="night-ov reveal-ov ${o.winner === "evil" ? "tint-evil" : "tint-townsfolk"}"><div class="draw-inner">
     <h1>${o.winner === "good" ? "Good wins!" : "Evil wins!"}</h1>${o.reason ? `<p class="lead">${esc(o.reason)}</p>` : `<p class="lead">The Storyteller is revealing the Grimoire…</p>`}
-    ${rows ? `<ol class="g-list">${rows}</ol>` : ""}${o.left ? `<p class="hint">${o.left} still to reveal.</p>` : ""}
+    <div class="circle reveal-circle" style="--tok:min(96px, ${tok}cqi)">${seats}<div class="center"><span class="ph">${o.winner === "good" ? "Good" : "Evil"} wins</span><span class="hint">${o.left ? `${o.left} still to reveal` : "Everyone revealed"}</span></div></div>
     <button class="btn" data-act="over-close">📖 Back to my notes</button></div></div>`;
 }
 function sleepHtml() {
