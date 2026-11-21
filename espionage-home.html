@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#060a12">
+<link rel="icon" type="image/png" href="img/espionage-icon-64.png">
+<link rel="apple-touch-icon" href="img/espionage-icon-180.png">
+<title>Espionage</title>
+<script>window.APP_V = 154;</script>
+<script src="update.js?v=154"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="espionage.css?v=154">
+<style>
+/* Espionage's own menu: the screen, the phones, and how to play */
+.back { color: var(--muted); text-decoration: none; font-weight: 700; }
+.back:hover { color: var(--cyan); }
+.hero { display: grid; justify-items: center; gap: 8px; text-align: center; }
+.hero img { width: min(100%, 420px); height: auto; mix-blend-mode: lighten; }
+a.choice { display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; align-items: center; text-decoration: none; color: inherit; }
+a.choice .ico { grid-row: span 2; font-size: 2rem; }
+a.choice:hover { border-color: var(--cyan); }
+a.choice p { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← Game Night</a>
+  <div class="hero"><img src="img/espionage-logo.webp?v=154" alt="Espionage" width="820" height="500">
+    <p class="hint">Agents and Spies, in one room, for 4 to 12 players. Everyone's phone is a badge: scan each other to use your role, share what you learn (or lie), and detain the Black Hat before the Spies take over.</p></div>
+  <a class="card choice" href="espionage-tv.html"><span class="ico" aria-hidden="true">📺</span><h2>Host on the TV</h2><p>Open this on a TV or laptop everyone can see. It runs the game: the timers, the briefing and the votes.</p></a>
+  <a class="card choice" href="espionage.html"><span class="ico" aria-hidden="true">📱</span><h2>Join on your phone</h2><p>Scan the code on the screen, or type it in.</p></a>
+  <a class="card choice" href="espionage-guide.html"><span class="ico" aria-hidden="true">📖</span><h2>How to play</h2><p>The round, the roles, and how to win.</p></a>
+  <footer>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></footer>
+</div>
+</body>
+</html>

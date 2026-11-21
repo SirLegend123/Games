@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#060a12">
+<link rel="icon" type="image/png" href="img/espionage-icon-64.png">
+<link rel="apple-touch-icon" href="img/espionage-icon-180.png">
+<title>Espionage: how to play</title>
+<script>window.APP_V = 154;</script>
+<script src="update.js?v=154"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="espionage.css?v=154">
+<style>
+/* How to play: printable, and readable on a phone */
+.wrap { width: min(820px, 100%); }
+.back { color: var(--muted); text-decoration: none; font-weight: 700; }
+.steps { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
+.roles { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 10px; }
+.role { display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: center; padding: 10px; border-radius: 14px; background: #0a1322; border: 1px solid var(--line); }
+.role.spy { border-color: #4a1a26; }
+.role h3 { font-size: 1.15rem; }
+.role p { font-size: .98rem; }
+.counts { width: 100%; border-collapse: collapse; }
+.counts td, .counts th { border-bottom: 1px solid var(--line); padding: 6px; text-align: left; }
+@media print { body { background: #fff; color: #000; } body::before { display: none; } .card, .role { background: #fff; border-color: #bbb; break-inside: avoid; } h1, h2 { color: #0e6f78; text-shadow: none; } .hint { color: #444; } .back, footer { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="espionage-home.html">← Espionage</a>
+  <img class="wordmark" src="img/espionage-wordmark.webp?v=154" alt="Espionage" width="900" height="135" style="width:min(420px,90%)">
+  <section class="card"><h2>The idea</h2>
+    <p>Everyone is an <b class="t-agent">🛡️ Agent</b>, except a few <b class="t-spy">🕶️ Spies</b> hiding amongst them, led by the <b class="t-spy">Black Hat</b>. Your phone is your badge. Scanning someone's badge uses your role's ability, and what you learn arrives at the briefing. Then you talk, and vote to detain someone.</p>
+    <p><b class="t-agent">The Agents win</b> when they detain the Black Hat. <b class="t-spy">The Spies win</b> when there are as many Spies still online as Agents.</p>
+    <p class="hint">4 to 12 players, in one room. One TV or laptop that everyone can see, and a phone each.</p></section>
+  <section class="card"><h2>Setting up</h2><ol class="steps">
+    <li>On the TV or laptop, open <b>Game Night → Espionage → Host on the TV</b> and start a new game.</li>
+    <li>Everyone scans the QR code on the screen with their phone and types their name.</li>
+    <li>When everyone's in, the host chooses the times and deals the roles. Look at yours, then hide it.</li></ol></section>
+  <section class="card"><h2>Each round</h2><ol class="steps">
+    <li><b>🤝 Mingle</b> (5 minutes). Walk around. You have <b>2 scans</b>: point your phone at someone's badge, or type the code under it. Choose your ability or a plain 📶 ping. Use at least one scan, or the briefing names you. Badges change every 30 seconds, so you can't scan a photo.</li>
+    <li><b>📋 Briefing.</b> The screen shows who the Black Hat took offline, if a Firewall blocked an attack, and who didn't scan. Your phone shows your reports, and maybe a 📨 message from HQ.</li>
+    <li><b>🗣️ Council</b> (3 minutes). Share what you learned, or lie about it.</li>
+    <li><b>🗳️ Vote</b> (1 minute), on your phone. The most votes is detained; a tie detains nobody. The screen reveals the votes one by one. A detained player's team stays secret: if the game goes on, they weren't the Black Hat.</li></ol>
+    <p class="hint">Offline and detained players can still talk and ask questions, but can't scan or vote. Keep your badge showing: Forensics may want to scan it.</p></section>
+  <section class="card"><h2>How many Spies</h2>
+    <table class="counts"><tr><th>Players</th><th>Spies</th></tr><tr><td>4 to 5</td><td>the Black Hat alone</td></tr><tr><td>6 to 8</td><td>2</td></tr><tr><td>9 to 10</td><td>3</td></tr><tr><td>11 to 12</td><td>4</td></tr></table>
+    <p class="hint">The Spies know each other. The roles are drawn at random, so not every role is in every game.</p></section>
+  <section class="card"><h2 class="t-agent">🛡️ The Agents</h2><div class="roles" id="agents"></div></section>
+  <section class="card"><h2 class="t-spy">🕶️ The Spies</h2><div class="roles" id="spies"></div>
+    <p class="hint">📨 <b>HQ</b> sends one real message to an Agent each round: "X is not the Black Hat." It's always true. The Phisher's fakes look exactly the same.</p></section>
+  <footer>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></footer>
+</div>
+<script src="espionage.js?v=154"></script>
+<script>
+const card = r => `<div class="role ${ROLES[r].team}">${roleImg(r, 64)}<div><h3 class="${TEAM[ROLES[r].team].cls}">${esc(ROLES[r].name)}</h3><p>${esc(ROLES[r].does)}</p></div></div>`;
+document.getElementById("agents").innerHTML = AGENT_ROLES.map(card).join("");
+document.getElementById("spies").innerHTML = SPY_ROLES.map(card).join("");
+</script>
+</body>
+</html>
