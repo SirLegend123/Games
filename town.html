@@ -156,12 +156,12 @@ header h1 { line-height: 0; }
 <a class="back-btn on" id="backBtn" href="botc.html">← BoTC apps</a>
 <div id="app"></div>
 <div class="corner" id="corner" hidden><span class="dot" id="dot"></span><span id="cstat"></span><button id="sheetBtn">Characters</button><button id="fsBtn">Full screen</button><button id="leaveBtn">Change code</button></div>
-<script>window.APP_V = 158;</script>
-<script src="update.js?v=158"></script>
-<script src="characters.js?v=158"></script>
-<script src="music.js?v=158"></script>
+<script>window.APP_V = 159;</script>
+<script src="update.js?v=159"></script>
+<script src="characters.js?v=159"></script>
+<script src="music.js?v=159"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=158"></script>
+<script src="net.js?v=159"></script>
 <script src="vendor/qrcode.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -302,7 +302,7 @@ const TOWN_TRACKS = { lobby: ["lobby", "The Old Tower Inn"], day: ["day", "Marke
   vote: ["vote", "Medieval Battle"], "good-wins": ["good-wins", "Victory"], "evil-wins": ["evil-wins", "Defeat"] };
 let music = null;
 function musicNow() {
-  music = music || gameMusic({ dir: "audio/botc/", tracks: TOWN_TRACKS, store: "town", side: "left", accent: "#d9b45a", dim: true, once: ["good-wins", "evil-wins"], v: 158 });
+  music = music || gameMusic({ dir: "audio/botc/", tracks: TOWN_TRACKS, store: "town", side: "left", accent: "#d9b45a", dim: true, once: ["good-wins", "evil-wins"], v: 159 });
   if (!G) return music.set("lobby");   // the inn, while the TV waits for the Storyteller
   const m = G.mode;
   music.set(m === "over" ? (G.winner === "good" ? "good-wins" : G.winner === "evil" ? "evil-wins" : "day") : G.vote ? "vote" : G.announce ? "dawn" : m === "night" ? "night" : m === "day" ? "day" : "lobby");
@@ -373,7 +373,8 @@ function sheetHtml() {
   return `<div class="screen sheet" id="sheet"><div class="sheet-head"><h1>${esc(sc.name)}</h1>
       ${c ? `<p class="big">${n} players: ${TEAMS.map((t, i) => `<span class="${t}">${countWord(c[i], t)}</span>`).join(" · ")}</p>` : ""}<p class="muted">* Not the first night</p></div>
     <div class="sheet-body">${TEAMS.map(t => `<section class="sh-team ${t}"><h2>${sc.roles[t].length === 1 ? TEAM_ONE[t] : TEAM_MANY[t]}</h2>
-      ${sc.roles[t].map(([name, icon, text]) => `<div class="sh-r"><span class="ico">${icon}</span><div><b>${esc(name)}</b> <span>${esc(text)}</span></div></div>`).join("")}</section>`).join("")}</div></div>`;
+      ${sc.roles[t].map(([name, icon, text]) => `<div class="sh-r"><span class="ico">${icon}</span><div><b>${esc(name)}</b> <span>${esc(text)}</span></div></div>`).join("")}</section>`).join("")}
+      ${(sc.jinxes || []).length ? `<section class="sh-team"><h2>Jinxes</h2>${sc.jinxes.map(([a, b, text]) => `<div class="sh-r"><span class="ico">${(CHAR[a] || {}).icon || ""}${(CHAR[b] || {}).icon || ""}</span><div><span>${esc(text)}</span></div></div>`).join("")}</section>` : ""}</div></div>`;
 }
 // Make the sheet fit the screen, however long the script
 function fitSheet() {
