@@ -305,12 +305,12 @@ document.getElementById("homeBtn").addEventListener("click", e => {
 <div id="qrBig" class="qr-big" hidden role="dialog" aria-modal="true" aria-label="Scan to join"></div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
-<script>window.APP_V = 143;</script>
-<script src="update.js?v=143"></script>
-<script src="characters.js?v=143"></script>
+<script>window.APP_V = 144;</script>
+<script src="update.js?v=144"></script>
+<script src="characters.js?v=144"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="net.js?v=143"></script>
+<script src="net.js?v=144"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -954,8 +954,13 @@ function nightHtml() {
     }
   }
   const hl = st ? (st.key === "MINION" ? minions() : [st.pid, ...((N.cur && N.cur.done && N.cur.picks) || [])]) : [];
-  return `<div class="grim-wrap"><div>${card}</div><div>${circleHtml({ hl })}</div></div>`;
+  return `<div class="grim-wrap"><div>${card}${eyesHtml()}</div><div>${circleHtml({ hl })}</div></div>`;
 }
+// 🌙 Players' phones at night: they choose whether to look (their notes, quiet notes to neighbours), or their eyes stay closed
+const eyesShut = () => !!S.eyesShut;
+const eyesHtml = () => `<section class="card"><div class="field"><span class="label">🌙 Players' phones tonight</span>
+  <div class="seg" role="group" aria-label="Players' phones at night"><button data-act="eyes" data-v="" aria-pressed="${!eyesShut()}">Players choose</button><button data-act="eyes" data-v="1" aria-pressed="${eyesShut()}">Eyes closed</button></div>
+  <span class="hint">${eyesShut() ? "The night screen stays put: no looking at their notes, and no notes to neighbours. You can still wake anyone to choose on their phone." : "Players can look at their character and notes, and quietly pass notes to their neighbours."}</span></div></section>`;
 const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
 function stNote(st) {
   const a = actOf(st.key), i = st.pid;
@@ -1924,8 +1929,8 @@ const seatNeighbours = (a, b) => { const ids = S.players.map(p => p.id), n = ids
 const chatNight = () => S.step === "night" && !S.over;
 // Face to face, the Storyteller can keep private notes to neighbours all day: players talk to anyone else in person
 const nbOnly = () => !!S.nbOnly;
-const canChat = (a, b) => (chatDay() && ((dayPhase() === 0 && !nbOnly()) || seatNeighbours(a, b))) || (chatNight() && seatNeighbours(a, b));
-const chatWhy = () => chatNight() ? "At night you can only pass notes to your neighbours." : !chatDay() ? "Private notes aren't open yet." : dayPhase() === 0 && nbOnly() ? "Today, private notes are only between neighbours: talk to anyone else in person." : `${PHASES[dayPhase()].name}: you can only pass notes to your neighbours now.`;
+const canChat = (a, b) => (chatDay() && ((dayPhase() === 0 && !nbOnly()) || seatNeighbours(a, b))) || (chatNight() && !eyesShut() && seatNeighbours(a, b));
+const chatWhy = () => chatNight() ? (eyesShut() ? "Eyes closed: no notes tonight." : "At night you can only pass notes to your neighbours.") : !chatDay() ? "Private notes aren't open yet." : dayPhase() === 0 && nbOnly() ? "Today, private notes are only between neighbours: talk to anyone else in person." : `${PHASES[dayPhase()].name}: you can only pass notes to your neighbours now.`;
 const phaseTip = k => k === 0 && nbOnly() ? "Players talk to each other in person. Private notes only between neighbours." : PHASES[k].tip;
 // Set the timer for a part of the day; it starts straight away when the Storyteller moves on to it
 function phaseTimer(k, run) {
@@ -2077,7 +2082,7 @@ function refreshJoin() {
 }
 function sendLobby(force) {
   // End the chats that aren't allowed any more: at night, or between non-neighbours once nominations open
-  const why = chatNight() ? "Night has fallen. Private chats are over, except between neighbours." : !chatDay() ? "Private chats are over." : `${PHASES[dayPhase()].started} Private chats are over, except between neighbours.`;
+  const why = chatNight() ? (eyesShut() ? "Night has fallen: eyes closed, so private chats are over." : "Night has fallen. Private chats are over, except between neighbours.") : !chatDay() ? "Private chats are over." : `${PHASES[dayPhase()].started} Private chats are over, except between neighbours.`;
   town.chats.filter(x => !canChat(x.a, x.b)).forEach(x => endChat(x.id, why));
   for (const [id, r] of Object.entries(town.reqs)) if (!canChat(r.from, r.to)) { delete town.reqs[id]; tellPlayer(r.to, { t: "chat-gone", id }); tellPlayer(r.from, { t: "chat-no", to: r.to, why }); }
   const base = lobbyBase();
@@ -2111,7 +2116,7 @@ function startNomination(by, of) {
 }
 function lobbyBase() {
   return { t: "lobby", v: window.APP_V, gameId: S.gameId, dayInfo: dayInfo(), day: chatDay(), night: chatNight() ? S.n : null,
-    dawn: S.announce && S.step === "day" && !S.over ? { n: S.announce.n, ids: S.announce.pids, comp: COMP[Math.min(15, tCount())] || null, travs: travIds().length } : null, noms: nomsOpen(), phase: chatDay() ? dayPhase() : null, nbOnly: nbOnly(), say: sayList(30), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
+    dawn: S.announce && S.step === "day" && !S.over ? { n: S.announce.n, ids: S.announce.pids, comp: COMP[Math.min(15, tCount())] || null, travs: travIds().length } : null, noms: nomsOpen(), phase: chatDay() ? dayPhase() : null, nbOnly: nbOnly(), eyes: eyesShut(), say: sayList(30), script: S.script, ph: S.over ? null : S.step === "night" ? (S.n - 1) * 2 : S.step === "day" ? (S.n - 1) * 2 + 1 : null, label: S.over ? "Game over" : S.step === "night" ? `Night ${S.n}` : S.step === "day" ? `Day ${S.n}` : "Setting up",
     players: S.players.map(p => ({ id: p.id, name: nameOf(p.id), online: !!town.players[p.id], busy: inChat(p.id), dead: !!(S.dead || {})[p.id], k: (S.noteKeys || {})[p.id] || null, ...(p.trav ? { trav: roleOf(p.id) || "Traveller" } : {}) })),
     chats: town.chats.map(c => [c.a, c.b]) };
 }
@@ -2334,6 +2339,7 @@ document.addEventListener("click", ev => {
     case "tv-sheet": ui.tvSheet = !ui.tvSheet; break;
     case "phase-go": enterPhase(Number(el.dataset.v)); break;
     case "nb-only": S.nbOnly = !!el.dataset.v; sendLobby(true); break;
+    case "eyes": S.eyesShut = !!el.dataset.v; sendLobby(true); break;
     case "say-del": S.day.say = (S.day.say || []).filter(x => x.id !== el.dataset.id); break;
     case "nom-cancel": S.day.draft = null; break;
     case "nom-by": S.day.draft.by = el.dataset.pid; S.day.draft.stage = "of"; break;
@@ -2426,7 +2432,7 @@ document.addEventListener("click", ev => {
     case "new-game": {
       const playing = S.step !== "players" || S.bag.length;
       if (playing && !confirm(S.over ? "Start a new game with the same players?" : "Start a new game? This game ends now. The players stay; the bag, characters and everything that has happened are cleared.")) return;
-      S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn !== false, townCode: S.townCode, linkSecrets: S.linkSecrets, noteKeys: S.noteKeys, phaseMins: S.phaseMins, nbOnly: S.nbOnly };
+      S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn !== false, townCode: S.townCode, linkSecrets: S.linkSecrets, noteKeys: S.noteKeys, phaseMins: S.phaseMins, nbOnly: S.nbOnly, eyesShut: S.eyesShut };
       Object.assign(T, { end: 0, left: 0, total: 0, rang: false });
       Object.assign(ui, { sel: null, reveal: false, story: false, timerOpen: false }); show = null;
       break;
