@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#060a12">
+<link rel="icon" type="image/png" href="img/espionage-icon-64.png">
+<link rel="apple-touch-icon" href="img/espionage-icon-180.png">
+<title>Espionage: the screen</title>
+<script>window.APP_V = 154;</script>
+<script src="update.js?v=154"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="espionage.css?v=154">
+<style>
+/* The TV: the host's screen, for everyone in the room to see. It never knows anyone's role until the game is over. */
+html { font-size: clamp(16px, 1.15vw, 28px); }
+body { font-size: 1.05rem; overflow-x: hidden; }
+.tv { position: relative; min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; gap: 1.2vw; padding: 1.4vw 2vw; }
+.top { display: flex; align-items: center; gap: 2vw; }
+.top .wordmark { width: clamp(200px, 22vw, 520px); }
+.top .code { font-family: "JetBrains Mono", monospace; font-size: 1.6em; letter-spacing: .2em; color: var(--cyan); }
+.top .ph { margin-left: auto; text-align: right; }
+.top .ph .n { font-size: 1.5em; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.main { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 2vw; align-items: center; min-height: 0; }
+.stage { display: grid; gap: 1.2vw; justify-items: center; text-align: center; }
+.big { font-size: 2.6em; font-weight: 700; line-height: 1.1; }
+.huge { font-family: "JetBrains Mono", monospace; font-size: clamp(64px, 12vw, 260px); font-weight: 700; color: var(--cyan); text-shadow: 0 0 40px rgba(45, 226, 230, .45); line-height: 1; }
+.huge.low { color: var(--spy); text-shadow: 0 0 40px rgba(255, 59, 92, .45); }
+.lead { font-size: 1.4em; color: var(--fg); max-width: 34em; }
+.qr { background: #fff; border-radius: 1vw; padding: 1vw; line-height: 0; }
+.qr svg { width: clamp(180px, 22vw, 420px); height: auto; }
+.list { display: grid; gap: .6em; width: min(100%, 34em); text-align: left; }
+.list .it { display: flex; align-items: center; gap: .6em; padding: .55em .9em; border-radius: .7em; background: rgba(12, 20, 36, .9); border: 1px solid var(--line); font-size: 1.25em; }
+.list .it.pop { animation: pop .45s ease-out both; }
+@keyframes pop { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+.tally { display: flex; gap: .8em; flex-wrap: wrap; justify-content: center; }
+.tally .t { padding: .3em .8em; border-radius: 99px; border: 1px solid var(--line); font-size: 1.2em; }
+.verdict { font-size: 2.4em; font-weight: 700; animation: pop .6s ease-out both; }
+.ctl { display: flex; gap: .8em; flex-wrap: wrap; justify-content: center; align-items: center; }
+.ctl .btn { font-size: 1.05em; }
+.ctl .hint { font-size: .95em; }
+/* The network map */
+.map { width: 100%; height: auto; max-height: 74vh; }
+.map .ln { stroke: #1f6f8a; stroke-width: 2; opacity: .7; }
+.map .ln.off { stroke: #5a4a2a; stroke-dasharray: 6 6; }
+.map .ln.det { stroke: #7a2236; stroke-dasharray: 2 8; }
+.map .node { fill: #0c1424; stroke: var(--cyan); stroke-width: 3; }
+.map .node.off { stroke: #a77a2a; fill: #141008; }
+.map .node.det { stroke: var(--spy); fill: #1a080c; }
+.map .node.voted { fill: #10304a; }
+.map text { fill: var(--fg); font-family: "Rajdhani", sans-serif; font-weight: 700; text-anchor: middle; }
+.map .st { font-size: 22px; }
+.map .pulse { fill: none; stroke: var(--cyan); stroke-width: 2; opacity: 0; }
+.mingle .map .pulse { animation: ping 2.4s ease-out infinite; }
+@keyframes ping { 0% { r: 30; opacity: .7; } 100% { r: 60; opacity: 0; } }
+.lobby-grid { display: grid; grid-template-columns: auto 1fr; gap: 2vw; align-items: center; text-align: left; }
+.mins { display: flex; gap: 1em; flex-wrap: wrap; justify-content: center; }
+.mins label { display: grid; gap: .2em; font-size: .9em; color: var(--muted); text-align: center; }
+.mins .row { justify-content: center; }
+.tv .hint { font-size: 1.05rem; }
+.over-roles { font-size: 1.25em; display: grid; grid-template-columns: repeat(auto-fill, minmax(12em, 1fr)); gap: .8em; width: 100%; }
+.over-roles .it { display: flex; align-items: center; gap: .6em; padding: .5em .8em; border-radius: .8em; background: rgba(12, 20, 36, .9); border: 1px solid var(--line); text-align: left; }
+.over-roles .it.spy { border-color: #6a1a2a; }
+.back { position: fixed; top: 10px; left: 10px; z-index: 5; opacity: 0; transition: opacity .3s; }
+body.moving .back { opacity: 1; }
+@media (max-width: 800px) { .main { grid-template-columns: 1fr; } .lobby-grid { grid-template-columns: 1fr; justify-items: center; text-align: center; } }
+</style>
+</head>
+<body>
+<a class="btn small back" href="espionage-home.html">← Back</a>
+<div class="tv" id="app"><p class="hint">Loading…</p></div>
+<script src="vendor/firebase.js?v=154"></script>
+<script src="vendor/qrcode.js?v=154"></script>
+<script src="espionage.js?v=154"></script>
+<script>
+const $ = id => document.getElementById(id);
+const Q = new URLSearchParams(location.search);
+const S = { gid: (Q.get("g") || "").toUpperCase(), G: null, votes: {}, err: "", subs: [], shown: {}, reveal: null, busy: false };
+const LS = { get: k => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+const isHost = () => S.G && S.G.host === myUid;
+const joinUrl = gid => new URL(`espionage.html?g=${gid}${EMU ? "&emu=1" : ""}`, location.href).href;
+const qrSvg = (url, cell) => { try { const q = qrcode(0, "M"); q.addData(url); q.make(); return q.createSvgTag({ cellSize: cell, margin: 1, scalable: true }); } catch (e) { return ""; } };
+
+/* ---------- Starting ---------- */
+async function start() {
+  try { await fbStart(); } catch (e) { $("app").innerHTML = `<p class="bad">Couldn't connect. Check the internet and reload.</p>`; return; }
+  if (!S.gid) return render();
+  watch();
+}
+async function newGame(from) {
+  const mins = from ? minsOf(from) : DEFAULT_MINS;
+  for (let i = 0; i < 5; i++) {
+    const gid = newCode();
+    try {
+      await FB.setDoc(eref(gid), { host: myUid, code: gid, status: "lobby", phase: "lobby", seats: [], uids: {}, created: Date.now(), mins });
+      LS.set("esp-host", gid);
+      if (from && isHost()) await upd({ next: gid }).catch(() => {});
+      location.href = `espionage-tv.html?g=${gid}${EMU ? "&emu=1" : ""}`; return;
+    } catch (e) { /* that code is taken: try another */ }
+  }
+  S.err = "Couldn't create a game. Check the internet."; render();
+}
+function watch() {
+  S.subs.forEach(f => f()); S.subs = [];
+  S.subs.push(FB.onSnapshot(eref(S.gid), s => { S.G = s.exists() ? s.data() : null; if (!S.G) S.err = "There's no game with that code."; voteWatch(); render(); }, () => { S.err = "Couldn't open the game."; render(); }));
+}
+// The host's screen counts the votes as they come in (only the count, until the server reveals them)
+let voteSub = null;
+function voteWatch() {
+  if (!isHost() || voteSub) return;
+  voteSub = FB.onSnapshot(ecol(S.gid, "votes"), q => { S.votes = {}; q.forEach(d => S.votes[d.id] = d.data()); render(); }, () => {});
+}
+const upd = patch => FB.updateDoc(eref(S.gid), patch);
+const votedNow = () => onlineIds(S.G).filter(p => S.votes[p] && S.votes[p].r === S.G.round);
+
+/* ---------- Moving the game on ---------- */
+async function go(phase) {
+  if (S.busy) return; S.busy = true;
+  const G = S.G, m = minsOf(G);
+  const patch = { phase, paused: null, ends: m[phase] ? Date.now() + m[phase] * 60000 : null };
+  if (phase === "mingle") patch.round = (G.round || 0) + 1;
+  try { await upd(patch); } catch (e) { S.err = "Couldn't move the game on: " + e.message; }
+  S.busy = false;
+}
+async function pause() {
+  const G = S.G;
+  if (G.paused != null) await upd({ paused: null, ends: Date.now() + G.paused });
+  else await upd({ paused: Math.max(0, G.ends - Date.now()), ends: null });
+}
+const addMin = () => S.G.paused != null ? upd({ paused: S.G.paused + 60000 }) : upd({ ends: Math.max(Date.now(), S.G.ends) + 60000 });
+const NEXT = { roles: "mingle", mingle: "brief", brief: "council", council: "vote", vote: "result", result: "mingle" };
+
+/* ---------- The screen ---------- */
+function render() {
+  const app = $("app"), G = S.G;
+  if (!S.gid) return app.innerHTML = startScreen();
+  if (!G) return app.innerHTML = `<div></div><div class="stage"><p class="${S.err ? "bad" : "hint"}">${esc(S.err || "Connecting…")}</p><a class="btn" href="espionage-tv.html">Start a new game</a></div><div></div>`;
+  document.body.classList.toggle("mingle", G.phase === "mingle");
+  const p = PHASES[G.phase] || PHASES.lobby, timed = ["mingle", "council", "vote"].includes(G.phase);
+  app.innerHTML = `<div class="top"><img class="wordmark" src="img/espionage-wordmark.webp?v=154" alt="Espionage" width="900" height="135">
+      <span class="code" title="Game code">${esc(G.code)}</span>
+      <div class="ph"><div class="n">${p[0]} ${esc(p[1])}</div>${G.round ? `<div class="hint">Round ${G.round}</div>` : ""}</div></div>
+    <div class="main">${stage()}${mapSvg()}</div>
+    <div class="ctl">${isHost() ? controls() : `<span class="hint">Viewing only: the host's screen runs the game.</span>`}</div>`;
+  tickTimer();
+}
+function startScreen() {
+  const mine = LS.get("esp-host");
+  return `<div class="top"><img class="wordmark" src="img/espionage-wordmark.webp?v=154" alt="Espionage" width="900" height="135"></div>
+    <div class="stage"><img src="img/espionage-emblem.webp?v=154" alt="" width="300" height="338" style="width:clamp(160px,16vw,300px);height:auto;mix-blend-mode:lighten">
+      <p class="lead">Put this screen where everyone can see it. Players join on their phones by scanning the code.</p>
+      <div class="ctl"><button class="btn primary" data-act="new">📡 Start a new game</button>${mine ? `<a class="btn" href="espionage-tv.html?g=${esc(mine)}${EMU ? "&emu=1" : ""}">Back to game ${esc(mine)}</a>` : ""}</div>
+      ${S.err ? `<p class="bad">${esc(S.err)}</p>` : ""}</div><div></div>`;
+}
+function stage() {
+  const G = S.G, ph = G.phase, r = G.round || 0, names = ps => ps.map(p => `<b>${esc(nameOf(G, p))}</b>`).join(", ");
+  if (G.status === "lobby" || G.status === "deal") {
+    const n = (G.seats || []).length;
+    return `<div class="stage"><div class="lobby-grid"><div class="qr">${qrSvg(joinUrl(G.code), 8)}</div>
+      <div style="display:grid;gap:.6em"><div class="big">Scan to join</div><p class="lead">or open <b>${esc(joinUrl(G.code).replace(/^https?:\/\//, "").replace(/\?.*$/, ""))}</b> and type <b class="mono" style="color:var(--cyan)">${esc(G.code)}</b></p>
+        <p class="lead">${n} of 4 to 12 players.${n < MIN_P ? ` Waiting for ${MIN_P - n} more.` : ""}</p>
+        ${G.err ? `<p class="bad">${esc(G.err)}</p>` : ""}</div></div></div>`;
+  }
+  if (ph === "roles") return `<div class="stage"><div class="big">🪪 Check your phones</div>
+    <p class="lead">Look at your role, then hide it. Don't show anyone.</p>
+    <p class="lead">${G.spies === 1 ? "One Spy, the <b class='t-spy'>Black Hat</b>, is hiding amongst you." : `<b class="t-spy">${G.spies} Spies</b> are hiding amongst you, led by the <b class="t-spy">Black Hat</b>.`}</p>
+    <p class="hint">${TEAM.agent.ic} Agents: find and detain the Black Hat. ${TEAM.spy.ic} Spies: stay hidden until you equal the Agents.</p></div>`;
+  if (ph === "mingle") return `<div class="stage"><div class="huge" id="timer"></div>
+    <p class="lead">🤝 Mingle. Scan up to <b>2 badges</b>: use at least one, or the briefing names you.</p>
+    <p class="hint">Point your phone at someone's badge, or type their code. Reports arrive at the briefing.</p></div>`;
+  if (ph === "brief") {
+    const b = (G.brief || {})[r];
+    if (!b) return `<div class="stage"><div class="big">📋 Decrypting the briefing…</div></div>`;
+    return `<div class="stage"><div class="big">📋 Briefing</div><div class="list">
+      ${b.offline.length ? b.offline.map(p => `<div class="it pop">📴 <span><b>${esc(nameOf(G, p))}</b> has been taken offline.</span></div>`).join("") : `<div class="it pop">📶 Nobody was taken offline.</div>`}
+      ${b.blocked ? `<div class="it pop" style="animation-delay:.4s">🧱 A Firewall blocked an attack.</div>` : ""}
+      <div class="it pop" style="animation-delay:.8s">${b.idle.length ? `🚫 <span>Didn't scan: ${names(b.idle)}.</span>` : "✅ Everyone scanned."}</div></div>
+      <p class="hint">Check your phone for your reports. Offline players can still talk, but can't scan or vote.</p></div>`;
+  }
+  if (ph === "council") return `<div class="stage"><div class="huge" id="timer"></div><p class="lead">🗣️ Council. Share what you learned, or don't. Who is the Black Hat?</p></div>`;
+  if (ph === "vote") {
+    const live = onlineIds(G), v = isHost() ? votedNow().length : null;
+    return `<div class="stage"><div class="huge" id="timer"></div><p class="lead">🗳️ Vote on your phone: who do you detain?</p>
+      ${v != null ? `<p class="lead"><b>${v}</b> of ${live.length} have voted.</p>` : ""}<p class="hint">The most votes is detained. A tie detains nobody.</p></div>`;
+  }
+  if (ph === "result" || (ph === "over" && !S.shown["over" + r] && isHost())) return resultStage();
+  if (ph === "over") return overStage();
+  return `<div class="stage"></div>`;
+}
+// The verdict: the votes one by one, then who is detained (their team stays secret)
+function resultStage() {
+  const G = S.G, r = G.round || 0, res = (G.result || {})[r];
+  // The Spies can win at the briefing (no vote that round): show the briefing first
+  if (G.phase === "over" && !res) { const b = (G.brief || {})[r] || { offline: [], idle: [], blocked: 0 };
+    return `<div class="stage"><div class="big">📋 Briefing</div><div class="list">${b.offline.map(p => `<div class="it pop">📴 <span><b>${esc(nameOf(G, p))}</b> has been taken offline.</span></div>`).join("")}</div></div>`; }
+  if (!res) return `<div class="stage"><div class="big">⚖️ Counting the votes…</div></div>`;
+  const order = Object.keys(res.votes || {}), R = S.reveal && S.reveal.r === r ? S.reveal : (S.reveal = { r, n: 0, timer: null });
+  if (!R.timer && R.n <= order.length) R.timer = setInterval(() => { R.n++; if (R.n > order.length) { clearInterval(R.timer); } render(); }, 1300);
+  const shown = order.slice(0, R.n), n = {};
+  shown.forEach(v => { const t = res.votes[v]; n[t] = (n[t] || 0) + 1; });
+  const done = R.n > order.length;
+  if (done) setTimeout(() => { R.popped = true; }, 700);
+  return `<div class="stage"><div class="big">⚖️ The votes</div>
+    <div class="list">${shown.map((v, i) => `<div class="it ${i === shown.length - 1 && !done ? "pop" : ""}">🗳️ <span><b>${esc(nameOf(G, v))}</b> → ${res.votes[v] === "skip" ? "<i>nobody</i>" : `<b>${esc(nameOf(G, res.votes[v]))}</b>`}</span></div>`).join("") || `<p class="hint">${order.length ? "…" : "Nobody voted."}</p>`}</div>
+    <div class="tally">${Object.keys(n).sort((a, b) => n[b] - n[a]).map(t => `<span class="t">${t === "skip" ? "Nobody" : esc(nameOf(G, t))}: <b>${n[t]}</b></span>`).join("")}</div>
+    ${done ? `<div class="verdict" style="${S.reveal.popped ? "animation:none" : ""}">${res.detained ? `🔒 <span class="t-spy">${esc(nameOf(G, res.detained))}</span> is detained.` : res.tie ? "🤝 A tie: nobody is detained." : "Nobody is detained."}</div>
+      ${res.detained && G.phase !== "over" ? `<p class="lead">They weren't the Black Hat. The game goes on…</p>` : ""}` : ""}</div>`;
+}
+function overStage() {
+  const G = S.G, won = G.winner === "agents" ? "agent" : "spy";
+  return `<div class="stage"><div class="verdict ${TEAM[won].cls}" style="font-size:3.2em">${TEAM[won].ic} The ${TEAM[won].many} win!</div>
+    <p class="lead">${G.winner === "agents" ? "The Black Hat has been detained." : "The Spies have taken over the network."}</p>
+    <div class="over-roles">${(G.seats || []).map(s => { const r = (G.reveal || {})[s.id];
+      return `<div class="it ${ROLES[r] ? ROLES[r].team : ""}">${roleImg(r, 48)}<span><b>${esc(s.name)}</b><br>${ROLES[r] ? `<span class="${TEAM[ROLES[r].team].cls}">${esc(ROLES[r].name)}</span>` : ""}${(G.out || {})[s.id] ? ` <span class="hint">(${G.out[s.id]})</span>` : ""}</span></div>`; }).join("")}</div></div>`;
+}
+// The players as a network: everyone linked to the hub; offline and detained players' links go dark
+function mapSvg() {
+  const G = S.G, seats = G.seats || [], n = seats.length, W = 640, H = 600, cx = W / 2, cy = H / 2, rx = 240, ry = 225;
+  const hideDet = (G.phase === "result" || (G.phase === "over" && !S.shown["over" + (G.round || 0)])) && ((G.result || {})[G.round || 0] || {}).detained;
+  const voted = G.phase === "vote" && isHost() ? new Set(votedNow()) : new Set();
+  const showRoles = G.status === "over" && (S.shown["over" + (G.round || 0)] || !isHost());
+  const pts = seats.map((s, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / Math.max(n, 1); return { s, x: cx + rx * Math.cos(a), y: cy + ry * Math.sin(a) }; });
+  const st = id => { const o = (G.out || {})[id]; return o && !(hideDet === id) ? (o === "detained" ? "det" : "off") : ""; };
+  return `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="The network: ${n} players">
+    ${pts.map(p => `<line class="ln ${st(p.s.id)}" x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}"/>`).join("")}
+    <image href="img/espionage-emblem.webp?v=154" x="${cx - 62}" y="${cy - 70}" width="124" height="140" style="mix-blend-mode:lighten"/>
+    ${pts.map((p, i) => { const c = st(p.s.id); return `<g><circle class="pulse" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="30" style="animation-delay:${(i * .37) % 2.4}s"/>
+      <circle class="node ${c} ${voted.has(p.s.id) ? "voted" : ""}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="30"/>
+      <text class="st" x="${p.x.toFixed(1)}" y="${(p.y + 8).toFixed(1)}">${showRoles ? "" : c === "det" ? "🔒" : c === "off" ? "📴" : voted.has(p.s.id) ? "✔" : "📶"}</text>
+      ${showRoles && ROLES[(G.reveal || {})[p.s.id]] ? `<image href="img/esp/${G.reveal[p.s.id]}.webp?v=154" x="${(p.x - 26).toFixed(1)}" y="${(p.y - 26).toFixed(1)}" width="52" height="52"/>` : ""}
+      <text x="${p.x.toFixed(1)}" y="${(p.y + (p.y > cy ? 56 : -40)).toFixed(1)}" font-size="22">${esc(p.s.name)}</text></g>`; }).join("")}
+  </svg>`;
+}
+function controls() {
+  const G = S.G, ph = G.phase, n = (G.seats || []).length, m = minsOf(G);
+  if (G.status === "lobby" || G.status === "deal") {
+    const opt = (k, xs) => `<label>${k === "mingle" ? "🤝 Mingle" : k === "council" ? "🗣️ Council" : "🗳️ Vote"}<span class="row">${xs.map(x => `<button class="btn small" data-act="mins" data-k="${k}" data-v="${x}" aria-pressed="${m[k] === x}">${x}</button>`).join("")}</span></label>`;
+    return `<div class="mins">${opt("mingle", [3, 4, 5, 6, 8])}${opt("council", [2, 3, 4, 5])}${opt("vote", [1, 2])}</div>
+      <span class="hint">minutes</span>
+      ${(G.seats || []).length ? `<details><summary class="hint">Remove a player</summary><div class="row">${G.seats.map(s => `<button class="btn small" data-act="kick" data-pid="${s.id}">✕ ${esc(s.name)}</button>`).join("")}</div></details>` : ""}
+      <button class="btn primary" data-act="deal" ${n < MIN_P || n > MAX_P || G.status === "deal" ? "disabled" : ""}>🔐 Deal the roles (${n} players)</button>`;
+  }
+  if (G.status === "over" || ph === "over") {
+    if (!S.shown["over" + (G.round || 0)]) return `<button class="btn primary" data-act="show-win">🏁 Reveal the winner</button>`;
+    return `<button class="btn primary" data-act="again">🔁 New game${G.next ? " (players have been invited)" : ""}</button><a class="btn" href="espionage-home.html">Done</a>`;
+  }
+  const timed = ["mingle", "council", "vote"].includes(ph);
+  const label = { roles: "🤝 Start the mingle", mingle: "📋 End the mingle: briefing", brief: "🗣️ Start the council", council: "🗳️ Start the vote", vote: "⚖️ Close the vote", result: "🤝 Next round: mingle" }[ph];
+  return `${timed ? `<button class="btn" data-act="pause">${G.paused != null ? "▶️ Resume" : "⏸ Pause"}</button><button class="btn" data-act="plus">+1 min</button>` : ""}
+    ${ph === "result" && !(S.reveal && S.reveal.r === G.round && S.reveal.n > Object.keys(((G.result || {})[G.round] || {}).votes || {}).length) ? `<button class="btn" data-act="skip-reveal">⏩ Show all</button>` : ""}
+    <button class="btn primary" data-act="next">${label}</button>
+    <span class="hint">${timed ? "Moves on by itself when the time's up." : ""}</span>`;
+}
+
+/* ---------- The clock: the timer, and moving on when it runs out ---------- */
+function tickTimer() {
+  const G = S.G; if (!G) return;
+  const t = $("timer"); if (t) { const ms = leftMs(G); t.textContent = (G.paused != null ? "⏸ " : "") + mmss(ms); t.classList.toggle("low", ms < 30000); }
+  if (!isHost() || G.status !== "running" || G.paused != null || S.busy) return;
+  const timed = ["mingle", "council", "vote"].includes(G.phase);
+  // Everyone still online has voted: close the vote a few seconds early
+  const allIn = G.phase === "vote" && votedNow().length >= onlineIds(G).length && onlineIds(G).length > 0;
+  if (allIn && G.ends - Date.now() > 4000) { upd({ ends: Date.now() + 3000 }); return; }
+  if (timed && G.ends && Date.now() >= G.ends) go(NEXT[G.phase]);
+}
+setInterval(tickTimer, 250);
+
+/* ---------- Taps ---------- */
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act, G = S.G;
+  if (a === "new") return newGame(null);
+  if (!isHost()) return;
+  if (a === "mins") return upd({ [`mins.${b.dataset.k}`]: +b.dataset.v });
+  if (a === "kick") { if (!confirm(`Remove ${nameOf(G, b.dataset.pid)}?`)) return;
+    const uids = { ...G.uids }; delete uids[b.dataset.pid]; return upd({ seats: G.seats.filter(s => s.id !== b.dataset.pid), uids }); }
+  if (a === "deal") return upd({ status: "deal", err: null });
+  if (a === "next") return go(NEXT[G.phase]);
+  if (a === "pause") return pause();
+  if (a === "plus") return addMin();
+  if (a === "skip-reveal") { if (S.reveal) { clearInterval(S.reveal.timer); S.reveal.n = 999; } return render(); }
+  if (a === "show-win") { S.shown["over" + (G.round || 0)] = true; return render(); }
+  if (a === "again") return newGame(G);
+});
+// The back button shows when the mouse moves
+let still; document.addEventListener("mousemove", () => { document.body.classList.add("moving"); clearTimeout(still); still = setTimeout(() => document.body.classList.remove("moving"), 2500); });
+start();
+</script>
+</body>
+</html>

@@ -7,8 +7,8 @@
 <link rel="icon" type="image/png" href="img/icon-180.png">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <title>Game Night</title>
-<script>window.APP_V = 153;</script>
-<script src="update.js?v=153"></script>
+<script>window.APP_V = 154;</script>
+<script src="update.js?v=154"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
@@ -19,7 +19,7 @@
 body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 50% 0%, #2d1a22 0%, #140c10 65%); background-color: var(--bg); color: var(--fg);
   font-family: "Alegreya Sans", "Segoe UI", system-ui, sans-serif; display: grid; place-items: center;
   padding: calc(28px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom)); }
-main { width: min(860px, 100%); display: grid; gap: 26px; text-align: center; }
+main { width: min(1120px, 100%); display: grid; gap: 26px; text-align: center; }
 h1 { margin: 0; font-family: "Cinzel", Georgia, serif; font-weight: 700; font-size: clamp(2.6rem, 10vw, 4.4rem); letter-spacing: .06em; color: var(--gold);
   text-shadow: 0 3px 0 #000, 0 0 30px rgba(217, 180, 90, .25); }
 .tag { margin: -12px 0 0; color: var(--muted); font-size: 1.1rem; }
@@ -36,6 +36,10 @@ a.game .go { font-weight: 800; font-size: 1.05rem; }
 .shd .go { color: #c9a26a; }
 .shd:hover, .shd:focus-visible { border-color: #c9a26a; }
 .shd img.logo { width: 150px; height: auto; }
+.esp { background: radial-gradient(circle at 50% 30%, #0f2340 0%, #070b14 70%); border-color: #1b3a5a; }
+.esp .go { color: #2de2e6; }
+.esp:hover, .esp:focus-visible { border-color: #2de2e6; }
+.esp img.logo { width: 170px; height: auto; mix-blend-mode: lighten; }
 .icon-row { min-height: 120px; display: grid; place-items: center; }
 .upd { font: inherit; font-weight: 800; color: var(--fg); background: #2a1c24; border: 1px solid #5a3d4a; border-radius: 999px; padding: 10px 20px; cursor: pointer; }
 .upd:hover, .upd:focus-visible { border-color: var(--gold); outline: none; }
@@ -59,6 +63,11 @@ footer a { color: var(--muted); }
     <div class="icon-row"><img class="logo" src="img/shadows-logo.webp" alt="The Shadows" width="600" height="600"></div>
     <p>Murder and suspicion: over several days on everyone's phone, or live in one evening on Zoom.</p>
     <span class="go">The Shadows →</span>
+  </a>
+  <a class="game esp" href="espionage-home.html">
+    <div class="icon-row"><img class="logo" src="img/espionage-emblem.webp?v=154" alt="Espionage" width="300" height="338"></div>
+    <p>Agents and Spies, in one room. Scan each other's badges, share what you learn, and catch the Black Hat.</p>
+    <span class="go">Espionage →</span>
   </a>
 </div>
 <div><button class="upd" id="upd">🔄 Check for updates</button><p class="ver" id="ver"></p></div>

@@ -232,11 +232,11 @@ service cloud.firestore {
       allow create: if signedIn() && request.resource.data.host == request.auth.uid && request.resource.data.code == gid
         && request.resource.data.status == 'lobby' && request.resource.data.seats.size() == 0 && request.resource.data.uids.size() == 0;
       allow update: if signedIn() && resource.data.host == request.auth.uid && request.resource.data.host == resource.data.host
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['phase', 'round', 'ends', 'paused', 'mins', 'deleteReq', 'status', 'seats', 'uids', 'err'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['phase', 'round', 'ends', 'paused', 'mins', 'deleteReq', 'status', 'seats', 'uids', 'err', 'next'])
         // In the lobby the host may only take people out (not seat anyone)
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['seats', 'uids'])
           || (resource.data.status == 'lobby' && request.resource.data.seats.size() <= resource.data.seats.size() && request.resource.data.uids.size() <= resource.data.uids.size()))
-        // ...and start the game, which the server then deals
+        // ...and start the game, which the server then deals (and, when it's over, point everyone to the next game: 'next')
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) || (resource.data.status == 'lobby' && request.resource.data.status == 'deal'))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['phase', 'round']) || resource.data.status == 'running');
       allow delete: if signedIn() && resource.data.host == request.auth.uid;
