@@ -305,11 +305,11 @@ header h1 { line-height: 0; }
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 144;</script>
-<script src="update.js?v=144"></script>
-<script src="characters.js?v=144"></script>
+<script>window.APP_V = 143;</script>
+<script src="update.js?v=143"></script>
+<script src="characters.js?v=143"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=144"></script>
+<script src="net.js?v=143"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -1073,8 +1073,7 @@ function sleepHtml() {
   }
   const night = nightOf(lb);
   if (!night) return "";
-  // The Storyteller can keep everyone's eyes closed: then the night screen can't be put aside
-  if (ui.nightPeek === `${lb.gameId}:${night}` && !lb.eyes) return `<button class="night-pill" data-act="night-unpeek">🌙 Night ${night} · Back to the night screen</button>`;
+  if (ui.nightPeek === `${lb.gameId}:${night}`) return `<button class="night-pill" data-act="night-unpeek">🌙 Night ${night} · Back to the night screen</button>`;
   const ch = link.chat, nb = neighboursOf(lb, me);
   // ✈️ A Traveller sleeps on red if they're evil, blue if they're good, so they always know their side
   const tv = CHAR[S.role] && CHAR[S.role].team === "traveller";
@@ -1082,11 +1081,11 @@ function sleepHtml() {
     ${tv ? `<p class="trav-side">✈️ You're the ${esc(S.role)} · <b>${S.side === "evil" ? "Evil" : "Good"}</b></p>` : ""}
     <div class="moon" aria-hidden="true">🌙</div><h1>Night ${night}</h1>
     <p class="lead">Close your eyes. The Storyteller will wake you if you need to act.</p>
-    ${lb.eyes ? `<p class="hint">👁️ Keep your eyes closed until the Storyteller wakes you.</p>` : ch && !ch.ended ? `<button class="btn primary huge" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>`
+    ${ch && !ch.ended ? `<button class="btn primary huge" data-act="chat-show">💬 Chat with ${esc(lname(ch.with))}${ch.unread ? ` (${ch.unread} new)` : ""}</button>`
       : `<p class="hint">Quietly message a neighbour:</p>
       <div class="draw-foot">${nb.map(p => `<button class="btn huge" data-act="note-open" data-pid="${p.id}" ${(lb.chatOk || []).includes(p.id) ? "" : "disabled"}>✉️ ${esc(p.name)}${unreadOf(p.id) ? `<small>${unreadOf(p.id)} new</small>` : !p.online ? "<small>gets it when back</small>" : ""}</button>`).join("")}</div>`}
     ${link.note ? `<p class="warn">${esc(link.note)}</p>` : ""}
-    ${lb.eyes ? "" : `<button class="btn" data-act="night-peek">📖 My character and notes</button>`}
+    <button class="btn" data-act="night-peek">📖 My character and notes</button>
   </div></div>`;
 }
 function handBarHtml() {
