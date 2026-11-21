@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#060a12">
-<link rel="icon" type="image/svg+xml" href="img/espionage-icon.svg">
+<link rel="icon" type="image/png" href="img/espionage-icon-64.png">
 <link rel="apple-touch-icon" href="img/espionage-icon-180.png">
 <title>Espionage</title>
 <script>window.APP_V = 152;</script>
@@ -16,7 +16,8 @@
 <style>
 /* The phone: your role, your badge, the scanner, your reports and the vote */
 .brand { display: flex; align-items: center; gap: 10px; }
-.brand h1 { flex: 1; font-size: 1.6rem; }
+.brand h1 { flex: 1; font-size: 1.6rem; line-height: 0; }
+.emblem { display: block; margin: 0 auto; width: 150px; height: auto; mix-blend-mode: lighten; }
 .badge { background: #fff; color: #061018; border-radius: 18px; padding: 14px 14px 10px; display: grid; justify-items: center; gap: 4px; box-shadow: 0 0 30px rgba(45, 226, 230, .25); }
 .badge .qr svg { width: min(64vw, 280px); height: auto; display: block; }
 .badge .who { font-weight: 700; font-size: 1.3rem; }
@@ -27,7 +28,7 @@
 .role.agent { border-color: #24508f; }
 .role.spy { border-color: #8f2436; }
 .role .big { font-size: 1.7rem; font-weight: 700; }
-.role .ic { font-size: 2.6rem; }
+.role .ic { line-height: 0; }
 .reports { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .reports li { display: grid; grid-template-columns: 1.6em 1fr; gap: 8px; padding: 10px 12px; background: #0a1322; border: 1px solid var(--line); border-radius: 12px; font-size: 1.1rem; }
 .reports li.hq { border-color: #6a5a1a; background: #1a1708; }
@@ -145,9 +146,11 @@ function draw() {
   h += `<footer>An unofficial, fan-made party game. <a href="privacy.html">Privacy notice</a></footer>`;
   app.innerHTML = h;
 }
-const head = () => `<div class="brand"><h1>Espionage</h1>${S.pid && S.G && S.G.status === "running" ? `<button class="btn small cover-btn" data-act="cover" aria-label="Cover the screen">🙈 Cover</button>` : ""}</div>`;
+const head = () => `<div class="brand"><h1 class="grow"><img class="wordmark" src="img/espionage-wordmark.webp?v=152" alt="Espionage" width="900" height="135" style="width:min(240px,62vw)"></h1>${S.pid && S.G && S.G.status === "running" ? `<button class="btn small cover-btn" data-act="cover" aria-label="Cover the screen">🙈 Cover</button>` : ""}</div>`;
 function joinForm(withCode) {
-  return `<section class="card"><h2>Join a game</h2>
+  return `<img class="emblem" src="img/espionage-emblem.webp?v=152" alt="" width="300" height="338">
+    <p class="hint" style="text-align:center">Agents and Spies, in one room. Scan badges, share what you learn, and catch the Black Hat.</p>
+    <section class="card"><h2>Join a game</h2>
     ${withCode ? `<input id="code" maxlength="6" placeholder="Game code" aria-label="Game code" autocomplete="off" style="text-transform:uppercase;letter-spacing:.2em" value="${esc(S.gid)}">` : `<p class="hint">Game <b class="mono">${esc(S.gid)}</b></p>`}
     <input id="name" maxlength="20" placeholder="Your name" aria-label="Your name" autocomplete="off" value="${esc(LS.get("esp-name"))}">
     <button class="btn primary" data-act="join">Join</button>
@@ -169,11 +172,11 @@ function roleCard() {
   const s = S.sec; if (!s) return "";
   if (!S.showRole) return `<button class="btn block" data-act="role">🪪 Show my role</button>`;
   const R = ROLES[s.role], T = TEAM[s.team];
-  return `<section class="card role ${s.team}"><div class="row"><span class="ic">${R.ic}</span><div class="grow"><div class="big ${T.cls}">${esc(R.name)}</div><div class="${T.cls}">${T.ic} ${T.one}</div></div>
+  return `<section class="card role ${s.team}"><div class="row"><span class="ic">${roleImg(s.role, 88)}</span><div class="grow"><div class="big ${T.cls}">${esc(R.name)}</div><div class="${T.cls}">${T.ic} ${T.one}</div></div>
       <button class="btn small" data-act="role">Hide</button></div>
     <p>${esc(R.does)}</p>
-    ${s.cover ? `<p class="hint">Your cover: if anyone checks, you're the <b>${esc(ROLES[s.cover].name)}</b>.</p>` : ""}
-    ${s.allies && s.allies.length ? `<p>Your fellow Spies: ${s.allies.map(a => `<b>${esc(nameOf(S.G, a.pid))}</b> (${esc(ROLES[a.role].name)})`).join(", ")}.</p>` : s.team === "spy" ? `<p class="hint">You're the only Spy.</p>` : ""}
+    ${s.cover ? `<p class="hint">Your cover: if anyone checks, you're the ${roleChip(s.cover)}.</p>` : ""}
+    ${s.allies && s.allies.length ? `<p>Your fellow Spies: ${s.allies.map(a => `<b>${esc(nameOf(S.G, a.pid))}</b> (${roleChip(a.role)})`).join(", ")}.</p>` : s.team === "spy" ? `<p class="hint">You're the only Spy.</p>` : ""}
     <p class="hint">🎯 ${esc(T.goal)}</p></section>`;
 }
 function game() {
@@ -235,7 +238,7 @@ function over() {
       <p>${G.winner === "agents" ? "The Black Hat has been detained." : "The Spies have taken over the network."}</p>
       ${s.team ? `<p class="${s.team === won ? "good" : "bad"}">${s.team === won ? "You won." : "You lost."}</p>` : ""}</section>
     <section class="card"><h2>Who was who</h2><ul class="reports">${(G.seats || []).map(x => { const r = (G.reveal || {})[x.id], R = ROLES[r] || {};
-      return `<li style="grid-template-columns:1fr"><span><b>${esc(x.name)}</b>: ${roleChip(r)}${(G.out || {})[x.id] ? ` <span class="hint">(${G.out[x.id]})</span>` : ""}</span></li>`; }).join("")}</ul></section>`;
+      return `<li style="grid-template-columns:1fr"><span class="row" style="gap:6px"><b>${esc(x.name)}:</b> ${roleChip(r)}${(G.out || {})[x.id] ? ` <span class="hint">(${G.out[x.id]})</span>` : ""}</span></li>`; }).join("")}</ul></section>`;
 }
 
 /* ---------- The scanner ---------- */
