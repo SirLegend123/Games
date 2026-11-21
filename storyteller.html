@@ -305,12 +305,12 @@ document.getElementById("homeBtn").addEventListener("click", e => {
 <div id="qrBig" class="qr-big" hidden role="dialog" aria-modal="true" aria-label="Scan to join"></div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
-<script>window.APP_V = 150;</script>
-<script src="update.js?v=150"></script>
-<script src="characters.js?v=150"></script>
+<script>window.APP_V = 151;</script>
+<script src="update.js?v=151"></script>
+<script src="characters.js?v=151"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="net.js?v=150"></script>
+<script src="net.js?v=151"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -1951,6 +1951,17 @@ const tellPlayer = (pid, m) => { const P = town.players[pid]; if (P && P.conn.op
 const inChat = pid => town.chats.some(c => c.a === pid || c.b === pid);
 function fromPlayer(c, m) {
   if (!m || !m.t) return;
+  // A player picked the wrong seat: free it (only from the phone that holds it), so they can choose again
+  if (m.t === "leave") {
+    const pid = c.pid;
+    if (!pid || (S.linkSecrets || {})[pid] !== m.secret) return;
+    delete S.linkSecrets[pid]; if (S.noteKeys) delete S.noteKeys[pid];
+    if (town.players[pid] && town.players[pid].conn === c) delete town.players[pid];
+    c.pid = null; save();
+    town.chats.filter(x => x.a === pid || x.b === pid).forEach(x => endChat(x.id, `${nameOf(pid)} left.`));
+    sendLobby(true); try { c.send({ ...lobbyBase(), chatOk: [] }); } catch (e) {}
+    renderTown(); refreshJoin(); remoteSync(); return;
+  }
   if (m.t === "join") {
     const pid = m.pid;
     if (!S.players.some(p => p.id === pid)) return c.send({ t: "error", why: "That seat isn't in this game." });
