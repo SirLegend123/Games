@@ -305,12 +305,12 @@ document.getElementById("homeBtn").addEventListener("click", e => {
 <div id="qrBig" class="qr-big" hidden role="dialog" aria-modal="true" aria-label="Scan to join"></div>
 <div id="draw" class="draw" hidden role="dialog" aria-modal="true" aria-label="Draw your character"></div>
 
-<script>window.APP_V = 143;</script>
-<script src="update.js?v=143"></script>
-<script src="characters.js?v=143"></script>
+<script>window.APP_V = 144;</script>
+<script src="update.js?v=144"></script>
+<script src="characters.js?v=144"></script>
 <script src="vendor/peerjs.min.js"></script>
 <script src="vendor/qrcode.js"></script>
-<script src="net.js?v=143"></script>
+<script src="net.js?v=144"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -946,7 +946,10 @@ function nightHtml() {
         <p>${stNote(st)}</p>
         ${truthSeg}
         ${stControls(st)}
-        ${N.view === "remote" ? `<p class="notice">📱 On ${esc(listJoin(remoteTargets().map(nameOf)))}'s phone${remoteTargets().length > 1 ? "s" : ""}. ${st.key === "MINION" ? "Carry on when they've seen it." : "Waiting for them…"}</p>` : ""}
+        ${N.view === "remote" ? `<p class="notice">📱 On ${esc(listJoin(remoteTargets().map(nameOf)))}'s phone${remoteTargets().length > 1 ? "s" : ""}. ${st.key === "MINION" ? "Carry on when they've seen it." : c.done ? "They've had their answer." : "Waiting for them…"}</p>
+          ${st.key === "MINION" ? "" : `<div class="row"><button class="btn ${c.done || stCloses() ? "primary" : ""}" data-act="st-eyes">😴 Close their eyes →</button>
+            <span class="seg" role="group" aria-label="Who closes their eyes"><button data-act="st-closes" data-v="" aria-pressed="${!stCloses()}">They close them</button><button data-act="st-closes" data-v="1" aria-pressed="${stCloses()}">I close them</button></span></div>
+          <p class="hint">${stCloses() ? "Their phone has no Close your eyes button: you end their turn here, when they've seen enough." : "They tap Close your eyes on their phone when they've finished, or you can end their turn here."}</p>`}` : ""}
         <div class="row"><button class="btn" data-act="night-back">← Back</button><button class="btn" data-act="night-next">${N.view === "remote" && st.key === "MINION" ? "Done →" : "Skip"}</button><span class="spacer"></span>
           ${N.view === "remote" ? `<button class="btn" data-act="night-unremote">Take it back</button>`
           : `${remoteTargets().length ? `<button class="btn primary" data-act="night-phone">📱 Send to ${esc(listJoin(remoteTargets().map(nameOf)))}'s phone</button>` : ""}<button class="btn ${remoteTargets().length ? "" : "primary"}" data-act="night-show">Show ${st.key === "MINION" ? "the Minions" : name} on this phone →</button>`}</div>
@@ -1066,7 +1069,8 @@ function nightPlayerHtml(phone) {
     : `<p class="lead">${esc(nameOf(st.pid))}${st.key === "Evil Twin" ? ` and ${esc(nameOf(I.pid))}` : ""}</p><h1>${ch.icon} ${esc(seen)}</h1>`;
   const nameList = pids => `<div class="names">${pids.map(q => `<span class="nmchip">${esc(nameOf(q))}</span>`).join("")}</div>`;
   const chars = rs => `<div class="chars">${rs.map(r => `<span class="charchip t-${teamOf(r)}"><span class="ico">${(CHAR[r] || {}).icon || ""}</span>${esc(r)}</span>`).join("")}</div>`;
-  const done = `<button class="btn primary huge" data-act="night-done">Close your eyes</button>`;
+  // On their own phone, either they close their eyes when they've seen enough, or the Storyteller does it for them
+  const done = phone && stCloses() ? `<p class="lead">😴 Close your eyes when the Storyteller tells you.</p>` : `<button class="btn primary huge" data-act="night-done">Close your eyes</button>`;
   let body;
   if (N.exorcised === st.pid && a.kill) body = `<p class="lead">The Exorcist chose you. The Exorcist is</p>${nameList([N.exorcisedBy])}<p class="lead">You don't act tonight.</p>${done}`;
   else if (a.info === "told") body = `${tokenHtml(roleOf(st.pid), shownOf(st.pid)).replace("You are the", "You are now the")}${done}`;
@@ -1924,6 +1928,8 @@ const seatNeighbours = (a, b) => { const ids = S.players.map(p => p.id), n = ids
 const chatNight = () => S.step === "night" && !S.over;
 // Face to face, the Storyteller can keep private notes to neighbours all day: players talk to anyone else in person
 const nbOnly = () => !!S.nbOnly;
+// At night, on a woken player's phone: they close their own eyes (a button), or the Storyteller does
+const stCloses = () => !!S.stCloses;
 const canChat = (a, b) => (chatDay() && ((dayPhase() === 0 && !nbOnly()) || seatNeighbours(a, b))) || (chatNight() && seatNeighbours(a, b));
 const chatWhy = () => chatNight() ? "At night you can only pass notes to your neighbours." : !chatDay() ? "Private notes aren't open yet." : dayPhase() === 0 && nbOnly() ? "Today, private notes are only between neighbours: talk to anyone else in person." : `${PHASES[dayPhase()].name}: you can only pass notes to your neighbours now.`;
 const phaseTip = k => k === 0 && nbOnly() ? "Players talk to each other in person. Private notes only between neighbours." : PHASES[k].tip;
@@ -2303,6 +2309,13 @@ document.addEventListener("click", ev => {
     case "night-unremote": S.night.view = "st"; break;
     case "night-hide": S.night.view = "handback"; S.night.after = "st"; break;
     case "night-done": S.night.view = "handback"; S.night.after = "next"; break;
+    // The Storyteller closes the woken player's eyes, as if they'd tapped Close your eyes on their phone
+    case "st-eyes": { const N = S.night, st = N.steps[N.i], c = N.cur, a = st && actOf(st.key);
+      if (!st || N.view !== "remote") break;
+      if (!c.done && a && (pickN(a) || a.chars) && !confirm(`${nameOf(st.pid)} hasn't chosen yet. Close their eyes anyway (they don't act tonight)?`)) return;
+      if (c.done && c.kills) N.view = "st"; else nextStep(true);
+      break; }
+    case "st-closes": S.stCloses = !!el.dataset.v; break;
     case "night-resume": if (S.night.after === "next" && !(S.night.cur && S.night.cur.done && S.night.cur.kills)) nextStep(true); else S.night.view = "st"; break;
     case "night-dawn": { const before = JSON.stringify(S); S.chron = [...(S.chron || []), { type: "night", n: S.n, recs: S.night.recs || [], deaths: S.night.deaths.map(q => ({ pid: q, role: roleOf(q) })) }]; S.history.push({ h: `Night ${S.n}`, lines: [...S.log, S.night.deaths.length ? `${esc(names(S.night.deaths))} died.` : "Nobody died."] }); S.announce = { n: S.n, pids: [...S.night.deaths] }; S.preNight = null; startDay(); checkOver(before, {}); break; }
     case "announce-close": S.announce = null; break;
@@ -2426,7 +2439,7 @@ document.addEventListener("click", ev => {
     case "new-game": {
       const playing = S.step !== "players" || S.bag.length;
       if (playing && !confirm(S.over ? "Start a new game with the same players?" : "Start a new game? This game ends now. The players stay; the bag, characters and everything that has happened are cleared.")) return;
-      S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn !== false, townCode: S.townCode, linkSecrets: S.linkSecrets, noteKeys: S.noteKeys, phaseMins: S.phaseMins, nbOnly: S.nbOnly };
+      S = { ...fresh(), script: S.script, players: S.players, townOn: S.townOn !== false, townCode: S.townCode, linkSecrets: S.linkSecrets, noteKeys: S.noteKeys, phaseMins: S.phaseMins, nbOnly: S.nbOnly, stCloses: S.stCloses };
       Object.assign(T, { end: 0, left: 0, total: 0, rang: false });
       Object.assign(ui, { sel: null, reveal: false, story: false, timerOpen: false }); show = null;
       break;
