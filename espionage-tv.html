@@ -7,12 +7,12 @@
 <link rel="icon" type="image/png" href="img/espionage-icon-64.png">
 <link rel="apple-touch-icon" href="img/espionage-icon-180.png">
 <title>Espionage: the screen</title>
-<script>window.APP_V = 157;</script>
-<script src="update.js?v=157"></script>
+<script>window.APP_V = 158;</script>
+<script src="update.js?v=158"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="espionage.css?v=157">
+<link rel="stylesheet" href="espionage.css?v=158">
 <style>
 /* The TV: the host's screen, for everyone in the room to see. It never knows anyone's role until the game is over. */
 html { font-size: clamp(16px, 1.15vw, 28px); }
@@ -71,10 +71,10 @@ body.moving .back { opacity: 1; }
 <body>
 <a class="btn small back" href="espionage-home.html">← Back</a>
 <div class="tv" id="app"><p class="hint">Loading…</p></div>
-<script src="vendor/firebase.js?v=157"></script>
-<script src="vendor/qrcode.js?v=157"></script>
-<script src="espionage.js?v=157"></script>
-<script src="music.js?v=157"></script>
+<script src="vendor/firebase.js?v=158"></script>
+<script src="vendor/qrcode.js?v=158"></script>
+<script src="espionage.js?v=158"></script>
+<script src="music.js?v=158"></script>
 <script>
 const $ = id => document.getElementById(id);
 const Q = new URLSearchParams(location.search);
@@ -136,11 +136,11 @@ const NEXT = { roles: "mingle", mingle: "brief", brief: "council", council: "vot
 /* ---------- The screen ---------- */
 function render() {
   const app = $("app"), G = S.G;
-  if (!S.gid) return app.innerHTML = startScreen();
+  if (!S.gid) { app.innerHTML = startScreen(); return musicNow(); }
   if (!G) return app.innerHTML = `<div></div><div class="stage"><p class="${S.err ? "bad" : "hint"}">${esc(S.err || "Connecting…")}</p><a class="btn" href="espionage-tv.html">Start a new game</a></div><div></div>`;
   document.body.classList.toggle("mingle", G.phase === "mingle");
   const p = PHASES[G.phase] || PHASES.lobby, timed = ["mingle", "council", "vote"].includes(G.phase);
-  app.innerHTML = `<div class="top"><img class="wordmark" src="img/espionage-wordmark.webp?v=157" alt="Espionage" width="900" height="135">
+  app.innerHTML = `<div class="top"><img class="wordmark" src="img/espionage-wordmark.webp?v=158" alt="Espionage" width="900" height="135">
       <span class="code" title="Game code">${esc(G.code)}</span>
       <div class="ph"><div class="n">${p[0]} ${esc(p[1])}</div>${G.round ? `<div class="hint">Round ${G.round}</div>` : ""}</div></div>
     <div class="main">${stage()}${mapSvg()}</div>
@@ -150,8 +150,8 @@ function render() {
 }
 function startScreen() {
   const mine = LS.get("esp-host");
-  return `<div class="top"><img class="wordmark" src="img/espionage-wordmark.webp?v=157" alt="Espionage" width="900" height="135"></div>
-    <div class="stage"><img src="img/espionage-emblem.webp?v=157" alt="" width="300" height="338" style="width:clamp(160px,16vw,300px);height:auto;mix-blend-mode:lighten">
+  return `<div class="top"><img class="wordmark" src="img/espionage-wordmark.webp?v=158" alt="Espionage" width="900" height="135"></div>
+    <div class="stage"><img src="img/espionage-emblem.webp?v=158" alt="" width="300" height="338" style="width:clamp(160px,16vw,300px);height:auto;mix-blend-mode:lighten">
       <p class="lead">Put this screen where everyone can see it. Players join on their phones by scanning the code.</p>
       <div class="ctl"><button class="btn primary" data-act="new">📡 Start a new game</button>${mine ? `<a class="btn" href="espionage-tv.html?g=${esc(mine)}${EMU ? "&emu=1" : ""}">Back to game ${esc(mine)}</a>` : ""}</div>
       ${S.err ? `<p class="bad">${esc(S.err)}</p>` : ""}
@@ -228,11 +228,11 @@ function mapSvg() {
   const st = id => { const o = (G.out || {})[id]; return o && !(hideDet === id) ? (o === "detained" ? "det" : "off") : ""; };
   return `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="The network: ${n} players">
     ${pts.map(p => `<line class="ln ${st(p.s.id)}" x1="${cx}" y1="${cy}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}"/>`).join("")}
-    <image href="img/espionage-emblem.webp?v=157" x="${cx - 62}" y="${cy - 70}" width="124" height="140" style="mix-blend-mode:lighten"/>
+    <image href="img/espionage-emblem.webp?v=158" x="${cx - 62}" y="${cy - 70}" width="124" height="140" style="mix-blend-mode:lighten"/>
     ${pts.map((p, i) => { const c = st(p.s.id); return `<g><circle class="pulse" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="30" style="animation-delay:${(i * .37) % 2.4}s"/>
       <circle class="node ${c} ${voted.has(p.s.id) ? "voted" : ""}" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="30"/>
       <text class="st" x="${p.x.toFixed(1)}" y="${(p.y + 8).toFixed(1)}">${showRoles ? "" : c === "det" ? "🔒" : c === "off" ? "📴" : voted.has(p.s.id) ? "✔" : "📶"}</text>
-      ${showRoles && ROLES[(G.reveal || {})[p.s.id]] ? `<image href="img/esp/${G.reveal[p.s.id]}.webp?v=157" x="${(p.x - 26).toFixed(1)}" y="${(p.y - 26).toFixed(1)}" width="52" height="52"/>` : ""}
+      ${showRoles && ROLES[(G.reveal || {})[p.s.id]] ? `<image href="img/esp/${G.reveal[p.s.id]}.webp?v=158" x="${(p.x - 26).toFixed(1)}" y="${(p.y - 26).toFixed(1)}" width="52" height="52"/>` : ""}
       <text x="${p.x.toFixed(1)}" y="${(p.y + (p.y > cy ? 56 : -40)).toFixed(1)}" font-size="22">${esc(p.s.name)}</text></g>`; }).join("")}
   </svg>`;
 }
@@ -276,7 +276,7 @@ const TRACKS = {
   lobby: ["lobby", "Electric City"], mingle1: ["mingle1", "Covert Action"], mingle2: ["mingle2", "Tense Drive"], council: ["council", "Espionage"],
   vote: ["vote", "Dark City"], "agents-win": ["agents-win", "Cyber March"], "spies-win": ["spies-win", "Darkest Hour"]
 };
-const music = gameMusic({ dir: "audio/esp/", tracks: TRACKS, store: "esp", side: "right", accent: "#2de2e6", once: ["agents-win", "spies-win"], v: 157 });
+const music = gameMusic({ dir: "audio/esp/", tracks: TRACKS, store: "esp", side: "right", accent: "#2de2e6", once: ["agents-win", "spies-win"], v: 158 });
 function trackFor(G) {
   if (!G || !S.gid) return "lobby";
   if (G.status === "over" || G.phase === "over") return S.shown["over" + (G.round || 0)] || !isHost() ? (G.winner === "agents" ? "agents-win" : "spies-win") : "vote";
