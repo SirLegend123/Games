@@ -180,10 +180,15 @@ label.field, .field { display: grid; gap: 6px; }
 .night-ov .comp .cc b { font-size: 1.3rem; }
 .night-ov .comp .cc.t-townsfolk { border-color: var(--townsfolk); } .night-ov .comp .cc.t-outsider { border-color: var(--outsider); } .night-ov .comp .cc.t-minion, .night-ov .comp .cc.t-demon { border-color: #ff8a9a; }
 .notice-dead { margin: 0; font-size: 1.15rem; background: rgba(0,0,0,.3); border: 2px solid #ffd27a; border-radius: 12px; padding: 10px 14px; }
-/* 🙈 Hidden: a plain cover over the Grimoire (voting and hand-raising stay on top) */
-.hide-cover { position: fixed; inset: 0; z-index: 28; background: var(--bg); display: grid; place-items: center; text-align: center; padding: 24px; }
-.hide-cover[hidden] { display: none; }
-.hide-cover .moon { font-size: 4rem; }
+/* ☀️ The daytime cover: a plain sunny screen over your notes, for when you put your phone down at the table */
+.day-cover { position: fixed; inset: 0; z-index: 28 /* under the voting bar (30), so you can still vote */; display: grid; place-items: center; text-align: center; padding: calc(24px + env(safe-area-inset-top, 0px)) 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  background: radial-gradient(circle at 50% 22%, #fff6cf 0%, rgba(255,246,207,0) 32%), linear-gradient(180deg, #7fbdf2 0%, #bfe0fb 55%, #f4e3b0 100%); color: #1d2b3c; }
+.day-cover[hidden] { display: none; }
+.day-cover .sun { font-size: clamp(4.5rem, 20vw, 7rem); line-height: 1; }
+.day-cover h2 { font-family: var(--font-display); font-weight: 400; font-size: clamp(1.8rem, 7vw, 2.6rem); margin: 10px 0 4px; color: #1d2b3c; }
+.day-cover p { margin: 0 0 18px; color: #3b4d63; }
+.day-cover .row { justify-content: center; }
+
 .reveal-ov .reveal-circle { width: min(560px, 100%); }
 .reveal-ov .reveal-circle .hint { color: var(--muted); }
 .reveal-ov .big-ico { font-size: clamp(5rem, 22vw, 9rem); line-height: 1; }
@@ -302,23 +307,23 @@ header h1 { line-height: 0; }
   <header>
     <h1><img class="title-img" src="img/title-players-grimoire.webp" alt="Player's Grimoire" width="1077" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <nav class="steps" id="steps" aria-label="Steps"></nav>
-    <span class="head-btns"><button class="btn" data-act="hide-grim" aria-label="Hide my Grimoire">🙈<span class="lbl"> Hide</span></button><button class="btn" data-act="sheet-open" aria-label="Characters on the script">📜 Characters</button><button class="btn" id="themeBtn" data-act="theme"></button></span>
+    <span class="head-btns"><button class="btn" data-act="hide-grim" aria-label="Cover my Grimoire">🙈 Cover</button><button class="btn" data-act="sheet-open" aria-label="Characters on the script">📜 Characters</button><button class="btn" id="themeBtn" data-act="theme"></button></span>
   </header>
   <main id="app"></main>
   <div id="chatBox"></div>
   <div id="noteBox"></div>
   <div id="handBar"></div>
   <div id="sleepBox" hidden></div>
-  <div id="hideBox" class="hide-cover" hidden><div><div class="moon" aria-hidden="true">🙈</div><h2>Your Grimoire is hidden</h2><p class="hint">Nobody can see your character or notes.</p><button class="btn primary huge" data-act="show-grim">Show my Grimoire</button></div></div>
+  <div id="hideBox" class="day-cover" hidden><div><div class="sun" aria-hidden="true">☀️</div><h2>Grimoire covered</h2><p>Nobody can see your character or notes.</p><div class="row"><button class="btn primary huge" data-act="show-grim">Open my Grimoire</button></div></div></div>
   <div id="sheetBox" class="chat-cover" hidden role="dialog" aria-modal="true" aria-label="Characters on the script"></div>
   <div id="nightBox" class="night-ov" hidden role="dialog" aria-modal="true" aria-label="Night"></div>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 146;</script>
-<script src="update.js?v=146"></script>
-<script src="characters.js?v=146"></script>
+<script>window.APP_V = 147;</script>
+<script src="update.js?v=147"></script>
+<script src="characters.js?v=147"></script>
 <script src="vendor/peerjs.min.js"></script>
-<script src="net.js?v=146"></script>
+<script src="net.js?v=147"></script>
 <script>
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);

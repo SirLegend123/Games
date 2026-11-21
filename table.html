@@ -151,6 +151,14 @@ label.field, .field { display: grid; gap: 6px; }
 
 /* Table Notes */
 /* 👋 The signal: a big card to hold up when you want a word */
+/* ☀️ The daytime cover: a plain sunny screen over your notes, for when you put your phone down at the table */
+.day-cover { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; text-align: center; padding: calc(24px + env(safe-area-inset-top, 0px)) 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  background: radial-gradient(circle at 50% 22%, #fff6cf 0%, rgba(255,246,207,0) 32%), linear-gradient(180deg, #7fbdf2 0%, #bfe0fb 55%, #f4e3b0 100%); color: #1d2b3c; }
+.day-cover[hidden] { display: none; }
+.day-cover .sun { font-size: clamp(4.5rem, 20vw, 7rem); line-height: 1; }
+.day-cover h2 { font-family: var(--font-display); font-weight: 400; font-size: clamp(1.8rem, 7vw, 2.6rem); margin: 10px 0 4px; color: #1d2b3c; }
+.day-cover p { margin: 0 0 18px; color: #3b4d63; }
+.day-cover .row { justify-content: center; }
 .signal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: calc(20px + env(safe-area-inset-top, 0px)) 16px calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--sig, #d4ab55); color: #1a1408; text-align: center; animation: sigpulse 1.6s ease-in-out infinite; }
 .signal .in { display: grid; gap: 3vh; justify-items: center; width: min(900px, 100%); }
 .signal .hand { font-size: clamp(4rem, 20vmin, 9rem); line-height: 1; }
@@ -323,15 +331,17 @@ header h1 { line-height: 0; }
     <a class="home" href="botc.html" aria-label="All apps">⌂</a>
     <h1><img class="title-img" src="img/title-table-notes.webp" alt="Table Notes" width="867" height="150" style="height:var(--title-h, 44px);width:auto;max-width:100%;display:block"></h1>
     <nav class="steps" id="steps" aria-label="Steps"></nav>
-    <span class="head-btns"><button class="btn" data-act="signal" id="sigBtn">👋 Signal</button><button class="btn" id="themeBtn" data-act="theme"></button></span>
+    <span class="head-btns"><button class="btn" data-act="hide-grim">🙈 Cover</button><button class="btn" data-act="signal" id="sigBtn">👋 Signal</button><button class="btn" id="themeBtn" data-act="theme"></button></span>
   </header>
   <main id="app"></main>
+  <div id="hideBox" class="day-cover" hidden><div><div class="sun" aria-hidden="true">☀️</div><h2>Notes covered</h2><p>Nobody can see your character or notes.</p>
+    <div class="row"><button class="btn primary huge" data-act="show-grim">Open my notes</button><button class="btn huge" data-act="signal">👋 Signal</button></div></div></div>
   <div id="sigBox" hidden></div>
   <footer class="brand"><img class="wordmark" style="width:min(300px,80%);height:auto" src="img/botc-logo.webp" alt="Blood on the Clocktower" width="1200" height="262"><img class="ccc" style="width:130px;max-width:45%;height:auto" src="img/ccc-badge.webp" alt="Community Created Content" width="540" height="215"><span><i>Blood on the Clocktower</i> and its character names belong to The Pandemonium Institute. Unofficial fan-made tool; the symbols are our own. <a href="privacy.html">Privacy notice</a></span></footer>
 </div>
-<script>window.APP_V = 146;</script>
-<script src="update.js?v=146"></script>
-<script src="characters.js?v=146"></script>
+<script>window.APP_V = 147;</script>
+<script src="update.js?v=147"></script>
+<script src="characters.js?v=147"></script>
 <script>
 /* A notepad for playing Blood on the Clocktower round a real table: the players, your character,
    what you learn each night, who claims what, and who died and how. Everything stays on this device.
@@ -1252,6 +1262,8 @@ document.addEventListener("click", ev => {
   const el = ev.target.closest("[data-act]");
   if (!el) return;
   const a = el.dataset.act;
+  if (a === "hide-grim") { $("hideBox").hidden = false; return; }
+  if (a === "show-grim") { $("hideBox").hidden = true; return; }
   if (a === "signal") sig.on = true;
   else if (a === "sig-msg") sig.msg = Number(el.dataset.v);
   else if (a === "sig-colour") sig.colour = Number(el.dataset.v);
